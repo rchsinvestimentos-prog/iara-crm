@@ -1,6 +1,6 @@
 // Prisma Schema — Painel SaaS IARA
 // Conecta ao mesmo PostgreSQL do N8N (iara-system)
-// As tabelas são compartilhadas: painel lê/escreve ↔ N8N lê/escreve
+// A URL de conexão está em prisma.config.ts (Prisma 7)
 
 generator client {
   provider = "prisma-client-js"
@@ -9,7 +9,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ============================================
@@ -18,33 +17,27 @@ datasource db {
 
 model Clinica {
   id              String    @id @default(cuid())
-  nome            String    // Nome da clínica (ex: Studio Ana Silva)
+  nome            String
   email           String    @unique
-  senha           String    // Hash bcrypt
-  role            String    @default("cliente") // cliente | admin
+  senha           String
+  role            String    @default("cliente")
   
-  // Dados da doutora
   nomeDoutora     String?
   
-  // WhatsApp
-  whatsappClinica  String?  // Número da clínica (IARA atende)
-  whatsappPessoal  String?  // Número pessoal da doutora
+  whatsappClinica  String?
+  whatsappPessoal  String?
   
-  // IA
-  nomeIA          String    @default("IARA") // Nome customizado da assistente
-  diferenciais    String?   @db.Text // Diferenciais pra IARA usar na venda
+  nomeIA          String    @default("IARA")
+  diferenciais    String?   @db.Text
   
-  // Plano
-  plano           Int       @default(1) // 1=Secretária, 2=Estrategista, 3=Designer, 4=Audiovisual
+  plano           Int       @default(1)
   creditosTotal   Int       @default(100)
   creditosUsados  Int       @default(0)
   dataRenovacao   DateTime?
   
-  // Status WhatsApp
-  whatsappStatus  String    @default("desconectado") // conectado | desconectado
-  instanceName    String?   // Nome da instância no Evolution API
+  whatsappStatus  String    @default("desconectado")
+  instanceName    String?
   
-  // Relações
   procedimentos   Procedimento[]
   horarios        HorarioFuncionamento?
   conversas       Conversa[]
@@ -57,18 +50,14 @@ model Clinica {
   @@map("clinicas")
 }
 
-// ============================================
-// Procedimentos (CRUD pelo painel)
-// ============================================
-
 model Procedimento {
   id          String  @id @default(cuid())
   clinicaId   String
-  nome        String  // Ex: Micropigmentação Fio a Fio
-  valor       Float   // Preço em R$
-  desconto    Int     @default(0) // 0, 10, 20, 30 (%)
-  parcelas    String? // Ex: "3x sem juros"
-  duracao     String? // Ex: "2h", "1h30"
+  nome        String
+  valor       Float
+  desconto    Int     @default(0)
+  parcelas    String?
+  duracao     String?
   ativo       Boolean @default(true)
   
   clinica     Clinica @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
@@ -80,22 +69,16 @@ model Procedimento {
   @@map("procedimentos")
 }
 
-// ============================================
-// Horários de Funcionamento
-// ============================================
-
 model HorarioFuncionamento {
   id              String  @id @default(cuid())
   clinicaId       String  @unique
   
-  // Seg-Sex
   semanaInicio    String  @default("09:00")
   semanaFim       String  @default("18:00")
   almocoSemana    Boolean @default(false)
-  almocoInicio    String? // "12:00"
-  almocoFim       String? // "13:00"
+  almocoInicio    String?
+  almocoFim       String?
   
-  // Sábado
   sabado          Boolean @default(false)
   sabadoInicio    String?
   sabadoFim       String?
@@ -103,38 +86,31 @@ model HorarioFuncionamento {
   almocoSabInicio String?
   almocoSabFim    String?
   
-  // Domingo
   domingo         Boolean @default(false)
   domingoInicio   String?
   domingoFim      String?
   
-  // Feriado
   feriado         Boolean @default(false)
   feriadoInicio   String?
   feriadoFim      String?
   
-  // Config
-  intervalo       Int     @default(15)  // Minutos entre atendimentos
-  antecedenciaMin Int     @default(2)   // Horas mínimas
-  antecedenciaMax Int     @default(30)  // Dias máximos
+  intervalo       Int     @default(15)
+  antecedenciaMin Int     @default(2)
+  antecedenciaMax Int     @default(30)
   
   clinica         Clinica @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
   
   @@map("horarios_funcionamento")
 }
 
-// ============================================
-// Conversas WhatsApp (N8N salva, Painel lê)
-// ============================================
-
 model Conversa {
   id            String    @id @default(cuid())
   clinicaId     String
-  telefone      String    // Número da paciente
-  nome          String?   // Nome da paciente (se identificada)
+  telefone      String
+  nome          String?
   ultimaMensagem String?  @db.Text
   ultimaData    DateTime?
-  status        String    @default("ativo") // ativo | bloqueada | encerrada
+  status        String    @default("ativo")
   lida          Boolean   @default(false)
   
   clinica       Clinica   @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
@@ -151,9 +127,9 @@ model Conversa {
 model Mensagem {
   id          String   @id @default(cuid())
   conversaId  String
-  remetente   String   // "paciente" | "iara" | "doutora"
+  remetente   String
   conteudo    String   @db.Text
-  tipo        String   @default("texto") // texto | audio | imagem
+  tipo        String   @default("texto")
   
   conversa    Conversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
   
@@ -163,20 +139,16 @@ model Mensagem {
   @@map("mensagens")
 }
 
-// ============================================
-// Agendamentos (N8N cria, Painel mostra)
-// ============================================
-
 model Agendamento {
   id            String    @id @default(cuid())
   clinicaId     String
   nomePaciente  String
   telefone      String?
-  procedimento  String    // Nome do procedimento
+  procedimento  String
   data          DateTime
-  horario       String    // "14:00"
-  duracao       String?   // "2h30"
-  status        String    @default("pendente") // pendente | confirmado | cancelado | realizado
+  horario       String
+  duracao       String?
+  status        String    @default("pendente")
   
   clinica       Clinica   @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
   
@@ -188,16 +160,12 @@ model Agendamento {
   @@map("agendamentos")
 }
 
-// ============================================
-// Histórico de Créditos
-// ============================================
-
 model CreditoHistorico {
   id          String   @id @default(cuid())
   clinicaId   String
-  acao        String   // "Roteiro gerado", "Vídeo HeyGen", "Renovação mensal"
-  creditos    Int      // Positivo = adição, Negativo = consumo
-  tipo        String   // "uso" | "credito" | "renovacao"
+  acao        String
+  creditos    Int
+  tipo        String
   
   clinica     Clinica  @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
   
@@ -207,15 +175,10 @@ model CreditoHistorico {
   @@map("credito_historico")
 }
 
-// ============================================
-// Personalidade da IA (configs de atendimento)
-// ============================================
-
 model ConfigAtendimento {
   id          String  @id @default(cuid())
   clinicaId   String  @unique
   
-  // Toggles (os 13 do AtendimentoTool)
   saudacao       Boolean @default(true)
   perguntarNome  Boolean @default(true)
   oferecerDesc   Boolean @default(true)
@@ -230,8 +193,7 @@ model ConfigAtendimento {
   confirmacao    Boolean @default(true)
   bloqueioSpam   Boolean @default(true)
   
-  // Feedbacks (regras da doutora)
-  feedbacks      Json? // Array de { texto, data }
+  feedbacks      Json?
   
   @@map("config_atendimento")
 }

@@ -9,7 +9,7 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 # --- Stage 2: Builder ---
 FROM node:20-alpine AS builder
@@ -17,6 +17,10 @@ WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Prisma 7: DATABASE_URL como build arg pra generate
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL}
 
 # Gerar Prisma Client
 RUN npx prisma generate
@@ -45,12 +49,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copiar Prisma (schema + generated client)
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/app/generated ./app/generated
 
 USER nextjs
 
 EXPOSE 3000
 
-# Rodar migrações e iniciar
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node server.js"]
+CMD ["node", "server.js"]
