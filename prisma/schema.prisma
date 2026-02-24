@@ -1,14 +1,13 @@
 // Prisma Schema — Painel SaaS IARA
 // Conecta ao mesmo PostgreSQL do N8N (iara-system)
-// A URL de conexão está em prisma.config.ts (Prisma 7)
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../app/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ============================================
