@@ -1,0 +1,237 @@
+// Prisma Schema — Painel SaaS IARA
+// Conecta ao mesmo PostgreSQL do N8N (iara-system)
+// As tabelas são compartilhadas: painel lê/escreve ↔ N8N lê/escreve
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Auth — Clínicas (Doutoras)
+// ============================================
+
+model Clinica {
+  id              String    @id @default(cuid())
+  nome            String    // Nome da clínica (ex: Studio Ana Silva)
+  email           String    @unique
+  senha           String    // Hash bcrypt
+  role            String    @default("cliente") // cliente | admin
+  
+  // Dados da doutora
+  nomeDoutora     String?
+  
+  // WhatsApp
+  whatsappClinica  String?  // Número da clínica (IARA atende)
+  whatsappPessoal  String?  // Número pessoal da doutora
+  
+  // IA
+  nomeIA          String    @default("IARA") // Nome customizado da assistente
+  diferenciais    String?   @db.Text // Diferenciais pra IARA usar na venda
+  
+  // Plano
+  plano           Int       @default(1) // 1=Secretária, 2=Estrategista, 3=Designer, 4=Audiovisual
+  creditosTotal   Int       @default(100)
+  creditosUsados  Int       @default(0)
+  dataRenovacao   DateTime?
+  
+  // Status WhatsApp
+  whatsappStatus  String    @default("desconectado") // conectado | desconectado
+  instanceName    String?   // Nome da instância no Evolution API
+  
+  // Relações
+  procedimentos   Procedimento[]
+  horarios        HorarioFuncionamento?
+  conversas       Conversa[]
+  agendamentos    Agendamento[]
+  creditoHistorico CreditoHistorico[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("clinicas")
+}
+
+// ============================================
+// Procedimentos (CRUD pelo painel)
+// ============================================
+
+model Procedimento {
+  id          String  @id @default(cuid())
+  clinicaId   String
+  nome        String  // Ex: Micropigmentação Fio a Fio
+  valor       Float   // Preço em R$
+  desconto    Int     @default(0) // 0, 10, 20, 30 (%)
+  parcelas    String? // Ex: "3x sem juros"
+  duracao     String? // Ex: "2h", "1h30"
+  ativo       Boolean @default(true)
+  
+  clinica     Clinica @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([clinicaId])
+  @@map("procedimentos")
+}
+
+// ============================================
+// Horários de Funcionamento
+// ============================================
+
+model HorarioFuncionamento {
+  id              String  @id @default(cuid())
+  clinicaId       String  @unique
+  
+  // Seg-Sex
+  semanaInicio    String  @default("09:00")
+  semanaFim       String  @default("18:00")
+  almocoSemana    Boolean @default(false)
+  almocoInicio    String? // "12:00"
+  almocoFim       String? // "13:00"
+  
+  // Sábado
+  sabado          Boolean @default(false)
+  sabadoInicio    String?
+  sabadoFim       String?
+  almocoSabado    Boolean @default(false)
+  almocoSabInicio String?
+  almocoSabFim    String?
+  
+  // Domingo
+  domingo         Boolean @default(false)
+  domingoInicio   String?
+  domingoFim      String?
+  
+  // Feriado
+  feriado         Boolean @default(false)
+  feriadoInicio   String?
+  feriadoFim      String?
+  
+  // Config
+  intervalo       Int     @default(15)  // Minutos entre atendimentos
+  antecedenciaMin Int     @default(2)   // Horas mínimas
+  antecedenciaMax Int     @default(30)  // Dias máximos
+  
+  clinica         Clinica @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
+  
+  @@map("horarios_funcionamento")
+}
+
+// ============================================
+// Conversas WhatsApp (N8N salva, Painel lê)
+// ============================================
+
+model Conversa {
+  id            String    @id @default(cuid())
+  clinicaId     String
+  telefone      String    // Número da paciente
+  nome          String?   // Nome da paciente (se identificada)
+  ultimaMensagem String?  @db.Text
+  ultimaData    DateTime?
+  status        String    @default("ativo") // ativo | bloqueada | encerrada
+  lida          Boolean   @default(false)
+  
+  clinica       Clinica   @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
+  mensagens     Mensagem[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([clinicaId])
+  @@index([telefone])
+  @@map("conversas")
+}
+
+model Mensagem {
+  id          String   @id @default(cuid())
+  conversaId  String
+  remetente   String   // "paciente" | "iara" | "doutora"
+  conteudo    String   @db.Text
+  tipo        String   @default("texto") // texto | audio | imagem
+  
+  conversa    Conversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([conversaId])
+  @@map("mensagens")
+}
+
+// ============================================
+// Agendamentos (N8N cria, Painel mostra)
+// ============================================
+
+model Agendamento {
+  id            String    @id @default(cuid())
+  clinicaId     String
+  nomePaciente  String
+  telefone      String?
+  procedimento  String    // Nome do procedimento
+  data          DateTime
+  horario       String    // "14:00"
+  duracao       String?   // "2h30"
+  status        String    @default("pendente") // pendente | confirmado | cancelado | realizado
+  
+  clinica       Clinica   @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([clinicaId])
+  @@index([data])
+  @@map("agendamentos")
+}
+
+// ============================================
+// Histórico de Créditos
+// ============================================
+
+model CreditoHistorico {
+  id          String   @id @default(cuid())
+  clinicaId   String
+  acao        String   // "Roteiro gerado", "Vídeo HeyGen", "Renovação mensal"
+  creditos    Int      // Positivo = adição, Negativo = consumo
+  tipo        String   // "uso" | "credito" | "renovacao"
+  
+  clinica     Clinica  @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([clinicaId])
+  @@map("credito_historico")
+}
+
+// ============================================
+// Personalidade da IA (configs de atendimento)
+// ============================================
+
+model ConfigAtendimento {
+  id          String  @id @default(cuid())
+  clinicaId   String  @unique
+  
+  // Toggles (os 13 do AtendimentoTool)
+  saudacao       Boolean @default(true)
+  perguntarNome  Boolean @default(true)
+  oferecerDesc   Boolean @default(true)
+  enviarAudio    Boolean @default(false)
+  enviarPreco    Boolean @default(true)
+  enviarFotos    Boolean @default(true)
+  reagendarAuto  Boolean @default(true)
+  listaEspera    Boolean @default(false)
+  avaliacaoPos   Boolean @default(true)
+  lembrete24h    Boolean @default(true)
+  lembrete1h     Boolean @default(true)
+  confirmacao    Boolean @default(true)
+  bloqueioSpam   Boolean @default(true)
+  
+  // Feedbacks (regras da doutora)
+  feedbacks      Json? // Array de { texto, data }
+  
+  @@map("config_atendimento")
+}

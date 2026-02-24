@@ -1,26 +1,234 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap');
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================
+   IARA SaaS — Design System
+   Cores baseadas no site beta iarabeta.lovable.app
+   ============================================ */
+
+@theme {
+  /* Cores IARA */
+  --color-terracota: #D99773;
+  --color-terracota-light: #E8B89A;
+  --color-terracota-dark: #C07A55;
+  --color-glacial: #F0F8FA;
+  --color-petroleo: #0F4C61;
+  --color-petroleo-light: #1A6B85;
+  --color-acinzentado: #407B8E;
+  --color-verde-agua: #E6F4F1;
+  --color-verde-sucesso: #06D6A0;
+  --color-vermelho: #EF4444;
+  --color-amarelo: #F59E0B;
+
+  /* Admin dark mode */
+  --color-admin-bg: #0F0F23;
+  --color-admin-card: #1A1A3E;
+  --color-admin-accent: #8B5CF6;
+
+  /* Tipografia */
+  --font-serif: 'Playfair Display', serif;
+  --font-sans: 'Inter', sans-serif;
+
+  /* Shadows */
+  --shadow-glass: 0 8px 32px rgba(15, 76, 97, 0.08);
+  --shadow-card: 0 4px 16px rgba(15, 76, 97, 0.06);
+  --shadow-hover: 0 12px 40px rgba(15, 76, 97, 0.12);
+
+  /* Radius */
+  --radius-card: 24px;
+  --radius-button: 9999px;
+  --radius-input: 12px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Google Fonts loaded at top of file */
+
+/* Base */
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-glacial);
+  color: var(--color-petroleo);
+  -webkit-font-smoothing: antialiased;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Glass Card */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-glass);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  transform: scale(1.02);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Botão Primário (pílula terracota) */
+.btn-primary {
+  background-color: var(--color-terracota);
+  color: white;
+  border-radius: var(--radius-button);
+  padding: 12px 32px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-terracota-dark);
+  transform: scale(1.02);
+  box-shadow: 0 4px 20px rgba(217, 151, 115, 0.4);
+}
+
+/* Botão Secundário (outline) */
+.btn-secondary {
+  background: transparent;
+  color: var(--color-terracota);
+  border: 2px solid var(--color-terracota);
+  border-radius: var(--radius-button);
+  padding: 10px 28px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-terracota);
+  color: white;
+  transform: scale(1.02);
+}
+
+/* Título Serif */
+.title-serif {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  color: var(--color-petroleo);
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-button);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-success {
+  background-color: var(--color-verde-agua);
+  color: #0D9F75;
+}
+
+.badge-warning {
+  background-color: #FEF3C7;
+  color: #D97706;
+}
+
+.badge-danger {
+  background-color: #FEE2E2;
+  color: #DC2626;
+}
+
+/* Sidebar */
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  color: var(--color-acinzentado);
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.sidebar-link:hover {
+  background-color: var(--color-glacial);
+  color: var(--color-petroleo);
+}
+
+.sidebar-link.active {
+  background-color: var(--color-terracota);
+  color: white;
+}
+
+/* Input */
+.input-field {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #E2E8F0;
+  border-radius: var(--radius-input);
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  outline: none;
+  background: white;
+}
+
+.input-field:focus {
+  border-color: var(--color-terracota);
+  box-shadow: 0 0 0 3px rgba(217, 151, 115, 0.15);
+}
+
+/* Gauge de créditos */
+.credit-gauge {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+/* Scrollbar custom */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-terracota-light);
+  border-radius: 3px;
+}
+
+/* Animação fade-in */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* Animação pulse suave */
+@keyframes pulse-soft {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
 }
