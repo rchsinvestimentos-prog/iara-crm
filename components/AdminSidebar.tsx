@@ -14,6 +14,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Settings,
+    Star,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -24,6 +25,7 @@ const menuItems = [
     { href: '/admin/logs', label: 'Logs & Erros', icon: AlertTriangle },
     { href: '/admin/saude', label: 'Saúde do Sistema', icon: Activity },
     { href: '/admin/financeiro', label: 'Financeiro', icon: CreditCard },
+    { href: '/admin/feedback', label: 'Feedback', icon: Star },
     { href: '/admin/config', label: 'Config Global', icon: Settings },
 ]
 
@@ -62,8 +64,8 @@ export default function AdminSidebar() {
                             key={item.href}
                             href={item.href}
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active
-                                    ? 'bg-violet-500/20 text-violet-300'
-                                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                                ? 'bg-violet-500/20 text-violet-300'
+                                : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                                 }`}
                             title={collapsed ? item.label : undefined}
                         >
