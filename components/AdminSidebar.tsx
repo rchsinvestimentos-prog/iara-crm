@@ -15,12 +15,14 @@ import {
     ChevronRight,
     Settings,
     Star,
+    Stethoscope,
 } from 'lucide-react'
 import { useState } from 'react'
 
 const menuItems = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/clinicas', label: 'Clínicas', icon: Building2 },
+    { href: '/admin/diagnostico', label: 'Diagnóstico', icon: Stethoscope },
     { href: '/admin/conversas', label: 'Conversas', icon: MessageSquare },
     { href: '/admin/logs', label: 'Logs & Erros', icon: AlertTriangle },
     { href: '/admin/saude', label: 'Saúde do Sistema', icon: Activity },
