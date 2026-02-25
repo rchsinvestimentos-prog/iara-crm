@@ -1,6 +1,14 @@
 'use client'
 
-import { Check, Sparkles, Zap, Crown, Star } from 'lucide-react'
+import { Check, Sparkles, Zap, Crown, Star, ExternalLink } from 'lucide-react'
+
+// Links reais dos produtos na Hotmart — substituir quando tiver o CNPJ aprovado
+const HOTMART_LINKS: Record<string, string> = {
+    'Secretária': '#', // ex: https://pay.hotmart.com/XXXXXXXXX
+    'Estrategista': '#',
+    'Designer': '#',
+    'Audiovisual': '#',
+}
 
 const planos = [
     {
@@ -59,8 +67,8 @@ const planos = [
         creditos: -1,
         features: [
             'Tudo do Designer +',
-            'Vídeo com avatar',
-            'Voz clonada IA',
+            'Vídeo com avatar IA',
+            'Voz clonada',
             'Editor de vídeo',
             'Mensagens ilimitadas',
             'Gerente de sucesso',
@@ -97,7 +105,7 @@ export default function PlanoPage() {
                             <span>500 total</span>
                         </div>
                         <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-subtle)' }}>
-                            <div className="h-full rounded-full bg-gradient-to-r from-[#D99773] to-[#C07A55] transition-all" style={{ width: '13.6%' }} />
+                            <div className="h-full rounded-full bg-gradient-to-r from-[#D99773] to-[#C07A55]" style={{ width: '13.6%' }} />
                         </div>
                     </div>
                 </div>
@@ -107,6 +115,8 @@ export default function PlanoPage() {
             <div className="grid grid-cols-4 gap-4">
                 {planos.map((plano, i) => {
                     const isAtual = (i + 1) === planoAtual
+                    const hotmartLink = HOTMART_LINKS[plano.nome]
+
                     return (
                         <div
                             key={plano.nome}
@@ -117,8 +127,11 @@ export default function PlanoPage() {
                                 border: plano.popular ? `1px solid ${plano.cor}40` : '1px solid var(--border-default)',
                             }}
                         >
-                            {/* Glow line */}
-                            <div className="absolute top-0 left-0 right-0 h-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `linear-gradient(90deg, transparent, ${plano.cor}, transparent)` }} />
+                            {/* Glow line hover */}
+                            <div
+                                className="absolute top-0 left-0 right-0 h-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                                style={{ background: `linear-gradient(90deg, transparent, ${plano.cor}, transparent)` }}
+                            />
 
                             {/* Popular badge */}
                             {plano.popular && (
@@ -156,29 +169,38 @@ export default function PlanoPage() {
 
                             {/* CTA */}
                             {isAtual ? (
-                                <button className="w-full py-2.5 rounded-xl text-sm font-medium border transition-all" style={{ borderColor: 'var(--border-default)', color: 'var(--text-muted)' }} disabled>
+                                <button
+                                    className="w-full py-2.5 rounded-xl text-sm font-medium border transition-all"
+                                    style={{ borderColor: 'var(--border-default)', color: 'var(--text-muted)' }}
+                                    disabled
+                                >
                                     Plano atual
                                 </button>
                             ) : (
-                                <button
-                                    className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
+                                <a
+                                    href={hotmartLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5 flex items-center justify-center gap-1.5"
                                     style={{
                                         background: `linear-gradient(135deg, ${plano.cor}, ${plano.cor}CC)`,
                                         boxShadow: `0 4px 20px ${plano.cor}30`,
                                     }}
                                 >
-                                    {i + 1 > planoAtual ? 'Fazer upgrade' : 'Mudar plano'}
-                                </button>
+                                    Comprar na Hotmart
+                                    <ExternalLink size={12} />
+                                </a>
                             )}
                         </div>
                     )
                 })}
             </div>
 
-            {/* FAQ rápido */}
-            <div className="text-center animate-fade-in" style={{ animationDelay: '0.4s' }}>
+            {/* Info Hotmart */}
+            <div className="rounded-xl p-4 text-center animate-fade-in" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    Todos os planos incluem 7 dias de teste grátis • Cancele quando quiser •{' '}
+                    🔒 Pagamento processado pela <strong style={{ color: 'var(--text-secondary)' }}>Hotmart</strong> com segurança •
+                    Pix, boleto e cartão de crédito • 7 dias de garantia •{' '}
                     <a href="#" className="text-[#D99773] hover:text-[#E8B89A] transition-colors">Fale conosco</a>
                 </p>
             </div>

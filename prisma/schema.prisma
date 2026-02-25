@@ -34,6 +34,10 @@ model Clinica {
   creditosUsados  Int       @default(0)
   dataRenovacao   DateTime?
   
+  // Hotmart
+  hotmartOrderId  String?
+  status          String    @default("ativo") // ativo | cancelado | suspenso
+  
   whatsappStatus  String    @default("desconectado")
   instanceName    String?
   
