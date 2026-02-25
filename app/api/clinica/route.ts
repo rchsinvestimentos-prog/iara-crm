@@ -1,13 +1,32 @@
 import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { z } from 'zod'
 
-// GET /api/clinica — retorna dados da clínica logada
+// Validation schema
+const UpdateClinicaSchema = z.object({
+    nome: z.string().min(1).max(100).optional(),
+    nomeIA: z.string().min(1).max(50).optional(),
+    whatsappClinica: z.string().max(20).optional().nullable(),
+    whatsappPessoal: z.string().max(20).optional().nullable(),
+    diferenciais: z.string().max(2000).optional().nullable(),
+})
+
+// GET /api/clinica
 export async function GET() {
     try {
-        // TODO: pegar clinicaId da sessão NextAuth
-        const clinica = await prisma.clinica.findFirst({
+        const session = await getServerSession(authOptions)
+        const clinicaId = await getClinicaId(session)
+
+        if (!clinicaId) {
+            return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+        }
+
+        const clinica = await prisma.clinica.findUnique({
+            where: { id: clinicaId },
             include: {
-                procedimentos: true,
+                procedimentos: { where: { ativo: true } },
                 horarios: true,
             },
         })
@@ -16,50 +35,38 @@ export async function GET() {
             return NextResponse.json({ error: 'Clínica não encontrada' }, { status: 404 })
         }
 
-        return NextResponse.json(clinica)
+        // Não retornar a senha
+        const { senha, ...safe } = clinica
+        return NextResponse.json(safe)
     } catch {
-        // Fallback com dados mock se banco indisponível
-        return NextResponse.json({
-            id: 'mock-1',
-            nome: 'Studio Ana Silva',
-            email: 'demo@iara.click',
-            nomeIA: 'IARA',
-            plano: 1,
-            creditosTotal: 100,
-            creditosUsados: 32,
-            whatsappStatus: 'conectado',
-            procedimentos: [
-                { id: '1', nome: 'Micropigmentação Fio a Fio', valor: 497, desconto: 10, parcelas: '3x sem juros', duracao: '2h' },
-                { id: '2', nome: 'Sombreado', valor: 397, desconto: 20, parcelas: '3x sem juros', duracao: '1h30' },
-            ],
-        })
+        return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
     }
 }
 
-// PUT /api/clinica — atualiza dados da clínica
+// PUT /api/clinica
 export async function PUT(request: Request) {
     try {
-        const body = await request.json()
-        // TODO: pegar clinicaId da sessão NextAuth
-        const clinica = await prisma.clinica.findFirst()
+        const session = await getServerSession(authOptions)
+        const clinicaId = await getClinicaId(session)
 
-        if (!clinica) {
-            return NextResponse.json({ error: 'Clínica não encontrada' }, { status: 404 })
+        if (!clinicaId) {
+            return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
         }
 
+        const body = await request.json()
+        const validated = UpdateClinicaSchema.parse(body)
+
         const updated = await prisma.clinica.update({
-            where: { id: clinica.id },
-            data: {
-                nome: body.nome,
-                nomeIA: body.nomeIA,
-                whatsappClinica: body.whatsappClinica,
-                whatsappPessoal: body.whatsappPessoal,
-                diferenciais: body.diferenciais,
-            },
+            where: { id: clinicaId },
+            data: validated,
         })
 
-        return NextResponse.json(updated)
-    } catch {
+        const { senha, ...safe } = updated
+        return NextResponse.json(safe)
+    } catch (err) {
+        if (err instanceof z.ZodError) {
+            return NextResponse.json({ error: 'Dados inválidos', details: err.errors }, { status: 400 })
+        }
         return NextResponse.json({ error: 'Erro ao salvar' }, { status: 500 })
     }
 }

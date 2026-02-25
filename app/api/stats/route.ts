@@ -1,25 +1,38 @@
 import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-// GET /api/stats — KPIs do dashboard
+// GET /api/stats
 export async function GET() {
     try {
-        // TODO: pegar clinicaId da sessão
-        const clinica = await prisma.clinica.findFirst()
-        if (!clinica) throw new Error('Sem clínica')
+        const session = await getServerSession(authOptions)
+        const clinicaId = await getClinicaId(session)
+
+        if (!clinicaId) {
+            return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+        }
 
         const hoje = new Date()
         hoje.setHours(0, 0, 0, 0)
 
+        const clinica = await prisma.clinica.findUnique({
+            where: { id: clinicaId },
+        })
+
+        if (!clinica) {
+            return NextResponse.json({ error: 'Clínica não encontrada' }, { status: 404 })
+        }
+
         const [conversasHoje, agendamentosHoje, totalConversas] = await Promise.all([
             prisma.conversa.count({
-                where: { clinicaId: clinica.id, updatedAt: { gte: hoje } },
+                where: { clinicaId, updatedAt: { gte: hoje } },
             }),
             prisma.agendamento.count({
-                where: { clinicaId: clinica.id, data: { gte: hoje } },
+                where: { clinicaId, data: { gte: hoje } },
             }),
             prisma.conversa.count({
-                where: { clinicaId: clinica.id },
+                where: { clinicaId },
             }),
         ])
 
@@ -31,13 +44,6 @@ export async function GET() {
             plano: clinica.plano,
         })
     } catch {
-        // Mock data quando banco indisponível
-        return NextResponse.json({
-            conversasHoje: 12,
-            agendamentosHoje: 3,
-            totalConversas: 847,
-            creditosRestantes: 68,
-            plano: 1,
-        })
+        return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
     }
 }
