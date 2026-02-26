@@ -110,11 +110,11 @@ export default function Dashboard() {
 
             {/* Header */}
             <div className="animate-fade-in">
-                <div className="flex items-center gap-3 mb-1">
-                    <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1">
+                    <h1 className="text-lg sm:text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
                         {loading ? 'Carregando...' : `${saudacao()}, ${stats?.nomeClinica || 'Dra.'}`}
                     </h1>
-                    <span className="text-2xl">👋</span>
+                    <span className="text-xl sm:text-2xl">👋</span>
                     <div className="ml-auto">
                         <PausarIARA />
                     </div>
@@ -128,7 +128,7 @@ export default function Dashboard() {
             <OnboardingChecklist />
 
             {/* KPIs */}
-            <div className="grid grid-cols-4 gap-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
                 {kpis.map((k, i) => (
                     <div
                         key={i}
@@ -164,9 +164,9 @@ export default function Dashboard() {
             </div>
 
             {/* Grid principal */}
-            <div className="grid grid-cols-5 gap-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
                 {/* Agenda do dia */}
-                <div className="col-span-3 backdrop-blur-xl rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                <div className="col-span-1 lg:col-span-3 backdrop-blur-xl rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                     <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                         <h3 className="text-[13px] font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                             <Calendar size={15} className="text-[#D99773]" strokeWidth={1.8} />
@@ -211,7 +211,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Conversas recentes */}
-                <div className="col-span-2 backdrop-blur-xl rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                <div className="col-span-1 lg:col-span-2 backdrop-blur-xl rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                     <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                         <h3 className="text-[13px] font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                             <MessageSquare size={15} className="text-[#D99773]" strokeWidth={1.8} />
@@ -261,7 +261,7 @@ export default function Dashboard() {
                 <div className="absolute right-0 top-0 w-48 h-48 bg-[#D99773]/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-2xl" />
                 <div className="absolute left-1/4 bottom-0 w-32 h-32 bg-[#8B5CF6]/10 rounded-full translate-y-1/2 blur-2xl" />
 
-                <div className="relative p-6 flex items-center justify-between">
+                <div className="relative p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-2.5 mb-2">
                             <div className="w-8 h-8 rounded-lg bg-[#D99773]/20 flex items-center justify-center">
@@ -277,7 +277,7 @@ export default function Dashboard() {
                         </div>
                         <p className="text-[12px] text-white/50 ml-[42px]">Respondendo automaticamente • Plano {stats?.plano ?? 1}</p>
                     </div>
-                    <div className="flex items-center gap-8">
+                    <div className="flex items-center gap-4 sm:gap-8 ml-0 sm:ml-0">
                         <div className="text-center">
                             <p className="text-xl font-bold text-white">24/7</p>
                             <p className="text-[10px] text-white/40 mt-0.5">Online</p>
