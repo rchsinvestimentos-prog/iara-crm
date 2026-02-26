@@ -15,6 +15,7 @@ const HOTMART_LINKS: Record<string, string> = {
 const planos = [
     {
         nome: 'Secretária',
+        hotmart: 'Essencial',
         preco: 97,
         nivel: 1,
         icon: Sparkles,
@@ -23,6 +24,7 @@ const planos = [
         creditos: 500,
         features: [
             'Atendimento WhatsApp 24/7',
+            '1 WhatsApp conectado',
             'Agendamento automático',
             'Follow-up de pacientes',
             'Até 500 mensagens/mês',
@@ -31,6 +33,7 @@ const planos = [
     },
     {
         nome: 'Estrategista',
+        hotmart: 'Premium',
         preco: 197,
         nivel: 2,
         icon: Zap,
@@ -39,15 +42,18 @@ const planos = [
         creditos: 2000,
         features: [
             'Tudo do Secretária +',
+            '📷 Instagram conectado',
             'IA Sonnet (respostas premium)',
             'Roteiro de Reels automático',
             'Análise de marketing',
             'Até 2.000 mensagens/mês',
             'Voz OpenAI TTS',
+            'Multi-idioma (4 idiomas)',
         ],
     },
     {
         nome: 'Designer',
+        hotmart: 'Master',
         preco: 297,
         nivel: 3,
         icon: Star,
@@ -56,6 +62,7 @@ const planos = [
         creditos: 5000,
         features: [
             'Tudo do Estrategista +',
+            '📱 Até 2 WhatsApps',
             'Avatar IA personalizado',
             'Criação de posts',
             'Identidade de marca',
@@ -65,6 +72,7 @@ const planos = [
     },
     {
         nome: 'Audiovisual',
+        hotmart: 'Black',
         preco: 497,
         nivel: 4,
         icon: Crown,
@@ -73,6 +81,7 @@ const planos = [
         creditos: -1,
         features: [
             'Tudo do Designer +',
+            '📱 Até 3 WhatsApps',
             'Vídeo com avatar IA',
             'Voz clonada exclusiva',
             'Editor de vídeo',
