@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { Pool } from 'pg'
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+import { prisma } from '@/lib/prisma'
 
 // GET /api/sugestoes — Listar sugestões do cliente logado
 export async function GET(req: Request) {
@@ -13,15 +11,15 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: 'user_id obrigatório' }, { status: 400 })
         }
 
-        const result = await pool.query(
+        const result = await prisma.$queryRawUnsafe(
             `SELECT id, tipo, mensagem, arquivo_url, arquivo_nome, status, resposta_admin, respondido_em, criado_em
              FROM sugestoes_clientes 
              WHERE user_id = $1 
              ORDER BY criado_em DESC`,
-            [userId]
-        )
+            parseInt(userId)
+        ) as any[]
 
-        return NextResponse.json({ sugestoes: result.rows })
+        return NextResponse.json({ sugestoes: result })
     } catch (err) {
         console.error('Erro ao buscar sugestões:', err)
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
@@ -38,13 +36,13 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Envie uma mensagem ou arquivo' }, { status: 400 })
         }
 
-        const result = await pool.query(
+        const result = await prisma.$queryRawUnsafe(
             `INSERT INTO sugestoes_clientes (user_id, nome_clinica, tipo, mensagem, arquivo_url, arquivo_nome)
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [user_id, nome_clinica || '', tipo || 'texto', mensagem || '', arquivo_url || null, arquivo_nome || null]
-        )
+            parseInt(user_id), nome_clinica || '', tipo || 'texto', mensagem || '', arquivo_url || null, arquivo_nome || null
+        ) as any[]
 
-        return NextResponse.json({ sugestao: result.rows[0] })
+        return NextResponse.json({ sugestao: result[0] })
     } catch (err) {
         console.error('Erro ao criar sugestão:', err)
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })

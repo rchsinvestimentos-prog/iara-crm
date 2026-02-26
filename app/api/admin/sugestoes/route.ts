@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { Pool } from 'pg'
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+import { prisma } from '@/lib/prisma'
 
 // GET /api/admin/sugestoes — Listar TODAS as sugestões (admin)
 export async function GET(req: Request) {
@@ -9,21 +7,27 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url)
         const status = searchParams.get('status')
 
-        let query = `SELECT s.*, u.email 
-                      FROM sugestoes_clientes s 
-                      LEFT JOIN users u ON s.user_id = u.id`
-        const params: string[] = []
+        let result: any[]
 
         if (status && status !== 'todos') {
-            query += ' WHERE s.status = $1'
-            params.push(status)
+            result = await prisma.$queryRawUnsafe(
+                `SELECT s.*, u.email 
+                 FROM sugestoes_clientes s 
+                 LEFT JOIN users u ON s.user_id = u.id
+                 WHERE s.status = $1
+                 ORDER BY s.criado_em DESC`,
+                status
+            ) as any[]
+        } else {
+            result = await prisma.$queryRawUnsafe(
+                `SELECT s.*, u.email 
+                 FROM sugestoes_clientes s 
+                 LEFT JOIN users u ON s.user_id = u.id
+                 ORDER BY s.criado_em DESC`
+            ) as any[]
         }
 
-        query += ' ORDER BY s.criado_em DESC'
-
-        const result = await pool.query(query, params)
-
-        return NextResponse.json({ sugestoes: result.rows })
+        return NextResponse.json({ sugestoes: result })
     } catch (err) {
         console.error('Erro ao buscar sugestões admin:', err)
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
@@ -40,28 +44,27 @@ export async function PUT(req: Request) {
             return NextResponse.json({ error: 'ID obrigatório' }, { status: 400 })
         }
 
-        const updates: string[] = []
-        const values: (string | number)[] = []
-        let idx = 1
-
-        if (status) {
-            updates.push(`status = $${idx++}`)
-            values.push(status)
+        if (resposta_admin && status) {
+            const result = await prisma.$queryRawUnsafe(
+                `UPDATE sugestoes_clientes SET status = $1, resposta_admin = $2, respondido_em = NOW() WHERE id = $3 RETURNING *`,
+                status, resposta_admin, parseInt(id)
+            ) as any[]
+            return NextResponse.json({ sugestao: result[0] })
+        } else if (status) {
+            const result = await prisma.$queryRawUnsafe(
+                `UPDATE sugestoes_clientes SET status = $1 WHERE id = $2 RETURNING *`,
+                status, parseInt(id)
+            ) as any[]
+            return NextResponse.json({ sugestao: result[0] })
+        } else if (resposta_admin) {
+            const result = await prisma.$queryRawUnsafe(
+                `UPDATE sugestoes_clientes SET resposta_admin = $1, respondido_em = NOW() WHERE id = $2 RETURNING *`,
+                resposta_admin, parseInt(id)
+            ) as any[]
+            return NextResponse.json({ sugestao: result[0] })
         }
-        if (resposta_admin) {
-            updates.push(`resposta_admin = $${idx++}`)
-            values.push(resposta_admin)
-            updates.push(`respondido_em = NOW()`)
-        }
 
-        values.push(id)
-
-        const result = await pool.query(
-            `UPDATE sugestoes_clientes SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
-            values
-        )
-
-        return NextResponse.json({ sugestao: result.rows[0] })
+        return NextResponse.json({ error: 'Nenhuma alteração enviada' }, { status: 400 })
     } catch (err) {
         console.error('Erro ao atualizar sugestão:', err)
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
