@@ -24,6 +24,7 @@ import {
   Sparkles,
   Sun,
   Moon,
+  Smartphone,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useTheme } from './ThemeProvider'
@@ -213,6 +214,10 @@ export default function Sidebar() {
           <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
         </div>
 
+        <Link href="/instancias" className={linkClass('/instancias')}>
+          <Smartphone size={17} strokeWidth={1.8} />
+          <span>Instâncias & Canais</span>
+        </Link>
         <Link href="/configuracoes" className={linkClass('/configuracoes')}>
           <Settings size={17} strokeWidth={1.8} />
           <span>Configurações</span>
