@@ -40,6 +40,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV UPLOADS_DIR=/app/uploads
 
 # Criar user não-root
 RUN addgroup --system --gid 1001 nodejs
@@ -54,6 +55,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+
+# Criar diretório de uploads com permissões corretas
+RUN mkdir -p /app/uploads && chown -R nextjs:nodejs /app/uploads
+VOLUME /app/uploads
 
 USER nextjs
 

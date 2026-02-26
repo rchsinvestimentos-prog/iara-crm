@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useTheme } from './ThemeProvider'
+import SeletorIdioma from './SeletorIdioma'
 
 type Skill = { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; nivel: number }
 
@@ -188,10 +189,10 @@ export default function Sidebar() {
                           key={skill.href}
                           href={skill.href}
                           className={`flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[12.5px] transition-all duration-300 ${active
-                              ? 'bg-[#D99773]/10 text-[#D99773] font-semibold'
-                              : habilitada
-                                ? isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]' : 'text-gray-500 hover:text-[#0F4C61] hover:bg-gray-100/50'
-                                : isDark ? 'text-gray-700 hover:bg-white/[0.02]' : 'text-gray-300 hover:bg-gray-50'
+                            ? 'bg-[#D99773]/10 text-[#D99773] font-semibold'
+                            : habilitada
+                              ? isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]' : 'text-gray-500 hover:text-[#0F4C61] hover:bg-gray-100/50'
+                              : isDark ? 'text-gray-700 hover:bg-white/[0.02]' : 'text-gray-300 hover:bg-gray-50'
                             }`}
                         >
                           {habilitada ? <skill.icon size={14} /> : <Lock size={12} strokeWidth={1.5} />}
@@ -224,6 +225,7 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="px-3 pb-4 pt-2" style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.06)'}` }}>
+        <SeletorIdioma />
         <div className="flex items-center gap-3 px-3 py-3 rounded-xl mb-2" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15,76,97,0.03)' }}>
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D99773] to-[#0F4C61] flex items-center justify-center shadow-lg shadow-[#D99773]/10">
             <span className="text-[11px] font-bold text-white">AS</span>

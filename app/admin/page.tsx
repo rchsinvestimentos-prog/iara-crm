@@ -1,171 +1,196 @@
 'use client'
 
-import { Building2, MessageSquare, AlertTriangle, TrendingUp, Users, CreditCard, Activity, Clock } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Users, MessageSquare, CreditCard, Activity, AlertTriangle, TrendingUp, Loader2, Shield, Search } from 'lucide-react'
 
-// Mock data
-const stats = [
-    { label: 'Clínicas Ativas', value: '47', change: '+3', icon: Building2, color: 'violet' },
-    { label: 'Mensagens Hoje', value: '2.841', change: '+18%', icon: MessageSquare, color: 'blue' },
-    { label: 'Erros 24h', value: '3', change: '-2', icon: AlertTriangle, color: 'red' },
-    { label: 'MRR', value: 'R$ 14.7k', change: '+12%', icon: CreditCard, color: 'green' },
-    { label: 'Uptime N8N', value: '99.8%', change: '', icon: Activity, color: 'emerald' },
-    { label: 'Tempo Médio IA', value: '0.9s', change: '-0.2s', icon: Clock, color: 'amber' },
-]
+interface ClinicaAdmin {
+    id: string
+    nome_clinica: string
+    email: string
+    nomeIA: string
+    plano: number
+    status: string
+    whatsapp_pessoal: string
+    whatsapp_status: string
+    creditos_restantes: number
+    creditos_total: number
+    pct_credito: number
+    total_conversas: number
+    total_agendamentos: number
+    total_procedimentos: number
+    criado_em: string
+}
 
-const clinicasRecentes = [
-    { nome: 'Dra. Ana Silva', plano: 'Secretária', msgs: 134, status: 'online', cidade: 'São Paulo' },
-    { nome: 'Dra. Beatriz Costa', plano: 'Estrategista', msgs: 89, status: 'online', cidade: 'Rio de Janeiro' },
-    { nome: 'Dra. Carla Mendes', plano: 'Designer', msgs: 67, status: 'offline', cidade: 'Belo Horizonte' },
-    { nome: 'Dra. Diana Rocha', plano: 'Audiovisual', msgs: 201, status: 'online', cidade: 'Curitiba' },
-    { nome: 'Dra. Elena Santos', plano: 'Secretária', msgs: 45, status: 'online', cidade: 'Brasília' },
-]
-
-const errosRecentes = [
-    { tipo: 'TIMEOUT', flow: 'F4 — Transcrição', clinica: 'Dra. Ana', hora: '14:23', severity: 'warning' },
-    { tipo: 'API_ERROR', flow: 'F8 — Mensageiro', clinica: 'Dra. Beatriz', hora: '13:45', severity: 'error' },
-    { tipo: 'RATE_LIMIT', flow: 'F5 — IA Texto', clinica: 'Dra. Diana', hora: '12:10', severity: 'warning' },
-]
-
-const planoDistribuicao = [
-    { nome: 'Secretária', qtd: 28, pct: 60, cor: '#06D6A0' },
-    { nome: 'Estrategista', qtd: 12, pct: 25, cor: '#F59E0B' },
-    { nome: 'Designer', qtd: 5, pct: 11, cor: '#D99773' },
-    { nome: 'Audiovisual', qtd: 2, pct: 4, cor: '#8B5CF6' },
-]
+const planoNomes: Record<number, string> = { 1: 'Secretária', 2: 'Estrategista', 3: 'Designer', 4: 'Audiovisual' }
+const planoCores: Record<number, string> = { 1: '#06D6A0', 2: '#F59E0B', 3: '#D99773', 4: '#0F4C61' }
 
 export default function AdminDashboard() {
+    const [clinicas, setClinicas] = useState<ClinicaAdmin[]>([])
+    const [loading, setLoading] = useState(true)
+    const [busca, setBusca] = useState('')
+    const [error, setError] = useState('')
+
+    useEffect(() => {
+        fetch('/api/admin/clinicas')
+            .then(r => { if (!r.ok) throw new Error(r.status === 403 ? 'Acesso negado' : 'Erro'); return r.json() })
+            .then(data => setClinicas(data.clinicas || []))
+            .catch(e => setError(e.message))
+            .finally(() => setLoading(false))
+    }, [])
+
+    const filtradas = clinicas.filter(c =>
+        c.nome_clinica?.toLowerCase().includes(busca.toLowerCase()) ||
+        c.email?.toLowerCase().includes(busca.toLowerCase())
+    )
+
+    const totalConversas = clinicas.reduce((a, c) => a + (c.total_conversas || 0), 0)
+    const criticas = clinicas.filter(c => c.pct_credito <= 20).length
+    const planoCount: Record<number, number> = {}
+    clinicas.forEach(c => { planoCount[c.plano] = (planoCount[c.plano] || 0) + 1 })
+
+    if (error) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center">
+                    <Shield size={48} className="mx-auto mb-4 opacity-20" style={{ color: 'var(--text-muted)' }} />
+                    <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{error}</p>
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Apenas administradores podem acessar esta página.</p>
+                </div>
+            </div>
+        )
+    }
+
     return (
-        <div className="space-y-6">
-            {/* Header */}
+        <div className="max-w-7xl space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-white">Dashboard Admin</h1>
-                <p className="text-gray-500 text-sm mt-1">Visão geral do sistema IARA • {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>🛡️ Dashboard Admin</h1>
+                <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                    Visão geral do sistema IARA • {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </p>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                {stats.map((s, i) => (
-                    <div key={i} className="bg-white/5 border border-white/5 rounded-2xl p-4 hover:bg-white/8 transition-colors">
-                        <div className="flex items-center justify-between mb-3">
-                            <s.icon size={18} className="text-violet-400" />
-                            {s.change && (
-                                <span className={`text-xs font-medium ${s.change.startsWith('+') ? 'text-green-400' : s.change.startsWith('-') ? (s.label === 'Erros 24h' || s.label === 'Tempo Médio IA' ? 'text-green-400' : 'text-red-400') : 'text-gray-400'
-                                    }`}>
-                                    {s.change}
-                                </span>
-                            )}
+            {/* KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                    { label: 'Total Clínicas', valor: clinicas.length, icon: Users, color: '#D99773' },
+                    { label: 'Conversas Total', valor: totalConversas, icon: MessageSquare, color: '#8B5CF6' },
+                    { label: 'Crédito Crítico', valor: criticas, icon: AlertTriangle, color: criticas > 0 ? '#EF4444' : '#06D6A0' },
+                    { label: 'Ativas', valor: clinicas.filter(c => c.status === 'ativo').length, icon: Activity, color: '#06D6A0' },
+                ].map((k, i) => (
+                    <div key={i} className="backdrop-blur-xl rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${k.color}15` }}>
+                                <k.icon size={17} style={{ color: k.color }} />
+                            </div>
                         </div>
-                        <p className="text-xl font-bold text-white">{s.value}</p>
-                        <p className="text-xs text-gray-500 mt-1">{s.label}</p>
+                        <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{loading ? '—' : k.valor}</p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{k.label}</p>
                     </div>
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Clínicas mais ativas */}
-                <div className="lg:col-span-2 bg-white/5 border border-white/5 rounded-2xl p-5">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-white flex items-center gap-2">
-                            <Building2 size={16} className="text-violet-400" />
-                            Clínicas Mais Ativas Hoje
-                        </h3>
-                        <a href="/admin/clinicas" className="text-xs text-violet-400 hover:text-violet-300">
-                            Ver todas →
-                        </a>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                {/* Tabela de clínicas */}
+                <div className="lg:col-span-2 backdrop-blur-xl rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                    <div className="p-5 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                        <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Clínicas ({filtradas.length})</h2>
+                        <div className="relative">
+                            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                            <input
+                                value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..."
+                                className="text-xs pl-8 pr-3 py-1.5 rounded-lg focus:outline-none" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', width: 180 }}
+                            />
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        {clinicasRecentes.map((c, i) => (
-                            <div key={i} className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-300 text-xs font-bold">
-                                        {c.nome.split(' ').slice(1).map(n => n[0]).join('')}
-                                    </div>
-                                    <div>
-                                        <p className="text-white text-sm font-medium">{c.nome}</p>
-                                        <p className="text-gray-500 text-xs">{c.cidade} • {c.plano}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-gray-400 text-sm">{c.msgs} msgs</span>
-                                    <div className={`w-2 h-2 rounded-full ${c.status === 'online' ? 'bg-green-400' : 'bg-gray-600'}`} />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+
+                    {loading ? (
+                        <div className="flex items-center justify-center py-16">
+                            <Loader2 size={24} className="animate-spin text-[#D99773]" />
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                            <table className="w-full text-sm">
+                                <thead className="sticky top-0" style={{ backgroundColor: 'var(--bg-card)' }}>
+                                    <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                                        {['Clínica', 'Plano', 'Status', 'Créditos', 'Conversas'].map(h => (
+                                            <th key={h} className="text-left px-5 py-2.5 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtradas.map(c => (
+                                        <tr key={c.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                                            <td className="px-5 py-3">
+                                                <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{c.nome_clinica}</p>
+                                                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{c.email}</p>
+                                            </td>
+                                            <td className="px-5 py-3">
+                                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${planoCores[c.plano] || '#999'}15`, color: planoCores[c.plano] || '#999' }}>
+                                                    {planoNomes[c.plano] || `P${c.plano}`}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-3">
+                                                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${c.status === 'ativo' ? 'bg-green-500/15 text-green-500' : 'bg-red-500/15 text-red-400'}`}>
+                                                    {c.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-subtle)' }}>
+                                                        <div className="h-full rounded-full" style={{ width: `${c.pct_credito}%`, backgroundColor: c.pct_credito <= 20 ? '#EF4444' : c.pct_credito > 50 ? '#06D6A0' : '#F59E0B' }} />
+                                                    </div>
+                                                    <span className="text-[11px]" style={{ color: c.pct_credito <= 20 ? '#EF4444' : 'var(--text-muted)' }}>{c.pct_credito}%</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-3">
+                                                <span style={{ color: 'var(--text-primary)' }}>{c.total_conversas}</span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
 
                 {/* Distribuição de planos */}
-                <div className="bg-white/5 border border-white/5 rounded-2xl p-5">
-                    <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                        <TrendingUp size={16} className="text-violet-400" />
-                        Planos
+                <div className="backdrop-blur-xl rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                    <h3 className="font-semibold text-sm mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                        <TrendingUp size={16} className="text-[#D99773]" /> Distribuição de Planos
                     </h3>
                     <div className="space-y-4">
-                        {planoDistribuicao.map((p) => (
-                            <div key={p.nome}>
-                                <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-sm text-gray-300">{p.nome}</span>
-                                    <span className="text-xs text-gray-500">{p.qtd} clínicas</span>
+                        {[1, 2, 3, 4].map(p => {
+                            const count = planoCount[p] || 0
+                            const pct = clinicas.length > 0 ? Math.round((count / clinicas.length) * 100) : 0
+                            return (
+                                <div key={p}>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{planoNomes[p]}</span>
+                                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{count} clínicas</span>
+                                    </div>
+                                    <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-subtle)' }}>
+                                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: planoCores[p] }} />
+                                    </div>
                                 </div>
-                                <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full rounded-full transition-all"
-                                        style={{ width: `${p.pct}%`, backgroundColor: p.cor }}
-                                    />
-                                </div>
-                            </div>
-                        ))}
+                            )
+                        })}
                     </div>
-                    <div className="mt-4 pt-4 border-t border-white/5">
-                        <div className="flex items-center justify-between">
-                            <span className="text-gray-400 text-sm">Total</span>
-                            <span className="text-white font-bold">47 clínicas</span>
-                        </div>
+                    <div className="mt-5 pt-4 flex items-center justify-between" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Total</span>
+                        <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{clinicas.length} clínicas</span>
                     </div>
-                </div>
-            </div>
 
-            {/* Erros recentes */}
-            <div className="bg-white/5 border border-white/5 rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-white flex items-center gap-2">
-                        <AlertTriangle size={16} className="text-amber-400" />
-                        Últimos Erros
-                    </h3>
-                    <a href="/admin/logs" className="text-xs text-violet-400 hover:text-violet-300">
-                        Ver todos →
-                    </a>
-                </div>
-                <div className="space-y-2">
-                    {errosRecentes.map((e, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/3 hover:bg-white/5 transition-colors">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-2 h-8 rounded-full ${e.severity === 'error' ? 'bg-red-500' : 'bg-amber-500'}`} />
-                                <div>
-                                    <p className="text-white text-sm font-medium">{e.tipo}</p>
-                                    <p className="text-gray-500 text-xs">{e.flow} • {e.clinica}</p>
-                                </div>
-                            </div>
-                            <span className="text-gray-500 text-xs">{e.hora}</span>
+                    {/* MRR estimado */}
+                    <div className="mt-4 p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)' }}>
+                        <div className="flex items-center gap-2 mb-1">
+                            <CreditCard size={14} className="text-[#D99773]" />
+                            <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>MRR Estimado</span>
                         </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Status dos workflows */}
-            <div className="bg-white/5 border border-white/5 rounded-2xl p-5">
-                <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                    <Activity size={16} className="text-green-400" />
-                    Status N8N Workflows
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                    {['F0 Webhook', 'F1 Receptor', 'F2 Router', 'F3 Config', 'F4 Áudio', 'F5 IA', 'F6 Cal', 'F7 Follow', 'F8 Msg', 'F9 Post', 'F10 Segurança', 'F11 Analítica'].map((f, i) => (
-                        <div key={i} className="p-3 rounded-xl bg-white/3 text-center">
-                            <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${i < 10 ? 'bg-green-400' : i === 10 ? 'bg-amber-400' : 'bg-gray-600'}`} />
-                            <p className="text-xs text-gray-300 truncate">{f}</p>
-                            <p className="text-xs text-gray-600">{i < 10 ? 'Ativo' : i === 10 ? 'Warning' : 'Desativado'}</p>
-                        </div>
-                    ))}
+                        <p className="text-lg font-bold text-[#D99773]">
+                            R$ {((planoCount[1] || 0) * 97 + (planoCount[2] || 0) * 197 + (planoCount[3] || 0) * 297 + (planoCount[4] || 0) * 497).toLocaleString('pt-BR')}
+                            <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>/mês</span>
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
