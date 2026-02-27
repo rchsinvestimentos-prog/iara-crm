@@ -1,20 +1,40 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles, ArrowRight, Eye, EyeOff } from 'lucide-react'
+import { signIn } from 'next-auth/react'
+import { Sparkles, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
+    const [error, setError] = useState('')
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
-        setTimeout(() => {
+        setError('')
+
+        try {
+            const result = await signIn('credentials', {
+                email,
+                password,
+                redirect: false,
+            })
+
+            if (result?.error) {
+                setError('E-mail ou senha incorretos')
+                setLoading(false)
+                return
+            }
+
+            // Login bem-sucedido — redirecionar
             window.location.href = '/dashboard'
-        }, 1000)
+        } catch {
+            setError('Erro ao conectar. Tente novamente.')
+            setLoading(false)
+        }
     }
 
     return (
@@ -89,6 +109,13 @@ export default function LoginPage() {
                                 </button>
                             </div>
                         </div>
+
+                        {error && (
+                            <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
+                                <AlertCircle size={16} className="shrink-0" />
+                                {error}
+                            </div>
+                        )}
 
                         <button
                             type="submit"
