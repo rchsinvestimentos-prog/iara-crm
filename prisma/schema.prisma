@@ -1,5 +1,6 @@
 // Prisma Schema — Painel SaaS IARA
-// Conecta ao mesmo PostgreSQL do N8N (iara-system)
+// UNIFICADO: banco iara_production, tabela "users"
+// Mesmo banco que o N8N usa
 
 generator client {
   provider = "prisma-client-js"
@@ -11,192 +12,86 @@ datasource db {
 }
 
 // ============================================
-// Auth — Clínicas (Doutoras)
+// Clínica (tabela unificada: users)
 // ============================================
 
 model Clinica {
-  id              String    @id @default(cuid())
-  nome            String
-  email           String    @unique
-  senha           String
-  role            String    @default("cliente")
+  id                   Int       @id @default(autoincrement())
+  uuid                 String    @db.VarChar(100)
+  nome                 String    @db.VarChar(255)
+  email                String    @unique @db.VarChar(255)
+  telefone             String?   @db.VarChar(20)
+  senha                String?
+  role                 String?   @default("cliente")
   
-  nomeDoutora     String?
+  // Plano e créditos
+  plano                String    @db.VarChar(100)
+  nivel                Int       @default(1)
+  status               String?   @default("pendente_configuracao") @db.VarChar(50)
+  creditosMensais      Int?      @default(1000) @map("creditos_mensais")
+  creditosDisponiveis  Int?      @default(1000) @map("creditos_disponiveis")
+  totalAtendimentos    Int?      @default(0) @map("total_atendimentos")
   
-  whatsappClinica  String?
-  whatsappPessoal  String?
+  // Clínica
+  nomeClinica          String?   @map("nome_clinica") @db.VarChar(255)
+  endereco             String?
   
-  nomeIA          String    @default("IARA")
-  diferenciais    String?   @db.Text
+  // Assistente
+  nomeAssistente       String?   @default("IARA") @map("nome_assistente") @db.VarChar(100)
+  personalidadeVoz     String?   @default("amigavel") @map("personalidade_voz") @db.VarChar(50)
+  vozAssistente        String?   @default("nova") @map("voz_assistente") @db.VarChar(20)
+  tomAtendimento       String?   @default("Amigável e carismático") @map("tom_atendimento") @db.VarChar(50)
+  scriptPersonalizado  String?   @map("script_personalizado")
   
-  plano           Int       @default(1)
-  creditosTotal   Int       @default(100)
-  creditosUsados  Int       @default(0)
-  dataRenovacao   DateTime?
+  // Horários
+  horarioSegSexInicio  DateTime? @map("horario_seg_sex_inicio") @db.Time()
+  horarioSegSexFim     DateTime? @map("horario_seg_sex_fim") @db.Time()
+  horarioSabInicio     DateTime? @map("horario_sab_inicio") @db.Time()
+  horarioSabFim        DateTime? @map("horario_sab_fim") @db.Time()
+  atendeSab            Boolean?  @default(true) @map("atende_sab")
+  horarioDomInicio     DateTime? @map("horario_dom_inicio") @db.Time()
+  horarioDomFim        DateTime? @map("horario_dom_fim") @db.Time()
+  atendeDom            Boolean?  @default(false) @map("atende_dom")
+  intervaloAtendimento Int?      @default(15) @map("intervalo_atendimento")
   
-  // Hotmart
-  hotmartOrderId  String?
-  status          String    @default("ativo") // ativo | cancelado | suspenso
+  // Descontos
+  aceitaDescontos      Boolean?  @default(true) @map("aceita_descontos")
+  descontoMaximo       Int?      @default(10) @map("desconto_maximo")
   
-  whatsappStatus  String    @default("desconectado")
-  instanceName    String?
+  // WhatsApp / Evolution
+  evolutionInstance    String?   @map("evolution_instance") @db.VarChar(100)
+  whatsappClinica      String?   @map("whatsapp_clinica") @db.VarChar(20)
+  whatsappDoutora      String?   @map("whatsapp_doutora")
+  evolutionApikey      String?   @map("evolution_apikey")
+  qrCode               String?   @map("qr_code")
+  qrExpiraEm           DateTime? @map("qr_expira_em")
   
-  procedimentos   Procedimento[]
-  horarios        HorarioFuncionamento?
-  conversas       Conversa[]
-  agendamentos    Agendamento[]
-  creditoHistorico CreditoHistorico[]
+  // Onboarding
+  tokenAtivacao        String    @map("token_ativacao") @db.VarChar(255)
+  onboardingEtapa      Int?      @default(0) @map("onboarding_etapa")
+  onboardingCompleto   Boolean?  @default(false) @map("onboarding_completo")
   
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  // Integrações
+  googleCalendarToken  String?   @map("google_calendar_token")
+  instagramToken       String?   @map("instagram_token")
+  instagramsConectados String[]  @map("instagrams_conectados")
   
-  @@map("clinicas")
-}
-
-model Procedimento {
-  id          String  @id @default(cuid())
-  clinicaId   String
-  nome        String
-  valor       Float
-  desconto    Int     @default(0)
-  parcelas    String?
-  duracao     String?
-  ativo       Boolean @default(true)
+  // Mídia
+  avatarFotos          String[]  @map("avatar_fotos")
+  avatarVideo          String?   @map("avatar_video")
+  paletaCores          String?   @map("paleta_cores")
+  vozClonada           String?   @map("voz_clonada")
   
-  clinica     Clinica @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
+  // Datas
+  dataCompra           DateTime? @default(now()) @map("data_compra")
+  dataAtivacao         DateTime? @map("data_ativacao")
+  proximaRenovacao     DateTime? @map("proxima_renovacao")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @map("updated_at")
   
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  // JSON configs
+  configuracoes        Json?     @default("{}") @db.JsonB
+  integracoes          Json?     @default("{}") @db.JsonB
   
-  @@index([clinicaId])
-  @@map("procedimentos")
-}
-
-model HorarioFuncionamento {
-  id              String  @id @default(cuid())
-  clinicaId       String  @unique
-  
-  semanaInicio    String  @default("09:00")
-  semanaFim       String  @default("18:00")
-  almocoSemana    Boolean @default(false)
-  almocoInicio    String?
-  almocoFim       String?
-  
-  sabado          Boolean @default(false)
-  sabadoInicio    String?
-  sabadoFim       String?
-  almocoSabado    Boolean @default(false)
-  almocoSabInicio String?
-  almocoSabFim    String?
-  
-  domingo         Boolean @default(false)
-  domingoInicio   String?
-  domingoFim      String?
-  
-  feriado         Boolean @default(false)
-  feriadoInicio   String?
-  feriadoFim      String?
-  
-  intervalo       Int     @default(15)
-  antecedenciaMin Int     @default(2)
-  antecedenciaMax Int     @default(30)
-  
-  clinica         Clinica @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
-  
-  @@map("horarios_funcionamento")
-}
-
-model Conversa {
-  id            String    @id @default(cuid())
-  clinicaId     String
-  telefone      String
-  nome          String?
-  ultimaMensagem String?  @db.Text
-  ultimaData    DateTime?
-  status        String    @default("ativo")
-  lida          Boolean   @default(false)
-  
-  clinica       Clinica   @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
-  mensagens     Mensagem[]
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  @@index([clinicaId])
-  @@index([telefone])
-  @@map("conversas")
-}
-
-model Mensagem {
-  id          String   @id @default(cuid())
-  conversaId  String
-  remetente   String
-  conteudo    String   @db.Text
-  tipo        String   @default("texto")
-  
-  conversa    Conversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime @default(now())
-  
-  @@index([conversaId])
-  @@map("mensagens")
-}
-
-model Agendamento {
-  id            String    @id @default(cuid())
-  clinicaId     String
-  nomePaciente  String
-  telefone      String?
-  procedimento  String
-  data          DateTime
-  horario       String
-  duracao       String?
-  status        String    @default("pendente")
-  
-  clinica       Clinica   @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  @@index([clinicaId])
-  @@index([data])
-  @@map("agendamentos")
-}
-
-model CreditoHistorico {
-  id          String   @id @default(cuid())
-  clinicaId   String
-  acao        String
-  creditos    Int
-  tipo        String
-  
-  clinica     Clinica  @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime @default(now())
-  
-  @@index([clinicaId])
-  @@map("credito_historico")
-}
-
-model ConfigAtendimento {
-  id          String  @id @default(cuid())
-  clinicaId   String  @unique
-  
-  saudacao       Boolean @default(true)
-  perguntarNome  Boolean @default(true)
-  oferecerDesc   Boolean @default(true)
-  enviarAudio    Boolean @default(false)
-  enviarPreco    Boolean @default(true)
-  enviarFotos    Boolean @default(true)
-  reagendarAuto  Boolean @default(true)
-  listaEspera    Boolean @default(false)
-  avaliacaoPos   Boolean @default(true)
-  lembrete24h    Boolean @default(true)
-  lembrete1h     Boolean @default(true)
-  confirmacao    Boolean @default(true)
-  bloqueioSpam   Boolean @default(true)
-  
-  feedbacks      Json?
-  
-  @@map("config_atendimento")
+  @@map("users")
 }

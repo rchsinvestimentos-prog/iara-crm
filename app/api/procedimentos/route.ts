@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(proc)
     } catch (err) {
         if (err instanceof z.ZodError) {
-            return NextResponse.json({ error: 'Dados inválidos', details: err.errors }, { status: 400 })
+            return NextResponse.json({ error: 'Dados inválidos', details: err.issues }, { status: 400 })
         }
         return NextResponse.json({ error: 'Erro ao criar' }, { status: 500 })
     }
@@ -95,7 +95,7 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json(proc)
     } catch (err) {
         if (err instanceof z.ZodError) {
-            return NextResponse.json({ error: 'Dados inválidos', details: err.errors }, { status: 400 })
+            return NextResponse.json({ error: 'Dados inválidos', details: err.issues }, { status: 400 })
         }
         return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 })
     }

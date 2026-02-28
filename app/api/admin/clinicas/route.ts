@@ -21,49 +21,45 @@ export async function GET() {
             return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
         }
 
-        // Buscar todas as clínicas com stats
+        // Buscar todas as clínicas
         const clinicas = await prisma.clinica.findMany({
             select: {
                 id: true,
                 nome: true,
+                nomeClinica: true,
                 email: true,
-                nomeIA: true,
+                nomeAssistente: true,
                 plano: true,
+                nivel: true,
                 status: true,
-                creditosTotal: true,
-                creditosUsados: true,
+                creditosMensais: true,
+                creditosDisponiveis: true,
                 whatsappClinica: true,
-                whatsappPessoal: true,
+                whatsappDoutora: true,
                 whatsappStatus: true,
                 createdAt: true,
-                _count: {
-                    select: {
-                        conversas: true,
-                        agendamentos: true,
-                        procedimentos: true,
-                    },
-                },
             },
             orderBy: { createdAt: 'desc' },
         })
 
-        const result = clinicas.map(c => ({
+        const result = clinicas.map((c: typeof clinicas[number]) => ({
             id: c.id,
-            nome_clinica: c.nome,
+            nome_clinica: c.nomeClinica || c.nome,
             email: c.email,
-            nomeIA: c.nomeIA,
+            nomeIA: c.nomeAssistente,
             plano: c.plano,
+            nivel: c.nivel,
             status: c.status,
-            whatsapp_pessoal: c.whatsappPessoal,
+            whatsapp_clinica: c.whatsappClinica,
             whatsapp_status: c.whatsappStatus,
-            creditos_restantes: c.creditosTotal - c.creditosUsados,
-            creditos_total: c.creditosTotal,
-            pct_credito: c.creditosTotal > 0
-                ? Math.round(((c.creditosTotal - c.creditosUsados) / c.creditosTotal) * 100)
+            creditos_restantes: c.creditosDisponiveis ?? 0,
+            creditos_total: c.creditosMensais ?? 0,
+            pct_credito: (c.creditosMensais ?? 0) > 0
+                ? Math.round(((c.creditosDisponiveis ?? 0) / (c.creditosMensais ?? 1)) * 100)
                 : 100,
-            total_conversas: c._count.conversas,
-            total_agendamentos: c._count.agendamentos,
-            total_procedimentos: c._count.procedimentos,
+            total_conversas: 0,
+            total_agendamentos: 0,
+            total_procedimentos: 0,
             msgs_24h: 0,
             agenda_7dias: 0,
             criado_em: c.createdAt,

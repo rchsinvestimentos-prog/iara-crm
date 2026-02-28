@@ -1,45 +1,9 @@
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
 
 // ============================================
-// Bridge: Painel Prisma ↔ N8N PostgreSQL Tables
+// Queries — Tabela Unificada "users" (iara_production)
 // ============================================
-// O painel autentica via tabela `clinicas` (Prisma).
-// O N8N grava dados na tabela `users` (raw SQL).
-// Link: clinicas.instanceName ↔ users.evolution_instance
-
-interface N8NUser {
-    id: number
-    nome_clinica: string
-    nome_assistente: string
-    nivel: number
-    whatsapp_clinica: string
-    whatsapp_doutora: string
-    creditos_disponiveis: number
-    status: string
-}
-
-/** Busca o user_id do N8N a partir do clinicaId do Prisma */
-export async function getN8NUserId(clinicaId: string): Promise<number | null> {
-    try {
-        const clinica = await prisma.clinica.findUnique({
-            where: { id: clinicaId },
-            select: { instanceName: true },
-        })
-
-        if (!clinica?.instanceName) return null
-
-        const result = await prisma.$queryRaw<{ id: number }[]>`
-            SELECT id FROM users 
-            WHERE LOWER(TRIM(evolution_instance)) = LOWER(TRIM(${clinica.instanceName}))
-            LIMIT 1
-        `
-
-        return result[0]?.id ?? null
-    } catch {
-        return null
-    }
-}
+// clinicaId = users.id diretamente (sem bridge!)
 
 /** Stats reais do dashboard */
 export async function getStatsReais(userId: number) {
@@ -47,7 +11,7 @@ export async function getStatsReais(userId: number) {
     hoje.setHours(0, 0, 0, 0)
     const hojeISO = hoje.toISOString()
 
-    const [mensagensHoje, totalConversas, agendamentosHoje, creditos] = await Promise.all([
+    const [mensagensHoje, totalConversas, agendamentosHoje] = await Promise.all([
         prisma.$queryRaw<{ count: bigint }[]>`
             SELECT COUNT(*)::bigint as count 
             FROM historico_conversas 
@@ -66,18 +30,19 @@ export async function getStatsReais(userId: number) {
               AND data_agendamento >= ${hojeISO}::timestamp
               AND status != 'cancelado'
         `,
-        prisma.$queryRaw<{ creditos_disponiveis: number }[]>`
-            SELECT COALESCE(creditos_disponiveis, 0) as creditos_disponiveis 
-            FROM users 
-            WHERE id = ${userId}
-        `,
     ])
+
+    // Créditos direto do Prisma (agora é a mesma tabela!)
+    const clinica = await prisma.clinica.findUnique({
+        where: { id: userId },
+        select: { creditosDisponiveis: true },
+    })
 
     return {
         mensagensHoje: Number(mensagensHoje[0]?.count ?? 0),
         totalConversas: Number(totalConversas[0]?.count ?? 0),
         agendamentosHoje: Number(agendamentosHoje[0]?.count ?? 0),
-        creditosRestantes: Number(creditos[0]?.creditos_disponiveis ?? 0),
+        creditosRestantes: clinica?.creditosDisponiveis ?? 0,
     }
 }
 
@@ -94,7 +59,7 @@ export async function getGraficoMensagens(userId: number, dias: number = 30) {
         ORDER BY dia ASC
     `
 
-    return result.map(r => ({
+    return result.map((r: { dia: string; total: bigint }) => ({
         dia: r.dia,
         total: Number(r.total),
     }))
@@ -102,7 +67,7 @@ export async function getGraficoMensagens(userId: number, dias: number = 30) {
 
 /** Próximos agendamentos reais */
 export async function getAgendamentosReais(userId: number, limite: number = 10) {
-    const result = await prisma.$queryRaw<{
+    return prisma.$queryRaw<{
         id: number
         nome_paciente: string
         telefone: string
@@ -126,11 +91,9 @@ export async function getAgendamentosReais(userId: number, limite: number = 10) 
         ORDER BY data_agendamento ASC
         LIMIT ${limite}
     `
-
-    return result
 }
 
-/** Conversas recentes (últimas mensagens por telefone) */
+/** Conversas recentes */
 export async function getConversasRecentes(userId: number, limite: number = 10) {
     const result = await prisma.$queryRaw<{
         telefone: string
@@ -150,7 +113,7 @@ export async function getConversasRecentes(userId: number, limite: number = 10) 
         LIMIT ${limite}
     `
 
-    return result.map(r => ({
+    return result.map((r: { telefone: string; push_name: string; ultima_msg: string; ultima_data: Date }) => ({
         telefone: r.telefone,
         nome: r.push_name,
         ultimaMensagem: r.ultima_msg.slice(0, 80),
@@ -158,21 +121,22 @@ export async function getConversasRecentes(userId: number, limite: number = 10) 
     }))
 }
 
-/** Dados do usuário N8N (nome, créditos, status) */
-export async function getN8NUserData(userId: number): Promise<N8NUser | null> {
-    const result = await prisma.$queryRaw<N8NUser[]>`
-        SELECT 
-            id,
-            COALESCE(nome_clinica, '') as nome_clinica,
-            COALESCE(nome_assistente, 'IARA') as nome_assistente,
-            COALESCE(nivel, 1) as nivel,
-            COALESCE(whatsapp_clinica, '') as whatsapp_clinica,
-            COALESCE(whatsapp_doutora, '') as whatsapp_doutora,
-            COALESCE(creditos_disponiveis, 0) as creditos_disponiveis,
-            COALESCE(status, 'ativo') as status
-        FROM users
-        WHERE id = ${userId}
-    `
+/** Dados da clínica (direto do Prisma, mesma tabela) */
+export async function getClinicaData(userId: number) {
+    const clinica = await prisma.clinica.findUnique({
+        where: { id: userId },
+    })
 
-    return result[0] ?? null
+    if (!clinica) return null
+
+    return {
+        id: clinica.id,
+        nome_clinica: clinica.nomeClinica || clinica.nome,
+        nome_assistente: clinica.nomeAssistente || 'IARA',
+        nivel: clinica.nivel,
+        whatsapp_clinica: clinica.whatsappClinica || '',
+        whatsapp_doutora: clinica.whatsappDoutora || '',
+        creditos_disponiveis: clinica.creditosDisponiveis ?? 0,
+        status: clinica.status || 'ativo',
+    }
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
-import { getN8NUserId, getGraficoMensagens } from '@/lib/n8n-queries'
+import { getGraficoMensagens } from '@/lib/n8n-queries'
 
 // GET /api/stats/grafico?dias=30 — Dados para Recharts
 export async function GET(request: Request) {
@@ -16,15 +16,10 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url)
         const dias = Math.min(Number(searchParams.get('dias') || 30), 90)
 
-        const n8nUserId = await getN8NUserId(clinicaId)
+        // clinicaId = users.id diretamente (sem bridge)
+        const dados = await getGraficoMensagens(clinicaId, dias)
 
-        if (!n8nUserId) {
-            return NextResponse.json({ dados: [], fonte: 'vazio' })
-        }
-
-        const dados = await getGraficoMensagens(n8nUserId, dias)
-
-        return NextResponse.json({ dados, fonte: 'n8n' })
+        return NextResponse.json({ dados, fonte: 'unificado' })
     } catch (err) {
         console.error('Erro em /api/stats/grafico:', err)
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })

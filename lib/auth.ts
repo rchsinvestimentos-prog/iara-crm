@@ -19,33 +19,20 @@ export const authOptions: NextAuthOptions = {
                         where: { email: credentials.email },
                     })
 
-                    if (!clinica) return null
+                    if (!clinica || !clinica.senha) return null
 
-                    // Comparação segura com bcrypt
                     const senhaValida = await bcrypt.compare(credentials.password, clinica.senha)
                     if (!senhaValida) return null
 
                     return {
-                        id: clinica.id,
+                        id: String(clinica.id),
                         email: clinica.email,
-                        name: clinica.nome,
-                        role: clinica.role,
-                        plano: clinica.plano,
+                        name: clinica.nomeClinica || clinica.nome,
+                        role: clinica.role || 'cliente',
+                        plano: clinica.nivel,
                     }
-                } catch {
-                    // Mock APENAS em desenvolvimento
-                    if (process.env.NODE_ENV !== 'production') {
-                        console.log('⚠️ Banco indisponível — usando login mock (dev only)')
-                        if (credentials.email === 'demo@iara.click' && credentials.password === 'iara123') {
-                            return {
-                                id: 'mock-1',
-                                email: 'demo@iara.click',
-                                name: 'Studio Ana Silva',
-                                role: 'cliente',
-                                plano: 1,
-                            }
-                        }
-                    }
+                } catch (err) {
+                    console.error('Erro no login:', err)
                     return null
                 }
             },
@@ -73,18 +60,16 @@ export const authOptions: NextAuthOptions = {
     },
     session: {
         strategy: 'jwt',
-        maxAge: 24 * 60 * 60, // 24h
+        maxAge: 24 * 60 * 60,
     },
     secret: process.env.NEXTAUTH_SECRET,
 }
 
-// Helper: verificar sessão nas API routes
-export async function getClinicaId(session: any): Promise<string | null> {
+export async function getClinicaId(session: any): Promise<number | null> {
     if (!session?.user?.id) return null
-    return session.user.id
+    return Number(session.user.id)
 }
 
-// Helper: hash de senha (usar ao criar clínica)
 export async function hashSenha(senha: string): Promise<string> {
     return bcrypt.hash(senha, 12)
 }

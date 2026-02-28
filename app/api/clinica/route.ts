@@ -6,11 +6,12 @@ import { z } from 'zod'
 
 // Validation schema
 const UpdateClinicaSchema = z.object({
-    nome: z.string().min(1).max(100).optional(),
-    nomeIA: z.string().min(1).max(50).optional(),
+    nomeClinica: z.string().min(1).max(100).optional(),
+    nomeAssistente: z.string().min(1).max(50).optional(),
     whatsappClinica: z.string().max(20).optional().nullable(),
-    whatsappPessoal: z.string().max(20).optional().nullable(),
-    diferenciais: z.string().max(2000).optional().nullable(),
+    whatsappDoutora: z.string().max(20).optional().nullable(),
+    tomAtendimento: z.string().max(100).optional().nullable(),
+    endereco: z.string().max(500).optional().nullable(),
 })
 
 // GET /api/clinica
@@ -25,10 +26,6 @@ export async function GET() {
 
         const clinica = await prisma.clinica.findUnique({
             where: { id: clinicaId },
-            include: {
-                procedimentos: { where: { ativo: true } },
-                horarios: true,
-            },
         })
 
         if (!clinica) {
@@ -65,7 +62,7 @@ export async function PUT(request: Request) {
         return NextResponse.json(safe)
     } catch (err) {
         if (err instanceof z.ZodError) {
-            return NextResponse.json({ error: 'Dados inválidos', details: err.errors }, { status: 400 })
+            return NextResponse.json({ error: 'Dados inválidos', details: err.issues }, { status: 400 })
         }
         return NextResponse.json({ error: 'Erro ao salvar' }, { status: 500 })
     }
