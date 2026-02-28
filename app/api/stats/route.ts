@@ -28,6 +28,7 @@ export async function GET() {
 
         return NextResponse.json({
             ...stats,
+            creditosRestantes: clinicaData.creditos_disponiveis,
             plano: clinicaData.nivel,
             nomeClinica: clinicaData.nome_clinica,
             nomeIA: clinicaData.nome_assistente,
