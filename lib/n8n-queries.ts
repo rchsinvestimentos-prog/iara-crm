@@ -11,37 +11,51 @@ export async function getStatsReais(userId: number) {
     hoje.setHours(0, 0, 0, 0)
     const hojeISO = hoje.toISOString()
 
-    const [mensagensHoje, totalConversas, agendamentosHoje] = await Promise.all([
-        prisma.$queryRaw<{ count: bigint }[]>`
+    // Cada query em try-catch individual — se uma tabela não existir, não quebra tudo
+    let mensagensHoje = 0
+    let totalConversas = 0
+    let agendamentosHoje = 0
+
+    try {
+        const r = await prisma.$queryRaw<{ count: bigint }[]>`
             SELECT COUNT(*)::bigint as count 
             FROM historico_conversas 
             WHERE user_id = ${userId} 
               AND created_at >= ${hojeISO}::timestamp
-        `,
-        prisma.$queryRaw<{ count: bigint }[]>`
+        `
+        mensagensHoje = Number(r[0]?.count ?? 0)
+    } catch (e) { console.error('Stats: erro em mensagensHoje:', e) }
+
+    try {
+        const r = await prisma.$queryRaw<{ count: bigint }[]>`
             SELECT COUNT(DISTINCT telefone_cliente)::bigint as count 
             FROM historico_conversas 
             WHERE user_id = ${userId}
-        `,
-        prisma.$queryRaw<{ count: bigint }[]>`
+        `
+        totalConversas = Number(r[0]?.count ?? 0)
+    } catch (e) { console.error('Stats: erro em totalConversas:', e) }
+
+    try {
+        const r = await prisma.$queryRaw<{ count: bigint }[]>`
             SELECT COUNT(*)::bigint as count 
             FROM agendamentos 
             WHERE user_id = ${userId} 
               AND data_agendamento >= ${hojeISO}::timestamp
               AND status != 'cancelado'
-        `,
-    ])
+        `
+        agendamentosHoje = Number(r[0]?.count ?? 0)
+    } catch (e) { console.error('Stats: erro em agendamentosHoje:', e) }
 
-    // Créditos direto do Prisma (agora é a mesma tabela!)
+    // Créditos direto do Prisma (mesma tabela!)
     const clinica = await prisma.clinica.findUnique({
         where: { id: userId },
         select: { creditosDisponiveis: true },
     })
 
     return {
-        mensagensHoje: Number(mensagensHoje[0]?.count ?? 0),
-        totalConversas: Number(totalConversas[0]?.count ?? 0),
-        agendamentosHoje: Number(agendamentosHoje[0]?.count ?? 0),
+        mensagensHoje,
+        totalConversas,
+        agendamentosHoje,
         creditosRestantes: clinica?.creditosDisponiveis ?? 0,
     }
 }
