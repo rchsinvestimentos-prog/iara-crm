@@ -1,6 +1,6 @@
 // Prisma Schema — Painel SaaS IARA
-// UNIFICADO: banco iara_production, tabela "users"
-// Mesmo banco que o N8N usa
+// UNIFICADO: banco postgres (default), tabela "users"
+// Mesmo banco que o N8N usa diretamente
 
 generator client {
   provider = "prisma-client-js"
@@ -17,77 +17,85 @@ datasource db {
 
 model Clinica {
   id                   Int       @id @default(autoincrement())
-  uuid                 String    @db.VarChar(100)
-  nome                 String    @db.VarChar(255)
-  email                String    @unique @db.VarChar(255)
-  telefone             String?   @db.VarChar(20)
+  uuid                 String?   @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome                 String?
+  email                String?   @unique
+  telefone             String?
   senha                String?
   role                 String?   @default("cliente")
   
   // Plano e créditos
-  plano                String    @db.VarChar(100)
+  plano                String?
   nivel                Int       @default(1)
-  status               String?   @default("pendente_configuracao") @db.VarChar(50)
+  status               String?   @default("ativo")
   creditosMensais      Int?      @default(1000) @map("creditos_mensais")
   creditosDisponiveis  Int?      @default(1000) @map("creditos_disponiveis")
   totalAtendimentos    Int?      @default(0) @map("total_atendimentos")
+  tokenAtivacao        String?   @map("token_ativacao")
+  proximaRenovacao     DateTime? @map("proxima_renovacao")
   
   // Clínica
-  nomeClinica          String?   @map("nome_clinica") @db.VarChar(255)
+  nomeClinica          String?   @map("nome_clinica")
   endereco             String?
   
   // Assistente
-  nomeAssistente       String?   @default("IARA") @map("nome_assistente") @db.VarChar(100)
-  personalidadeVoz     String?   @default("amigavel") @map("personalidade_voz") @db.VarChar(50)
-  vozAssistente        String?   @default("nova") @map("voz_assistente") @db.VarChar(20)
-  tomAtendimento       String?   @default("Amigável e carismático") @map("tom_atendimento") @db.VarChar(50)
-  scriptPersonalizado  String?   @map("script_personalizado")
+  nomeAssistente       String?   @default("Iara") @map("nome_assistente")
+  personalidadeVoz     String?   @map("personalidade_voz")
+  vozAssistente        String?   @map("voz_assistente")
+  tomAtendimento       String?   @map("tom_atendimento")
   
   // Horários
   horarioSegSexInicio  DateTime? @map("horario_seg_sex_inicio") @db.Time()
   horarioSegSexFim     DateTime? @map("horario_seg_sex_fim") @db.Time()
+  atendeSabado         Boolean?  @default(false) @map("atende_sabado")
   horarioSabInicio     DateTime? @map("horario_sab_inicio") @db.Time()
   horarioSabFim        DateTime? @map("horario_sab_fim") @db.Time()
-  atendeSab            Boolean?  @default(true) @map("atende_sab")
-  horarioDomInicio     DateTime? @map("horario_dom_inicio") @db.Time()
-  horarioDomFim        DateTime? @map("horario_dom_fim") @db.Time()
-  atendeDom            Boolean?  @default(false) @map("atende_dom")
+  atendeSab            Boolean?  @default(false) @map("atende_sab")
   intervaloAtendimento Int?      @default(15) @map("intervalo_atendimento")
   
   // Descontos
-  aceitaDescontos      Boolean?  @default(true) @map("aceita_descontos")
-  descontoMaximo       Int?      @default(10) @map("desconto_maximo")
+  aceitaDescontos      Boolean?  @default(false) @map("aceita_descontos")
+  descontoMaximo       Int?      @default(0) @map("desconto_maximo")
   
   // WhatsApp / Evolution
-  evolutionInstance    String?   @map("evolution_instance") @db.VarChar(100)
-  whatsappClinica      String?   @map("whatsapp_clinica") @db.VarChar(20)
+  evolutionInstance    String?   @map("evolution_instance")
+  whatsappClinica      String?   @map("whatsapp_clinica")
   whatsappDoutora      String?   @map("whatsapp_doutora")
   evolutionApikey      String?   @map("evolution_apikey")
-  qrCode               String?   @map("qr_code")
-  qrExpiraEm           DateTime? @map("qr_expira_em")
   
-  // Onboarding
-  tokenAtivacao        String    @map("token_ativacao") @db.VarChar(255)
-  onboardingEtapa      Int?      @default(0) @map("onboarding_etapa")
-  onboardingCompleto   Boolean?  @default(false) @map("onboarding_completo")
+  // Aprendizado
+  aprendizadoContinuo  String?   @map("aprendizado_continuo")
   
-  // Integrações
-  googleCalendarToken  String?   @map("google_calendar_token")
-  instagramToken       String?   @map("instagram_token")
-  instagramsConectados String[]  @map("instagrams_conectados")
+  // Internacionalização
+  idioma               String?   @default("pt-BR") @db.VarChar(5)
+  pais                 String?   @default("BR") @db.VarChar(2)
+  moeda                String?   @default("BRL") @db.VarChar(3)
+  timezone             String?   @default("America/Sao_Paulo") @db.VarChar(40)
+  canalPrincipal       String?   @default("whatsapp") @map("canal_principal") @db.VarChar(20)
+  
+  // Twilio
+  telefoneTwilio       String?   @map("telefone_twilio") @db.VarChar(20)
+  twilioSid            String?   @map("twilio_sid") @db.VarChar(50)
+  
+  // Instâncias
+  maxInstanciasWhatsapp  Int?    @default(1) @map("max_instancias_whatsapp")
+  maxInstanciasInstagram Int?    @default(0) @map("max_instancias_instagram")
+  
+  // Google Calendar
+  googleCalendarToken        String?   @map("google_calendar_token")
+  googleCalendarRefreshToken String?   @map("google_calendar_refresh_token")
+  googleCalendarId           String?   @default("primary") @map("google_calendar_id") @db.VarChar(200)
+  googleTokenExpires         DateTime? @map("google_token_expires")
   
   // Mídia
-  avatarFotos          String[]  @map("avatar_fotos")
+  avatarFotos          Json?     @default("[]") @map("avatar_fotos") @db.JsonB
   avatarVideo          String?   @map("avatar_video")
-  paletaCores          String?   @map("paleta_cores")
+  paletaCores          Json?     @map("paleta_cores") @db.JsonB
   vozClonada           String?   @map("voz_clonada")
   
   // Datas
-  dataCompra           DateTime? @default(now()) @map("data_compra")
-  dataAtivacao         DateTime? @map("data_ativacao")
-  proximaRenovacao     DateTime? @map("proxima_renovacao")
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @default(now()) @map("updated_at")
+  createdAt            DateTime? @default(now()) @map("created_at")
+  updatedAt            DateTime? @default(now()) @map("updated_at")
   
   // JSON configs
   configuracoes        Json?     @default("{}") @db.JsonB
