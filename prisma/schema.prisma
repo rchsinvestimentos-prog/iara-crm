@@ -66,6 +66,14 @@ model Clinica {
   // Aprendizado
   aprendizadoContinuo  String?   @map("aprendizado_continuo")
   
+  // Atendimento (personalidade da IA)
+  humor                String?   @db.VarChar(50)
+  emojis               String?   @db.VarChar(50)
+  fraseDespedida       String?   @map("fraseDespedida") @db.VarChar(200)
+  funcionalidades      String?
+  feedbacks            String?
+
+  
   // Internacionalização
   idioma               String?   @default("pt-BR") @db.VarChar(5)
   pais                 String?   @default("BR") @db.VarChar(2)
