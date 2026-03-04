@@ -278,7 +278,7 @@ export default function Sidebar() {
                         return (
                           <Link
                             key={skill.href}
-                            href={habilitada ? skill.href : '/plano'}
+                            href={skill.href}
                             className={`flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[12.5px] transition-all duration-300 ${active
                               ? 'bg-[#D99773]/10 text-[#D99773] font-semibold'
                               : habilitada
