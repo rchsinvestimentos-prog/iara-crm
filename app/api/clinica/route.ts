@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { notificarMudancaConfig } from '@/lib/notificacao'
 import { z } from 'zod'
 
 // Validation schema
@@ -12,6 +13,10 @@ const UpdateClinicaSchema = z.object({
     whatsappDoutora: z.string().max(20).optional().nullable(),
     tomAtendimento: z.string().max(100).optional().nullable(),
     endereco: z.string().max(500).optional().nullable(),
+    diferenciais: z.string().max(2000).optional().nullable(),
+    horarioInicio: z.string().max(10).optional().nullable(),
+    horarioFim: z.string().max(10).optional().nullable(),
+    diasFuncionamento: z.string().max(100).optional().nullable(),
 })
 
 // GET /api/clinica
@@ -32,7 +37,6 @@ export async function GET() {
             return NextResponse.json({ error: 'Clínica não encontrada' }, { status: 404 })
         }
 
-        // Não retornar a senha
         const { senha, ...safe } = clinica
         return NextResponse.json(safe)
     } catch {
@@ -53,10 +57,24 @@ export async function PUT(request: Request) {
         const body = await request.json()
         const validated = UpdateClinicaSchema.parse(body)
 
+        // Buscar dados atuais para comparar depois
+        const dadosAntigos = await prisma.clinica.findUnique({
+            where: { id: clinicaId },
+        })
+
         const updated = await prisma.clinica.update({
             where: { id: clinicaId },
             data: validated,
         })
+
+        // Enviar notificação de confirmação por WhatsApp (async, não bloqueia)
+        if (dadosAntigos) {
+            notificarMudancaConfig(
+                clinicaId,
+                dadosAntigos as unknown as Record<string, unknown>,
+                validated as unknown as Record<string, unknown>
+            ).catch(err => console.error('[Notificação] Erro async:', err))
+        }
 
         const { senha, ...safe } = updated
         return NextResponse.json(safe)
