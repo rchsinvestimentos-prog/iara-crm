@@ -238,11 +238,11 @@ export default function HabilidadePage() {
                    ========================================== */
                 <div className="space-y-6">
                     {/* Hero — Headline persuasiva */}
-                    <div className="glass-card p-8 bg-gradient-to-br from-petroleo/5 to-terracota/5 border-l-4 border-terracota">
-                        <p className="text-lg font-semibold text-petroleo leading-relaxed mb-3">
+                    <div className="glass-card p-8 border-l-4 border-terracota" style={{ background: 'var(--bg-card)' }}>
+                        <p className="text-lg font-semibold leading-relaxed mb-3" style={{ color: 'var(--text-primary)' }}>
                             {sales?.headline || skill.descricao}
                         </p>
-                        <p className="text-acinzentado text-sm leading-relaxed">
+                        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                             {skill.descricao}
                         </p>
                     </div>
@@ -252,13 +252,13 @@ export default function HabilidadePage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="glass-card p-6 text-center border-2 border-green-500/20 bg-green-500/5">
                                 <p className="text-3xl font-bold text-green-500 mb-1">{sales.ganho}</p>
-                                <p className="text-xs text-acinzentado">Estimativa de ganho/economia</p>
+                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Estimativa de ganho/economia</p>
                             </div>
                             <div className="glass-card p-6 flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-full bg-terracota/10 flex items-center justify-center flex-shrink-0">
                                     <span className="text-lg">📊</span>
                                 </div>
-                                <p className="text-sm text-petroleo">{sales.metrica}</p>
+                                <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{sales.metrica}</p>
                             </div>
                         </div>
                     )}
@@ -280,10 +280,10 @@ export default function HabilidadePage() {
                                         <Play size={36} className="text-terracota ml-1" />
                                     </div>
                                     <div className="text-center">
-                                        <p className="font-semibold text-petroleo">Veja como funciona</p>
-                                        <p className="text-sm text-acinzentado mt-1">{skill.nome} em ação</p>
+                                        <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Veja como funciona</p>
+                                        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{skill.nome} em ação</p>
                                     </div>
-                                    <p className="text-xs text-acinzentado/60 mt-2">📹 Vídeo em breve</p>
+                                    <p className="text-xs mt-2" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>📹 Vídeo em breve</p>
                                 </div>
                             )}
                         </div>
@@ -291,15 +291,15 @@ export default function HabilidadePage() {
 
                     {/* O que você está perdendo */}
                     <div className="glass-card p-6">
-                        <h3 className="font-semibold text-petroleo mb-1">🚀 O que você está perdendo</h3>
-                        <p className="text-xs text-acinzentado mb-4">Tudo isso fica disponível ao ativar o {skill.nome}:</p>
+                        <h3 className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>🚀 O que você está perdendo</h3>
+                        <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Tudo isso fica disponível ao ativar o {skill.nome}:</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {skill.beneficios.map((b, i) => (
-                                <div key={i} className="flex items-center gap-3 p-3 bg-glacial rounded-xl">
-                                    <div className="w-6 h-6 rounded-full bg-verde-agua flex items-center justify-center flex-shrink-0">
-                                        <Check size={14} className="text-green-600" />
+                                <div key={i} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--bg-subtle)' }}>
+                                    <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                                        <Check size={14} className="text-green-400" />
                                     </div>
-                                    <span className="text-sm text-petroleo">{b}</span>
+                                    <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{b}</span>
                                 </div>
                             ))}
                         </div>
@@ -307,11 +307,11 @@ export default function HabilidadePage() {
 
                     {/* Depoimento */}
                     {sales && (
-                        <div className="glass-card p-6 bg-gradient-to-r from-petroleo/3 to-transparent border-l-4 border-petroleo/30">
-                            <p className="text-sm text-petroleo italic leading-relaxed mb-3">
+                        <div className="glass-card p-6 border-l-4" style={{ borderLeftColor: 'var(--border-default)' }}>
+                            <p className="text-sm italic leading-relaxed mb-3" style={{ color: 'var(--text-secondary)' }}>
                                 &ldquo;{sales.depoimento}&rdquo;
                             </p>
-                            <p className="text-xs text-acinzentado font-semibold">— {sales.autorDepo}</p>
+                            <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>— {sales.autorDepo}</p>
                         </div>
                     )}
 
@@ -323,8 +323,8 @@ export default function HabilidadePage() {
                         <h3 className="title-serif text-xl mb-2">
                             Desbloqueie o {skill.nome}
                         </h3>
-                        <p className="text-acinzentado mb-1">
-                            Disponível no plano <strong className="text-petroleo">{skill.planoNome}</strong>
+                        <p className="mb-1" style={{ color: 'var(--text-muted)' }}>
+                            Disponível no plano <strong style={{ color: 'var(--text-primary)' }}>{skill.planoNome}</strong>
                         </p>
                         {sales && (
                             <p className="text-sm text-green-500 font-semibold mb-4">
@@ -341,7 +341,7 @@ export default function HabilidadePage() {
                         >
                             Fazer Upgrade para o Premium <ArrowUpRight size={16} />
                         </Link>
-                        <p className="text-[10px] text-acinzentado mt-3">
+                        <p className="text-[10px] mt-3" style={{ color: 'var(--text-muted)' }}>
                             ✅ 7 dias de garantia • Cancele quando quiser • Sem multa
                         </p>
                     </div>
