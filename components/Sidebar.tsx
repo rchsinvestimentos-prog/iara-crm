@@ -13,7 +13,6 @@ import {
   Camera,
   Palette,
   Award,
-  Video,
   Mic,
   Edit3,
   Settings,
@@ -27,6 +26,7 @@ import {
   Smartphone,
   Menu,
   X,
+  Layers,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTheme } from './ThemeProvider'
@@ -34,39 +34,27 @@ import SeletorIdioma from './SeletorIdioma'
 
 type Skill = { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; nivel: number }
 
-const planoAtual = 4
-
 const habilidadesMenu: { titulo: string; nivel: number; emoji: string; skills: Skill[] }[] = [
   {
-    titulo: 'Secretária', nivel: 1, emoji: '💬',
+    titulo: 'Essencial', nivel: 1, emoji: '💬',
     skills: [
       { href: '/habilidades/atendimento', label: 'Atendimento', icon: MessageCircle, nivel: 1 },
       { href: '/habilidades/agendamento', label: 'Agenda', icon: Calendar, nivel: 1 },
       { href: '/habilidades/follow-up', label: 'Follow-up', icon: UserCheck, nivel: 1 },
+      { href: '/habilidades/voz', label: 'Voz', icon: Mic, nivel: 1 },
     ],
   },
   {
-    titulo: 'Estrategista', nivel: 2, emoji: '📊',
+    titulo: 'Premium', nivel: 2, emoji: '⭐',
     skills: [
-      { href: '/habilidades/roteiros', label: 'Roteiro Reels', icon: PenTool, nivel: 2 },
-      { href: '/habilidades/marketing', label: 'Marketing', icon: BarChart3, nivel: 2 },
       { href: '/habilidades/instagram', label: 'Instagram', icon: Instagram, nivel: 2 },
-    ],
-  },
-  {
-    titulo: 'Designer', nivel: 3, emoji: '🎨',
-    skills: [
-      { href: '/habilidades/avatar', label: 'Avatar IA', icon: Camera, nivel: 3 },
-      { href: '/habilidades/posts', label: 'Posts', icon: Palette, nivel: 3 },
-      { href: '/habilidades/marca', label: 'Marca', icon: Award, nivel: 3 },
-    ],
-  },
-  {
-    titulo: 'Audiovisual', nivel: 4, emoji: '🎬',
-    skills: [
-      { href: '/habilidades/video', label: 'Vídeo Avatar', icon: Video, nivel: 4 },
-      { href: '/habilidades/voz', label: 'Voz Clonada', icon: Mic, nivel: 4 },
-      { href: '/habilidades/editor', label: 'Editor', icon: Edit3, nivel: 4 },
+      { href: '/habilidades/marketing', label: 'Marketing', icon: BarChart3, nivel: 2 },
+      { href: '/habilidades/roteiros', label: 'Roteiros', icon: PenTool, nivel: 2 },
+      { href: '/habilidades/avatar', label: 'Fotos IA', icon: Camera, nivel: 2 },
+      { href: '/habilidades/posts', label: 'Posts', icon: Palette, nivel: 2 },
+      { href: '/habilidades/colagem', label: 'Antes/Depois', icon: Layers, nivel: 2 },
+      { href: '/habilidades/marca', label: 'Marca', icon: Award, nivel: 2 },
+      { href: '/habilidades/editor', label: 'Editor', icon: Edit3, nivel: 2 },
     ],
   },
 ]
@@ -76,7 +64,23 @@ export default function Sidebar() {
   const { theme, toggleTheme } = useTheme()
   const [expandedGroups, setExpandedGroups] = useState<number[]>([1])
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [planoAtual, setPlanoAtual] = useState(1)
+  const [nomeClinica, setNomeClinica] = useState('')
+  const [nomePlano, setNomePlano] = useState('Essencial')
   const isDark = theme === 'dark'
+
+  // Buscar plano da clínica
+  useEffect(() => {
+    fetch('/api/clinica')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.nivel) setPlanoAtual(Math.min(2, Number(data.nivel)))
+        if (data?.nome_clinica) setNomeClinica(data.nome_clinica)
+        if (data?.nivel >= 2) setNomePlano('Premium')
+        else setNomePlano('Essencial')
+      })
+      .catch(() => { })
+  }, [])
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -234,7 +238,6 @@ export default function Sidebar() {
             <Link href="/conversas" className={linkClass('/conversas')}>
               <MessageCircle size={17} strokeWidth={1.8} />
               <span>Conversas</span>
-              <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#D99773]/15 text-[#D99773]">2</span>
             </Link>
           </div>
 
@@ -275,7 +278,7 @@ export default function Sidebar() {
                         return (
                           <Link
                             key={skill.href}
-                            href={skill.href}
+                            href={habilitada ? skill.href : '/plano'}
                             className={`flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[12.5px] transition-all duration-300 ${active
                               ? 'bg-[#D99773]/10 text-[#D99773] font-semibold'
                               : habilitada
@@ -285,6 +288,9 @@ export default function Sidebar() {
                           >
                             {habilitada ? <skill.icon size={14} /> : <Lock size={12} strokeWidth={1.5} />}
                             <span>{skill.label}</span>
+                            {!habilitada && (
+                              <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#D99773]/10 text-[#D99773]">PRO</span>
+                            )}
                           </Link>
                         )
                       })}
@@ -324,11 +330,11 @@ export default function Sidebar() {
           <SeletorIdioma />
           <div className="flex items-center gap-3 px-3 py-3 rounded-xl mb-2" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15,76,97,0.03)' }}>
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D99773] to-[#0F4C61] flex items-center justify-center shadow-lg shadow-[#D99773]/10">
-              <span className="text-[11px] font-bold text-white">AS</span>
+              <span className="text-[11px] font-bold text-white">{nomeClinica ? nomeClinica.slice(0, 2).toUpperCase() : 'IA'}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold truncate" style={{ color: isDark ? '#FFFFFF' : '#0F4C61' }}>Dra. Ana Silva</p>
-              <p className="text-[10px]" style={{ color: isDark ? '#374151' : '#94A3B8' }}>Plano Secretária</p>
+              <p className="text-[12px] font-semibold truncate" style={{ color: isDark ? '#FFFFFF' : '#0F4C61' }}>{nomeClinica || 'Minha Clínica'}</p>
+              <p className="text-[10px]" style={{ color: isDark ? '#374151' : '#94A3B8' }}>Plano {nomePlano}</p>
             </div>
           </div>
           <button className="flex items-center gap-3 px-3 py-2 rounded-xl text-[12px] w-full transition-all text-gray-400 hover:text-red-400 hover:bg-red-500/5">
@@ -340,3 +346,4 @@ export default function Sidebar() {
     </>
   )
 }
+

@@ -4,10 +4,9 @@ import { useParams, useRouter } from 'next/navigation'
 import { Lock, Play, ArrowUpRight, ArrowLeft, Check } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { ReactNode } from 'react'
+import { ReactNode, useState, useEffect } from 'react'
 
 // Tool components (lazy loaded)
-const VideoTool = dynamic(() => import('@/components/tools/VideoTool'))
 const PostsTool = dynamic(() => import('@/components/tools/PostsTool'))
 const AvatarTool = dynamic(() => import('@/components/tools/AvatarTool'))
 const RoteirosTool = dynamic(() => import('@/components/tools/RoteirosTool'))
@@ -19,6 +18,7 @@ const InstagramTool = dynamic(() => import('@/components/tools/InstagramTool'))
 const MarcaTool = dynamic(() => import('@/components/tools/MarcaTool'))
 const VozTool = dynamic(() => import('@/components/tools/VozTool'))
 const EditorTool = dynamic(() => import('@/components/tools/EditorTool'))
+const CollagemTool = dynamic(() => import('@/components/tools/CollagemTool'))
 
 // Dados das habilidades
 const skillsData: Record<string, {
@@ -26,109 +26,113 @@ const skillsData: Record<string, {
     descricao: string
     nivel: number
     planoNome: string
-    planoPreco: string
     beneficios: string[]
     videoUrl?: string
     tool?: () => ReactNode
 }> = {
-    // === NÍVEL 1 — Secretária ===
+    // === NÍVEL 1 — Essencial ===
     'atendimento': {
         nome: 'Atendimento por Texto e Áudio',
         descricao: 'A IARA atende suas clientes no WhatsApp, responde perguntas sobre procedimentos, preços e disponibilidade.',
-        nivel: 1, planoNome: 'Secretária', planoPreco: 'R$ 97/mês',
+        nivel: 1, planoNome: 'Essencial',
         beneficios: ['Respostas em menos de 1 segundo', 'Transcrição de áudios automática', 'Vendas com técnica de 7 passos', 'Funciona 24 horas'],
         tool: () => <AtendimentoTool />,
     },
     'agendamento': {
         nome: 'Agenda',
         descricao: 'Gerencie seus compromissos, configure horários e a IARA agenda automaticamente pra você.',
-        nivel: 1, planoNome: 'Secretária', planoPreco: 'R$ 97/mês',
+        nivel: 1, planoNome: 'Essencial',
         beneficios: ['Integração Google Calendar', 'Propõe 2 opções de horário', 'Lembrete automático 24h antes', 'Reagendamento automático'],
         tool: () => <AgendaTool />,
     },
     'follow-up': {
         nome: 'Follow-up Automático',
         descricao: 'A IARA envia lembretes antes dos agendamentos e recupera leads que pararam de responder.',
-        nivel: 1, planoNome: 'Secretária', planoPreco: 'R$ 97/mês',
+        nivel: 1, planoNome: 'Essencial',
         beneficios: ['Lembrete 24h e 2h antes', 'Recuperação de leads frios', 'Confirmação de presença', 'Reagendamento se não comparecer'],
         tool: () => <FollowUpTool />,
     },
-    // === NÍVEL 2 — Estrategista ===
-    'roteiros': {
-        nome: 'Roteiro de Reels',
-        descricao: 'A IARA cria roteiros profissionais para seus Reels no Instagram, baseados nos seus procedimentos e tom de voz.',
-        nivel: 2, planoNome: 'Estrategista', planoPreco: 'R$ 197/mês',
-        beneficios: ['Roteiros personalizados', 'Baseado nos seus procedimentos', 'Trends do momento', 'Hooks que vendem'],
-        tool: () => <RoteirosTool />,
+    'voz': {
+        nome: 'Voz da IARA',
+        descricao: 'Configure a voz da IARA. No Essencial usa OpenAI. No Premium, clone sua própria voz com ElevenLabs.',
+        nivel: 1, planoNome: 'Essencial',
+        beneficios: ['Áudios naturais no WhatsApp', 'Plano Essencial: voz OpenAI', 'Plano Premium: clone sua voz', 'Integração ElevenLabs (Premium)'],
+        tool: () => <VozTool />,
+    },
+    // === NÍVEL 2 — Premium ===
+    'instagram': {
+        nome: 'Instagram',
+        descricao: 'A IARA responde DMs e comentários do Instagram da sua clínica. Atua como vendedora ativa.',
+        nivel: 2, planoNome: 'Premium',
+        beneficios: ['Responde DMs automaticamente', 'Responde comentários com palavras-chave', 'Inicia conversa no WhatsApp', 'Venda ativa estilo "vendedora"'],
+        tool: () => <InstagramTool />,
     },
     'marketing': {
         nome: 'Plano de Marketing',
         descricao: 'A IARA monta um plano de marketing mensal personalizado para sua clínica, com calendário de conteúdo.',
-        nivel: 2, planoNome: 'Estrategista', planoPreco: 'R$ 197/mês',
+        nivel: 2, planoNome: 'Premium',
         beneficios: ['Calendário de conteúdo mensal', 'Estratégias de captação', 'Análise de concorrência', 'Datas comemorativas'],
         tool: () => <MarketingTool />,
     },
-    'instagram': {
-        nome: 'Análise do Instagram',
-        descricao: 'A IARA analisa seu perfil no Instagram e dá sugestões de melhoria baseadas em métricas reais.',
-        nivel: 2, planoNome: 'Estrategista', planoPreco: 'R$ 197/mês',
-        beneficios: ['Análise de engajamento', 'Melhores horários para postar', 'Sugestões de bio e destaques', 'Hashtags estratégicas'],
-        tool: () => <InstagramTool />,
+    'roteiros': {
+        nome: 'Roteiros',
+        descricao: 'A IARA cria roteiros profissionais para seus Reels no Instagram, baseados nos seus procedimentos e tom de voz.',
+        nivel: 2, planoNome: 'Premium',
+        beneficios: ['Roteiros personalizados', 'Baseado nos seus procedimentos', 'Trends do momento', 'Hooks que vendem'],
+        tool: () => <RoteirosTool />,
     },
-    // === NÍVEL 3 — Designer ===
     'avatar': {
-        nome: 'Avatar Fotorrealista',
+        nome: 'Fotos com IA',
         descricao: 'A IARA cria fotos profissionais suas usando IA, perfeitas para posts e anúncios.',
-        nivel: 3, planoNome: 'Designer', planoPreco: 'R$ 297/mês',
+        nivel: 2, planoNome: 'Premium',
         beneficios: ['Book profissional com IA', 'Diversas poses e cenários', 'Qualidade de estúdio', 'Ilimitado dentro do plano'],
         tool: () => <AvatarTool />,
     },
     'posts': {
         nome: 'Posts e Carrosséis',
         descricao: 'A IARA monta posts e carrosséis prontos para publicar no Instagram da sua clínica.',
-        nivel: 3, planoNome: 'Designer', planoPreco: 'R$ 297/mês',
+        nivel: 2, planoNome: 'Premium',
         beneficios: ['Posts prontos para publicar', 'Carrosséis educativos', 'Identidade visual consistente', 'Textos persuasivos'],
         tool: () => <PostsTool />,
+    },
+    'colagem': {
+        nome: 'Antes & Depois',
+        descricao: 'Monte colagens de antes e depois dos seus procedimentos com a logo da clínica. Pronto para postar.',
+        nivel: 2, planoNome: 'Premium',
+        beneficios: ['6 templates sofisticados', '4 formatos (Feed, Portrait, Wide, Reels)', 'Logo da clínica com transparência', 'Download em PNG alta qualidade'],
+        tool: () => <CollagemTool />,
     },
     'marca': {
         nome: 'Logo & Manual de Marca',
         descricao: 'A IARA cria sua identidade visual completa: logo, paleta de cores, fontes e manual de marca.',
-        nivel: 3, planoNome: 'Designer', planoPreco: 'R$ 297/mês',
+        nivel: 2, planoNome: 'Premium',
         beneficios: ['Logo profissional', 'Paleta de cores', 'Manual de marca completo', 'Aplicações em redes sociais'],
         tool: () => <MarcaTool />,
     },
-    // === NÍVEL 4 — Audiovisual ===
-    'video': {
-        nome: 'Vídeo com Avatar',
-        descricao: 'A IARA gera vídeos seus falando, usando seu avatar e sua voz clonada. Perfeito para Reels e Stories.',
-        nivel: 4, planoNome: 'Audiovisual', planoPreco: 'R$ 497/mês',
-        beneficios: ['Vídeos com seu avatar falando', 'Integração HeyGen', 'Exporta em MP4 HD', 'Perfeito para Reels'],
-        tool: () => <VideoTool />,
-    },
-    'voz': {
-        nome: 'Voz Clonada',
-        descricao: 'A IARA clona sua voz usando ElevenLabs. Nas mensagens de áudio pelo WhatsApp, a cliente ouve VOCÊ.',
-        nivel: 4, planoNome: 'Audiovisual', planoPreco: 'R$ 497/mês',
-        beneficios: ['Clone fiel da sua voz', 'Áudios no WhatsApp com sua voz', 'Integração ElevenLabs', 'Naturalidade impressionante'],
-        tool: () => <VozTool />,
-    },
     'editor': {
-        nome: 'Editor de Vídeo',
-        descricao: 'A IARA edita seus vídeos com cortes, legendas e efeitos minimalistas prontos para publicar.',
-        nivel: 4, planoNome: 'Audiovisual', planoPreco: 'R$ 497/mês',
-        beneficios: ['Edição automatizada', 'Legendas automáticas', 'Cortes inteligentes', 'Exporta em formatos para Reels/TikTok'],
+        nome: 'Editor de Texto',
+        descricao: 'A IARA ajuda a criar e editar legendas, textos e descrições para suas redes sociais.',
+        nivel: 2, planoNome: 'Premium',
+        beneficios: ['Legendas otimizadas', 'Textos persuasivos', 'Hashtags estratégicas', 'Tom de voz consistente'],
         tool: () => <EditorTool />,
     },
 }
-
-// Nível atual da cliente — depois vem do banco
-const planoAtual = 4 // 4 = todos desbloqueados (trocar pra nível real do banco depois)
 
 export default function HabilidadePage() {
     const params = useParams()
     const router = useRouter()
     const slug = params.slug as string
     const skill = skillsData[slug]
+    const [planoAtual, setPlanoAtual] = useState(1)
+
+    useEffect(() => {
+        fetch('/api/clinica')
+            .then(r => r.json())
+            .then(data => {
+                if (data?.nivel) setPlanoAtual(Math.min(2, Number(data.nivel)))
+            })
+            .catch(() => { })
+    }, [])
 
     if (!skill) {
         return (
@@ -160,20 +164,14 @@ export default function HabilidadePage() {
                     <span className="badge badge-success">✅ Ativo</span>
                 ) : (
                     <span className="badge badge-warning">
-                        <Lock size={12} /> {skill.planoNome} — {skill.planoPreco}
+                        <Lock size={12} /> {skill.planoNome}
                     </span>
                 )}
             </div>
 
             {desbloqueada && skill.tool ? (
-                /* ==========================================
-                   FERRAMENTA FUNCIONAL (skill desbloqueada)
-                   ========================================== */
                 skill.tool()
             ) : (
-                /* ==========================================
-                   PREVIEW COM VÍDEO (skill bloqueada ou sem tool)
-                   ========================================== */
                 <>
                     <p className="text-acinzentado leading-relaxed mb-8">{skill.descricao}</p>
 
@@ -228,8 +226,7 @@ export default function HabilidadePage() {
                         <div className="glass-card p-8 text-center bg-gradient-to-r from-terracota/5 to-terracota/10">
                             <h3 className="title-serif text-xl mb-2">Desbloqueie essa habilidade</h3>
                             <p className="text-acinzentado mb-4">
-                                Faça upgrade para o plano <strong className="text-petroleo">{skill.planoNome}</strong> por apenas{' '}
-                                <strong className="text-terracota">{skill.planoPreco}</strong>
+                                Faça upgrade para o plano <strong className="text-petroleo">{skill.planoNome}</strong>
                             </p>
                             <Link href="/plano" className="btn-primary inline-flex items-center gap-2">
                                 Fazer Upgrade <ArrowUpRight size={16} />
@@ -241,3 +238,4 @@ export default function HabilidadePage() {
         </div>
     )
 }
+
