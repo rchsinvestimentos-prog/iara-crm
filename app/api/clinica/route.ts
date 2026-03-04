@@ -5,8 +5,9 @@ import { prisma } from '@/lib/prisma'
 import { notificarMudancaConfig } from '@/lib/notificacao'
 import { z } from 'zod'
 
-// Validation schema
+// Validation schema — aceita todos os campos editáveis
 const UpdateClinicaSchema = z.object({
+    // ConfiguracoesTool
     nomeClinica: z.string().min(1).max(100).optional(),
     nomeAssistente: z.string().min(1).max(50).optional(),
     whatsappClinica: z.string().max(20).optional().nullable(),
@@ -17,7 +18,13 @@ const UpdateClinicaSchema = z.object({
     horarioInicio: z.string().max(10).optional().nullable(),
     horarioFim: z.string().max(10).optional().nullable(),
     diasFuncionamento: z.string().max(100).optional().nullable(),
-})
+    // AtendimentoTool
+    humor: z.string().max(50).optional().nullable(),
+    emojis: z.string().max(50).optional().nullable(),
+    fraseDespedida: z.string().max(200).optional().nullable(),
+    funcionalidades: z.string().max(5000).optional().nullable(),
+    feedbacks: z.string().max(5000).optional().nullable(),
+}).passthrough() // aceitar campos extras sem erro
 
 // GET /api/clinica
 export async function GET() {
@@ -62,9 +69,18 @@ export async function PUT(request: Request) {
             where: { id: clinicaId },
         })
 
+        // Filtrar campos que o Prisma realmente aceita
+        // (ignora campos que não existem na tabela)
+        const dataToUpdate: Record<string, unknown> = {}
+        for (const [key, value] of Object.entries(validated)) {
+            if (value !== undefined) {
+                dataToUpdate[key] = value
+            }
+        }
+
         const updated = await prisma.clinica.update({
             where: { id: clinicaId },
-            data: validated,
+            data: dataToUpdate,
         })
 
         // Enviar notificação de confirmação por WhatsApp (async, não bloqueia)
@@ -82,6 +98,7 @@ export async function PUT(request: Request) {
         if (err instanceof z.ZodError) {
             return NextResponse.json({ error: 'Dados inválidos', details: err.issues }, { status: 400 })
         }
+        console.error('[PUT /api/clinica] Erro:', err)
         return NextResponse.json({ error: 'Erro ao salvar' }, { status: 500 })
     }
 }
