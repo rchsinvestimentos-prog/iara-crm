@@ -54,10 +54,10 @@ export default function ConfiguracoesTool() {
             if (clinicaRes.ok) {
                 const data = await clinicaRes.json()
                 setClinica(data)
-                setNomeClinica(data.nome || '')
-                setNomeIA(data.nomeIA || 'IARA')
+                setNomeClinica(data.nomeClinica || data.nome || '')
+                setNomeIA(data.nomeAssistente || data.nomeIA || 'IARA')
                 setWhatsappClinica(data.whatsappClinica || '')
-                setWhatsappPessoal(data.whatsappPessoal || '')
+                setWhatsappPessoal(data.whatsappDoutora || data.whatsappPessoal || '')
                 setDiferenciais(data.diferenciais || '')
             }
 
@@ -82,10 +82,10 @@ export default function ConfiguracoesTool() {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    nome: nomeClinica,
-                    nomeIA,
+                    nomeClinica,
+                    nomeAssistente: nomeIA,
                     whatsappClinica: whatsappClinica || null,
-                    whatsappPessoal: whatsappPessoal || null,
+                    whatsappDoutora: whatsappPessoal || null,
                     diferenciais: diferenciais || null,
                 }),
             })
