@@ -765,55 +765,10 @@ export default function ConfiguracoesTool() {
                                     <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">4.</span> Aponte a câmera para o QR acima</p>
                                 </div>
                             </div>
-
-                            {/* Método 2: Por código */}
-                            <div className="bg-blue-50 rounded-xl p-3 text-left mb-3">
-                                <p className="text-[11px] font-semibold text-blue-700 mb-1.5">📲 Opção 2: Pelo celular (sem escanear)</p>
-                                <div className="space-y-1">
-                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">1.</span> Abra o <strong>WhatsApp</strong> no celular</p>
-                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">2.</span> <strong>⋮</strong> (Android) ou <strong>Configurações</strong> (iPhone)</p>
-                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">3.</span> <strong>Dispositivos Conectados</strong> → <strong>Conectar Dispositivo</strong></p>
-                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">4.</span> Toque em <strong>"Conectar com número de telefone"</strong></p>
-                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">5.</span> O WhatsApp vai pedir um <strong>código de 8 dígitos</strong></p>
-                                </div>
-
-                                {!pairingCode ? (
-                                    <button
-                                        className="mt-2 w-full text-[11px] font-medium px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                        onClick={async () => {
-                                            const phone = whatsappClinica?.replace(/\D/g, '')
-                                            if (!phone || phone.length < 10) {
-                                                alert('Preencha o WhatsApp da Clínica nas configurações acima primeiro.')
-                                                return
-                                            }
-                                            try {
-                                                const res = await fetch('/api/whatsapp/pairing-code', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ phone })
-                                                })
-                                                const data = await res.json()
-                                                if (data.pairingCode) {
-                                                    setPairingCode(data.pairingCode)
-                                                } else {
-                                                    alert(data.error || 'Não foi possível gerar código. Use o QR Code.')
-                                                }
-                                            } catch (err: any) {
-                                                alert('Erro: ' + err.message)
-                                            }
-                                        }}
-                                    >
-                                        🔑 Gerar Código de 8 Dígitos
-                                    </button>
-                                ) : (
-                                    <div className="mt-2 bg-white border-2 border-blue-200 rounded-lg p-3 cursor-pointer hover:bg-blue-50 transition-colors" onClick={() => {
-                                        navigator.clipboard.writeText(pairingCode)
-                                        alert('Código copiado!')
-                                    }}>
-                                        <p className="text-[9px] text-gray-500 mb-1">Seu código (toque para copiar):</p>
-                                        <p className="text-2xl font-mono font-bold tracking-[0.3em] text-blue-700">{pairingCode}</p>
-                                    </div>
-                                )}
+                            {/* Dica: acessar de outro dispositivo */}
+                            <div className="bg-amber-50 rounded-xl p-3 text-left mb-3">
+                                <p className="text-[11px] font-semibold text-amber-700 mb-1.5">💡 Está no celular?</p>
+                                <p className="text-[10px] text-gray-600">Abra este painel no <strong>computador</strong> ou <strong>tablet</strong> e escaneie o QR Code com o celular do WhatsApp da clínica.</p>
                             </div>
 
                             <p className="text-[10px] text-green-600 mb-3 animate-pulse">⏳ Aguardando conexão... (QR atualiza automaticamente)</p>
