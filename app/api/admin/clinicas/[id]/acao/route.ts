@@ -14,10 +14,30 @@ function gerarSenhaAleatoria(len = 10): string {
 
 export async function POST(
     request: Request,
-    context: { params: Promise<{ id: string }> }
+    context: any
 ) {
     try {
-        const { id } = await context.params
+        // Extrair ID da URL como fallback robusto
+        let idStr: string | undefined
+        try {
+            const p = context?.params
+            const resolved = (p && typeof p.then === 'function') ? await p : p
+            idStr = resolved?.id
+        } catch { }
+
+        // Fallback: extrair da URL
+        if (!idStr) {
+            const url = new URL(request.url)
+            const segments = url.pathname.split('/')
+            const acaoIdx = segments.indexOf('acao')
+            if (acaoIdx > 0) idStr = segments[acaoIdx - 1]
+        }
+
+        const clinicaId = parseInt(idStr || '')
+        if (isNaN(clinicaId)) {
+            return NextResponse.json({ error: `ID inválido (recebido: ${idStr})` }, { status: 400 })
+        }
+
         const session = await getServerSession(authOptions)
         if (!isAdmin(session)) {
             return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
@@ -29,10 +49,6 @@ export async function POST(
             return NextResponse.json({ error: 'Você não tem permissão para editar clínicas' }, { status: 403 })
         }
 
-        const clinicaId = parseInt(id)
-        if (isNaN(clinicaId)) {
-            return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
-        }
         const body = await request.json()
         const { acao } = body
 
