@@ -489,11 +489,47 @@ export default function ConfiguracoesTool() {
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className={labelClass} style={{ color: 'var(--text-muted)' }}>WhatsApp da Clínica</label>
-                            <input className={inputClass} style={inputStyle} value={whatsappClinica} onChange={(e) => setWhatsappClinica(e.target.value)} placeholder="41999999999" />
+                            <div className="flex gap-1">
+                                <select className="px-1 py-2 text-[11px] rounded-xl focus:outline-none w-[75px] shrink-0" style={inputStyle}
+                                    value={whatsappClinica.match(/^\d{1,3}(?=\d{8,})/)?.[0] || '55'}
+                                    onChange={(e) => {
+                                        const num = whatsappClinica.replace(/^\d{1,3}(?=\d{8,})/, '')
+                                        setWhatsappClinica(e.target.value + num)
+                                    }}>
+                                    <option value="55">🇧🇷+55</option>
+                                    <option value="351">🇵🇹+351</option>
+                                    <option value="1">🇺🇸+1</option>
+                                    <option value="54">🇦🇷+54</option>
+                                    <option value="595">🇵🇾+595</option>
+                                    <option value="598">🇺🇾+598</option>
+                                    <option value="34">🇪🇸+34</option>
+                                    <option value="39">🇮🇹+39</option>
+                                    <option value="44">🇬🇧+44</option>
+                                </select>
+                                <input className={`${inputClass} flex-1`} style={inputStyle} value={whatsappClinica} onChange={(e) => setWhatsappClinica(e.target.value)} placeholder="5541999999999" />
+                            </div>
                         </div>
                         <div>
                             <label className={labelClass} style={{ color: 'var(--text-muted)' }}>WhatsApp Pessoal (Dra)</label>
-                            <input className={inputClass} style={inputStyle} value={whatsappPessoal} onChange={(e) => setWhatsappPessoal(e.target.value)} placeholder="41988888888" />
+                            <div className="flex gap-1">
+                                <select className="px-1 py-2 text-[11px] rounded-xl focus:outline-none w-[75px] shrink-0" style={inputStyle}
+                                    value={whatsappPessoal.match(/^\d{1,3}(?=\d{8,})/)?.[0] || '55'}
+                                    onChange={(e) => {
+                                        const num = whatsappPessoal.replace(/^\d{1,3}(?=\d{8,})/, '')
+                                        setWhatsappPessoal(e.target.value + num)
+                                    }}>
+                                    <option value="55">🇧🇷+55</option>
+                                    <option value="351">🇵🇹+351</option>
+                                    <option value="1">🇺🇸+1</option>
+                                    <option value="54">🇦🇷+54</option>
+                                    <option value="595">🇵🇾+595</option>
+                                    <option value="598">🇺🇾+598</option>
+                                    <option value="34">🇪🇸+34</option>
+                                    <option value="39">🇮🇹+39</option>
+                                    <option value="44">🇬🇧+44</option>
+                                </select>
+                                <input className={`${inputClass} flex-1`} style={inputStyle} value={whatsappPessoal} onChange={(e) => setWhatsappPessoal(e.target.value)} placeholder="5541988888888" />
+                            </div>
                         </div>
                     </div>
                     <div>
