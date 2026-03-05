@@ -736,21 +736,34 @@ export default function ConfiguracoesTool() {
                 {/* QR Code Modal - renderizado via Portal fora do container */}
                 {showQR && qrCode && typeof document !== 'undefined' && createPortal(
                     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[99999]" style={{ margin: 0, padding: '16px' }} onClick={() => setShowQR(false)}>
-                        <div className="bg-white rounded-2xl p-6 w-[340px] text-center shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                        <div className="bg-white rounded-2xl p-5 w-[340px] text-center shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                             <h3 className="text-[16px] font-bold text-gray-800 mb-3">📱 Conectar WhatsApp</h3>
 
                             <div className="bg-white border-2 border-gray-100 rounded-xl p-2 inline-block mb-3">
-                                <img src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`} alt="QR Code" className="w-[220px] h-[220px]" />
+                                <img src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`} alt="QR Code" className="w-[200px] h-[200px]" />
                             </div>
 
-                            <div className="bg-gray-50 rounded-xl p-3 text-left mb-3">
-                                <p className="text-[11px] font-semibold text-gray-700 mb-2">📋 Como conectar:</p>
-                                <div className="space-y-1.5">
-                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">1.</span> Abra o <strong>WhatsApp</strong> no seu celular</p>
-                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">2.</span> Toque nos <strong>3 pontinhos ⋮</strong> (Android) ou <strong>Configurações ⚙️</strong> (iPhone)</p>
-                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">3.</span> Toque em <strong>Dispositivos Conectados</strong></p>
-                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">4.</span> Toque em <strong>Conectar Dispositivo</strong></p>
-                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">5.</span> <strong>Aponte a câmera</strong> para o QR Code acima</p>
+                            {/* Método 1: QR Code */}
+                            <div className="bg-gray-50 rounded-xl p-3 text-left mb-2">
+                                <p className="text-[11px] font-semibold text-gray-700 mb-1.5">📷 Opção 1: Escaneando o QR Code</p>
+                                <div className="space-y-1">
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">1.</span> Abra o <strong>WhatsApp</strong> no celular</p>
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">2.</span> <strong>⋮</strong> (Android) ou <strong>Configurações</strong> (iPhone)</p>
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">3.</span> <strong>Dispositivos Conectados</strong> → <strong>Conectar Dispositivo</strong></p>
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">4.</span> Aponte a câmera para o QR acima</p>
+                                </div>
+                            </div>
+
+                            {/* Método 2: Por código */}
+                            <div className="bg-blue-50 rounded-xl p-3 text-left mb-3">
+                                <p className="text-[11px] font-semibold text-blue-700 mb-1.5">📲 Opção 2: Pelo celular (sem escanear)</p>
+                                <div className="space-y-1">
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">1.</span> Abra o <strong>WhatsApp</strong> no celular</p>
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">2.</span> <strong>⋮</strong> (Android) ou <strong>Configurações</strong> (iPhone)</p>
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">3.</span> <strong>Dispositivos Conectados</strong> → <strong>Conectar Dispositivo</strong></p>
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">4.</span> Toque em <strong>"Conectar com número de telefone"</strong></p>
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">5.</span> Digite o número do WhatsApp da clínica</p>
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">6.</span> Um <strong>código de 8 dígitos</strong> aparecerá — siga as instruções na tela</p>
                                 </div>
                             </div>
 
