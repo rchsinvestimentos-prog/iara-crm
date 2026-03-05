@@ -757,7 +757,7 @@ export default function ConfiguracoesTool() {
 
                             {/* Método 1: QR Code */}
                             <div className="bg-gray-50 rounded-xl p-3 text-left mb-2">
-                                <p className="text-[11px] font-semibold text-gray-700 mb-1.5">📷 Opção 1: Escaneando o QR Code</p>
+                                <p className="text-[11px] font-semibold text-gray-700 mb-1.5">📋 Como conectar:</p>
                                 <div className="space-y-1">
                                     <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">1.</span> Abra o <strong>WhatsApp</strong> no celular</p>
                                     <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">2.</span> <strong>⋮</strong> (Android) ou <strong>Configurações</strong> (iPhone)</p>
