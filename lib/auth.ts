@@ -15,6 +15,27 @@ export const authOptions: NextAuthOptions = {
                 if (!credentials?.email || !credentials?.password) return null
 
                 try {
+                    // ─── 1) Tentar admin_users primeiro ───
+                    const admin = await prisma.adminUser.findUnique({
+                        where: { email: credentials.email },
+                    })
+
+                    if (admin && admin.ativo && admin.senha) {
+                        const senhaValida = await bcrypt.compare(credentials.password, admin.senha)
+                        if (senhaValida) {
+                            return {
+                                id: `admin_${admin.id}`,
+                                email: admin.email,
+                                name: admin.nome,
+                                role: 'admin',
+                                userType: 'admin',
+                                adminRole: admin.role,
+                                plano: 99,
+                            }
+                        }
+                    }
+
+                    // ─── 2) Tentar clinica (clientes) ───
                     const clinica = await prisma.clinica.findUnique({
                         where: { email: credentials.email },
                     })
@@ -29,6 +50,8 @@ export const authOptions: NextAuthOptions = {
                         email: clinica.email,
                         name: clinica.nomeClinica || clinica.nome,
                         role: clinica.role || 'cliente',
+                        userType: 'cliente',
+                        adminRole: null,
                         plano: clinica.nivel,
                     }
                 } catch (err) {
@@ -43,6 +66,8 @@ export const authOptions: NextAuthOptions = {
             if (user) {
                 token.role = (user as any).role
                 token.plano = (user as any).plano
+                token.userType = (user as any).userType
+                token.adminRole = (user as any).adminRole
             }
             return token
         },
@@ -51,6 +76,8 @@ export const authOptions: NextAuthOptions = {
                 (session.user as any).id = token.sub
                     ; (session.user as any).role = token.role
                     ; (session.user as any).plano = token.plano
+                    ; (session.user as any).userType = token.userType
+                    ; (session.user as any).adminRole = token.adminRole
             }
             return session
         },
@@ -93,4 +120,14 @@ export async function getClinicaId(session: any): Promise<number | null> {
 
 export async function hashSenha(senha: string): Promise<string> {
     return bcrypt.hash(senha, 12)
+}
+
+// Helper: verificar se session é admin
+export function isAdmin(session: any): boolean {
+    return session?.user?.userType === 'admin'
+}
+
+// Helper: pegar role admin da session
+export function getAdminRole(session: any): string | null {
+    return session?.user?.adminRole || null
 }

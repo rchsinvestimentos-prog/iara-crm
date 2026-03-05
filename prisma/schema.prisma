@@ -220,3 +220,22 @@ model ComboProcedimento {
   @@unique([comboId, procedimentoId])
   @@map("combo_procedimentos")
 }
+
+// ============================================
+// Admin Users (equipe interna)
+// ============================================
+
+model AdminUser {
+  id        Int       @id @default(autoincrement())
+  nome      String    @db.VarChar(100)
+  email     String    @unique @db.VarChar(200)
+  senha     String
+  role      String    @default("visualizador") @db.VarChar(30)
+  ativo     Boolean   @default(true)
+  avatarUrl String?   @map("avatar_url")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @map("updated_at")
+
+  @@map("admin_users")
+}
+

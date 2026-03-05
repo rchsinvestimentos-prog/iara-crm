@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useSession, signOut } from 'next-auth/react'
 import {
     LayoutDashboard,
     Building2,
@@ -18,6 +19,7 @@ import {
     Stethoscope,
 } from 'lucide-react'
 import { useState } from 'react'
+import { canAccessPage, ROLE_LABELS, ROLE_COLORS } from '@/lib/permissions'
 
 const menuItems = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -29,11 +31,21 @@ const menuItems = [
     { href: '/admin/financeiro', label: 'Financeiro', icon: CreditCard },
     { href: '/admin/feedback', label: 'Feedback', icon: Star },
     { href: '/admin/config', label: 'Config Global', icon: Settings },
+    { href: '/admin/equipe', label: 'Equipe', icon: Users },
 ]
 
 export default function AdminSidebar() {
     const pathname = usePathname()
+    const { data: session } = useSession()
     const [collapsed, setCollapsed] = useState(false)
+
+    const adminRole = (session?.user as any)?.adminRole || 'visualizador'
+    const userName = session?.user?.name || 'Admin'
+    const roleLabel = ROLE_LABELS[adminRole as keyof typeof ROLE_LABELS] || 'Admin'
+    const roleColor = ROLE_COLORS[adminRole as keyof typeof ROLE_COLORS] || '#8B5CF6'
+
+    // Filtrar menu por permissões
+    const visibleItems = menuItems.filter(item => canAccessPage(adminRole, item.href))
 
     return (
         <aside
@@ -57,7 +69,7 @@ export default function AdminSidebar() {
 
             {/* Menu */}
             <nav className="flex-1 p-3 flex flex-col gap-0.5 overflow-y-auto">
-                {menuItems.map((item) => {
+                {visibleItems.map((item) => {
                     const isActive = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href))
                     const isExactDash = item.href === '/admin' && pathname === '/admin'
                     const active = isActive || isExactDash
@@ -82,12 +94,12 @@ export default function AdminSidebar() {
             <div className="border-t border-white/5 p-3 space-y-1">
                 {!collapsed && (
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-violet-500/30 flex items-center justify-center">
-                            <Users size={14} className="text-violet-300" />
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: `${roleColor}30`, color: roleColor }}>
+                            {userName.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                            <p className="text-white text-xs font-semibold">Rafael</p>
-                            <p className="text-violet-300/50 text-xs">Administrador</p>
+                            <p className="text-white text-xs font-semibold">{userName}</p>
+                            <p className="text-xs" style={{ color: `${roleColor}99` }}>{roleLabel}</p>
                         </div>
                     </div>
                 )}
@@ -98,7 +110,10 @@ export default function AdminSidebar() {
                     {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
                     {!collapsed && <span>Recolher</span>}
                 </button>
-                <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-400/60 hover:text-red-400 hover:bg-red-500/10 w-full transition-all">
+                <button
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-400/60 hover:text-red-400 hover:bg-red-500/10 w-full transition-all"
+                >
                     <LogOut size={18} />
                     {!collapsed && <span>Sair</span>}
                 </button>

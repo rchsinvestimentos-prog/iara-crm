@@ -132,24 +132,6 @@ export default function LoginPage() {
                             )}
                         </button>
                     </form>
-
-                    {/* Divider */}
-                    <div className="flex items-center gap-3 my-6">
-                        <div className="flex-1 h-px bg-white/[0.06]" />
-                        <span className="text-[11px] text-gray-600 uppercase tracking-wider">ou</span>
-                        <div className="flex-1 h-px bg-white/[0.06]" />
-                    </div>
-
-                    {/* Demo access */}
-                    <button
-                        onClick={() => {
-                            setEmail('demo@iara.click')
-                            setPassword('iara123')
-                        }}
-                        className="w-full py-3 rounded-xl border border-white/[0.06] text-gray-400 text-sm font-medium hover:bg-white/[0.03] hover:text-gray-300 hover:border-white/[0.1] transition-all duration-300"
-                    >
-                        Acessar conta demo
-                    </button>
                 </div>
 
                 {/* Footer */}
