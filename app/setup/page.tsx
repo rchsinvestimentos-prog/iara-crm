@@ -42,9 +42,21 @@ export default function SetupPage() {
         }))
     }
 
-    const handleFinish = () => {
-        // TODO: salvar via API + redirecionar
-        window.location.href = '/dashboard'
+    const [saving, setSaving] = useState(false)
+
+    const handleFinish = async () => {
+        setSaving(true)
+        try {
+            await fetch('/api/setup/concluir', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            })
+            window.location.href = '/dashboard'
+        } catch (error) {
+            console.error('Erro ao salvar:', error)
+            setSaving(false)
+        }
     }
 
     return (
@@ -59,8 +71,8 @@ export default function SetupPage() {
                     {steps.map((s, i) => (
                         <div key={i} className="flex items-center">
                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold transition-all duration-500 ${i < step ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                                    i === step ? 'bg-gradient-to-br from-[#D99773] to-[#C07A55] text-white shadow-lg shadow-[#D99773]/20' :
-                                        'bg-white/5 text-gray-600 border border-white/10'
+                                i === step ? 'bg-gradient-to-br from-[#D99773] to-[#C07A55] text-white shadow-lg shadow-[#D99773]/20' :
+                                    'bg-white/5 text-gray-600 border border-white/10'
                                 }`}>
                                 {i < step ? <Check size={16} /> : <span>{s.emoji}</span>}
                             </div>
@@ -211,8 +223,8 @@ export default function SetupPage() {
                                             key={dia}
                                             onClick={() => toggleDia(dia)}
                                             className={`px-3 py-2 rounded-lg text-xs font-medium uppercase transition-all ${data.diasSemana.includes(dia)
-                                                    ? 'bg-[#D99773]/20 text-[#D99773] border border-[#D99773]/30'
-                                                    : 'bg-white/5 text-gray-500 border border-white/10 hover:bg-white/10'
+                                                ? 'bg-[#D99773]/20 text-[#D99773] border border-[#D99773]/30'
+                                                : 'bg-white/5 text-gray-500 border border-white/10 hover:bg-white/10'
                                                 }`}
                                         >
                                             {dia}

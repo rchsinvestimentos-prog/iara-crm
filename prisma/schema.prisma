@@ -156,6 +156,26 @@ model Curso {
 }
 
 // ============================================
+// Procedimentos
+// ============================================
+
+model Procedimento {
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId   String
+  nome        String
+  valor       Float    @default(0)
+  desconto    Int      @default(0)
+  parcelas    String?  @db.VarChar(50)
+  duracao     String?  @db.VarChar(50)
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("createdAt")
+  updatedAt   DateTime @default(now()) @map("updatedAt")
+
+  @@index([clinicaId])
+  @@map("procedimentos")
+}
+
+// ============================================
 // Promoções
 // ============================================
 
