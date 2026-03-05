@@ -14,7 +14,22 @@ const UpdateClinicaSchema = z.object({
     whatsappDoutora: z.string().max(20).optional().nullable(),
     tomAtendimento: z.string().max(100).optional().nullable(),
     endereco: z.string().max(500).optional().nullable(),
-    diferenciais: z.string().max(2000).optional().nullable(),
+    diferenciais: z.string().max(5000).optional().nullable(),
+    // Horários detalhados
+    horarioSemana: z.string().max(50).optional().nullable(),
+    almocoSemana: z.string().max(50).optional().nullable(),
+    atendeSabado: z.boolean().optional().nullable(),
+    horarioSabado: z.string().max(50).optional().nullable(),
+    almocoSabado: z.string().max(50).optional().nullable(),
+    atendeDomingo: z.boolean().optional().nullable(),
+    horarioDomingo: z.string().max(50).optional().nullable(),
+    almocoDomingo: z.string().max(50).optional().nullable(),
+    atendeFeriado: z.boolean().optional().nullable(),
+    horarioFeriado: z.string().max(50).optional().nullable(),
+    almocoFeriado: z.string().max(50).optional().nullable(),
+    intervaloAtendimento: z.number().min(0).max(120).optional().nullable(),
+    antecedenciaMinima: z.string().max(200).optional().nullable(),
+    daCursos: z.boolean().optional().nullable(),
     horarioInicio: z.string().max(10).optional().nullable(),
     horarioFim: z.string().max(10).optional().nullable(),
     diasFuncionamento: z.string().max(100).optional().nullable(),
@@ -24,6 +39,14 @@ const UpdateClinicaSchema = z.object({
     fraseDespedida: z.string().max(200).optional().nullable(),
     funcionalidades: z.string().max(5000).optional().nullable(),
     feedbacks: z.string().max(5000).optional().nullable(),
+    // VIP Personalization
+    faqPersonalizado: z.any().optional().nullable(),
+    cuidadosPos: z.string().max(5000).optional().nullable(),
+    politicaCancelamento: z.string().max(5000).optional().nullable(),
+    formasPagamento: z.any().optional().nullable(),
+    linkMaps: z.string().max(500).optional().nullable(),
+    redesSociais: z.any().optional().nullable(),
+    mensagemBoasVindas: z.string().max(2000).optional().nullable(),
 }).passthrough() // aceitar campos extras sem erro
 
 // GET /api/clinica
@@ -86,7 +109,7 @@ export async function PUT(request: Request) {
         // Enviar notificação de confirmação por WhatsApp (async, não bloqueia)
         if (dadosAntigos) {
             notificarMudancaConfig(
-                clinicaId,
+                String(clinicaId),
                 dadosAntigos as unknown as Record<string, unknown>,
                 validated as unknown as Record<string, unknown>
             ).catch(err => console.error('[Notificação] Erro async:', err))

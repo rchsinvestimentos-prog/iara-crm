@@ -67,7 +67,28 @@ export const authOptions: NextAuthOptions = {
 
 export async function getClinicaId(session: any): Promise<number | null> {
     if (!session?.user?.id) return null
-    return Number(session.user.id)
+    const userId = Number(session.user.id)
+
+    // Verificar cookie de clínica ativa (multi-clínica)
+    try {
+        const { cookies } = require('next/headers')
+        const cookieStore = await cookies()
+        const activeId = cookieStore.get('activeClinicaId')?.value
+        if (activeId) {
+            const clinicaId = Number(activeId)
+            // Validar que essa clínica pertence ao usuário
+            if (clinicaId === userId) return clinicaId
+            const filha = await prisma.clinica.findFirst({
+                where: { id: clinicaId, parentId: userId },
+                select: { id: true },
+            })
+            if (filha) return filha.id
+        }
+    } catch {
+        // Cookie não disponível (ex: chamada fora de request context)
+    }
+
+    return userId
 }
 
 export async function hashSenha(senha: string): Promise<string> {

@@ -27,12 +27,20 @@ import {
   Menu,
   X,
   Layers,
+  Building2,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTheme } from './ThemeProvider'
 import SeletorIdioma from './SeletorIdioma'
 
 type Skill = { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; nivel: number }
+
+interface ClinicaItem {
+  id: number
+  nomeClinica: string | null
+  nome: string | null
+  endereco: string | null
+}
 
 const habilidadesMenu: { titulo: string; nivel: number; emoji: string; skills: Skill[] }[] = [
   {
@@ -67,6 +75,9 @@ export default function Sidebar() {
   const [planoAtual, setPlanoAtual] = useState(1)
   const [nomeClinica, setNomeClinica] = useState('')
   const [nomePlano, setNomePlano] = useState('Essencial')
+  const [clinicas, setClinicas] = useState<ClinicaItem[]>([])
+  const [clinicaAtiva, setClinicaAtiva] = useState<number | null>(null)
+  const [showClinicaDropdown, setShowClinicaDropdown] = useState(false)
   const isDark = theme === 'dark'
 
   // Buscar plano da clínica
@@ -75,12 +86,38 @@ export default function Sidebar() {
       .then(r => r.json())
       .then(data => {
         if (data?.nivel) setPlanoAtual(Math.min(2, Number(data.nivel)))
-        if (data?.nome_clinica) setNomeClinica(data.nome_clinica)
+        if (data?.nome_clinica || data?.nomeClinica) setNomeClinica(data.nome_clinica || data.nomeClinica)
         if (data?.nivel >= 2) setNomePlano('Premium')
         else setNomePlano('Essencial')
+        if (data?.id) setClinicaAtiva(Number(data.id))
       })
       .catch(() => { })
   }, [])
+
+  // Buscar lista de clínicas do usuário
+  useEffect(() => {
+    fetch('/api/clinicas')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setClinicas(data)
+      })
+      .catch(() => { })
+  }, [])
+
+  // Trocar clínica ativa
+  const switchClinica = async (id: number) => {
+    try {
+      const res = await fetch('/api/clinicas/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clinicaId: id }),
+      })
+      if (res.ok) {
+        setShowClinicaDropdown(false)
+        window.location.reload()
+      }
+    } catch { }
+  }
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -198,7 +235,6 @@ export default function Sidebar() {
             </div>
 
             <div className="flex items-center gap-1.5">
-              {/* Theme toggle - desktop only */}
               <button
                 onClick={toggleTheme}
                 className="hidden lg:flex w-8 h-8 rounded-lg items-center justify-center transition-all duration-300 hover:scale-110"
@@ -211,7 +247,6 @@ export default function Sidebar() {
                 {isDark ? <Sun size={15} /> : <Moon size={15} />}
               </button>
 
-              {/* Close button - mobile only */}
               <button
                 onClick={() => setMobileOpen(false)}
                 className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center transition-all"
@@ -328,15 +363,55 @@ export default function Sidebar() {
         {/* Footer */}
         <div className="px-3 pb-4 pt-2" style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.06)'}` }}>
           <SeletorIdioma />
-          <div className="flex items-center gap-3 px-3 py-3 rounded-xl mb-2" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15,76,97,0.03)' }}>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D99773] to-[#0F4C61] flex items-center justify-center shadow-lg shadow-[#D99773]/10">
-              <span className="text-[11px] font-bold text-white">{nomeClinica ? nomeClinica.slice(0, 2).toUpperCase() : 'IA'}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold truncate" style={{ color: isDark ? '#FFFFFF' : '#0F4C61' }}>{nomeClinica || 'Minha Clínica'}</p>
-              <p className="text-[10px]" style={{ color: isDark ? '#374151' : '#94A3B8' }}>Plano {nomePlano}</p>
-            </div>
+
+          {/* Clinic Selector */}
+          <div className="relative">
+            <button
+              onClick={() => clinicas.length > 1 && setShowClinicaDropdown(!showClinicaDropdown)}
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-2 transition-all ${clinicas.length > 1 ? 'cursor-pointer hover:opacity-80' : ''}`}
+              style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15,76,97,0.03)' }}
+            >
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D99773] to-[#0F4C61] flex items-center justify-center shadow-lg shadow-[#D99773]/10">
+                <span className="text-[11px] font-bold text-white">{nomeClinica ? nomeClinica.slice(0, 2).toUpperCase() : 'IA'}</span>
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-[12px] font-semibold truncate" style={{ color: isDark ? '#FFFFFF' : '#0F4C61' }}>{nomeClinica || 'Minha Clínica'}</p>
+                <p className="text-[10px]" style={{ color: isDark ? '#374151' : '#94A3B8' }}>Plano {nomePlano}</p>
+              </div>
+              {clinicas.length > 1 && (
+                <ChevronDown size={13} className={`transition-transform ${showClinicaDropdown ? 'rotate-180' : ''}`} style={{ color: isDark ? '#4B5563' : '#94A3B8' }} />
+              )}
+            </button>
+
+            {/* Dropdown de clínicas */}
+            {showClinicaDropdown && clinicas.length > 1 && (
+              <div
+                className="absolute bottom-full left-0 right-0 mb-1 rounded-xl py-1 shadow-xl z-50 border"
+                style={{
+                  backgroundColor: isDark ? '#1a1f2e' : '#ffffff',
+                  borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,76,97,0.1)',
+                }}
+              >
+                {clinicas.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => switchClinica(c.id)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-all hover:opacity-80 ${clinicaAtiva === c.id ? 'bg-[#0F4C61]/10' : ''}`}
+                  >
+                    <Building2 size={13} style={{ color: clinicaAtiva === c.id ? '#D99773' : isDark ? '#4B5563' : '#94A3B8' }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium truncate" style={{ color: clinicaAtiva === c.id ? '#D99773' : isDark ? '#FFFFFF' : '#0F4C61' }}>
+                        {c.nomeClinica || c.nome || 'Clínica'}
+                      </p>
+                      {c.endereco && <p className="text-[9px] truncate" style={{ color: isDark ? '#374151' : '#94A3B8' }}>{c.endereco}</p>}
+                    </div>
+                    {clinicaAtiva === c.id && <div className="w-1.5 h-1.5 rounded-full bg-[#D99773]" />}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
           <button className="flex items-center gap-3 px-3 py-2 rounded-xl text-[12px] w-full transition-all text-gray-400 hover:text-red-400 hover:bg-red-500/5">
             <LogOut size={15} strokeWidth={1.8} />
             <span>Sair</span>
@@ -346,4 +421,3 @@ export default function Sidebar() {
     </>
   )
 }
-

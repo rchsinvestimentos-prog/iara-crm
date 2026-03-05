@@ -23,6 +23,7 @@ model Clinica {
   telefone             String?
   senha                String?
   role                 String?   @default("cliente")
+  parentId             Int?      @map("parent_id")
   
   // Plano e créditos
   plano                String?
@@ -44,14 +45,20 @@ model Clinica {
   vozAssistente        String?   @map("voz_assistente")
   tomAtendimento       String?   @map("tom_atendimento")
   
-  // Horários
-  horarioSegSexInicio  DateTime? @map("horario_seg_sex_inicio") @db.Time()
-  horarioSegSexFim     DateTime? @map("horario_seg_sex_fim") @db.Time()
+  // Horários — Detalhados (texto livre: "08:00 às 18:00")
+  horarioSemana        String?   @map("horario_semana") @db.VarChar(50)
+  almocoSemana         String?   @map("almoco_semana") @db.VarChar(50)
   atendeSabado         Boolean?  @default(false) @map("atende_sabado")
-  horarioSabInicio     DateTime? @map("horario_sab_inicio") @db.Time()
-  horarioSabFim        DateTime? @map("horario_sab_fim") @db.Time()
-  atendeSab            Boolean?  @default(false) @map("atende_sab")
+  horarioSabado        String?   @map("horario_sabado") @db.VarChar(50)
+  almocoSabado         String?   @map("almoco_sabado") @db.VarChar(50)
+  atendeDomingo        Boolean?  @default(false) @map("atende_domingo")
+  horarioDomingo       String?   @map("horario_domingo") @db.VarChar(50)
+  almocoDomingo        String?   @map("almoco_domingo") @db.VarChar(50)
+  atendeFeriado        Boolean?  @default(false) @map("atende_feriado")
+  horarioFeriado       String?   @map("horario_feriado") @db.VarChar(50)
+  almocoFeriado        String?   @map("almoco_feriado") @db.VarChar(50)
   intervaloAtendimento Int?      @default(15) @map("intervalo_atendimento")
+  antecedenciaMinima   String?   @map("antecedencia_minima") @db.VarChar(200)
   
   // Descontos
   aceitaDescontos      Boolean?  @default(false) @map("aceita_descontos")
@@ -65,6 +72,10 @@ model Clinica {
   
   // Aprendizado
   aprendizadoContinuo  String?   @map("aprendizado_continuo")
+  
+  // Diferenciais
+  diferenciais         String?
+  daCursos             Boolean?  @default(false) @map("da_cursos")
   
   // Atendimento (personalidade da IA)
   humor                String?   @db.VarChar(50)
@@ -101,6 +112,15 @@ model Clinica {
   paletaCores          Json?     @map("paleta_cores") @db.JsonB
   vozClonada           String?   @map("voz_clonada")
   
+  // Personalização VIP
+  faqPersonalizado     Json?     @default("[]") @map("faq_personalizado") @db.JsonB
+  cuidadosPos          String?   @map("cuidados_pos")
+  politicaCancelamento String?   @map("politica_cancelamento")
+  formasPagamento      Json?     @default("{}") @map("formas_pagamento") @db.JsonB
+  linkMaps             String?   @map("link_maps") @db.VarChar(500)
+  redesSociais         Json?     @default("{}") @map("redes_sociais") @db.JsonB
+  mensagemBoasVindas   String?   @map("mensagem_boas_vindas")
+  
   // Datas
   createdAt            DateTime? @default(now()) @map("created_at")
   updatedAt            DateTime? @default(now()) @map("updated_at")
@@ -110,4 +130,92 @@ model Clinica {
   integracoes          Json?     @default("{}") @db.JsonB
   
   @@map("users")
+}
+
+// ============================================
+// Cursos
+// ============================================
+
+model Curso {
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId   String
+  nome        String
+  modalidade  String   @default("presencial") @db.VarChar(20)
+  valor       Float    @default(0)
+  duracao     String?  @db.VarChar(50)
+  vagas       Int?
+  desconto    Int      @default(0)
+  parcelas    String?  @db.VarChar(50)
+  descricao   String?
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([clinicaId])
+  @@map("cursos")
+}
+
+// ============================================
+// Promoções
+// ============================================
+
+model Promocao {
+  id             String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId      String
+  nome           String
+  descricao      String?
+  instrucaoIara  String?
+  tipoDesconto   String   @default("percentual") @db.VarChar(20)
+  valorDesconto  Float    @default(0)
+  dataInicio     DateTime @db.Date
+  dataFim        DateTime @db.Date
+  ativo          Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  procedimentos  PromocaoProcedimento[]
+
+  @@index([clinicaId])
+  @@index([dataInicio, dataFim])
+  @@map("promocoes")
+}
+
+model PromocaoProcedimento {
+  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  promocaoId      String
+  procedimentoId  String
+
+  promocao        Promocao @relation(fields: [promocaoId], references: [id], onDelete: Cascade)
+
+  @@unique([promocaoId, procedimentoId])
+  @@map("promocao_procedimentos")
+}
+
+// ============================================
+// Combos
+// ============================================
+
+model Combo {
+  id             String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId      String
+  nome           String
+  descricao      String?
+  valorOriginal  Float    @default(0)
+  valorCombo     Float    @default(0)
+  ativo          Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  procedimentos  ComboProcedimento[]
+
+  @@index([clinicaId])
+  @@map("combos")
+}
+
+model ComboProcedimento {
+  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  comboId         String
+  procedimentoId  String
+
+  combo           Combo @relation(fields: [comboId], references: [id], onDelete: Cascade)
+
+  @@unique([comboId, procedimentoId])
+  @@map("combo_procedimentos")
 }
