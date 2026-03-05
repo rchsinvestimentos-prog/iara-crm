@@ -28,7 +28,10 @@ export async function POST(
             return NextResponse.json({ error: 'Você não tem permissão para editar clínicas' }, { status: 403 })
         }
 
-        const clinicaId = params.id
+        const clinicaId = parseInt(params.id)
+        if (isNaN(clinicaId)) {
+            return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+        }
         const body = await request.json()
         const { acao } = body
 
