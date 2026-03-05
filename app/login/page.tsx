@@ -57,8 +57,8 @@ export default function LoginPage() {
                 {/* Logo */}
                 <div className="text-center mb-8">
                     <div className="relative inline-block">
-                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#D99773] to-[#0F4C61] mx-auto mb-5 flex items-center justify-center shadow-2xl shadow-[#D99773]/20">
-                            <Sparkles size={28} className="text-white" />
+                        <div className="w-24 h-24 rounded-2xl mx-auto mb-5 overflow-hidden shadow-2xl shadow-[#D99773]/20 border border-white/10">
+                            <img src="/iara-avatar.png" alt="IARA" className="w-full h-full object-cover" />
                         </div>
                         <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-400 border-2 border-[#0B0F19] shadow-[0_0_10px_rgba(74,222,128,0.5)]" />
                     </div>

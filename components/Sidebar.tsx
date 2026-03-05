@@ -176,8 +176,8 @@ export default function Sidebar() {
         </button>
 
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#D99773] to-[#0F4C61] flex items-center justify-center shadow-lg shadow-[#D99773]/20">
-            <Sparkles size={14} className="text-white" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden shadow-lg shadow-[#D99773]/20 border border-white/10">
+            <img src="/iara-avatar.png" alt="IARA" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-[14px] font-bold tracking-tight" style={{ color: isDark ? '#FFFFFF' : '#0F4C61' }}>IARA</h1>
         </div>
@@ -223,8 +223,8 @@ export default function Sidebar() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D99773] to-[#0F4C61] flex items-center justify-center shadow-lg shadow-[#D99773]/20">
-                  <Sparkles size={18} className="text-white" />
+                <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-[#D99773]/20 border border-white/10">
+                  <img src="/iara-avatar.png" alt="IARA" className="w-full h-full object-cover" />
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-400 border-2" style={{ borderColor: isDark ? '#0B0F19' : '#FFFFFF' }} />
               </div>
