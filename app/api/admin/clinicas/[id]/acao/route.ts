@@ -14,9 +14,10 @@ function gerarSenhaAleatoria(len = 10): string {
 
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await context.params
         const session = await getServerSession(authOptions)
         if (!isAdmin(session)) {
             return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
@@ -28,7 +29,7 @@ export async function POST(
             return NextResponse.json({ error: 'Você não tem permissão para editar clínicas' }, { status: 403 })
         }
 
-        const clinicaId = parseInt(params.id)
+        const clinicaId = parseInt(id)
         if (isNaN(clinicaId)) {
             return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
         }
