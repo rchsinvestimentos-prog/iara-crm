@@ -122,7 +122,7 @@ export default function AdminClinicas() {
             if (r.ok) {
                 // Se for impersonação, abre nova aba com token
                 if (acao === 'impersonar' && data.impersonateToken) {
-                    window.open(`/login?impersonateToken=${data.impersonateToken}`, '_blank')
+                    window.open(`https://app.iara.click/login?impersonateToken=${data.impersonateToken}`, '_blank')
                     return
                 }
                 alert(data.message || 'Ação executada com sucesso!')
