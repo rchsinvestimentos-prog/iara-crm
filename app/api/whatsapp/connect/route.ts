@@ -71,7 +71,7 @@ export async function POST() {
         }
     }
 
-    // Instância já existe, pegar QR Code
+    // Instância já existe, pegar QR Code + código de pareamento
     try {
         const qrRes = await fetch(`${evoUrl}/instance/connect/${instanceName}`, {
             method: 'GET',
@@ -80,10 +80,26 @@ export async function POST() {
 
         const qrData = await qrRes.json()
 
+        // Tentar pegar código de pareamento (para mobile)
+        let pairingCode = null
+        if (clinica.telefone) {
+            try {
+                const tel = clinica.telefone.replace(/\D/g, '')
+                const phone = tel.startsWith('55') ? tel : `55${tel}`
+                const pairRes = await fetch(`${evoUrl}/instance/connect/${instanceName}`, {
+                    method: 'GET',
+                    headers: { 'apikey': evoKey, 'Content-Type': 'application/json' },
+                })
+                const pairData = await pairRes.json()
+                pairingCode = pairData?.pairingCode || pairData?.code || null
+            } catch { }
+        }
+
         if (qrData?.base64) {
             return NextResponse.json({
                 instanceName,
                 qrcode: qrData.base64,
+                pairingCode: qrData?.pairingCode || pairingCode,
                 status: 'qr_ready',
             })
         }
@@ -92,6 +108,7 @@ export async function POST() {
         return NextResponse.json({
             instanceName,
             qrcode: null,
+            pairingCode,
             status: qrData?.state || 'unknown',
             data: qrData,
         })

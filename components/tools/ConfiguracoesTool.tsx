@@ -189,6 +189,7 @@ export default function ConfiguracoesTool() {
     // ---- WhatsApp QR ----
     const [showQR, setShowQR] = useState(false)
     const [qrCode, setQrCode] = useState('')
+    const [pairingCode, setPairingCode] = useState('')
     const [qrLoading, setQrLoading] = useState(false)
     const [whatsStatus, setWhatsStatus] = useState('')
 
@@ -672,6 +673,7 @@ export default function ConfiguracoesTool() {
                                         const data = await res.json()
                                         if (data.qrcode) {
                                             setQrCode(data.qrcode)
+                                            setPairingCode(data.pairingCode || '')
                                             setShowQR(true)
                                             // Polling status a cada 3s
                                             const interval = setInterval(async () => {
@@ -732,15 +734,34 @@ export default function ConfiguracoesTool() {
 
                 {/* QR Code Modal */}
                 {showQR && qrCode && (
-                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4" onClick={() => setShowQR(false)}>
-                        <div className="bg-white rounded-2xl p-5 max-w-xs w-full text-center shadow-2xl" onClick={e => e.stopPropagation()}>
-                            <h3 className="text-base font-bold text-gray-800 mb-1">📱 Escaneie o QR Code</h3>
-                            <p className="text-xs text-gray-500 mb-3">WhatsApp → Menu → Dispositivos Conectados → Conectar</p>
-                            <div className="flex justify-center mb-3">
-                                <img src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`} alt="QR Code WhatsApp" className="w-52 h-52 rounded-lg" />
+                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] overflow-y-auto p-4" onClick={() => setShowQR(false)}>
+                        <div className="bg-white rounded-2xl p-5 w-[300px] text-center shadow-2xl my-auto" onClick={e => e.stopPropagation()}>
+                            <h3 className="text-[15px] font-bold text-gray-800 mb-1">📱 Conectar WhatsApp</h3>
+                            <p className="text-[10px] text-gray-500 mb-3">WhatsApp → Dispositivos Conectados → Conectar</p>
+                            <div className="flex justify-center mb-2">
+                                <img src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`} alt="QR Code" className="w-48 h-48 rounded-lg" />
                             </div>
-                            <p className="text-[10px] text-gray-400 mb-2">Aguardando conexão... (atualiza automaticamente)</p>
-                            <button onClick={() => setShowQR(false)} className="text-xs font-medium px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">Fechar</button>
+                            <p className="text-[9px] text-gray-400 mb-3">Escaneie com outro celular ou computador</p>
+
+                            {pairingCode && (
+                                <div className="border-t pt-3 mt-2">
+                                    <p className="text-[10px] text-gray-500 mb-1">📲 Está no celular? Use o código:</p>
+                                    <div
+                                        className="bg-gray-100 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-200 transition-colors"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(pairingCode)
+                                            alert('Código copiado!')
+                                        }}
+                                    >
+                                        <p className="text-lg font-mono font-bold tracking-widest text-[#0F4C61]">{pairingCode}</p>
+                                        <p className="text-[8px] text-gray-400">Toque para copiar</p>
+                                    </div>
+                                    <p className="text-[9px] text-gray-400 mt-1">Cole em: Dispositivos → Conectar → Usar código</p>
+                                </div>
+                            )}
+
+                            <p className="text-[9px] text-green-600 mt-3 mb-2 animate-pulse">⏳ Aguardando conexão...</p>
+                            <button onClick={() => setShowQR(false)} className="text-[11px] font-medium px-4 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">Fechar</button>
                         </div>
                     </div>
                 )}
