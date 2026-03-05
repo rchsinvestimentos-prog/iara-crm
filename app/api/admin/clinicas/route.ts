@@ -142,29 +142,40 @@ export async function POST(request: Request) {
             },
         })
 
-        // Enviar email de boas-vindas
-        if (enviarEmail !== false) {
-            await enviarEmailBoasVindas({
-                email,
-                nome,
-                senha: senhaPlana,
-                plano: planoLabels[nivelFinal] || 'essencial',
-            })
+        // Enviar notificações de boas-vindas
+        let emailStatus = 'não solicitado'
+        let whatsappStatus = 'não solicitado'
 
-            // Enviar WhatsApp se tiver telefone
+        if (enviarEmail !== false) {
+            // Email
+            try {
+                const result = await enviarEmailBoasVindas({
+                    email,
+                    nome,
+                    senha: senhaPlana,
+                    plano: planoLabels[nivelFinal] || 'essencial',
+                })
+                emailStatus = result ? '✅ enviado' : '❌ falhou (RESEND_API_KEY ausente ou erro)'
+            } catch (emailErr: any) {
+                emailStatus = `❌ erro: ${emailErr?.message || 'desconhecido'}`
+            }
+
+            // WhatsApp
             if (telefone) {
                 try {
                     const evolutionUrl = process.env.EVOLUTION_API_URL
                     const evolutionKey = process.env.EVOLUTION_API_KEY
                     const adminInstance = process.env.EVOLUTION_ADMIN_INSTANCE || 'IARA_Suporte'
 
-                    if (evolutionUrl && evolutionKey) {
+                    if (!evolutionUrl || !evolutionKey) {
+                        whatsappStatus = '❌ EVOLUTION_API_URL ou EVOLUTION_API_KEY não configuradas'
+                    } else {
                         const zapFormatado = telefone.replace(/\D/g, '')
                         const primeiroNome = nome.split(' ')[0] || nome
 
                         const msgZap = `Olá ${primeiroNome}! 🎉\n\nSua conta na *IARA (${planoLabels[nivelFinal].toUpperCase()})* foi criada com sucesso!\n\n🔗 *Acesse seu painel:* https://app.iara.click\n📧 *Email:* ${email}\n🔑 *Senha:* ${senhaPlana}\n\nEntre lá e faça o Setup inicial para eu começar a atender os seus pacientes! 🚀`
 
-                        await fetch(`${evolutionUrl}/message/sendText/${adminInstance}`, {
+                        const zapRes = await fetch(`${evolutionUrl}/message/sendText/${adminInstance}`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -175,13 +186,23 @@ export async function POST(request: Request) {
                                 text: msgZap,
                             }),
                         })
-                        console.log(`[Admin] ✅ WhatsApp de boas-vindas enviado para ${telefone}`)
+                        const zapData = await zapRes.json().catch(() => ({}))
+
+                        if (zapRes.ok) {
+                            whatsappStatus = `✅ enviado para ${zapFormatado}`
+                        } else {
+                            whatsappStatus = `❌ Evolution respondeu ${zapRes.status}: ${JSON.stringify(zapData)}`
+                        }
                     }
-                } catch (e) {
-                    console.error('[Admin] ❌ Erro ao enviar WhatsApp de boas-vindas:', e)
+                } catch (e: any) {
+                    whatsappStatus = `❌ erro: ${e?.message || 'desconhecido'}`
                 }
+            } else {
+                whatsappStatus = '⚠️ telefone não informado'
             }
         }
+
+        console.log(`[Admin] Criação clínica ${email}: email=${emailStatus}, whatsapp=${whatsappStatus}`)
 
         return NextResponse.json({
             clinica: {
@@ -190,9 +211,10 @@ export async function POST(request: Request) {
                 email: clinica.email,
                 nivel: clinica.nivel,
                 status: clinica.status,
-                senha_gerada: senhaPlana, // Retornar pra admin ver
+                senha_gerada: senhaPlana,
             },
-            emailEnviado: enviarEmail !== false,
+            emailStatus,
+            whatsappStatus,
         }, { status: 201 })
     } catch (err: any) {
         console.error('Erro em POST /api/admin/clinicas:', err)

@@ -36,7 +36,7 @@ export default function AdminClinicas() {
     const [showModal, setShowModal] = useState(false)
     const [saving, setSaving] = useState(false)
     const [msg, setMsg] = useState('')
-    const [resultado, setResultado] = useState<{ senha: string; email: string } | null>(null)
+    const [resultado, setResultado] = useState<{ senha: string; email: string; emailStatus?: string; whatsappStatus?: string } | null>(null)
     const [copiado, setCopiado] = useState(false)
 
     const isSuperAdmin = (session?.user as any)?.adminRole === 'super_admin'
@@ -79,7 +79,7 @@ export default function AdminClinicas() {
             })
             const data = await r.json()
             if (!r.ok) { setMsg(data.error || 'Erro'); setSaving(false); return }
-            setResultado({ senha: data.clinica.senha_gerada, email: form.email })
+            setResultado({ senha: data.clinica.senha_gerada, email: form.email, emailStatus: data.emailStatus, whatsappStatus: data.whatsappStatus })
             load()
         } catch { setMsg('Erro de rede') }
         setSaving(false)
@@ -270,13 +270,10 @@ export default function AdminClinicas() {
                                     <Check size={28} className="text-green-400" />
                                 </div>
                                 <h2 className="text-lg font-bold text-white">Clínica criada! 🎉</h2>
-                                <p className="text-sm text-gray-400">
-                                    {form.enviarEmail ? (
-                                        <>Email enviado para <strong className="text-[#D99773]">{resultado.email}</strong></>
-                                    ) : (
-                                        'Email de boas-vindas não foi enviado'
-                                    )}
-                                </p>
+                                <div className="text-xs text-left space-y-1 p-3 rounded-lg bg-white/5">
+                                    <p className="text-gray-400">📧 Email: <span className="text-white">{resultado.emailStatus || 'não verificado'}</span></p>
+                                    <p className="text-gray-400">💬 WhatsApp: <span className="text-white">{resultado.whatsappStatus || 'não verificado'}</span></p>
+                                </div>
 
                                 <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-left space-y-2">
                                     <p className="text-xs text-gray-500">Senha gerada:</p>
