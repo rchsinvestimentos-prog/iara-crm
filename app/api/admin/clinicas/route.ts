@@ -107,7 +107,14 @@ export async function POST(request: Request) {
         // Calcular data de renovação
         let proximaRenovacao: Date | null = null
         if (duracao && duracao !== 'ilimitado') {
-            const dias = parseInt(duracao)
+            let dias = 30
+            // Corrige o parseInt pegando "1 mes"
+            if (duracao.includes('mes')) {
+                dias = parseInt(duracao) * 30
+            } else {
+                dias = parseInt(duracao)
+            }
+
             if (!isNaN(dias)) {
                 proximaRenovacao = new Date()
                 proximaRenovacao.setDate(proximaRenovacao.getDate() + dias)
@@ -143,6 +150,37 @@ export async function POST(request: Request) {
                 senha: senhaPlana,
                 plano: planoLabels[nivelFinal] || 'essencial',
             })
+
+            // Enviar WhatsApp se tiver telefone
+            if (telefone) {
+                try {
+                    const evolutionUrl = process.env.EVOLUTION_API_URL
+                    const evolutionKey = process.env.EVOLUTION_API_KEY
+                    const adminInstance = process.env.EVOLUTION_ADMIN_INSTANCE || 'IARA_Suporte'
+
+                    if (evolutionUrl && evolutionKey) {
+                        const zapFormatado = telefone.replace(/\D/g, '')
+                        const primeiroNome = nome.split(' ')[0] || nome
+
+                        const msgZap = `Olá ${primeiroNome}! 🎉\n\nSua conta na *IARA (${planoLabels[nivelFinal].toUpperCase()})* foi criada com sucesso!\n\n🔗 *Acesse seu painel:* https://app.iara.click\n📧 *Email:* ${email}\n🔑 *Senha:* ${senhaPlana}\n\nEntre lá e faça o Setup inicial para eu começar a atender os seus pacientes! 🚀`
+
+                        await fetch(`${evolutionUrl}/message/sendText/${adminInstance}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'apikey': evolutionKey,
+                            },
+                            body: JSON.stringify({
+                                number: zapFormatado,
+                                text: msgZap,
+                            }),
+                        })
+                        console.log(`[Admin] ✅ WhatsApp de boas-vindas enviado para ${telefone}`)
+                    }
+                } catch (e) {
+                    console.error('[Admin] ❌ Erro ao enviar WhatsApp de boas-vindas:', e)
+                }
+            }
         }
 
         return NextResponse.json({
