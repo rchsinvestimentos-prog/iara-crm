@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
+import { useSearchParams } from 'next/navigation'
 import { Sparkles, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
@@ -10,6 +11,26 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
     const [error, setError] = useState('')
+    const searchParams = useSearchParams()
+
+    // Auto-login por token de impersonação (admin suporte)
+    useEffect(() => {
+        const token = searchParams.get('impersonateToken')
+        if (!token) return
+
+        setLoading(true)
+        signIn('credentials', {
+            impersonateToken: token,
+            redirect: false,
+        }).then((result) => {
+            if (result?.ok) {
+                window.location.href = '/dashboard'
+            } else {
+                setError('Token inválido ou expirado')
+                setLoading(false)
+            }
+        })
+    }, [searchParams])
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()

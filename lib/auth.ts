@@ -10,11 +10,36 @@ export const authOptions: NextAuthOptions = {
             credentials: {
                 email: { label: 'Email', type: 'email' },
                 password: { label: 'Senha', type: 'password' },
+                impersonateToken: { label: 'Token', type: 'text' },
             },
             async authorize(credentials) {
-                if (!credentials?.email || !credentials?.password) return null
-
                 try {
+                    // ─── 0) Impersonação por token (admin suporte) ───
+                    if (credentials?.impersonateToken) {
+                        const clinica = await prisma.clinica.findFirst({
+                            where: { tokenAtivacao: credentials.impersonateToken },
+                        })
+                        if (!clinica) return null
+
+                        // Limpar token (uso único)
+                        await prisma.clinica.update({
+                            where: { id: clinica.id },
+                            data: { tokenAtivacao: null },
+                        })
+
+                        return {
+                            id: String(clinica.id),
+                            email: clinica.email,
+                            name: clinica.nomeClinica || clinica.nome,
+                            role: clinica.role || 'cliente',
+                            userType: 'cliente',
+                            adminRole: null,
+                            plano: clinica.nivel,
+                        }
+                    }
+
+                    if (!credentials?.email || !credentials?.password) return null
+
                     // ─── 1) Tentar admin_users primeiro ───
                     const admin = await prisma.adminUser.findUnique({
                         where: { email: credentials.email },

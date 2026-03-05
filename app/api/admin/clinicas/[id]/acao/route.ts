@@ -60,6 +60,18 @@ export async function POST(
             return NextResponse.json({ error: 'Clínica não encontrada' }, { status: 404 })
         }
 
+        if (acao === 'impersonar') {
+            const token = crypto.randomUUID()
+            await prisma.clinica.update({
+                where: { id: clinicaId },
+                data: { tokenAtivacao: token },
+            })
+            return NextResponse.json({
+                message: 'Token de acesso gerado!',
+                impersonateToken: token,
+            })
+        }
+
         if (acao === 'bloquear') {
             const novoStatus = clinica.status === 'ativo' ? 'inativo' : 'ativo'
             await prisma.clinica.update({

@@ -29,7 +29,7 @@ export async function enviarEmailBoasVindas({ email, nome, senha, plano }: Welco
         if (!resendClient) return null
 
         const result = await resendClient.emails.send({
-            from: process.env.RESEND_FROM || 'IARA <noreply@iara.click>',
+            from: process.env.RESEND_FROM || 'Iara - Secretária Virtual com IA <noreply@iara.click>',
             to: email,
             subject: `${primeiroNome}, sua IARA está pronta! 🎉`,
             html: `
