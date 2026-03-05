@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { signIn } from 'next-auth/react'
+import { signIn, signOut } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { Sparkles, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react'
 
@@ -19,16 +19,19 @@ function LoginContent() {
         if (!token) return
 
         setLoading(true)
-        signIn('credentials', {
-            impersonateToken: token,
-            redirect: false,
-        }).then((result) => {
-            if (result?.ok) {
-                window.location.href = '/dashboard'
-            } else {
-                setError('Token inválido ou expirado')
-                setLoading(false)
-            }
+        // Primeiro faz logout da sessão atual (admin), depois loga como cliente
+        signOut({ redirect: false }).then(() => {
+            signIn('credentials', {
+                impersonateToken: token,
+                redirect: false,
+            }).then((result) => {
+                if (result?.ok) {
+                    window.location.href = '/dashboard'
+                } else {
+                    setError('Token inválido ou expirado')
+                    setLoading(false)
+                }
+            })
         })
     }, [searchParams])
 
