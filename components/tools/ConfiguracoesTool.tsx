@@ -736,30 +736,25 @@ export default function ConfiguracoesTool() {
                 {/* QR Code Modal - renderizado via Portal fora do container */}
                 {showQR && qrCode && typeof document !== 'undefined' && createPortal(
                     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[99999]" style={{ margin: 0, padding: '16px' }} onClick={() => setShowQR(false)}>
-                        <div className="bg-white rounded-2xl p-6 w-[320px] text-center shadow-2xl" onClick={e => e.stopPropagation()}>
-                            <h3 className="text-[16px] font-bold text-gray-800 mb-1">📱 Conectar WhatsApp</h3>
-                            <p className="text-[11px] text-gray-500 mb-4">Dispositivos Conectados → Conectar Dispositivo</p>
+                        <div className="bg-white rounded-2xl p-6 w-[340px] text-center shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                            <h3 className="text-[16px] font-bold text-gray-800 mb-3">📱 Conectar WhatsApp</h3>
+
                             <div className="bg-white border-2 border-gray-100 rounded-xl p-2 inline-block mb-3">
                                 <img src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`} alt="QR Code" className="w-[220px] h-[220px]" />
                             </div>
 
-                            {pairingCode && (
-                                <div className="border-t border-gray-100 pt-3 mt-1">
-                                    <p className="text-[10px] text-gray-500 mb-2">📲 No celular? Use o código:</p>
-                                    <div
-                                        className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 cursor-pointer hover:bg-gray-100 transition-colors"
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(pairingCode)
-                                            alert('Código copiado!')
-                                        }}
-                                    >
-                                        <p className="text-xl font-mono font-bold tracking-[0.3em] text-[#0F4C61]">{pairingCode}</p>
-                                        <p className="text-[8px] text-gray-400 mt-0.5">Toque para copiar</p>
-                                    </div>
+                            <div className="bg-gray-50 rounded-xl p-3 text-left mb-3">
+                                <p className="text-[11px] font-semibold text-gray-700 mb-2">📋 Como conectar:</p>
+                                <div className="space-y-1.5">
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">1.</span> Abra o <strong>WhatsApp</strong> no seu celular</p>
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">2.</span> Toque nos <strong>3 pontinhos ⋮</strong> (Android) ou <strong>Configurações ⚙️</strong> (iPhone)</p>
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">3.</span> Toque em <strong>Dispositivos Conectados</strong></p>
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">4.</span> Toque em <strong>Conectar Dispositivo</strong></p>
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-[#0F4C61]">5.</span> <strong>Aponte a câmera</strong> para o QR Code acima</p>
                                 </div>
-                            )}
+                            </div>
 
-                            <p className="text-[10px] text-green-600 mt-4 mb-3 animate-pulse">⏳ Aguardando conexão...</p>
+                            <p className="text-[10px] text-green-600 mb-3 animate-pulse">⏳ Aguardando conexão... (detecta automaticamente)</p>
                             <button onClick={() => setShowQR(false)} className="text-[12px] font-medium px-5 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">Fechar</button>
                         </div>
                     </div>,
