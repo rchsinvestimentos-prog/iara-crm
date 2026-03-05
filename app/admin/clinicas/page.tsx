@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail, MoreHorizontal, KeyRound, Ban, Settings } from 'lucide-react'
+import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail, MoreHorizontal, KeyRound, Ban, Settings, Trash2 } from 'lucide-react'
 
 interface Clinica {
     id: number
@@ -110,6 +110,7 @@ export default function AdminClinicas() {
     async function executarAcao(id: number, acao: string) {
         if (acao === 'bloquear' && !confirm('Deseja realmente alterar o status (Bloquear/Desbloquear) desta clínica?')) return
         if (acao === 'reenviar' && !confirm('Deseja gerar uma NOVA SENHA e reenviar por email+whatsapp para o cliente?')) return
+        if (acao === 'excluir' && !confirm('⚠️ ATENÇÃO: Isso vai EXCLUIR permanentemente a clínica, todos os dados e a instância na Evolution API. Tem certeza?')) return
 
         try {
             const r = await fetch(`/api/admin/clinicas/${id}/acao`, {
@@ -242,9 +243,10 @@ export default function AdminClinicas() {
                                                     onClick={(e) => e.stopPropagation()}
                                                 >
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'reenviar') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><KeyRound size={14} className="text-[#D99773]" /> Reenviar Acesso</button>
-                                                    <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'bloquear') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><Ban size={14} className="text-red-400" /> Bloquear/Desbloquear</button>
-                                                    <div className="h-px bg-white/5 my-1" />
+                                                    <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'bloquear') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><Ban size={14} className="text-yellow-400" /> Bloquear/Desbloquear</button>
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'testes') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><Settings size={14} className="text-blue-400" /> Rodar Testes API</button>
+                                                    <div className="h-px bg-white/5 my-1" />
+                                                    <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'excluir') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-red-500/10 text-red-400 flex items-center gap-2 transition-colors"><Trash2 size={14} /> Excluir Clínica</button>
                                                 </div>
                                             )}
                                         </td>

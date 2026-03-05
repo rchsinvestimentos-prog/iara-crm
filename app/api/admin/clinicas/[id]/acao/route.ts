@@ -113,6 +113,35 @@ export async function POST(
             return NextResponse.json({ message: `Acesso reenviado para ${clinica.email} e WhatsApp. Nova senha gerada!` })
         }
 
+        if (acao === 'excluir') {
+            // 1. Deletar instância na Evolution API (se existir)
+            if (clinica.evolutionInstance) {
+                try {
+                    const evolutionUrl = process.env.EVOLUTION_API_URL
+                    const evolutionKey = process.env.EVOLUTION_API_KEY
+                    if (evolutionUrl && evolutionKey) {
+                        await fetch(`${evolutionUrl}/instance/delete/${clinica.evolutionInstance}`, {
+                            method: 'DELETE',
+                            headers: { 'apikey': evolutionKey },
+                        })
+                        console.log(`[Admin] 🗑️ Instância Evolution "${clinica.evolutionInstance}" deletada`)
+                    }
+                } catch (e) {
+                    console.error('[Admin] Erro ao deletar instância Evolution:', e)
+                }
+            }
+
+            // 2. Deletar registros relacionados (procedimentos, etc.)
+            try {
+                await prisma.$executeRawUnsafe(`DELETE FROM procedimentos WHERE "clinicaId" = '${clinicaId}'`)
+            } catch (e) { /* tabela pode não existir */ }
+
+            // 3. Deletar a clínica do banco
+            await prisma.clinica.delete({ where: { id: clinicaId } })
+
+            return NextResponse.json({ message: `Clínica "${clinica.nome || clinica.nomeClinica}" excluída com sucesso!` })
+        }
+
         return NextResponse.json({ error: 'Ação inválida' }, { status: 400 })
 
     } catch (err) {
