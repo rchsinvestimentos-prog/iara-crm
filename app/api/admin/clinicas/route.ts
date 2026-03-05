@@ -194,8 +194,8 @@ export async function POST(request: Request) {
             },
             emailEnviado: enviarEmail !== false,
         }, { status: 201 })
-    } catch (err) {
+    } catch (err: any) {
         console.error('Erro em POST /api/admin/clinicas:', err)
-        return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+        return NextResponse.json({ error: `Erro interno: ${err?.message || 'Erro Desconhecido'}` }, { status: 500 })
     }
 }
