@@ -116,7 +116,8 @@ export async function POST(
                     const adminInstance = process.env.EVOLUTION_ADMIN_INSTANCE || 'IARA_Suporte'
 
                     if (evolutionUrl && evolutionKey) {
-                        const zapFormatado = clinica.telefone.replace(/\D/g, '')
+                        let zapFormatado = clinica.telefone.replace(/\D/g, '')
+                        if (!zapFormatado.startsWith('55')) zapFormatado = '55' + zapFormatado
                         const primeiroNome = (clinica.nome || clinica.nomeClinica || 'Cliente').split(' ')[0]
                         const planoF = (clinica.plano || 'essencial').toUpperCase()
 

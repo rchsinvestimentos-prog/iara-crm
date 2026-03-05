@@ -170,7 +170,8 @@ export async function POST(request: Request) {
                     if (!evolutionUrl || !evolutionKey) {
                         whatsappStatus = '❌ EVOLUTION_API_URL ou EVOLUTION_API_KEY não configuradas'
                     } else {
-                        const zapFormatado = telefone.replace(/\D/g, '')
+                        let zapFormatado = telefone.replace(/\D/g, '')
+                        if (!zapFormatado.startsWith('55')) zapFormatado = '55' + zapFormatado
                         const primeiroNome = nome.split(' ')[0] || nome
 
                         const msgZap = `Olá ${primeiroNome}! 🎉\n\nSua conta na *IARA (${planoLabels[nivelFinal].toUpperCase()})* foi criada com sucesso!\n\n🔗 *Acesse seu painel:* https://app.iara.click\n📧 *Email:* ${email}\n🔑 *Senha:* ${senhaPlana}\n\nEntre lá e faça o Setup inicial para eu começar a atender os seus pacientes! 🚀`
