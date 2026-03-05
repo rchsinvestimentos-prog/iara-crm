@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail } from 'lucide-react'
+import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail, MoreHorizontal, KeyRound, Ban, Settings } from 'lucide-react'
 
 interface Clinica {
     id: number
@@ -98,6 +98,37 @@ export default function AdminClinicas() {
         setTimeout(() => setCopiado(false), 2000)
     }
 
+    const [menuAberto, setMenuAberto] = useState<number | null>(null)
+
+    // Fechar menu ao clicar fora (simples)
+    useEffect(() => {
+        const handleClick = () => setMenuAberto(null)
+        window.addEventListener('click', handleClick)
+        return () => window.removeEventListener('click', handleClick)
+    }, [])
+
+    async function executarAcao(id: number, acao: string) {
+        if (acao === 'bloquear' && !confirm('Deseja realmente alterar o status (Bloquear/Desbloquear) desta clínica?')) return
+        if (acao === 'reenviar' && !confirm('Deseja gerar uma NOVA SENHA e reenviar por email+whatsapp para o cliente?')) return
+
+        try {
+            const r = await fetch(`/api/admin/clinicas/${id}/acao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ acao })
+            })
+            const data = await r.json()
+            if (r.ok) {
+                alert(data.message || 'Ação executada com sucesso!')
+                load() // recarrega a tabela
+            } else {
+                alert(data.error || 'Erro ao executar ação')
+            }
+        } catch (e) {
+            alert('Erro de comunicação com o servidor')
+        }
+    }
+
     const filtradas = clinicas.filter(c =>
         c.nome_clinica?.toLowerCase().includes(busca.toLowerCase()) ||
         c.email?.toLowerCase().includes(busca.toLowerCase())
@@ -135,7 +166,7 @@ export default function AdminClinicas() {
             </div>
 
             {/* Tabela */}
-            <div className="backdrop-blur-xl rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-card, #111827)', border: '1px solid var(--border-default, rgba(255,255,255,0.06))' }}>
+            <div className="backdrop-blur-xl rounded-2xl overflow-visible" style={{ backgroundColor: 'var(--bg-card, #111827)', border: '1px solid var(--border-default, rgba(255,255,255,0.06))' }}>
                 {loading ? (
                     <div className="flex items-center justify-center py-16">
                         <Loader2 size={24} className="animate-spin text-[#D99773]" />
@@ -153,12 +184,12 @@ export default function AdminClinicas() {
                         )}
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-visible">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.04))' }}>
-                                    {['Clínica', 'Plano', 'Status', 'Créditos', 'WhatsApp', 'Expira em', 'Desde'].map(h => (
-                                        <th key={h} className="text-left px-5 py-3 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                                    {['Clínica', 'Plano', 'Status', 'Créditos', 'WhatsApp', 'Expira em', 'Desde', ''].map((h, i) => (
+                                        <th key={i} className="text-left px-5 py-3 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{h}</th>
                                     ))}
                                 </tr>
                             </thead>
@@ -197,6 +228,25 @@ export default function AdminClinicas() {
                                         </td>
                                         <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--text-muted)' }}>
                                             {new Date(c.criado_em).toLocaleDateString('pt-BR')}
+                                        </td>
+                                        <td className="px-3 py-3.5 text-right relative">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setMenuAberto(menuAberto === c.id ? null : c.id); }}
+                                                className="p-1.5 hover:bg-white/10 rounded-md transition-colors"
+                                            >
+                                                <MoreHorizontal size={16} className="text-gray-400" />
+                                            </button>
+                                            {menuAberto === c.id && (
+                                                <div
+                                                    className="absolute right-8 top-8 w-48 bg-[#1F2937] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden py-1"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'reenviar') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><KeyRound size={14} className="text-[#D99773]" /> Reenviar Acesso</button>
+                                                    <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'bloquear') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><Ban size={14} className="text-red-400" /> Bloquear/Desbloquear</button>
+                                                    <div className="h-px bg-white/5 my-1" />
+                                                    <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'testes') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><Settings size={14} className="text-blue-400" /> Rodar Testes API</button>
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
