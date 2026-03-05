@@ -2,8 +2,28 @@
 
 import Sidebar from '@/components/Sidebar'
 import { IdiomaProvider } from '@/components/IdiomaProvider'
+import TermosModal from '@/components/TermosModal'
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+    const [showTermos, setShowTermos] = useState(false)
+    const [loading, setLoading] = useState(true)
+    const [nomeClinica, setNomeClinica] = useState('')
+
+    useEffect(() => {
+        fetch('/api/clinica')
+            .then(r => r.json())
+            .then(data => {
+                if (!data?.aceite_termos && !data?.aceiteTermos) {
+                    setShowTermos(true)
+                }
+                setNomeClinica(data?.nome_clinica || data?.nomeClinica || '')
+            })
+            .catch(() => { })
+            .finally(() => setLoading(false))
+    }, [])
+
     return (
         <IdiomaProvider>
             <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
@@ -22,12 +42,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <p className="text-[10px]" style={{ color: 'var(--text-muted, #4B5563)' }}>
                             A IARA é uma Inteligência Artificial. Ela pode cometer erros. Todas as conversas são armazenadas para fins de segurança e qualidade.
                         </p>
-                        <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted, #374151)' }}>
-                            © {new Date().getFullYear()} IARA — Assistente Inteligente para Clínicas de Estética
+                        <p className="text-[9px] mt-1 space-x-2" style={{ color: 'var(--text-muted, #374151)' }}>
+                            <Link href="/termos" className="hover:underline">Termos de Uso</Link>
+                            <span>·</span>
+                            <Link href="/privacidade" className="hover:underline">Política de Privacidade</Link>
+                            <span>·</span>
+                            <span>© {new Date().getFullYear()} IARA</span>
                         </p>
                     </footer>
                 </main>
             </div>
+
+            {/* Modal de aceite — aparece no primeiro login */}
+            {!loading && showTermos && (
+                <TermosModal
+                    nomeClinica={nomeClinica}
+                    onAccept={() => setShowTermos(false)}
+                />
+            )}
         </IdiomaProvider>
     )
 }

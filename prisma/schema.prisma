@@ -24,6 +24,7 @@ model Clinica {
   senha                String?
   role                 String?   @default("cliente")
   parentId             Int?      @map("parent_id")
+  aceiteTermos         DateTime? @map("aceite_termos")
   
   // Plano e créditos
   plano                String?
