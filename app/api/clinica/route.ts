@@ -101,6 +101,11 @@ export async function PUT(request: Request) {
             }
         }
 
+        // Converter aceiteTermos string → Date pra Prisma
+        if (dataToUpdate.aceiteTermos && typeof dataToUpdate.aceiteTermos === 'string') {
+            dataToUpdate.aceiteTermos = new Date(dataToUpdate.aceiteTermos as string)
+        }
+
         const updated = await prisma.clinica.update({
             where: { id: clinicaId },
             data: dataToUpdate,
