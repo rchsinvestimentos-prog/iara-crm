@@ -37,42 +37,69 @@ export async function POST(req: Request) {
         const phoneClean = phone.replace(/\D/g, '')
         const phoneFormatted = phoneClean.startsWith('55') ? phoneClean : `55${phoneClean}`
 
-        const res = await fetch(`${evoUrl}/instance/connect/${clinica.evolutionInstance}`, {
-            method: 'GET',
-            headers: {
-                'apikey': evoKey,
-                'Content-Type': 'application/json',
-            },
-        })
+        console.log(`[WhatsApp] Requesting pairing code for ${phoneFormatted} on instance ${clinica.evolutionInstance}`)
 
-        const data = await res.json()
-        console.log('[WhatsApp] Pairing code response:', JSON.stringify(data).slice(0, 200))
+        // Tentativa 1: POST /instance/connect com number no body (Evolution v2)
+        try {
+            const res1 = await fetch(`${evoUrl}/instance/connect/${clinica.evolutionInstance}`, {
+                method: 'POST',
+                headers: {
+                    'apikey': evoKey,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ number: phoneFormatted }),
+            })
+            const data1 = await res1.json()
+            console.log('[WhatsApp] Pairing v2 POST response:', JSON.stringify(data1).slice(0, 300))
 
-        // O pairingCode pode vir em diferentes campos dependendo da versão
-        const code = data?.pairingCode || data?.code || null
-
-        if (code && code.length <= 12) {
-            return NextResponse.json({ pairingCode: code })
+            const code1 = data1?.pairingCode || data1?.code || data1?.paring
+            if (code1 && typeof code1 === 'string' && code1.length <= 12) {
+                return NextResponse.json({ pairingCode: code1 })
+            }
+        } catch (err) {
+            console.log('[WhatsApp] Pairing v2 POST failed:', err)
         }
 
-        // Se não conseguiu o pairing code, tentar endpoint alternativo
+        // Tentativa 2: GET /instance/connect com ?number= (algumas versões)
         try {
             const res2 = await fetch(`${evoUrl}/instance/connect/${clinica.evolutionInstance}?number=${phoneFormatted}`, {
                 method: 'GET',
                 headers: { 'apikey': evoKey },
             })
             const data2 = await res2.json()
-            console.log('[WhatsApp] Pairing code alt response:', JSON.stringify(data2).slice(0, 200))
+            console.log('[WhatsApp] Pairing GET response:', JSON.stringify(data2).slice(0, 300))
 
-            const code2 = data2?.pairingCode || data2?.code || null
-            if (code2 && code2.length <= 12) {
+            const code2 = data2?.pairingCode || data2?.code || data2?.paring
+            if (code2 && typeof code2 === 'string' && code2.length <= 12) {
                 return NextResponse.json({ pairingCode: code2 })
             }
-        } catch { }
+        } catch (err) {
+            console.log('[WhatsApp] Pairing GET failed:', err)
+        }
+
+        // Tentativa 3: PUT (outra variação da Evolution API)
+        try {
+            const res3 = await fetch(`${evoUrl}/instance/connect/${clinica.evolutionInstance}`, {
+                method: 'PUT',
+                headers: {
+                    'apikey': evoKey,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ number: phoneFormatted }),
+            })
+            const data3 = await res3.json()
+            console.log('[WhatsApp] Pairing PUT response:', JSON.stringify(data3).slice(0, 300))
+
+            const code3 = data3?.pairingCode || data3?.code || data3?.paring
+            if (code3 && typeof code3 === 'string' && code3.length <= 12) {
+                return NextResponse.json({ pairingCode: code3 })
+            }
+        } catch (err) {
+            console.log('[WhatsApp] Pairing PUT failed:', err)
+        }
 
         return NextResponse.json({
-            error: 'Código de pareamento não disponível. Use o QR Code.',
-            debug: typeof data === 'object' ? Object.keys(data) : 'unknown'
+            error: 'Código de pareamento não suportado nesta versão da Evolution API. Use o QR Code.',
         }, { status: 400 })
 
     } catch (err: any) {
