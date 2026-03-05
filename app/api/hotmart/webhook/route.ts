@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { enviarEmailBoasVindas } from '@/lib/email'
 import bcrypt from 'bcryptjs'
-import crypto from 'crypto'
 
 // Token de segurança da Hotmart — validar que o request é legítimo
 const HOTMART_HOTTOK = process.env.HOTMART_HOTTOK || ''
@@ -107,11 +107,14 @@ export async function POST(request: NextRequest) {
             })
 
             console.log(`[Hotmart Webhook] ✅ Conta criada: ${buyer.email} (ID: ${novaClinica.id}, Plano: ${planoConfig.plano})`)
-            console.log(`[Hotmart Webhook] 🔑 Senha temporária: ${senhaTemporaria}`)
 
-            // TODO: Enviar email/WhatsApp com credenciais
-            // Por enquanto loga a senha pra você ver no console do servidor
-            // Futuramente: enviar via Evolution API WhatsApp ou email SMTP
+            // Enviar email de boas-vindas com credenciais
+            enviarEmailBoasVindas({
+                email: buyer.email,
+                nome: nomeCompleto,
+                senha: senhaTemporaria,
+                plano: planoConfig.plano,
+            }).catch(err => console.error('[Hotmart Webhook] Erro email:', err))
 
             return NextResponse.json({
                 ok: true,
