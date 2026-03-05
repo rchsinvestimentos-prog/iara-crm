@@ -497,15 +497,45 @@ export default function ConfiguracoesTool() {
                         </div>
                     </div>
                     <div>
+                        <label className={labelClass} style={{ color: 'var(--text-muted)' }}>CEP</label>
+                        <div className="flex gap-2">
+                            <input className={`${inputClass} max-w-[140px]`} style={inputStyle}
+                                value={endereco.match(/^\d{5}-?\d{3}/)?.[0] || ''}
+                                onChange={async (e) => {
+                                    const cep = e.target.value.replace(/\D/g, '')
+                                    if (cep.length <= 8) {
+                                        const cepFormatado = cep.length > 5 ? `${cep.slice(0, 5)}-${cep.slice(5)}` : cep
+                                        // Mantém o complemento se existir
+                                        const complemento = endereco.replace(/^[^,]*,?\s*\d{5}-?\d{3}\s*-?\s*/, '').replace(/^.*?-\s*(Sala|Loja|Apt|Nº|N°|n\.|,)/, '$1').trim()
+                                        setEndereco(cepFormatado)
+                                        if (cep.length === 8) {
+                                            try {
+                                                const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
+                                                const data = await res.json()
+                                                if (!data.erro) {
+                                                    const endCompleto = `${data.logradouro}, ${data.bairro} - ${data.localidade}/${data.uf}`
+                                                    setEndereco(endCompleto)
+                                                    setLinkMaps(`https://maps.google.com/maps?q=${encodeURIComponent(endCompleto)}`)
+                                                }
+                                            } catch { }
+                                        }
+                                    }
+                                }}
+                                placeholder="80250-104"
+                                maxLength={9}
+                            />
+                            <p className="text-[9px] self-center" style={{ color: 'var(--text-muted)' }}>Digite o CEP para preencher automaticamente</p>
+                        </div>
+                    </div>
+                    <div>
                         <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Endereço da Clínica</label>
                         <input className={inputClass} style={inputStyle} value={endereco} onChange={(e) => {
                             setEndereco(e.target.value)
-                            // Auto-gera link do Maps se não tiver um customizado
                             if (e.target.value && (!linkMaps || linkMaps.startsWith('https://maps.google.com/maps?q='))) {
                                 setLinkMaps(`https://maps.google.com/maps?q=${encodeURIComponent(e.target.value)}`)
                             }
                         }} placeholder="Rua das Flores, 123 - Sala 4 - Batel, Curitiba/PR" />
-                        <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>A IARA usa o endereço na confirmação de agendamento</p>
+                        <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>Complete com número, sala, loja, etc. A IARA usa na confirmação de agendamento</p>
                     </div>
                     <div>
                         <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Link do Google Maps <span className="text-[9px] font-normal">(gerado automaticamente)</span></label>
