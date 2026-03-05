@@ -43,6 +43,30 @@ export async function GET() {
             orderBy: { createdAt: 'desc' },
         })
 
+        const evoUrl = process.env.EVOLUTION_API_URL
+        const evoKey = process.env.EVOLUTION_API_KEY
+
+        // Checar status real de cada instância na Evolution API (em paralelo)
+        const statusMap = new Map<number, string>()
+        if (evoUrl && evoKey) {
+            const checks = clinicas
+                .filter(c => c.evolutionInstance)
+                .map(async (c) => {
+                    try {
+                        const res = await fetch(`${evoUrl}/instance/connectionState/${c.evolutionInstance}`, {
+                            headers: { 'apikey': evoKey },
+                            signal: AbortSignal.timeout(3000), // timeout 3s
+                        })
+                        const data = await res.json()
+                        const connected = data?.instance?.state === 'open' || data?.state === 'open'
+                        statusMap.set(c.id, connected ? 'conectado' : 'desconectado')
+                    } catch {
+                        statusMap.set(c.id, 'desconectado')
+                    }
+                })
+            await Promise.all(checks)
+        }
+
         const result = clinicas.map((c: typeof clinicas[number]) => ({
             id: c.id,
             nome_clinica: c.nomeClinica || c.nome,
@@ -52,7 +76,7 @@ export async function GET() {
             nivel: c.nivel,
             status: c.status,
             whatsapp_clinica: c.whatsappClinica,
-            whatsapp_status: c.evolutionInstance ? 'conectado' : 'desconectado',
+            whatsapp_status: statusMap.get(c.id) || (c.evolutionInstance ? 'verificando...' : 'desconectado'),
             creditos_restantes: c.creditosDisponiveis ?? 0,
             creditos_total: c.creditosMensais ?? 0,
             pct_credito: (c.creditosMensais ?? 0) > 0
