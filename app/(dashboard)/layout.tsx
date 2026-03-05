@@ -4,12 +4,15 @@ import Sidebar from '@/components/Sidebar'
 import { IdiomaProvider } from '@/components/IdiomaProvider'
 import TermosModal from '@/components/TermosModal'
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname()
     const [showTermos, setShowTermos] = useState(false)
     const [loading, setLoading] = useState(true)
     const [nomeClinica, setNomeClinica] = useState('')
+    const isLegalPage = ['/termos', '/privacidade'].includes(pathname || '')
 
     useEffect(() => {
         fetch('/api/clinica')
@@ -53,8 +56,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </main>
             </div>
 
-            {/* Modal de aceite — aparece no primeiro login */}
-            {!loading && showTermos && (
+            {/* Modal de aceite — NÃO aparece em /termos e /privacidade */}
+            {!loading && showTermos && !isLegalPage && (
                 <TermosModal
                     nomeClinica={nomeClinica}
                     onAccept={() => setShowTermos(false)}
