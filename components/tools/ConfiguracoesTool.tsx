@@ -490,7 +490,7 @@ export default function ConfiguracoesTool() {
         )
     }
 
-    const statusWhatsApp = clinica?.whatsappStatus || 'desconectado'
+    const statusWhatsApp = whatsStatus || clinica?.whatsappStatus || 'desconectado'
     const calendarConnected = !!clinica?.googleCalendarToken
 
     // ==================== RENDER ====================
