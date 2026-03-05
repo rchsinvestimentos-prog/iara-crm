@@ -669,20 +669,21 @@ export default function ConfiguracoesTool() {
                                 disabled={qrLoading}
                                 onClick={async () => {
                                     setQrLoading(true)
+                                    setPairingCode('')
                                     try {
                                         const res = await fetch('/api/whatsapp/connect', { method: 'POST' })
                                         const data = await res.json()
                                         if (data.qrcode) {
                                             setQrCode(data.qrcode)
-                                            setPairingCode(data.pairingCode || '')
                                             setShowQR(true)
-                                            // Polling status a cada 3s
-                                            const interval = setInterval(async () => {
+                                            // Polling conexão a cada 3s
+                                            const pollInterval = setInterval(async () => {
                                                 try {
                                                     const sr = await fetch('/api/whatsapp/connect')
                                                     const sd = await sr.json()
                                                     if (sd.connected) {
-                                                        clearInterval(interval)
+                                                        clearInterval(pollInterval)
+                                                        clearInterval(refreshInterval)
                                                         setShowQR(false)
                                                         setWhatsStatus('conectado')
                                                         setQrCode('')
@@ -690,8 +691,19 @@ export default function ConfiguracoesTool() {
                                                     }
                                                 } catch { }
                                             }, 3000)
-                                            // Auto-limpar após 60s
-                                            setTimeout(() => clearInterval(interval), 60000)
+                                            // Auto-refresh QR a cada 25s
+                                            const refreshInterval = setInterval(async () => {
+                                                try {
+                                                    const rr = await fetch('/api/whatsapp/connect', { method: 'POST' })
+                                                    const rd = await rr.json()
+                                                    if (rd.qrcode) setQrCode(rd.qrcode)
+                                                } catch { }
+                                            }, 25000)
+                                            // Limpar tudo após 2 min
+                                            setTimeout(() => {
+                                                clearInterval(pollInterval)
+                                                clearInterval(refreshInterval)
+                                            }, 120000)
                                         } else if (data.status === 'open') {
                                             setWhatsStatus('conectado')
                                             loadData()
@@ -762,12 +774,46 @@ export default function ConfiguracoesTool() {
                                     <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">2.</span> <strong>⋮</strong> (Android) ou <strong>Configurações</strong> (iPhone)</p>
                                     <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">3.</span> <strong>Dispositivos Conectados</strong> → <strong>Conectar Dispositivo</strong></p>
                                     <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">4.</span> Toque em <strong>"Conectar com número de telefone"</strong></p>
-                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">5.</span> Digite o número do WhatsApp da clínica</p>
-                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">6.</span> Um <strong>código de 8 dígitos</strong> aparecerá — siga as instruções na tela</p>
+                                    <p className="text-[10px] text-gray-600"><span className="font-bold text-blue-600">5.</span> O WhatsApp vai pedir um <strong>código de 8 dígitos</strong></p>
                                 </div>
+
+                                {!pairingCode ? (
+                                    <button
+                                        className="mt-2 w-full text-[11px] font-medium px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                        onClick={async () => {
+                                            const phone = prompt('Digite o número do WhatsApp da clínica (com DDD):')
+                                            if (!phone) return
+                                            try {
+                                                const res = await fetch('/api/whatsapp/pairing-code', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ phone })
+                                                })
+                                                const data = await res.json()
+                                                if (data.pairingCode) {
+                                                    setPairingCode(data.pairingCode)
+                                                } else {
+                                                    alert(data.error || 'Não foi possível gerar código. Use o QR Code.')
+                                                }
+                                            } catch (err: any) {
+                                                alert('Erro: ' + err.message)
+                                            }
+                                        }}
+                                    >
+                                        🔑 Gerar Código de 8 Dígitos
+                                    </button>
+                                ) : (
+                                    <div className="mt-2 bg-white border-2 border-blue-200 rounded-lg p-3 cursor-pointer hover:bg-blue-50 transition-colors" onClick={() => {
+                                        navigator.clipboard.writeText(pairingCode)
+                                        alert('Código copiado!')
+                                    }}>
+                                        <p className="text-[9px] text-gray-500 mb-1">Seu código (toque para copiar):</p>
+                                        <p className="text-2xl font-mono font-bold tracking-[0.3em] text-blue-700">{pairingCode}</p>
+                                    </div>
+                                )}
                             </div>
 
-                            <p className="text-[10px] text-green-600 mb-3 animate-pulse">⏳ Aguardando conexão... (detecta automaticamente)</p>
+                            <p className="text-[10px] text-green-600 mb-3 animate-pulse">⏳ Aguardando conexão... (QR atualiza automaticamente)</p>
                             <button onClick={() => setShowQR(false)} className="text-[12px] font-medium px-5 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">Fechar</button>
                         </div>
                     </div>,
