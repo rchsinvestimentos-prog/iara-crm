@@ -1,6 +1,13 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy init — evita erro no build quando env var não está disponível
+let _resend: Resend | null = null
+function getResend() {
+    if (!_resend && process.env.RESEND_API_KEY) {
+        _resend = new Resend(process.env.RESEND_API_KEY)
+    }
+    return _resend
+}
 
 interface WelcomeEmailParams {
     email: string
@@ -18,7 +25,10 @@ export async function enviarEmailBoasVindas({ email, nome, senha, plano }: Welco
     const primeiroNome = nome.split(' ')[0] || nome
 
     try {
-        const result = await resend.emails.send({
+        const resendClient = getResend()
+        if (!resendClient) return null
+
+        const result = await resendClient.emails.send({
             from: process.env.RESEND_FROM || 'IARA <noreply@iara.click>',
             to: email,
             subject: `${primeiroNome}, sua IARA está pronta! 🎉`,
