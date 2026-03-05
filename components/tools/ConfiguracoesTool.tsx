@@ -781,8 +781,11 @@ export default function ConfiguracoesTool() {
                                     <button
                                         className="mt-2 w-full text-[11px] font-medium px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                                         onClick={async () => {
-                                            const phone = prompt('Digite o número do WhatsApp da clínica (com DDD):')
-                                            if (!phone) return
+                                            const phone = whatsappClinica?.replace(/\D/g, '')
+                                            if (!phone || phone.length < 10) {
+                                                alert('Preencha o WhatsApp da Clínica nas configurações acima primeiro.')
+                                                return
+                                            }
                                             try {
                                                 const res = await fetch('/api/whatsapp/pairing-code', {
                                                     method: 'POST',
