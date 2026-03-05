@@ -45,6 +45,7 @@ export default function AdminClinicas() {
     const [form, setForm] = useState({
         nome: '',
         email: '',
+        codigoPais: '55',
         telefone: '',
         nivel: 1,
         duracao: '30',
@@ -88,7 +89,7 @@ export default function AdminClinicas() {
     function fecharModal() {
         setShowModal(false)
         setResultado(null)
-        setForm({ nome: '', email: '', telefone: '', nivel: 1, duracao: '30', creditos: 1000, enviarEmail: true })
+        setForm({ nome: '', email: '', codigoPais: '55', telefone: '', nivel: 1, duracao: '30', creditos: 1000, enviarEmail: true })
         setMsg('')
     }
 
@@ -318,9 +319,26 @@ export default function AdminClinicas() {
                                             className="w-full text-sm px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#D99773]/50" />
                                     </div>
                                     <div>
-                                        <label className="text-xs text-gray-400 mb-1 block">Telefone</label>
-                                        <input value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} placeholder="(11) 99999-9999"
-                                            className="w-full text-sm px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#D99773]/50" />
+                                        <label className="text-xs text-gray-400 mb-1 block">WhatsApp <span className="text-gray-600">(opcional)</span></label>
+                                        <div className="flex gap-2">
+                                            <select value={form.codigoPais} onChange={e => setForm({ ...form, codigoPais: e.target.value })}
+                                                className="w-24 text-sm px-2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none">
+                                                <option value="55" style={{ backgroundColor: '#111827' }}>🇧🇷 +55</option>
+                                                <option value="351" style={{ backgroundColor: '#111827' }}>🇵🇹 +351</option>
+                                                <option value="1" style={{ backgroundColor: '#111827' }}>🇺🇸 +1</option>
+                                                <option value="54" style={{ backgroundColor: '#111827' }}>🇦🇷 +54</option>
+                                                <option value="595" style={{ backgroundColor: '#111827' }}>🇵🇾 +595</option>
+                                                <option value="598" style={{ backgroundColor: '#111827' }}>🇺🇾 +598</option>
+                                                <option value="56" style={{ backgroundColor: '#111827' }}>🇨🇱 +56</option>
+                                                <option value="57" style={{ backgroundColor: '#111827' }}>🇨🇴 +57</option>
+                                                <option value="34" style={{ backgroundColor: '#111827' }}>🇪🇸 +34</option>
+                                                <option value="39" style={{ backgroundColor: '#111827' }}>🇮🇹 +39</option>
+                                                <option value="44" style={{ backgroundColor: '#111827' }}>🇬🇧 +44</option>
+                                                <option value="81" style={{ backgroundColor: '#111827' }}>🇯🇵 +81</option>
+                                            </select>
+                                            <input value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} placeholder="41 99999-9999"
+                                                className="flex-1 text-sm px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#D99773]/50" />
+                                        </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3">
