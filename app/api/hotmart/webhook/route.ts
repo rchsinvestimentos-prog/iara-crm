@@ -147,6 +147,46 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ ok: true, action: 'subscription_cancelled' })
         }
 
+        // ============ TROCA DE PLANO ============
+        if (evento === 'SWITCH_PLAN') {
+            const buyer = body?.data?.buyer
+            const subscription = body?.data?.subscription
+            const product = body?.data?.product
+
+            if (buyer?.email) {
+                const planName = subscription?.plan?.name?.toLowerCase() || product?.name?.toLowerCase() || ''
+                let planoConfig = PLANOS_HOTMART['essencial']
+                if (planName.includes('premium') || planName.includes('pro')) {
+                    planoConfig = PLANOS_HOTMART['premium']
+                }
+
+                await prisma.clinica.updateMany({
+                    where: { email: buyer.email },
+                    data: {
+                        nivel: planoConfig.nivel,
+                        plano: planoConfig.plano,
+                        creditosMensais: planoConfig.creditos,
+                        creditosDisponiveis: planoConfig.creditos,
+                    },
+                })
+                console.log(`[Hotmart Webhook] 🔄 Plano trocado: ${buyer.email} → ${planoConfig.plano}`)
+            }
+            return NextResponse.json({ ok: true, action: 'plan_switched' })
+        }
+
+        // ============ ASSINATURA REATIVADA ============
+        if (evento === 'SUBSCRIPTION_REACTIVATION') {
+            const buyer = body?.data?.buyer
+            if (buyer?.email) {
+                await prisma.clinica.updateMany({
+                    where: { email: buyer.email },
+                    data: { status: 'ativo' },
+                })
+                console.log(`[Hotmart Webhook] ♻️ Assinatura reativada: ${buyer.email}`)
+            }
+            return NextResponse.json({ ok: true, action: 'reactivated' })
+        }
+
         // Evento não tratado
         console.log(`[Hotmart Webhook] Evento ignorado: ${evento}`)
         return NextResponse.json({ ok: true, action: 'ignored' })
