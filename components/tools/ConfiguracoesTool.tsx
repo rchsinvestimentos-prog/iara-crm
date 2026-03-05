@@ -498,12 +498,19 @@ export default function ConfiguracoesTool() {
                     </div>
                     <div>
                         <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Endereço da Clínica</label>
-                        <input className={inputClass} style={inputStyle} value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Rua das Flores, 123 - Sala 4 - Batel, Curitiba/PR" />
+                        <input className={inputClass} style={inputStyle} value={endereco} onChange={(e) => {
+                            setEndereco(e.target.value)
+                            // Auto-gera link do Maps se não tiver um customizado
+                            if (e.target.value && (!linkMaps || linkMaps.startsWith('https://maps.google.com/maps?q='))) {
+                                setLinkMaps(`https://maps.google.com/maps?q=${encodeURIComponent(e.target.value)}`)
+                            }
+                        }} placeholder="Rua das Flores, 123 - Sala 4 - Batel, Curitiba/PR" />
                         <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>A IARA usa o endereço na confirmação de agendamento</p>
                     </div>
                     <div>
-                        <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Link do Google Maps</label>
+                        <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Link do Google Maps <span className="text-[9px] font-normal">(gerado automaticamente)</span></label>
                         <input className={inputClass} style={inputStyle} value={linkMaps} onChange={(e) => setLinkMaps(e.target.value)} placeholder="https://maps.google.com/..." />
+                        {linkMaps && <a href={linkMaps} target="_blank" rel="noopener noreferrer" className="text-[9px] mt-1 inline-block hover:underline" style={{ color: '#0F4C61' }}>🔗 Testar link no Maps</a>}
                     </div>
                 </div>
             </div>
