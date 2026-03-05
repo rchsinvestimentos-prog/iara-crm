@@ -30,9 +30,9 @@ export async function POST() {
 
     // Se não tem instância, criar uma
     if (!instanceName) {
-        // Nome padronizado: IARA_NomeDaClinica (sem espaços/acentos)
-        const nomeBase = (clinica.nomeClinica || clinica.nome || 'Clinica').trim()
-        instanceName = `IARA_${nomeBase.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').slice(0, 30)}`
+        // Nome padronizado: IARA_ID_email (fácil de filtrar na Evolution)
+        const emailBase = (clinica.email || 'sem_email').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30)
+        instanceName = `IARA_${String(clinica.id).slice(0, 8)}_${emailBase}`
 
         try {
             const createRes = await fetch(`${evoUrl}/instance/create`, {
