@@ -173,6 +173,10 @@ export default function ConfiguracoesTool() {
     const [savingCombo, setSavingCombo] = useState(false)
 
     // ---- VIP Personalization ----
+    const [cep, setCep] = useState('')
+    const [enderecoRua, setEnderecoRua] = useState('')
+    const [enderecoNumero, setEnderecoNumero] = useState('')
+    const [enderecoComplemento, setEnderecoComplemento] = useState('')
     const [endereco, setEndereco] = useState('')
     const [linkMaps, setLinkMaps] = useState('')
     const [cuidadosPos, setCuidadosPos] = useState('')
@@ -203,6 +207,23 @@ export default function ConfiguracoesTool() {
                 setWhatsappPessoal(data.whatsappDoutora || '')
                 setDiferenciais(data.diferenciais || '')
                 setEndereco(data.endereco || '')
+                // Tentar parsear endereço existente nos campos separados
+                if (data.endereco) {
+                    const parts = data.endereco.split(',')
+                    if (parts.length >= 2) {
+                        setEnderecoRua(parts[0].trim())
+                        const resto = parts.slice(1).join(',').trim()
+                        const numMatch = resto.match(/^(\d+)/)
+                        if (numMatch) {
+                            setEnderecoNumero(numMatch[1])
+                            setEnderecoComplemento(resto.replace(/^\d+\s*-?\s*/, '').trim())
+                        } else {
+                            setEnderecoComplemento(resto)
+                        }
+                    } else {
+                        setEnderecoRua(data.endereco)
+                    }
+                }
                 // Horários
                 setHorarioSemana(data.horarioSemana || '')
                 setAlmocoSemana(data.almocoSemana || '')
@@ -536,22 +557,22 @@ export default function ConfiguracoesTool() {
                         <label className={labelClass} style={{ color: 'var(--text-muted)' }}>CEP</label>
                         <div className="flex gap-2">
                             <input className={`${inputClass} max-w-[140px]`} style={inputStyle}
-                                value={endereco.match(/^\d{5}-?\d{3}/)?.[0] || ''}
+                                value={cep}
                                 onChange={async (e) => {
-                                    const cep = e.target.value.replace(/\D/g, '')
-                                    if (cep.length <= 8) {
-                                        const cepFormatado = cep.length > 5 ? `${cep.slice(0, 5)}-${cep.slice(5)}` : cep
-                                        // Mantém o complemento se existir
-                                        const complemento = endereco.replace(/^[^,]*,?\s*\d{5}-?\d{3}\s*-?\s*/, '').replace(/^.*?-\s*(Sala|Loja|Apt|Nº|N°|n\.|,)/, '$1').trim()
-                                        setEndereco(cepFormatado)
-                                        if (cep.length === 8) {
+                                    const raw = e.target.value.replace(/\D/g, '')
+                                    if (raw.length <= 8) {
+                                        const fmt = raw.length > 5 ? `${raw.slice(0, 5)}-${raw.slice(5)}` : raw
+                                        setCep(fmt)
+                                        if (raw.length === 8) {
                                             try {
-                                                const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
+                                                const res = await fetch(`https://viacep.com.br/ws/${raw}/json/`)
                                                 const data = await res.json()
                                                 if (!data.erro) {
-                                                    const endCompleto = `${data.logradouro}, ${data.bairro} - ${data.localidade}/${data.uf}`
-                                                    setEndereco(endCompleto)
-                                                    setLinkMaps(`https://maps.google.com/maps?q=${encodeURIComponent(endCompleto)}`)
+                                                    const rua = `${data.logradouro}, ${data.bairro} - ${data.localidade}/${data.uf}`
+                                                    setEnderecoRua(rua)
+                                                    const full = enderecoNumero ? `${rua}, ${enderecoNumero}${enderecoComplemento ? ' - ' + enderecoComplemento : ''}` : rua
+                                                    setEndereco(full)
+                                                    setLinkMaps(`https://maps.google.com/maps?q=${encodeURIComponent(full)}`)
                                                 }
                                             } catch { }
                                         }
@@ -564,14 +585,33 @@ export default function ConfiguracoesTool() {
                         </div>
                     </div>
                     <div>
-                        <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Endereço da Clínica</label>
-                        <input className={inputClass} style={inputStyle} value={endereco} onChange={(e) => {
-                            setEndereco(e.target.value)
-                            if (e.target.value && (!linkMaps || linkMaps.startsWith('https://maps.google.com/maps?q='))) {
-                                setLinkMaps(`https://maps.google.com/maps?q=${encodeURIComponent(e.target.value)}`)
-                            }
-                        }} placeholder="Rua das Flores, 123 - Sala 4 - Batel, Curitiba/PR" />
-                        <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>Complete com número, sala, loja, etc. A IARA usa na confirmação de agendamento</p>
+                        <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Endereço (rua, bairro, cidade)</label>
+                        <input className={inputClass} style={inputStyle} value={enderecoRua} onChange={(e) => {
+                            setEnderecoRua(e.target.value)
+                            const full = enderecoNumero ? `${e.target.value}, ${enderecoNumero}${enderecoComplemento ? ' - ' + enderecoComplemento : ''}` : e.target.value
+                            setEndereco(full)
+                            if (full) setLinkMaps(`https://maps.google.com/maps?q=${encodeURIComponent(full)}`)
+                        }} placeholder="Rua das Flores, Batel - Curitiba/PR" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Número *</label>
+                            <input className={inputClass} style={inputStyle} value={enderecoNumero} onChange={(e) => {
+                                setEnderecoNumero(e.target.value)
+                                const full = enderecoRua ? `${enderecoRua}, ${e.target.value}${enderecoComplemento ? ' - ' + enderecoComplemento : ''}` : e.target.value
+                                setEndereco(full)
+                                if (full) setLinkMaps(`https://maps.google.com/maps?q=${encodeURIComponent(full)}`)
+                            }} placeholder="123" />
+                        </div>
+                        <div>
+                            <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Complemento</label>
+                            <input className={inputClass} style={inputStyle} value={enderecoComplemento} onChange={(e) => {
+                                setEnderecoComplemento(e.target.value)
+                                const full = enderecoRua ? `${enderecoRua}, ${enderecoNumero}${e.target.value ? ' - ' + e.target.value : ''}` : ''
+                                setEndereco(full)
+                                if (full) setLinkMaps(`https://maps.google.com/maps?q=${encodeURIComponent(full)}`)
+                            }} placeholder="Sala 4, Bloco B" />
+                        </div>
                     </div>
                     <div>
                         <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Link do Google Maps <span className="text-[9px] font-normal">(gerado automaticamente)</span></label>
