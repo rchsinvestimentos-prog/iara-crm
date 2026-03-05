@@ -186,6 +186,12 @@ export default function ConfiguracoesTool() {
     const [formasPagamento, setFormasPagamento] = useState<FormasPagamento>({ pix: false, chavePix: '', cartao: false, dinheiro: false, observacoes: '' })
     const [redesSociais, setRedesSociais] = useState<RedesSociais>({ instagram: '', tiktok: '', facebook: '', site: '' })
 
+    // ---- WhatsApp QR ----
+    const [showQR, setShowQR] = useState(false)
+    const [qrCode, setQrCode] = useState('')
+    const [qrLoading, setQrLoading] = useState(false)
+    const [whatsStatus, setWhatsStatus] = useState('')
+
     // ==================== Load Data ====================
 
     const loadData = useCallback(async () => {
@@ -656,16 +662,88 @@ export default function ConfiguracoesTool() {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        {statusWhatsApp === 'desconectado' && (
-                            <button className="text-[11px] font-medium px-3 py-1.5 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1.5">
-                                <QrCode size={12} /> QR Code
+                        {statusWhatsApp !== 'conectado' && (
+                            <button
+                                disabled={qrLoading}
+                                onClick={async () => {
+                                    setQrLoading(true)
+                                    try {
+                                        const res = await fetch('/api/whatsapp/connect', { method: 'POST' })
+                                        const data = await res.json()
+                                        if (data.qrcode) {
+                                            setQrCode(data.qrcode)
+                                            setShowQR(true)
+                                            // Polling status a cada 3s
+                                            const interval = setInterval(async () => {
+                                                try {
+                                                    const sr = await fetch('/api/whatsapp/connect')
+                                                    const sd = await sr.json()
+                                                    if (sd.connected) {
+                                                        clearInterval(interval)
+                                                        setShowQR(false)
+                                                        setWhatsStatus('conectado')
+                                                        setQrCode('')
+                                                        loadData()
+                                                    }
+                                                } catch { }
+                                            }, 3000)
+                                            // Auto-limpar após 60s
+                                            setTimeout(() => clearInterval(interval), 60000)
+                                        } else if (data.status === 'open') {
+                                            setWhatsStatus('conectado')
+                                            loadData()
+                                        } else {
+                                            alert(data.error || 'Não foi possível gerar QR Code. Tente novamente.')
+                                        }
+                                    } catch (err: any) {
+                                        alert('Erro: ' + err.message)
+                                    } finally {
+                                        setQrLoading(false)
+                                    }
+                                }}
+                                className="text-[11px] font-medium px-3 py-1.5 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                                {qrLoading ? <Loader2 size={12} className="animate-spin" /> : <QrCode size={12} />} QR Code
                             </button>
                         )}
-                        <button className="text-[11px] font-medium px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors" style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}>
-                            <RefreshCw size={12} /> {statusWhatsApp === 'conectado' ? 'Testar' : 'Reconectar'}
+                        <button
+                            onClick={async () => {
+                                try {
+                                    const res = await fetch('/api/whatsapp/connect')
+                                    const data = await res.json()
+                                    if (data.connected) {
+                                        setWhatsStatus('conectado')
+                                        loadData()
+                                        alert('\u2705 WhatsApp conectado!')
+                                    } else {
+                                        setWhatsStatus('desconectado')
+                                        alert(`Status: ${data.status || 'desconectado'}`)
+                                    }
+                                } catch (err: any) {
+                                    alert('Erro: ' + err.message)
+                                }
+                            }}
+                            className="text-[11px] font-medium px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors" style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}
+                        >
+                            <RefreshCw size={12} /> {statusWhatsApp === 'conectado' ? 'Verificar' : 'Verificar Status'}
                         </button>
                     </div>
                 </div>
+
+                {/* QR Code Modal */}
+                {showQR && qrCode && (
+                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowQR(false)}>
+                        <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 text-center" onClick={e => e.stopPropagation()}>
+                            <h3 className="text-lg font-bold text-gray-800 mb-2">📱 Escaneie o QR Code</h3>
+                            <p className="text-sm text-gray-500 mb-4">Abra o WhatsApp → Menu → Dispositivos Conectados → Conectar Dispositivo</p>
+                            <div className="flex justify-center mb-4">
+                                <img src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`} alt="QR Code WhatsApp" className="w-64 h-64 rounded-xl" />
+                            </div>
+                            <p className="text-xs text-gray-400 mb-3">Aguardando conexão... (atualiza automaticamente)</p>
+                            <button onClick={() => setShowQR(false)} className="text-sm font-medium px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">Fechar</button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* ============ 4. CONEXÃO GOOGLE CALENDAR ============ */}
