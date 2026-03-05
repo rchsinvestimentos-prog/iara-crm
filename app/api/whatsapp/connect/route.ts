@@ -12,7 +12,7 @@ export async function POST() {
 
     const clinica = await prisma.clinica.findFirst({
         where: { email: session.user.email },
-        select: { id: true, evolutionInstance: true, nomeClinica: true, nome: true, email: true }
+        select: { id: true, evolutionInstance: true, nomeClinica: true, nome: true, email: true, telefone: true }
     })
 
     if (!clinica) {
@@ -30,8 +30,9 @@ export async function POST() {
 
     // Se não tem instância, criar uma
     if (!instanceName) {
-        // Gerar nome da instância baseado no email (único e consistente)
-        instanceName = `iara_${(clinica.email || 'unknown').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30)}`
+        // Nome padronizado: IARA_NomeDaClinica (sem espaços/acentos)
+        const nomeBase = (clinica.nomeClinica || clinica.nome || 'Clinica').trim()
+        instanceName = `IARA_${nomeBase.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').slice(0, 30)}`
 
         try {
             const createRes = await fetch(`${evoUrl}/instance/create`, {
