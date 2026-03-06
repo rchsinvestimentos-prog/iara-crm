@@ -35,6 +35,8 @@ export async function POST() {
         instanceName = `IARA_${String(clinica.id).slice(0, 8)}_${emailBase}`
 
         try {
+            const webhookUrl = process.env.EVOLUTION_WEBHOOK_URL || 'https://iara-system-n8n.00qtt3.easypanel.host/webhook/iara/receptor-central'
+
             const createRes = await fetch(`${evoUrl}/instance/create`, {
                 method: 'POST',
                 headers: {
@@ -45,6 +47,17 @@ export async function POST() {
                     instanceName,
                     integration: 'WHATSAPP-BAILEYS',
                     qrcode: true,
+                    webhook: {
+                        url: webhookUrl,
+                        byEvents: false,
+                        base64: true,
+                        events: [
+                            'MESSAGES_UPSERT',
+                            'MESSAGES_UPDATE',
+                            'CONNECTION_UPDATE',
+                            'QRCODE_UPDATED',
+                        ],
+                    },
                 }),
             })
 
@@ -56,6 +69,26 @@ export async function POST() {
                 where: { id: clinica.id },
                 data: { evolutionInstance: instanceName },
             })
+
+            // Configurar webhook via endpoint separado (garantia)
+            try {
+                await fetch(`${evoUrl}/webhook/set/${instanceName}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                    body: JSON.stringify({
+                        webhook: {
+                            enabled: true,
+                            url: webhookUrl,
+                            byEvents: false,
+                            base64: true,
+                            events: ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'CONNECTION_UPDATE'],
+                        },
+                    }),
+                })
+                console.log(`[WhatsApp] Webhook configurado: ${webhookUrl}`)
+            } catch (webhookErr) {
+                console.warn('[WhatsApp] Erro ao configurar webhook separado:', webhookErr)
+            }
 
             // Se o QR veio na criação, retorna direto
             if (createData?.qrcode?.base64) {
