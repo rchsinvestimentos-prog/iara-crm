@@ -3,6 +3,18 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+const WEBHOOK_URL = 'https://iara-system-n8n.00qtt3.easypanel.host/webhook/iara/receptor-central'
+
+// Helper: buscar QR Code de uma instância existente
+async function fetchQR(evoUrl: string, evoKey: string, instanceName: string) {
+    const res = await fetch(`${evoUrl}/instance/connect/${instanceName}`, {
+        method: 'GET',
+        headers: { 'apikey': evoKey },
+    })
+    const data = await res.json()
+    return data?.base64 || data?.qrcode?.base64 || null
+}
+
 // POST: Criar instância (se necessário) + gerar QR Code
 export async function POST() {
     const session = await getServerSession(authOptions)
@@ -26,17 +38,33 @@ export async function POST() {
         return NextResponse.json({ error: 'Evolution API não configurada' }, { status: 500 })
     }
 
+    const webhookUrl = process.env.EVOLUTION_WEBHOOK_URL || WEBHOOK_URL
     let instanceName = clinica.evolutionInstance
 
-    // Se não tem instância, criar uma
+    // Se não tem instância no banco, criar uma nova
     if (!instanceName) {
-        // Nome padronizado: IARA_ID_email (fácil de filtrar na Evolution)
         const emailBase = (clinica.email || 'sem_email').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30)
         instanceName = `IARA_${String(clinica.id).slice(0, 8)}_${emailBase}`
 
-        try {
-            const webhookUrl = process.env.EVOLUTION_WEBHOOK_URL || 'https://iara-system-n8n.00qtt3.easypanel.host/webhook/iara/receptor-central'
+        console.log(`[WhatsApp] Criando instância: ${instanceName}`)
 
+        // Tentar deletar caso exista resquício na Evolution
+        try {
+            await fetch(`${evoUrl}/instance/logout/${instanceName}`, {
+                method: 'DELETE', headers: { 'apikey': evoKey },
+            })
+        } catch { }
+        try {
+            await fetch(`${evoUrl}/instance/delete/${instanceName}`, {
+                method: 'DELETE', headers: { 'apikey': evoKey },
+            })
+        } catch { }
+
+        // Esperar limpeza
+        await new Promise(r => setTimeout(r, 1000))
+
+        // Criar instância nova
+        try {
             const createRes = await fetch(`${evoUrl}/instance/create`, {
                 method: 'POST',
                 headers: {
@@ -51,26 +79,21 @@ export async function POST() {
                         url: webhookUrl,
                         byEvents: false,
                         base64: true,
-                        events: [
-                            'MESSAGES_UPSERT',
-                            'MESSAGES_UPDATE',
-                            'CONNECTION_UPDATE',
-                            'QRCODE_UPDATED',
-                        ],
+                        events: ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'CONNECTION_UPDATE', 'QRCODE_UPDATED'],
                     },
                 }),
             })
 
             const createData = await createRes.json()
-            console.log(`[WhatsApp] Instância criada: ${instanceName}`, createData)
+            console.log(`[WhatsApp] Resposta criação:`, JSON.stringify(createData).slice(0, 500))
 
-            // Salvar nome da instância na clínica
+            // Salvar instância no banco
             await prisma.clinica.update({
                 where: { id: clinica.id },
                 data: { evolutionInstance: instanceName },
             })
 
-            // Configurar webhook via endpoint separado (garantia)
+            // Configurar webhook por endpoint separado (garantia)
             try {
                 await fetch(`${evoUrl}/webhook/set/${instanceName}`, {
                     method: 'POST',
@@ -85,95 +108,64 @@ export async function POST() {
                         },
                     }),
                 })
-                console.log(`[WhatsApp] Webhook configurado: ${webhookUrl}`)
-            } catch (webhookErr) {
-                console.warn('[WhatsApp] Erro ao configurar webhook separado:', webhookErr)
-            }
-
-            // Se o QR veio na criação, retorna direto
-            if (createData?.qrcode?.base64) {
-                return NextResponse.json({
-                    instanceName,
-                    qrcode: createData.qrcode.base64,
-                    status: 'qr_ready',
-                })
-            }
-
-            // QR não veio na criação — esperar um pouco e buscar
-            await new Promise(resolve => setTimeout(resolve, 2000))
-
-            try {
-                const qrRetry = await fetch(`${evoUrl}/instance/connect/${instanceName}`, {
-                    method: 'GET',
-                    headers: { 'apikey': evoKey },
-                })
-                const qrRetryData = await qrRetry.json()
-                console.log('[WhatsApp] QR retry:', JSON.stringify(qrRetryData).slice(0, 200))
-
-                const qr = qrRetryData?.base64 || qrRetryData?.qrcode?.base64 || qrRetryData?.code
-                if (qr) {
-                    return NextResponse.json({
-                        instanceName,
-                        qrcode: qr,
-                        status: 'qr_ready',
-                    })
-                }
             } catch { }
 
-            // Retorna o que tiver da criação pra debug
-            return NextResponse.json({
-                instanceName,
-                qrcode: null,
-                status: 'created_no_qr',
-                error: 'Instância criada mas QR não retornou. Clique em QR Code novamente.',
-                debug: createData,
-            })
+            // Tentar extrair QR da resposta de criação
+            const qr = createData?.qrcode?.base64 || createData?.base64
+            if (qr) {
+                return NextResponse.json({ instanceName, qrcode: qr, status: 'qr_ready' })
+            }
         } catch (err: any) {
             console.error('[WhatsApp] Erro ao criar instância:', err)
-            return NextResponse.json({ error: `Erro ao criar instância: ${err.message}` }, { status: 500 })
-        }
-    }
-
-    // Instância já existe, pegar QR Code + código de pareamento
-    try {
-        const qrRes = await fetch(`${evoUrl}/instance/connect/${instanceName}`, {
-            method: 'GET',
-            headers: { 'apikey': evoKey },
-        })
-
-        const qrData = await qrRes.json()
-
-        // Tentar pegar código de pareamento (para mobile)
-        let pairingCode = null
-        if (clinica.telefone) {
-            try {
-                const tel = clinica.telefone.replace(/\D/g, '')
-                const phone = tel.startsWith('55') ? tel : `55${tel}`
-                const pairRes = await fetch(`${evoUrl}/instance/connect/${instanceName}`, {
-                    method: 'GET',
-                    headers: { 'apikey': evoKey, 'Content-Type': 'application/json' },
-                })
-                const pairData = await pairRes.json()
-                pairingCode = pairData?.pairingCode || pairData?.code || null
-            } catch { }
+            return NextResponse.json({ error: `Erro ao criar: ${err.message}` }, { status: 500 })
         }
 
-        if (qrData?.base64) {
-            return NextResponse.json({
-                instanceName,
-                qrcode: qrData.base64,
-                pairingCode: qrData?.pairingCode || pairingCode,
-                status: 'qr_ready',
-            })
-        }
+        // QR não veio na criação, esperar e buscar
+        await new Promise(r => setTimeout(r, 2000))
+        try {
+            const qr = await fetchQR(evoUrl, evoKey, instanceName)
+            if (qr) {
+                return NextResponse.json({ instanceName, qrcode: qr, status: 'qr_ready' })
+            }
+        } catch { }
 
-        // Pode já estar conectado
+        // Segunda tentativa após mais 2s
+        await new Promise(r => setTimeout(r, 2000))
+        try {
+            const qr = await fetchQR(evoUrl, evoKey, instanceName)
+            if (qr) {
+                return NextResponse.json({ instanceName, qrcode: qr, status: 'qr_ready' })
+            }
+        } catch { }
+
         return NextResponse.json({
             instanceName,
             qrcode: null,
-            pairingCode,
-            status: qrData?.state || 'unknown',
-            data: qrData,
+            status: 'created_no_qr',
+            error: 'Instância criada mas QR não gerado. Clique em QR Code novamente.',
+        })
+    }
+
+    // Instância já existe no banco — buscar QR Code
+    try {
+        const qr = await fetchQR(evoUrl, evoKey, instanceName)
+
+        if (qr) {
+            return NextResponse.json({ instanceName, qrcode: qr, status: 'qr_ready' })
+        }
+
+        // Pode já estar conectado
+        const stateRes = await fetch(`${evoUrl}/instance/connectionState/${instanceName}`, {
+            headers: { 'apikey': evoKey },
+        })
+        const stateData = await stateRes.json()
+        const connected = stateData?.instance?.state === 'open' || stateData?.state === 'open'
+
+        return NextResponse.json({
+            instanceName,
+            qrcode: null,
+            status: connected ? 'open' : (stateData?.instance?.state || stateData?.state || 'unknown'),
+            connected,
         })
     } catch (err: any) {
         console.error('[WhatsApp] Erro ao buscar QR:', err)
