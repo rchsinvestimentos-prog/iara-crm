@@ -154,22 +154,53 @@ export async function POST() {
             return NextResponse.json({ instanceName, qrcode: qr, status: 'qr_ready' })
         }
 
-        // Pode já estar conectado
-        const stateRes = await fetch(`${evoUrl}/instance/connectionState/${instanceName}`, {
-            headers: { 'apikey': evoKey },
+        // Checar se a instância realmente existe e tá conectada
+        try {
+            const stateRes = await fetch(`${evoUrl}/instance/connectionState/${instanceName}`, {
+                headers: { 'apikey': evoKey },
+            })
+            const stateData = await stateRes.json()
+            const state = stateData?.instance?.state || stateData?.state
+            const connected = state === 'open'
+
+            if (connected) {
+                return NextResponse.json({
+                    instanceName, qrcode: null, status: 'open', connected: true,
+                })
+            }
+
+            // Se o estado é 'close' (desconectado mas instância existe), tenta connect de novo
+            if (state === 'close') {
+                await new Promise(r => setTimeout(r, 1000))
+                const retryQR = await fetchQR(evoUrl, evoKey, instanceName)
+                if (retryQR) {
+                    return NextResponse.json({ instanceName, qrcode: retryQR, status: 'qr_ready' })
+                }
+            }
+        } catch { }
+
+        // Instância não existe mais na Evolution ou não retorna QR
+        // Limpar do banco e forçar criação na próxima tentativa
+        console.log(`[WhatsApp] Instância ${instanceName} não funciona. Limpando banco pra recriar.`)
+        await prisma.clinica.update({
+            where: { id: clinica.id },
+            data: { evolutionInstance: null },
         })
-        const stateData = await stateRes.json()
-        const connected = stateData?.instance?.state === 'open' || stateData?.state === 'open'
 
         return NextResponse.json({
-            instanceName,
+            instanceName: null,
             qrcode: null,
-            status: connected ? 'open' : (stateData?.instance?.state || stateData?.state || 'unknown'),
-            connected,
+            status: 'instance_removed',
+            error: 'Instância foi removida. Clique em QR Code novamente para criar uma nova.',
         })
     } catch (err: any) {
         console.error('[WhatsApp] Erro ao buscar QR:', err)
-        return NextResponse.json({ error: `Erro ao buscar QR: ${err.message}` }, { status: 500 })
+        // Limpar instância inválida
+        await prisma.clinica.update({
+            where: { id: clinica.id },
+            data: { evolutionInstance: null },
+        })
+        return NextResponse.json({ error: 'Instância inválida removida. Clique em QR Code novamente.' }, { status: 500 })
     }
 }
 
