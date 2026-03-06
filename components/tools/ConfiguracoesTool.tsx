@@ -753,6 +753,28 @@ export default function ConfiguracoesTool() {
                         >
                             <RefreshCw size={12} /> {statusWhatsApp === 'conectado' ? 'Verificar' : 'Verificar Status'}
                         </button>
+                        {statusWhatsApp === 'conectado' && (
+                            <button
+                                onClick={async () => {
+                                    if (!confirm('Tem certeza que deseja desconectar o WhatsApp?')) return
+                                    try {
+                                        const res = await fetch('/api/whatsapp/disconnect', { method: 'POST' })
+                                        const data = await res.json()
+                                        if (data.success) {
+                                            setWhatsStatus('desconectado')
+                                            alert('WhatsApp desconectado com sucesso.')
+                                        } else {
+                                            alert(data.error || 'Erro ao desconectar.')
+                                        }
+                                    } catch (err: any) {
+                                        alert('Erro: ' + err.message)
+                                    }
+                                }}
+                                className="text-[11px] font-medium px-3 py-1.5 bg-red-500/15 text-red-400 rounded-lg flex items-center gap-1.5 hover:bg-red-500/25 transition-colors"
+                            >
+                                <WifiOff size={12} /> Desconectar
+                            </button>
+                        )}
                     </div>
                 </div>
 
