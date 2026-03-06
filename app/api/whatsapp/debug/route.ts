@@ -3,11 +3,11 @@ import { getServerSession } from 'next-auth'
 import { authOptions, isAdmin } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-// GET: Debug WhatsApp connection - Admin only
+// GET: Debug WhatsApp connection
 export async function GET() {
     const session = await getServerSession(authOptions)
-    if (!isAdmin(session)) {
-        return NextResponse.json({ error: 'Admin only' }, { status: 403 })
+    if (!session?.user?.email) {
+        return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
 
     const evoUrl = process.env.EVOLUTION_API_URL
