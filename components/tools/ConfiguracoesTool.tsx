@@ -718,8 +718,38 @@ export default function ConfiguracoesTool() {
                                         } else if (data.status === 'open') {
                                             setWhatsStatus('conectado')
                                             loadData()
+                                        } else if (data.status === 'created_no_qr' || !data.qrcode) {
+                                            // Instância criada mas QR não veio — tentar de novo automaticamente
+                                            await new Promise(r => setTimeout(r, 3000))
+                                            try {
+                                                const retry = await fetch('/api/whatsapp/connect', { method: 'POST' })
+                                                const retryData = await retry.json()
+                                                if (retryData.qrcode) {
+                                                    setQrCode(retryData.qrcode)
+                                                    setShowQR(true)
+                                                    // Iniciar polling
+                                                    const pollInterval = setInterval(async () => {
+                                                        try {
+                                                            const sr = await fetch('/api/whatsapp/connect')
+                                                            const sd = await sr.json()
+                                                            if (sd.connected) {
+                                                                clearInterval(pollInterval)
+                                                                setShowQR(false)
+                                                                setWhatsStatus('conectado')
+                                                                setQrCode('')
+                                                                loadData()
+                                                            }
+                                                        } catch { }
+                                                    }, 3000)
+                                                    setTimeout(() => clearInterval(pollInterval), 120000)
+                                                } else {
+                                                    alert(retryData.error || 'QR não disponível. Clique em QR Code novamente.')
+                                                }
+                                            } catch {
+                                                alert('Instância criada. Clique em QR Code novamente para gerar o código.')
+                                            }
                                         } else {
-                                            alert(data.error || 'Não foi possível gerar QR Code. Tente novamente.')
+                                            alert(data.error || 'Erro desconhecido: ' + JSON.stringify(data).slice(0, 200))
                                         }
                                     } catch (err: any) {
                                         alert('Erro: ' + err.message)
