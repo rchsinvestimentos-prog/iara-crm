@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-// POST: Desconectar (logout) a instância do WhatsApp
+// POST: Desconectar e excluir instância do WhatsApp
 export async function POST() {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
@@ -27,16 +27,30 @@ export async function POST() {
     }
 
     try {
-        // Logout da instância (desconecta o WhatsApp mas mantém a instância)
-        const res = await fetch(`${evoUrl}/instance/logout/${clinica.evolutionInstance}`, {
+        // 1. Logout primeiro (desconecta o WhatsApp)
+        try {
+            await fetch(`${evoUrl}/instance/logout/${clinica.evolutionInstance}`, {
+                method: 'DELETE',
+                headers: { 'apikey': evoKey },
+            })
+        } catch { }
+
+        // 2. Deletar a instância na Evolution API
+        const res = await fetch(`${evoUrl}/instance/delete/${clinica.evolutionInstance}`, {
             method: 'DELETE',
             headers: { 'apikey': evoKey },
         })
 
         const data = await res.json()
-        console.log(`[WhatsApp] Logout instância ${clinica.evolutionInstance}:`, data)
+        console.log(`[WhatsApp] Instância deletada: ${clinica.evolutionInstance}`, data)
 
-        return NextResponse.json({ success: true, message: 'WhatsApp desconectado' })
+        // 3. Limpar referência no banco
+        await prisma.clinica.update({
+            where: { id: clinica.id },
+            data: { evolutionInstance: null },
+        })
+
+        return NextResponse.json({ success: true, message: 'WhatsApp desconectado e instância removida' })
     } catch (err: any) {
         console.error('[WhatsApp] Erro ao desconectar:', err)
         return NextResponse.json({ error: err.message }, { status: 500 })
