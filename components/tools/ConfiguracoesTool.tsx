@@ -255,6 +255,17 @@ export default function ConfiguracoesTool() {
                 setFaq(data.faqPersonalizado || [])
                 setFormasPagamento(data.formasPagamento || { pix: false, chavePix: '', cartao: false, dinheiro: false, observacoes: '' })
                 setRedesSociais(data.redesSociais || { instagram: '', tiktok: '', facebook: '', site: '' })
+
+                // Verificar status real do WhatsApp via Evolution API
+                if (data.evolutionInstance) {
+                    try {
+                        const whatsRes = await fetch('/api/whatsapp/connect')
+                        const whatsData = await whatsRes.json()
+                        setWhatsStatus(whatsData.connected ? 'conectado' : 'desconectado')
+                    } catch {
+                        setWhatsStatus('desconectado')
+                    }
+                }
             }
 
             if (procRes.ok) setProcedimentos(await procRes.json())
