@@ -98,6 +98,36 @@ export async function POST() {
                     status: 'qr_ready',
                 })
             }
+
+            // QR não veio na criação — esperar um pouco e buscar
+            await new Promise(resolve => setTimeout(resolve, 2000))
+
+            try {
+                const qrRetry = await fetch(`${evoUrl}/instance/connect/${instanceName}`, {
+                    method: 'GET',
+                    headers: { 'apikey': evoKey },
+                })
+                const qrRetryData = await qrRetry.json()
+                console.log('[WhatsApp] QR retry:', JSON.stringify(qrRetryData).slice(0, 200))
+
+                const qr = qrRetryData?.base64 || qrRetryData?.qrcode?.base64 || qrRetryData?.code
+                if (qr) {
+                    return NextResponse.json({
+                        instanceName,
+                        qrcode: qr,
+                        status: 'qr_ready',
+                    })
+                }
+            } catch { }
+
+            // Retorna o que tiver da criação pra debug
+            return NextResponse.json({
+                instanceName,
+                qrcode: null,
+                status: 'created_no_qr',
+                error: 'Instância criada mas QR não retornou. Clique em QR Code novamente.',
+                debug: createData,
+            })
         } catch (err: any) {
             console.error('[WhatsApp] Erro ao criar instância:', err)
             return NextResponse.json({ error: `Erro ao criar instância: ${err.message}` }, { status: 500 })
