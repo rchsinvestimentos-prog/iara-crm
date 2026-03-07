@@ -38,10 +38,11 @@ interface PromptContext {
  * Monta o system prompt completo da IARA.
  * 
  * Junta tudo: identidade + procedimentos + feedbacks + memória
- * + histórico + cofre (leis, arsenal, roteiro) + como falar.
+ * + cofre (leis, arsenal, roteiro) + como falar.
+ * Obs: Histórico agora é passado diretamente na array de mensagens da API.
  */
 export function buildSystemPrompt(ctx: PromptContext): string {
-    const { clinica, mensagem, pushName, tipoEntrada, historico, procedimentos, feedbacks, memoria } = ctx
+    const { clinica, mensagem, pushName, tipoEntrada, procedimentos, feedbacks, memoria } = ctx
 
     const nivel = clinica.nivel || 1
     const idioma = (nivel >= 2 ? clinica.idioma : 'pt-BR') || 'pt-BR'
@@ -89,37 +90,9 @@ export function buildSystemPrompt(ctx: PromptContext): string {
         }
     }
 
-    // --- Histórico da Conversa ---
-    let historicoTexto = ''
-    const limiteHistorico = 10
-    const historicoRecente = historico.slice(0, limiteHistorico)
-
-    if (historicoRecente.length > 0) {
-        historicoTexto = `\n📋 ${labels.conversaAteAgora}:\n`
-            // O histórico vem do mais recente pro mais antigo, precisamos inverter
-            ;[...historicoRecente].reverse().forEach((item) => {
-                const role = item.role === 'user' ? labels.cliente : nomeAssistente
-                const content = (item.content || '').replace(/\s+/g, ' ').trim().slice(0, 500)
-                historicoTexto += `${role}: ${content}\n`
-            })
-    } else {
-        historicoTexto = `\n${labels.primeiroContato}\n`
-    }
-
-    // --- Mensagem da Cliente (com marcação de áudio) ---
-    const veioDeAudio = tipoEntrada === 'audio'
-    const mensagemPrompt = veioDeAudio
-        ? `[${labels.audioLabel}]\n"${mensagem}"`
-        : mensagem
-
-    // --- "Responda como..." ---
-    const respondaComo = typeof labels.respondaComo === 'function'
-        ? labels.respondaComo(nomeCliente, mensagemPrompt, nomeAssistente)
-        : `A cliente "${nomeCliente}" acabou de enviar:\n"${mensagemPrompt}"\n\nResponda como ${nomeAssistente}:`
-
     // --- Montagem final ---
     return `${roleDesc}
-${catalogoTexto}${feedbackTexto}${memoriaTexto}${historicoTexto}
+${catalogoTexto}${feedbackTexto}${memoriaTexto}
 ${cofre.leisImutaveis}
 
 ${cofre.roteiroVendas}
@@ -128,7 +101,8 @@ ${cofre.arsenalDeObjecoes}
 
 ${labels.comoFalar}
 
-${respondaComo}`
+NÃO VÁ DIRETO PARA A SONDAGEM. Primeiro, acolhimento. Siga PASSO A PASSO, uma mensagem por vez.
+NOME DA CLIENTE COM QUEM VOCÊ ESTÁ FALANDO AGORA: ${nomeCliente}`
 }
 
 // ============================================
@@ -143,7 +117,9 @@ ${respondaComo}`
 export async function callAI(
     systemPrompt: string,
     mensagemUsuario: string,
-    modelOverride?: string
+    modelOverride?: string,
+    historico?: { role: string; content: string }[],
+    tipoEntrada?: 'text' | 'audio'
 ): Promise<RespostaIA> {
 
     // 1. Tentar Claude Sonnet
@@ -151,7 +127,7 @@ export async function callAI(
 
     for (let tentativa = 1; tentativa <= 3; tentativa++) {
         try {
-            const resposta = await callClaude(systemPrompt, mensagemUsuario, modelo)
+            const resposta = await callClaude(systemPrompt, mensagemUsuario, modelo, historico, tipoEntrada)
             if (resposta) {
                 return { texto: resposta, modelo, fallback: false }
             }
@@ -164,7 +140,7 @@ export async function callAI(
     // 2. Fallback pro GPT-4o-mini
     console.log('[AI] ⚠️ Fallback para GPT-4o-mini')
     try {
-        const resposta = await callGPT(systemPrompt, mensagemUsuario)
+        const resposta = await callGPT(systemPrompt, mensagemUsuario, historico, tipoEntrada)
         if (resposta) {
             return { texto: resposta, modelo: 'gpt-4o-mini', fallback: true }
         }
@@ -184,12 +160,31 @@ export async function callAI(
 // Chamadas de API (internas)
 // ============================================
 
+function prepararMensagens(mensagemOriginal: string, historico?: { role: string; content: string }[], tipoEntrada?: 'text' | 'audio') {
+    // O histórico vem do banco: mais recente primeiro. Limitamos a 12 e invertemos para cronológico.
+    const historyLimit = 12
+    const historicoLimpo = (historico || []).slice(0, historyLimit).reverse().map(m => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: m.content
+    }))
+
+    const finalMsg = tipoEntrada === 'audio'
+        ? `[A CLIENTE ENVIOU ESTE ÁUDIO, ESTA É A TRANSCRIÇÃO]: "${mensagemOriginal}"`
+        : mensagemOriginal
+
+    return [...historicoLimpo, { role: 'user', content: finalMsg }]
+}
+
 async function callClaude(
     system: string,
     message: string,
-    model: string
+    model: string,
+    historico?: { role: string; content: string }[],
+    tipoEntrada?: 'text' | 'audio'
 ): Promise<string | null> {
     if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY não configurada')
+
+    const messages = prepararMensagens(message, historico, tipoEntrada)
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -203,7 +198,7 @@ async function callClaude(
             max_tokens: 800,
             temperature: 0.5,
             system,
-            messages: [{ role: 'user', content: message }],
+            messages,
         }),
         signal: AbortSignal.timeout(45000),
     })
@@ -232,9 +227,17 @@ async function callClaude(
 
 async function callGPT(
     system: string,
-    message: string
+    message: string,
+    historico?: { role: string; content: string }[],
+    tipoEntrada?: 'text' | 'audio'
 ): Promise<string | null> {
     if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY não configurada')
+
+    const histMessages = prepararMensagens(message, historico, tipoEntrada)
+    const messages = [
+        { role: 'system', content: system },
+        ...histMessages
+    ]
 
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -246,10 +249,7 @@ async function callGPT(
             model: 'gpt-4o-mini',
             max_tokens: 500,
             temperature: 0.5,
-            messages: [
-                { role: 'system', content: system },
-                { role: 'user', content: message },
-            ],
+            messages,
         }),
         signal: AbortSignal.timeout(45000),
     })
