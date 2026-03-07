@@ -32,6 +32,7 @@ interface PromptContext {
     procedimentos: Procedimento[]
     feedbacks: FeedbackDra[]
     memoria: MemoriaCliente | null
+    agendaContext?: string | null
 }
 
 /**
@@ -42,7 +43,7 @@ interface PromptContext {
  * Obs: Histórico agora é passado diretamente na array de mensagens da API.
  */
 export function buildSystemPrompt(ctx: PromptContext): string {
-    const { clinica, mensagem, pushName, tipoEntrada, procedimentos, feedbacks, memoria } = ctx
+    const { clinica, mensagem, pushName, tipoEntrada, procedimentos, feedbacks, memoria, agendaContext } = ctx
 
     const nivel = clinica.nivel || 1
     const idioma = (nivel >= 2 ? clinica.idioma : 'pt-BR') || 'pt-BR'
@@ -111,9 +112,10 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     const linhaProf = nomeProfissional
         ? `PROFISSIONAL RESPONSÁVEL: ${nomeProfissional} (${tratamento === 'Pelo nome' ? 'refira-se pelo primeiro nome apenas' : `use o tratamento "${tratamento}"`})\n`
         : ''
+    const agendaTexto = agendaContext ? `\n${agendaContext}\n` : ''
     return `${roleDesc}
 ${catalogoTexto}${feedbackTexto}${memoriaTexto}
-${linhaProf}${cofre.leisImutaveis}
+${linhaProf}${agendaTexto}${cofre.leisImutaveis}
 
 ${cofre.roteiroVendas}
 
@@ -122,6 +124,7 @@ ${cofre.arsenalDeObjecoes}
 ${labels.comoFalar}
 
 NÃO VÁ DIRETO PARA A SONDAGEM. Primeiro, acolhimento. Siga PASSO A PASSO, uma mensagem por vez.
+EXCEÇÃO: Se a cliente quer AGENDAR e já sabe o que quer, é FECHAMENTO — não enrole.
 NOME DA CLIENTE COM QUEM VOCÊ ESTÁ FALANDO AGORA: ${nomeCliente}`
 }
 

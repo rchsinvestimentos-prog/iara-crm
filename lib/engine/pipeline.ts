@@ -23,6 +23,7 @@
 import * as catraca from './catraca'
 import * as audio from './audio'
 import * as memory from './memory'
+import * as calendar from './calendar'
 import * as aiEngine from './ai-engine'
 import * as sender from './sender'
 import * as logger from './logger'
@@ -190,11 +191,12 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // ================================================
     // 9. BUSCAR CONTEXTO
     // ================================================
-    const [historico, procedimentosRaw, feedbacks, memoriaCliente] = await Promise.all([
+    const [historico, procedimentosRaw, feedbacks, memoriaCliente, agendaContext] = await Promise.all([
         memory.getConversationHistory(clinica.id, msg.telefone),
         buscarProcedimentos(clinica.id),
         memory.getDraFeedbacks(clinica.id),
         memory.getClientMemory(clinica.id, msg.telefone),
+        calendar.getAgendaContext(clinica.id, clinica),
     ])
 
     // ================================================
@@ -209,6 +211,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         procedimentos: procedimentosRaw,
         feedbacks,
         memoria: memoriaCliente,
+        agendaContext,
     })
 
     const resposta = await aiEngine.callAI(
@@ -225,9 +228,19 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     await saveCache(clinica.id, textoMensagem, resposta.texto, resposta.modelo)
 
     // ================================================
+    // 11.5 PROCESSAR AGENDAMENTOS (se houver marcadores [AGENDAR:...])
+    // ================================================
+    const respostaFinal = await calendar.processarAgendamentos(
+        clinica.id,
+        resposta.texto,
+        clinica,
+        msg.pushName || 'Cliente'
+    )
+
+    // ================================================
     // 12-15. FINALIZAR (enviar, salvar, descontar)
     // ================================================
-    await finalizarResposta(clinica, msg, resposta.texto, textoMensagem, tipoEntrada, startTime, false)
+    await finalizarResposta(clinica, msg, respostaFinal, textoMensagem, tipoEntrada, startTime, false)
 }
 
 // ============================================

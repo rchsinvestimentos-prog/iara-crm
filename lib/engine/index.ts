@@ -15,5 +15,6 @@ export { sendText, sendAudio, sendImage } from './sender'
 export { transcribeAudio, generateTTS, determineOutputType } from './audio'
 export { getClientMemory, getDraFeedbacks, getConversationHistory, saveToHistory, saveDraFeedback, detectFeedback } from './memory'
 export { logEvent, logError } from './logger'
+export { getAgendaContext, processarAgendamentos } from './calendar'
 
 export type * from './types'

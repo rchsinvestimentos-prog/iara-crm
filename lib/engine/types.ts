@@ -60,7 +60,18 @@ export interface DadosClinica {
     horarioInicio: string | null
     horarioFim: string | null
     atendeSabado: boolean | null
+    horarioSabado: string | null
+    almocoSemana: string | null
+    almocoSabado: string | null
     atendeDomingo: boolean | null
+    horarioDomingo: string | null
+    almocoDomingo: string | null
+    atendeFeriado: boolean | null
+    horarioFeriado: string | null
+    almocoFeriado: string | null
+    intervaloAtendimento: number | null
+    antecedenciaMinima: string | null
+    endereco: string | null
 
     // Personalização
     humor: string | null
