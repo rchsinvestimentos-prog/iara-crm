@@ -54,6 +54,15 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     const nomeCliente = pushName ? pushName.split(' ')[0] : labels.cliente.toLowerCase()
     const moeda = clinica.moeda === 'USD' ? '$' : clinica.moeda === 'EUR' ? '€' : 'R$'
 
+    // --- Profissional responsável ---
+    const nomeDoutora = clinica.nomeDoutora || null
+    const tratamento = clinica.tratamentoDoutora || 'Pelo nome'
+    const nomeProfissional = nomeDoutora
+        ? tratamento === 'Pelo nome'
+            ? nomeDoutora.split(' ')[0]
+            : `${tratamento} ${nomeDoutora.split(' ')[0]}`
+        : null
+
     // --- Identidade ---
     const roleDesc = typeof labels.voceE === 'function'
         ? labels.voceE(nomeAssistente, nomeClinica)
@@ -99,9 +108,12 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     }
 
     // --- Montagem final ---
+    const linhaProf = nomeProfissional
+        ? `PROFISSIONAL RESPONSÁVEL: ${nomeProfissional} (${tratamento === 'Pelo nome' ? 'refira-se pelo primeiro nome apenas' : `use o tratamento "${tratamento}"`})\n`
+        : ''
     return `${roleDesc}
 ${catalogoTexto}${feedbackTexto}${memoriaTexto}
-${cofre.leisImutaveis}
+${linhaProf}${cofre.leisImutaveis}
 
 ${cofre.roteiroVendas}
 

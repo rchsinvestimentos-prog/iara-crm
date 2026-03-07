@@ -51,6 +51,8 @@ export interface DadosClinica {
     evolutionInstance: string | null
     whatsappClinica: string | null
     whatsappDoutora: string | null
+    nomeDoutora: string | null
+    tratamentoDoutora: string | null
     evolutionApikey: string | null
 
     // Horários

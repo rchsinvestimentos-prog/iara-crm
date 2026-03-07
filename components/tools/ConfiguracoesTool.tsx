@@ -129,6 +129,17 @@ export default function ConfiguracoesTool() {
     const [whatsappPessoal, setWhatsappPessoal] = useState('')
     const [diferenciais, setDiferenciais] = useState('')
 
+    // ---- Perfil da Profissional ----
+    const [nomeDoutora, setNomeDoutora] = useState('')
+    const [tratamentoDoutora, setTratamentoDoutora] = useState('Pelo nome')
+
+    // ---- Feedbacks CRUD ----
+    const [feedbacks, setFeedbacks] = useState('')
+    const [feedbackItems, setFeedbackItems] = useState<string[]>([])
+    const [novoFeedback, setNovoFeedback] = useState('')
+    const [editandoFeedbackIdx, setEditandoFeedbackIdx] = useState<number | null>(null)
+    const [editandoFeedbackTexto, setEditandoFeedbackTexto] = useState('')
+
     // ---- Horários ----
     const [horarioSemana, setHorarioSemana] = useState('')
     const [almocoSemana, setAlmocoSemana] = useState('')
@@ -183,7 +194,6 @@ export default function ConfiguracoesTool() {
     const [cuidadosPos, setCuidadosPos] = useState('')
     const [politicaCancelamento, setPoliticaCancelamento] = useState('')
     const [mensagemBoasVindas, setMensagemBoasVindas] = useState('')
-    const [feedbacks, setFeedbacks] = useState('')
     const [faq, setFaq] = useState<FaqItem[]>([])
     const [formasPagamento, setFormasPagamento] = useState<FormasPagamento>({ pix: false, chavePix: '', cartao: false, dinheiro: false, observacoes: '' })
     const [redesSociais, setRedesSociais] = useState<RedesSociais>({ instagram: '', tiktok: '', facebook: '', site: '' })
@@ -215,6 +225,8 @@ export default function ConfiguracoesTool() {
                 setWhatsappClinica(data.whatsappClinica || '')
                 setWhatsappPessoal(data.whatsappDoutora || '')
                 setDiferenciais(data.diferenciais || '')
+                setNomeDoutora(data.nomeDoutora || '')
+                setTratamentoDoutora(data.tratamentoDoutora || 'Pelo nome')
                 setEndereco(data.endereco || '')
                 // Tentar parsear endereço existente nos campos separados
                 if (data.endereco) {
@@ -254,6 +266,9 @@ export default function ConfiguracoesTool() {
                 setPoliticaCancelamento(data.politicaCancelamento || '')
                 setMensagemBoasVindas(data.mensagemBoasVindas || '')
                 setFeedbacks(data.feedbacks || '')
+                // Parse feedbacks string into CRUD list (each line is an item)
+                const fbStr: string = data.feedbacks || ''
+                setFeedbackItems(fbStr.trim() ? fbStr.split('\n').filter((l: string) => l.trim()) : [])
                 setFaq(data.faqPersonalizado || [])
                 setFormasPagamento(data.formasPagamento || { pix: false, chavePix: '', cartao: false, dinheiro: false, observacoes: '' })
                 setRedesSociais(data.redesSociais || { instagram: '', tiktok: '', facebook: '', site: '' })
@@ -297,6 +312,8 @@ export default function ConfiguracoesTool() {
                     nomeAssistente: nomeIA,
                     whatsappClinica: whatsappClinica || null,
                     whatsappDoutora: whatsappPessoal || null,
+                    nomeDoutora: nomeDoutora || null,
+                    tratamentoDoutora: tratamentoDoutora || 'Pelo nome',
                     diferenciais: diferenciais || null,
                     endereco: endereco || null,
                     horarioSemana: horarioSemana || null,
@@ -317,7 +334,7 @@ export default function ConfiguracoesTool() {
                     cuidadosPos: cuidadosPos || null,
                     politicaCancelamento: politicaCancelamento || null,
                     mensagemBoasVindas: mensagemBoasVindas || null,
-                    feedbacks: feedbacks || null,
+                    feedbacks: feedbackItems.length > 0 ? feedbackItems.join('\n') : null,
                     faqPersonalizado: faq,
                     formasPagamento,
                     redesSociais,
@@ -576,14 +593,97 @@ export default function ConfiguracoesTool() {
                         </div>
                     </div>
 
-                    {/* ======= FEEDBACKS DA IARA ======= */}
+                    {/* ======= PERFIL DA PROFISSIONAL ======= */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Nome da Profissional</label>
+                            <input className={inputClass} style={inputStyle} value={nomeDoutora} onChange={e => setNomeDoutora(e.target.value)} placeholder="Ex: Ana Paula Silva" />
+                        </div>
+                        <div>
+                            <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Como ela gosta de ser chamada?</label>
+                            <select className={inputClass} style={inputStyle} value={tratamentoDoutora} onChange={e => setTratamentoDoutora(e.target.value)}>
+                                <option value="Pelo nome">Pelo nome (ex: Ana)</option>
+                                <option value="Dra.">Dra. (ex: Dra. Ana)</option>
+                                <option value="Dona">Dona (ex: Dona Ana)</option>
+                                <option value="Prof.">Prof. (ex: Prof. Ana)</option>
+                                <option value="Nut.">Nut. (ex: Nut. Ana)</option>
+                                <option value="Esteticista">Esteticista (ex: Esteticista Ana)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* ======= FEEDBACKS / INSTRUÇÕES ======= */}
                     <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)' }}>
                         <div className="flex items-center gap-2 mb-2">
                             <MessageSquareText size={13} className="text-[#D99773]" />
                             <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Instruções Extras / Feedbacks</p>
                         </div>
-                        <p className="text-[9px] mb-2" style={{ color: 'var(--text-muted)' }}>Escreva o que a IARA deve ajustar. (Ex: "Não mande áudio no 1º contato" ou "Seja mais formal" ou "Promoção de Botox até sexta")</p>
-                        <textarea className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none resize-none h-20" style={innerInputStyle} value={feedbacks} onChange={e => setFeedbacks(e.target.value)} placeholder="Instruções livres para moldar a IARA..." />
+                        <p className="text-[9px] mb-3" style={{ color: 'var(--text-muted)' }}>Cada instrução fica salva separadamente — adicione, edite ou exclua quando quiser.</p>
+
+                        {/* Lista de feedbacks existentes */}
+                        {feedbackItems.map((item, idx) => (
+                            <div key={idx} className="flex items-start gap-2 mb-2">
+                                {editandoFeedbackIdx === idx ? (
+                                    <>
+                                        <input
+                                            className="flex-1 px-2 py-1.5 text-[11px] rounded-lg focus:outline-none"
+                                            style={inputStyle}
+                                            value={editandoFeedbackTexto}
+                                            onChange={e => setEditandoFeedbackTexto(e.target.value)}
+                                            autoFocus
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') {
+                                                    const items = [...feedbackItems]
+                                                    items[idx] = editandoFeedbackTexto.trim()
+                                                    setFeedbackItems(items)
+                                                    setEditandoFeedbackIdx(null)
+                                                }
+                                                if (e.key === 'Escape') setEditandoFeedbackIdx(null)
+                                            }}
+                                        />
+                                        <button onClick={() => { const items = [...feedbackItems]; items[idx] = editandoFeedbackTexto.trim(); setFeedbackItems(items); setEditandoFeedbackIdx(null); }} className="text-[10px] px-2 py-1 rounded-lg" style={{ backgroundColor: '#D99773', color: '#fff' }}>✓</button>
+                                        <button onClick={() => setEditandoFeedbackIdx(null)} className="text-[10px] px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-muted)' }}>✕</button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex-1 px-2 py-1.5 text-[11px] rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}>
+                                            {item}
+                                        </div>
+                                        <button onClick={() => { setEditandoFeedbackIdx(idx); setEditandoFeedbackTexto(item); }} className="p-1.5 rounded-lg hover:opacity-70 transition-opacity" style={{ color: 'var(--text-muted)' }} title="Editar">
+                                            <Edit3 size={11} />
+                                        </button>
+                                        <button onClick={() => setFeedbackItems(feedbackItems.filter((_, i) => i !== idx))} className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-red-400" title="Excluir">
+                                            <Trash2 size={11} />
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        ))}
+
+                        {/* Adicionar novo feedback */}
+                        <div className="flex gap-2 mt-2">
+                            <input
+                                className="flex-1 px-2 py-1.5 text-[11px] rounded-lg focus:outline-none"
+                                style={innerInputStyle}
+                                value={novoFeedback}
+                                onChange={e => setNovoFeedback(e.target.value)}
+                                placeholder="Ex: Não mande áudio no 1º contato..."
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter' && novoFeedback.trim()) {
+                                        setFeedbackItems([...feedbackItems, novoFeedback.trim()])
+                                        setNovoFeedback('')
+                                    }
+                                }}
+                            />
+                            <button
+                                onClick={() => { if (novoFeedback.trim()) { setFeedbackItems([...feedbackItems, novoFeedback.trim()]); setNovoFeedback('') } }}
+                                className="text-[10px] px-3 py-1 rounded-lg flex items-center gap-1 disabled:opacity-40"
+                                style={{ backgroundColor: '#D99773', color: '#fff' }}
+                                disabled={!novoFeedback.trim()}
+                            >
+                                <Plus size={11} /> Adicionar
+                            </button>
+                        </div>
                     </div>
 
                     <div>

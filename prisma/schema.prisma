@@ -69,6 +69,8 @@ model Clinica {
   evolutionInstance    String?   @map("evolution_instance")
   whatsappClinica      String?   @map("whatsapp_clinica")
   whatsappDoutora      String?   @map("whatsapp_doutora")
+  nomeDoutora          String?   @map("nome_doutora") @db.VarChar(200)
+  tratamentoDoutora    String?   @map("tratamento_doutora") @default("Pelo nome") @db.VarChar(50)
   evolutionApikey      String?   @map("evolution_apikey")
   
   // Aprendizado

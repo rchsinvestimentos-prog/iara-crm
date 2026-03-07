@@ -33,6 +33,9 @@ const UpdateClinicaSchema = z.object({
     horarioInicio: z.string().max(10).optional().nullable(),
     horarioFim: z.string().max(10).optional().nullable(),
     diasFuncionamento: z.string().max(100).optional().nullable(),
+    // Perfil da profissional
+    nomeDoutora: z.string().max(200).optional().nullable(),
+    tratamentoDoutora: z.string().max(50).optional().nullable(),
     // AtendimentoTool
     humor: z.string().max(50).optional().nullable(),
     emojis: z.string().max(50).optional().nullable(),
