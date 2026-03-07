@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react'
 import { Check, Sparkles, Star, ExternalLink, Loader2, Smartphone, Plus, Crown, Gem, Clapperboard } from 'lucide-react'
 
 const HOTMART_LINKS: Record<string, string> = {
-    'Secretária': '#',
-    'Estrategista': '#',
-    'Designer': '#',
-    'Audiovisual': '#',
+    'Secretária': 'https://pay.hotmart.com/B104324141M?off=7esdrrco&checkoutMode=6',
+    'Estrategista': 'https://pay.hotmart.com/B104324141M?off=7ak6m2dh&checkoutMode=6',
+    'Designer': 'https://pay.hotmart.com/B104324141M?off=8yivznpc&checkoutMode=6',
+    'Audiovisual': 'https://pay.hotmart.com/B104324141M?off=u4d05t07&checkoutMode=6',
 }
 
 const planos = [
