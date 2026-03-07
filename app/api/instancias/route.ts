@@ -16,6 +16,7 @@ export async function GET(req: Request) {
 
   if (!user) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
 
+  // Buscar instâncias da tabela instancias_clinica
   const instancias = await prisma.$queryRaw`
     SELECT 
       ic.id, ic.canal, ic.nome_instancia, ic.evolution_instance,
@@ -25,7 +26,54 @@ export async function GET(req: Request) {
     FROM instancias_clinica ic
     WHERE ic.user_id = ${user.id}
     ORDER BY ic.canal, ic.created_at
-  `;
+  ` as any[];
+
+  // Buscar WhatsApp legado da tabela clinica (fluxo antigo via Configurações)
+  const legado = await prisma.$queryRaw`
+    SELECT evolution_instance, whatsapp_clinica, nome_assistente, evolution_apikey 
+    FROM clinica WHERE id = ${user.id} LIMIT 1
+  ` as any[];
+
+  const clinicaLegado = legado?.[0];
+
+  // Se tem WhatsApp no clinica mas NÃO tem na instancias_clinica, incluir
+  if (clinicaLegado?.evolution_instance) {
+    const jaTemNaInstancias = instancias.some(
+      (i: any) => i.evolution_instance === clinicaLegado.evolution_instance
+    );
+    if (!jaTemNaInstancias) {
+      instancias.unshift({
+        id: -1, // ID virtual (indicando que é legado)
+        canal: 'whatsapp',
+        nome_instancia: clinicaLegado.whatsapp_clinica || 'WhatsApp Principal',
+        evolution_instance: clinicaLegado.evolution_instance,
+        numero_whatsapp: clinicaLegado.whatsapp_clinica || '',
+        status_conexao: 'conectado', // se tem evolution_instance, foi conectado
+        ig_username: null,
+        nome_assistente: clinicaLegado.nome_assistente || 'IARA',
+        idioma: 'pt-BR',
+        horario_inicio: '08:00',
+        horario_fim: '20:00',
+        atender_fds: false,
+        ativo: true,
+        created_at: new Date(),
+        _legado: true, // flag para o frontend saber que é legado
+      });
+    }
+  }
+
+  // Buscar Google Calendar da clinica
+  let calendarConnected = false;
+  let calendarId = '';
+  try {
+    const calData = await prisma.$queryRaw`
+      SELECT google_calendar_token, google_calendar_id 
+      FROM clinica WHERE id = ${user.id} LIMIT 1
+    ` as any[];
+    const cal = calData?.[0];
+    calendarConnected = !!cal?.google_calendar_token;
+    calendarId = cal?.google_calendar_id || '';
+  } catch { }
 
   const limites = await prisma.$queryRaw`
     SELECT 
@@ -37,19 +85,9 @@ export async function GET(req: Request) {
     instancias,
     limites: (limites as any[])[0] || { max_instancias_whatsapp: 1, max_instancias_instagram: 0 },
     plano: user.plano,
-    calendarConnected: false,
-    calendarId: ''
+    calendarConnected,
+    calendarId,
   });
-
-  // TODO: When clinica-user relationship is clear, query google_calendar_token
-  // For now, try raw query
-  /*
-  const calData = await prisma.$queryRaw`
-    SELECT google_calendar_token, google_calendar_id 
-    FROM clinica WHERE user_id = ${user.id} LIMIT 1
-  ` as any[];
-  const cal = calData?.[0];
-  */
 }
 
 // POST — Cria nova instância
