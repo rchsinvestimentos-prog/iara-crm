@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { MessageCircle, Plus, Trash2, Save, Sparkles, Shield, ToggleLeft, ToggleRight, Loader2, Check } from 'lucide-react'
+import { MessageCircle, Plus, Trash2, Save, Sparkles, Shield, ToggleLeft, ToggleRight, Loader2, Check, Bot } from 'lucide-react'
+import SimulatorDrawer from './SimulatorDrawer'
 
 // Funcionalidades que a IARA pode fazer — a Dra liga/desliga
 const funcionalidadesDefault = [
@@ -24,6 +25,9 @@ export default function AtendimentoTool() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
+
+    // UI states
+    const [simOpen, setSimOpen] = useState(false)
 
     // Campos sincronizados com o banco
     const [nomeIA, setNomeIA] = useState('')
@@ -290,6 +294,31 @@ export default function AtendimentoTool() {
                     <><Save size={16} /> Salvar Alterações</>
                 )}
             </button>
+
+            {/* Testar IARA Floating Button */}
+            <button
+                onClick={() => setSimOpen(true)}
+                className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 rounded-full text-white font-semibold shadow-2xl hover:-translate-y-1 transition-all"
+                style={{ background: 'linear-gradient(135deg, #0F4C61, #1a6e8b)' }}
+            >
+                <Bot size={18} />
+                <span className="hidden sm:inline">Testar IARA</span>
+            </button>
+
+            {/* Drawer do Simulador */}
+            <SimulatorDrawer
+                isOpen={simOpen}
+                onClose={() => setSimOpen(false)}
+                config={{
+                    nomeIA,
+                    humor,
+                    tom,
+                    emojis,
+                    fraseFavorita,
+                    feedbacks,
+                    funcionalidades: funcionalidades.reduce((acc, f) => ({ ...acc, [f.id]: f.ativo }), {})
+                }}
+            />
         </div>
     )
 }
