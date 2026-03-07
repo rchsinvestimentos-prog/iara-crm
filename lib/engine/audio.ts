@@ -78,7 +78,13 @@ export async function downloadAudioFromEvolution(
     const EVOLUTION_URL = process.env.EVOLUTION_API_URL || ''
     const EVOLUTION_KEY = apikey || process.env.EVOLUTION_API_KEY || ''
 
+    if (!EVOLUTION_URL) {
+        console.error('[Audio] ❌ EVOLUTION_API_URL não configurada')
+        return null
+    }
+
     try {
+        console.log(`[Audio] 📥 Baixando áudio da Evolution... (instance: ${instanceName}, msgId: ${messageId})`)
         const res = await fetch(`${EVOLUTION_URL}/chat/getBase64FromMediaMessage/${instanceName}`, {
             method: 'POST',
             headers: {
@@ -92,12 +98,21 @@ export async function downloadAudioFromEvolution(
         })
 
         if (!res.ok) {
-            console.error('[Audio] ❌ Erro ao baixar áudio da Evolution')
+            const errText = await res.text().catch(() => 'no body')
+            console.error(`[Audio] ❌ Erro ao baixar áudio da Evolution (status ${res.status}): ${errText.slice(0, 200)}`)
             return null
         }
 
         const data = await res.json()
-        return data.base64 || null
+        const base64 = data.base64 || null
+
+        if (base64) {
+            console.log(`[Audio] ✅ Audio baixado (${(base64.length / 1024).toFixed(0)}KB base64)`)
+        } else {
+            console.error('[Audio] ❌ Resposta OK mas base64 veio null/vazio:', JSON.stringify(data).slice(0, 200))
+        }
+
+        return base64
 
     } catch (err) {
         console.error('[Audio] Erro download:', err)

@@ -143,9 +143,19 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         let audioData = msg.audioBase64
 
         if (!audioData) {
+            console.log(`[Pipeline] 🎤 Sem base64 inline, baixando da Evolution... (instance: ${msg.instancia}, msgId: ${msg.requestId})`)
             audioData = await audio.downloadAudioFromEvolution(
                 msg.instancia, msg.requestId, clinica.evolutionApikey || undefined
             ) || undefined
+
+            // Retry após 2s se falhou (a Evolution às vezes demora pra processar o media)
+            if (!audioData) {
+                console.log(`[Pipeline] 🔄 Retry download áudio em 2s...`)
+                await new Promise(r => setTimeout(r, 2000))
+                audioData = await audio.downloadAudioFromEvolution(
+                    msg.instancia, msg.requestId, clinica.evolutionApikey || undefined
+                ) || undefined
+            }
         }
 
         if (audioData) {
@@ -153,9 +163,16 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
             if (transcricao) {
                 textoMensagem = `[ÁUDIO RECEBIDO E TRANSCRITO PARA VOCÊ]: ${transcricao}`
                 tipoEntrada = 'audio'
+                console.log(`[Pipeline] ✅ Áudio transcrito: "${transcricao.slice(0, 60)}..."`)
             } else {
-                textoMensagem = msg.mensagem || '[áudio não transcrito]'
+                // Whisper falhou na transcrição — pedir pra repetir de forma natural
+                textoMensagem = '[A cliente enviou um áudio mas não foi possível ouvir claramente. Peça educadamente para ela repetir ou enviar por texto.]'
+                console.log(`[Pipeline] ⚠️ Whisper falhou na transcrição`)
             }
+        } else {
+            // Não conseguiu baixar o áudio de jeito nenhum
+            textoMensagem = '[A cliente enviou um áudio mas não foi possível ouvir claramente. Peça educadamente para ela repetir ou enviar por texto.]'
+            console.log(`[Pipeline] ❌ Não conseguiu baixar áudio da Evolution`)
         }
     }
 
