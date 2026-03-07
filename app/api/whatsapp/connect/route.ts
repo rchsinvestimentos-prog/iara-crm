@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-const WEBHOOK_URL = 'https://iara-system-n8n.00qtt3.easypanel.host/webhook/iara/receptor-central'
+const WEBHOOK_URL = 'https://app.iara.click/api/webhook/evolution'
 
 // Helper: buscar QR Code de uma instância existente
 async function fetchQR(evoUrl: string, evoKey: string, instanceName: string) {
