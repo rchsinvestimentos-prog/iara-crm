@@ -166,12 +166,12 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
                 console.log(`[Pipeline] ✅ Áudio transcrito: "${transcricao.slice(0, 60)}..."`)
             } else {
                 // Whisper falhou na transcrição — pedir pra repetir de forma natural
-                textoMensagem = '[A cliente enviou um áudio mas não foi possível ouvir claramente. Peça educadamente para ela repetir ou enviar por texto.]'
+                textoMensagem = '[A cliente enviou um áudio mas o sistema não conseguiu baixar o áudio. Peça com carinho para ela enviar a mensagem por texto, dizendo que no momento está com dificuldade em ouvir áudios.]'
                 console.log(`[Pipeline] ⚠️ Whisper falhou na transcrição`)
             }
         } else {
             // Não conseguiu baixar o áudio de jeito nenhum
-            textoMensagem = '[A cliente enviou um áudio mas não foi possível ouvir claramente. Peça educadamente para ela repetir ou enviar por texto.]'
+            textoMensagem = '[A cliente enviou um áudio mas o sistema não conseguiu baixar o áudio. Peça com carinho para ela enviar a mensagem por texto, dizendo que no momento está com dificuldade em ouvir áudios.]'
             console.log(`[Pipeline] ❌ Não conseguiu baixar áudio da Evolution`)
         }
     }
