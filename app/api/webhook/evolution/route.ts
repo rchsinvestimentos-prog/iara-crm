@@ -51,10 +51,9 @@ export async function POST(request: NextRequest) {
         // FILTRAR MENSAGENS QUE NÃO INTERESSAM
         // ================================================
 
-        // Ignorar se é mensagem enviada por mim (fromMe)
-        if (key.fromMe === true) {
-            return NextResponse.json({ ok: true, ignored: 'fromMe' })
-        }
+        // fromMe = mensagem enviada pela dona da clínica
+        // NÃO ignorar — precisamos detectar pra pausar a IARA
+        const isFromMe = key.fromMe === true
 
         // Ignorar ACKs (confirmação de leitura)
         if (data.messageType === 'protocolMessage' || data.messageType === 'senderKeyDistributionMessage') {
@@ -122,6 +121,7 @@ export async function POST(request: NextRequest) {
             requestId: key.id || randomUUID(),
             canal: 'whatsapp',
             timestamp: Date.now(),
+            isFromMe,
         }
 
         // Processa de forma assíncrona (não bloqueia o webhook)

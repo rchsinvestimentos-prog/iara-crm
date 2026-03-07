@@ -24,6 +24,8 @@ export interface MensagemRecebida {
     canal: 'whatsapp' | 'instagram'
     /** Timestamp de quando chegou */
     timestamp: number
+    /** Se a mensagem é da dona da clínica (fromMe) */
+    isFromMe?: boolean
 }
 
 /** Dados da clínica (vem do banco - tabela users) */
@@ -51,6 +53,10 @@ export interface DadosClinica {
 
     // Horários
     horarioSemana: string | null
+    horarioInicio: string | null
+    horarioFim: string | null
+    atendeSabado: boolean | null
+    atendeDomingo: boolean | null
 
     // Personalização
     humor: string | null
@@ -76,6 +82,9 @@ export interface DadosClinica {
     // JSON configs
     configuracoes: Record<string, any> | null
     integracoes: Record<string, any> | null
+
+    // WhatsApp número
+    whatsappNumero: string | null
 
     // Descontos
     aceitaDescontos: boolean | null
