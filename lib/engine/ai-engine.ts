@@ -73,9 +73,17 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     }
 
     // --- Feedbacks da Dra ---
+    // Dois tipos: (1) instruções permanentes do painel (clinica.feedbacks) e (2) comandos realtime via WhatsApp (feedback_iara table)
     let feedbackTexto = ''
-    if (feedbacks.length > 0) {
+    const temFeedbackPainel = clinica.feedbacks && clinica.feedbacks.trim().length > 0
+    const temFeedbackRealtime = feedbacks.length > 0
+    if (temFeedbackPainel || temFeedbackRealtime) {
         feedbackTexto = `\n🧠 ${labels.orientacoesDra}:\n`
+        // Instruções do painel (campo "Instruções Extras / Feedbacks")
+        if (temFeedbackPainel) {
+            feedbackTexto += `- ${clinica.feedbacks!.trim()}\n`
+        }
+        // Comandos realtime enviados via WhatsApp pela Dra
         feedbacks.forEach((fb) => {
             feedbackTexto += `- ${fb.regra}\n`
         })
