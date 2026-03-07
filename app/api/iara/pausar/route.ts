@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         const clinica = await prisma.clinica.update({
             where: { id: clinicaId },
             data: { status: novoStatus },
-            select: { nome: true, nomeAssistente: true, whatsappDoutora: true, status: true },
+            select: { nome: true, nomeAssistente: true, whatsappDoutora: true, status: true, evolutionInstance: true, evolutionApikey: true },
         })
 
         const nomeIA = clinica.nomeAssistente || 'IARA'
@@ -47,27 +47,23 @@ export async function POST(request: NextRequest) {
         let mensagemAviso = ''
 
         if (acao === 'pausar') {
-            const frases = [
-                `⏸️ ${nomeIA} pausada! Dra, estou parando os atendimentos agora. Quando quiser que eu volte, é só clicar em "Retomar" no painel. As mensagens que chegarem vão ficar sem resposta até lá.`,
-                `⏸️ Entendido, Dra! ${nomeIA} fazendo uma pausa. Vou segurar as mensagens aqui e quando você retomar, eu volto com tudo! 💜`,
-            ]
-            mensagemAviso = frases[Math.floor(Math.random() * frases.length)]
+            mensagemAviso = `⏸️ *Atendimento Pausado*\n\n${nomeIA} está pausada. As mensagens que chegarem não terão resposta automática até você retomar no painel.`
         } else {
-            const frases = [
-                `▶️ ${nomeIA} de volta! Dra, retomei os atendimentos agora. Pode ficar tranquila que estou respondendo tudo! 🙋‍♀️💜`,
-                `▶️ Voltei! ${nomeIA} ativa e pronta para atender suas clientes. Bora! ✨`,
-            ]
-            mensagemAviso = frases[Math.floor(Math.random() * frases.length)]
+            mensagemAviso = `▶️ *Atendimento Ativado*\n\n${nomeIA} voltou! Pronta para atender suas clientes automaticamente. 💜`
         }
 
-        // Enviar via Evolution API (se configurado)
-        if (clinica.whatsappDoutora && process.env.EVOLUTION_API_URL) {
+        // Enviar via Evolution API (usa a instância da própria clínica)
+        const instanceName = clinica.evolutionInstance
+        const apiKey = clinica.evolutionApikey || process.env.EVOLUTION_API_KEY || ''
+        const apiUrl = process.env.EVOLUTION_API_URL
+
+        if (clinica.whatsappDoutora && instanceName && apiUrl) {
             try {
-                await fetch(`${process.env.EVOLUTION_API_URL}/message/sendText/${process.env.EVOLUTION_INSTANCE_ADMIN}`, {
+                await fetch(`${apiUrl}/message/sendText/${instanceName}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'apikey': process.env.EVOLUTION_API_KEY || '',
+                        'apikey': apiKey,
                     },
                     body: JSON.stringify({
                         number: clinica.whatsappDoutora,
