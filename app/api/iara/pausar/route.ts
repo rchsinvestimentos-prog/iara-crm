@@ -26,8 +26,10 @@ export async function POST(request: NextRequest) {
         const clinica = await prisma.clinica.update({
             where: { id: clinicaId },
             data: { status: novoStatus },
-            select: { nome: true, nomeIA: true, whatsappPessoal: true, status: true },
+            select: { nome: true, nomeAssistente: true, whatsappDoutora: true, status: true },
         })
+
+        const nomeIA = clinica.nomeAssistente || 'IARA'
 
         // 2. Tentar atualizar no banco N8N também (tabela users)
         try {
@@ -35,14 +37,13 @@ export async function POST(request: NextRequest) {
                 `UPDATE users SET status = $1, updated_at = NOW() WHERE nome_clinica ILIKE $2 OR whatsapp_pessoal = $3`,
                 novoStatus,
                 `%${clinica.nome}%`,
-                clinica.whatsappPessoal || ''
+                clinica.whatsappDoutora || ''
             )
         } catch {
             // N8N table might not exist in this DB context — silently continue
         }
 
         // 3. Enviar mensagem WhatsApp de aviso (se tiver whatsapp configurado)
-        const nomeIA = clinica.nomeIA || 'IARA'
         let mensagemAviso = ''
 
         if (acao === 'pausar') {
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Enviar via Evolution API (se configurado)
-        if (clinica.whatsappPessoal && process.env.EVOLUTION_API_URL) {
+        if (clinica.whatsappDoutora && process.env.EVOLUTION_API_URL) {
             try {
                 await fetch(`${process.env.EVOLUTION_API_URL}/message/sendText/${process.env.EVOLUTION_INSTANCE_ADMIN}`, {
                     method: 'POST',
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
                         'apikey': process.env.EVOLUTION_API_KEY || '',
                     },
                     body: JSON.stringify({
-                        number: clinica.whatsappPessoal,
+                        number: clinica.whatsappDoutora,
                         text: mensagemAviso,
                     }),
                 })
@@ -102,13 +103,13 @@ export async function GET() {
 
         const clinica = await prisma.clinica.findUnique({
             where: { id: clinicaId },
-            select: { status: true, nomeIA: true },
+            select: { status: true, nomeAssistente: true },
         })
 
         return NextResponse.json({
             status: clinica?.status || 'ativo',
             pausada: clinica?.status === 'pausado',
-            nomeIA: clinica?.nomeIA || 'IARA',
+            nomeIA: clinica?.nomeAssistente || 'IARA',
         })
     } catch {
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
