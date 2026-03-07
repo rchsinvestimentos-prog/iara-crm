@@ -31,7 +31,7 @@ export async function GET(req: Request) {
   // Buscar WhatsApp legado da tabela clinica (fluxo antigo via Configurações)
   const legado = await prisma.$queryRaw`
     SELECT evolution_instance, whatsapp_clinica, nome_assistente, evolution_apikey 
-    FROM clinica WHERE id = ${user.id} LIMIT 1
+    FROM users WHERE id = ${user.id} LIMIT 1
   ` as any[];
 
   const clinicaLegado = legado?.[0];
@@ -68,7 +68,7 @@ export async function GET(req: Request) {
   try {
     const calData = await prisma.$queryRaw`
       SELECT google_calendar_token, google_calendar_id 
-      FROM clinica WHERE id = ${user.id} LIMIT 1
+      FROM users WHERE id = ${user.id} LIMIT 1
     ` as any[];
     const cal = calData?.[0];
     calendarConnected = !!cal?.google_calendar_token;

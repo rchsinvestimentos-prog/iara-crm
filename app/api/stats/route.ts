@@ -75,7 +75,7 @@ export async function GET() {
                 SELECT DISTINCT ON (telefone_cliente)
                     telefone_cliente as telefone,
                     COALESCE(push_name, telefone_cliente) as nome,
-                    COALESCE(mensagem, '') as ultimaMensagem,
+                    COALESCE(content, '') as ultimaMensagem,
                     created_at as ultimaData
                 FROM historico_conversas
                 WHERE user_id = ${clinicaId}

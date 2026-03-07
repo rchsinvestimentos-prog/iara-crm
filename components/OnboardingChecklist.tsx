@@ -14,39 +14,25 @@ interface ChecklistItem {
 
 const CHECKLIST_ITEMS: ChecklistItem[] = [
     {
-        id: 'whatsapp',
-        titulo: 'Conectar WhatsApp',
-        descricao: 'Configure sua instância para a IARA começar a atender',
+        id: 'dados',
+        titulo: 'Etapa 1 — Cadastre seus dados',
+        descricao: 'Clínica, secretária, procedimentos e horários de atendimento',
         link: '/configuracoes',
         linkLabel: 'Ir para Configurações',
     },
     {
-        id: 'procedimentos',
-        titulo: 'Cadastrar procedimentos',
-        descricao: 'Adicione os procedimentos e preços da sua clínica',
-        link: '/configuracoes',
-        linkLabel: 'Adicionar procedimentos',
+        id: 'conexoes',
+        titulo: 'Etapa 2 — Conecte seus canais',
+        descricao: 'WhatsApp e Instagram para a IARA começar a atender',
+        link: '/instancias',
+        linkLabel: 'Conectar agora',
     },
     {
-        id: 'diferenciais',
-        titulo: 'Escrever seus diferenciais',
-        descricao: 'A IARA usa seus diferenciais para convencer e converter',
-        link: '/configuracoes',
-        linkLabel: 'Editar diferenciais',
-    },
-    {
-        id: 'plano',
-        titulo: 'Escolher seu plano',
-        descricao: 'Desbloqueie habilidades avançadas conforme sua clínica cresce',
-        link: '/plano',
-        linkLabel: 'Ver planos',
-    },
-    {
-        id: 'habilidades',
-        titulo: 'Explorar habilidades',
-        descricao: 'Conheça tudo que a IARA pode fazer pela sua clínica',
-        link: '/habilidades',
-        linkLabel: 'Ver habilidades',
+        id: 'aproveitar',
+        titulo: 'Etapa 3 — Aproveite sua IARA! 🎉',
+        descricao: 'Veja como a IARA atende, agenda e converte para sua clínica',
+        link: '#video-funcionalidades',
+        linkLabel: 'Assistir vídeo',
     },
 ]
 

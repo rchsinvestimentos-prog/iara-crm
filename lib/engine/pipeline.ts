@@ -435,8 +435,8 @@ function checkBusinessHours(clinica: DadosClinica): HorarioCheck {
 }
 
 function parseHorario(texto: string): { inicio: number, fim: number } {
-    // Suporta: "08:00 às 18:00", "8:00-18:00", "09:00 - 17:30"
-    const match = texto.match(/(\d{1,2}):(\d{2})\s*(?:às|a|-|–)\s*(\d{1,2}):(\d{2})/)
+    // Suporta: "08:00 às 18:00", "08:00 as 18:00", "8:00-18:00", "09:00 - 17:30"
+    const match = texto.match(/(\d{1,2}):(\d{2})\s*(?:às|as|a|-|–)\s*(\d{1,2}):(\d{2})/i)
     if (match) {
         return {
             inicio: parseInt(match[1]) + parseInt(match[2]) / 60,

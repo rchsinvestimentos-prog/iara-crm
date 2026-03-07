@@ -141,16 +141,16 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
                         return (
                             <div key={i} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
                                 <div className={`max-w-[85%] rounded-2xl p-3 ${isUser
-                                        ? 'bg-[#0F4C61] text-white rounded-br-sm'
-                                        : 'bg-white dark:bg-zinc-800 rounded-bl-sm border border-zinc-100 dark:border-zinc-700'
-                                    }`}>
+                                    ? 'bg-[#0F4C61] text-white rounded-br-sm'
+                                    : 'rounded-bl-sm'
+                                    }`} style={!isUser ? { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' } : undefined}>
                                     <div className="flex items-center gap-1.5 mb-1.5 opacity-70">
                                         {isUser ? <User size={12} /> : <Bot size={12} />}
                                         <span className="text-[10px] font-medium uppercase tracking-wider">
                                             {isUser ? 'Você (Cliente)' : config.nomeIA || 'IARA'}
                                         </span>
                                     </div>
-                                    <p className={`text-[13px] whitespace-pre-wrap ${!isUser && 'text-zinc-800 dark:text-zinc-200'}`}>
+                                    <p className={`text-[13px] whitespace-pre-wrap`} style={!isUser ? { color: 'var(--text-primary)' } : undefined}>
                                         {msg.content}
                                     </p>
 
@@ -168,7 +168,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
                     })}
                     {simLoading && (
                         <div className="flex justify-start">
-                            <div className="bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl rounded-bl-sm p-3 w-16 flex justify-center">
+                            <div className="rounded-2xl rounded-bl-sm p-3 w-16 flex justify-center" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                                 <span className="flex gap-1">
                                     <span className="w-1.5 h-1.5 bg-[#D99773] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                                     <span className="w-1.5 h-1.5 bg-[#D99773] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -181,13 +181,14 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 bg-white dark:bg-zinc-900 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.2)]" style={{ borderTop: '1px solid var(--border-default)' }}>
+                <div className="p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]" style={{ borderTop: '1px solid var(--border-default)', backgroundColor: 'var(--bg-card)' }}>
                     <div className="flex items-end gap-2">
                         <button
                             onClick={() => setSimAudio(!simAudio)}
                             title={simAudio ? 'Desativar áudio com ElevenLabs/OpenAI' : 'Ativar áudio com ElevenLabs/OpenAI'}
-                            className={`p-3 rounded-full flex-shrink-0 transition-colors ${simAudio ? 'bg-[#D99773] text-white hover:bg-[#c48766]' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                            className={`p-3 rounded-full flex-shrink-0 transition-colors ${simAudio ? 'bg-[#D99773] text-white hover:bg-[#c48766]' : 'hover:opacity-80'
                                 }`}
+                            style={!simAudio ? { backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' } : undefined}
                         >
                             {simAudio ? <Volume2 size={18} /> : <MicOff size={18} />}
                         </button>
@@ -203,8 +204,8 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
                                     }
                                 }}
                                 placeholder="Digite como se fosse uma cliente..."
-                                className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-2xl px-4 py-3 pr-12 text-[13px] outline-none resize-none min-h-[48px] max-h-[120px]"
-                                style={{ color: 'var(--text-primary)' }}
+                                className="w-full rounded-2xl px-4 py-3 pr-12 text-[13px] outline-none resize-none min-h-[48px] max-h-[120px]"
+                                style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-subtle)' }}
                             />
                             <button
                                 onClick={sendSimulation}
@@ -215,7 +216,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
                             </button>
                         </div>
                     </div>
-                    <p className="text-[10px] text-center mt-3 text-zinc-500">
+                    <p className="text-[10px] text-center mt-3" style={{ color: 'var(--text-muted)' }}>
                         {simAudio ? 'O áudio será gerado consumindo créditos da API.' : 'O áudio está desativado na simulação.'}
                     </p>
                 </div>

@@ -86,7 +86,7 @@ export default function ConversasPage() {
                                     </div>
                                     <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                                         Conecte seu WhatsApp em{' '}
-                                        <Link href="/configuracoes" className="text-[#D99773] font-medium hover:underline">Configurações</Link>{' '}
+                                        <Link href="/instancias" className="text-[#D99773] font-medium hover:underline">Instâncias</Link>{' '}
                                         para a IARA começar a atender 24/7.
                                     </p>
                                 </div>
