@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Building2, Phone, Award, Save, Plus, Trash2, Edit3, QrCode, RefreshCw, Wifi, WifiOff, Loader2, Check, Clock, GraduationCap, Calendar, Tag, Package, MapPin, CreditCard, MessageSquare, Instagram, HelpCircle, ShieldCheck, Heart } from 'lucide-react'
+import { Building2, Phone, Award, Save, Plus, Trash2, Edit3, QrCode, RefreshCw, Wifi, WifiOff, Loader2, Check, Clock, GraduationCap, Calendar, Tag, Package, MapPin, CreditCard, MessageSquare, Instagram, HelpCircle, ShieldCheck, Heart, MessageSquareText } from 'lucide-react'
 
 // ==================== Interfaces ====================
 
@@ -183,6 +183,7 @@ export default function ConfiguracoesTool() {
     const [cuidadosPos, setCuidadosPos] = useState('')
     const [politicaCancelamento, setPoliticaCancelamento] = useState('')
     const [mensagemBoasVindas, setMensagemBoasVindas] = useState('')
+    const [feedbacks, setFeedbacks] = useState('')
     const [faq, setFaq] = useState<FaqItem[]>([])
     const [formasPagamento, setFormasPagamento] = useState<FormasPagamento>({ pix: false, chavePix: '', cartao: false, dinheiro: false, observacoes: '' })
     const [redesSociais, setRedesSociais] = useState<RedesSociais>({ instagram: '', tiktok: '', facebook: '', site: '' })
@@ -252,6 +253,7 @@ export default function ConfiguracoesTool() {
                 setCuidadosPos(data.cuidadosPos || '')
                 setPoliticaCancelamento(data.politicaCancelamento || '')
                 setMensagemBoasVindas(data.mensagemBoasVindas || '')
+                setFeedbacks(data.feedbacks || '')
                 setFaq(data.faqPersonalizado || [])
                 setFormasPagamento(data.formasPagamento || { pix: false, chavePix: '', cartao: false, dinheiro: false, observacoes: '' })
                 setRedesSociais(data.redesSociais || { instagram: '', tiktok: '', facebook: '', site: '' })
@@ -315,6 +317,7 @@ export default function ConfiguracoesTool() {
                     cuidadosPos: cuidadosPos || null,
                     politicaCancelamento: politicaCancelamento || null,
                     mensagemBoasVindas: mensagemBoasVindas || null,
+                    feedbacks: feedbacks || null,
                     faqPersonalizado: faq,
                     formasPagamento,
                     redesSociais,
@@ -572,6 +575,17 @@ export default function ConfiguracoesTool() {
                             </div>
                         </div>
                     </div>
+
+                    {/* ======= FEEDBACKS DA IARA ======= */}
+                    <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)' }}>
+                        <div className="flex items-center gap-2 mb-2">
+                            <MessageSquareText size={13} className="text-[#D99773]" />
+                            <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Instruções Extras / Feedbacks</p>
+                        </div>
+                        <p className="text-[9px] mb-2" style={{ color: 'var(--text-muted)' }}>Escreva o que a IARA deve ajustar. (Ex: "Não mande áudio no 1º contato" ou "Seja mais formal" ou "Promoção de Botox até sexta")</p>
+                        <textarea className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none resize-none h-20" style={innerInputStyle} value={feedbacks} onChange={e => setFeedbacks(e.target.value)} placeholder="Instruções livres para moldar a IARA..." />
+                    </div>
+
                     <div>
                         <label className={labelClass} style={{ color: 'var(--text-muted)' }}>CEP</label>
                         <div className="flex gap-2">

@@ -73,7 +73,8 @@ export async function transcribeAudio(audioBase64: string): Promise<string> {
 export async function downloadAudioFromEvolution(
     instanceName: string,
     messageId: string,
-    apikey?: string
+    apikey?: string,
+    rawMessage?: any
 ): Promise<string | null> {
     const EVOLUTION_URL = process.env.EVOLUTION_API_URL || ''
     const EVOLUTION_KEY = apikey || process.env.EVOLUTION_API_KEY || ''
@@ -92,7 +93,7 @@ export async function downloadAudioFromEvolution(
                 'apikey': EVOLUTION_KEY,
             },
             body: JSON.stringify({
-                message: { key: { id: messageId } },
+                message: rawMessage || { key: { id: messageId } },
                 convertToMp4: false,
             }),
         })

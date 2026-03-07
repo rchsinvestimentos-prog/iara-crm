@@ -18,6 +18,8 @@ export interface MensagemRecebida {
     instancia: string
     /** Se veio áudio, o base64 do arquivo */
     audioBase64?: string
+    /** Original webhook payload from Evolution API */
+    rawMessage?: any
     /** ID único do request (pra rastreio) */
     requestId: string
     /** Canal de origem */

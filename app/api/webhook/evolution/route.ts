@@ -128,6 +128,7 @@ export async function POST(request: NextRequest) {
             canal: 'whatsapp',
             timestamp: Date.now(),
             isFromMe,
+            rawMessage: message // Necessário para baixar media se base64 falhar
         }
 
         // Processa de forma assíncrona (não bloqueia o webhook)

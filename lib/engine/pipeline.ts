@@ -145,7 +145,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         if (!audioData) {
             console.log(`[Pipeline] 🎤 Sem base64 inline, baixando da Evolution... (instance: ${msg.instancia}, msgId: ${msg.requestId})`)
             audioData = await audio.downloadAudioFromEvolution(
-                msg.instancia, msg.requestId, clinica.evolutionApikey || undefined
+                msg.instancia, msg.requestId, clinica.evolutionApikey || undefined, msg.rawMessage
             ) || undefined
 
             // Retry após 2s se falhou (a Evolution às vezes demora pra processar o media)
@@ -153,7 +153,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
                 console.log(`[Pipeline] 🔄 Retry download áudio em 2s...`)
                 await new Promise(r => setTimeout(r, 2000))
                 audioData = await audio.downloadAudioFromEvolution(
-                    msg.instancia, msg.requestId, clinica.evolutionApikey || undefined
+                    msg.instancia, msg.requestId, clinica.evolutionApikey || undefined, msg.rawMessage
                 ) || undefined
             }
         }
