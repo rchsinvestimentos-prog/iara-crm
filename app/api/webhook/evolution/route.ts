@@ -92,6 +92,10 @@ export async function POST(request: NextRequest) {
             // Áudio
             tipoMensagem = 'audio'
             textoMensagem = '' // será transcrito pelo pipeline
+
+            // LOG DE DEBUG PARA DESCOBRIR O FORMATO DA EVOLUTION V2
+            console.log(`[Webhook] 🚨 DEBUG AUDIO RECEIVED:`, JSON.stringify(body).slice(0, 1000))
+
             // Tentar extrair base64 de todos os paths possíveis da Evolution API
             audioBase64 = data.message?.base64
                 || data.base64
@@ -99,7 +103,7 @@ export async function POST(request: NextRequest) {
                 || body.data?.message?.base64
                 || undefined
 
-            console.log(`[Webhook] 🎤 Áudio recebido. Base64 inline: ${audioBase64 ? 'SIM (' + audioBase64.length + ' chars)' : 'NÃO'}, messageId: ${key.id}`)
+            console.log(`[Webhook] 🎤 Áudio recebido. Base64 inline (data.message.base64: ${!!data.message?.base64}, data.base64: ${!!data.base64}, message.base64: ${!!message.base64}): ${audioBase64 ? 'SIM (' + audioBase64.length + ' chars)' : 'NÃO'}, messageId: ${key.id}`)
         } else if (message.imageMessage) {
             tipoMensagem = 'image'
             textoMensagem = message.imageMessage.caption || '[imagem]'
