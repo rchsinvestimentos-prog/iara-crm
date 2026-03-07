@@ -65,34 +65,53 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     }
 
     // ================================================
-    // 3. É A DONA? → Pausa 10 min
+    // 3. É A DONA / isFromMe? → Pausas
     // ================================================
-    // Se a mensagem é fromMe (dona respondeu do WhatsApp) → pausa IARA
+    // isFromMe = Dra respondeu direto na conversa com a cliente
+    // → Pausa 10 min (anti-duplicação) + Pausa 3h (Dra assumiu)
+    // → Avisa a Dra que IARA vai pausar
     if (msg.isFromMe || isDoutora) {
-        // A dona mandou mensagem pra um cliente → pausa a IARA 10 min pra esse cliente
-        await pausarConversa(clinica.id, msg.telefone, 10, 'dona_falando')
-        console.log(`[Pipeline] 👩‍⚕️ Dona falou → pausa 10 min para ${msg.telefone}`)
+        const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
+        const nomeIA = clinica.nomeAssistente || 'Iara'
 
-        // Se é feedback (começa com "iara:" ou "feedback:") — só se é a dona pelo telefone
+        // Se é feedback ("iara:" ou "feedback:") — não é intervenção humana
         if (isDoutora) {
             const feedback = memory.detectFeedback(msg.mensagem, msg.telefone, clinica.whatsappDoutora || '')
             if (feedback.isFeedback) {
                 await memory.saveDraFeedback(clinica.id, feedback.regra)
-                await sender.sendText(
-                    { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined },
-                    'Perfeito, Dra! ✅ Feedback registrado.'
-                )
+                await sender.sendText(sendOpts, 'Perfeito, Dra! ✅ Feedback registrado.')
+                return
             }
         }
+
+        // Pausa 10 min (SEMPRE — anti-duplicação)
+        await pausarConversa(clinica.id, msg.telefone, 10, 'intervencao_humana')
+
+        // Se isFromMe (Dra respondeu direto ao cliente) → pausa 3h
+        if (msg.isFromMe) {
+            await pausarConversa(clinica.id, msg.telefone, 180, 'dra_assumiu')
+            console.log(`[Pipeline] 👩‍⚕️ Dra assumiu → pausa 3h para ${msg.telefone}`)
+
+            // Avisar a Dra que IARA vai pausar
+            if (clinica.whatsappDoutora) {
+                await sender.sendText(
+                    { instancia: msg.instancia, telefone: clinica.whatsappDoutora, apikey: clinica.evolutionApikey || undefined },
+                    `Dra, vi que você respondeu diretamente para *${msg.telefone}* 👩‍⚕️\n\nVou pausar o atendimento automático dessa cliente por *3 horas* pra você continuar tranquilamente.\n\nSe quiser que eu volte antes, é só me mandar:\n✅ *"${nomeIA} volta"* — retomo o atendimento agora\n⏰ *"${nomeIA} volta em X min"* — retomo em X minutos`
+                )
+            }
+        } else {
+            console.log(`[Pipeline] 👩‍⚕️ Intervenção humana → pausa 10 min para ${msg.telefone}`)
+        }
+
         return
     }
 
     // ================================================
-    // 4. TRIAGEM DE MÍDIA — Foto/Vídeo = Ack + Alerta Dra
+    // 4. TRIAGEM DE MÍDIA — Foto/Vídeo = Ack + Alerta Dra (SEM pausa)
     // ================================================
     if (msg.tipoMensagem === 'image' || msg.tipoMensagem === 'video') {
         await handleMediaTriage(clinica, msg)
-        return // Não processa com IA — a Dra vai decidir
+        return // Não processa com IA — espera decisão da Dra
     }
 
     // ================================================
@@ -304,21 +323,20 @@ async function checkPausa(userId: number, telefone: string): Promise<boolean> {
 // ============================================
 // TRIAGEM DE MÍDIA (foto/vídeo)
 // ============================================
+// SEM pausa automática! A Dra decide o que fazer.
+// Opções: mandar resposta pra IARA, assumir, ou pedir lembrete.
 
 async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): Promise<void> {
     const nomeCliente = msg.pushName || 'Cliente'
     const nomeIA = clinica.nomeAssistente || 'Iara'
     const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
 
-    // 1. Avisa a cliente que recebeu
-    await sender.sendText(sendOpts, `Recebi sua ${msg.tipoMensagem === 'image' ? 'foto' : 'vídeo'}! ✨ Já encaminhei agora mesmo pra Dra. analisar com carinho. Ela vai olhar os detalhes e já te damos um retorno, tá? 😊`)
+    // 1. Avisa a cliente que recebeu (SEM pausar)
+    await sender.sendText(sendOpts, `Recebi sua ${msg.tipoMensagem === 'image' ? 'foto' : 'vídeo'}! ✨ Já encaminhei agora mesmo pra Doutora analisar com carinho. Assim que ela ver, já te damos um retorno, tá? 😊`)
 
-    // 2. Pausa a conversa por 3 horas (a Dra vai decidir)
-    await pausarConversa(clinica.id, msg.telefone, 180, 'midia')
-
-    // 3. Alerta a Dra no WhatsApp pessoal
+    // 2. Alerta a Dra no WhatsApp pessoal (com 3 opções)
     if (clinica.whatsappDoutora) {
-        const alertaDra = `🚨 *Nova Análise Solicitada*\nCliente: *${nomeCliente}* (${msg.telefone})\n\nDra, a cliente mandou uma ${msg.tipoMensagem === 'image' ? 'foto' : 'vídeo'} (abra o WhatsApp da clínica pra ver com nitidez).\n\nO que eu faço?\n1️⃣ *Monte a resposta* — me manda um áudio ou texto com o que dizer\n2️⃣ *\"Eu assumo\"* — assumo o atendimento (pauso 3h)\n3️⃣ *\"Me lembre em X min\"* — aviso a cliente que a Dra tá ocupada`
+        const alertaDra = `📸 *${nomeCliente}* mandou uma ${msg.tipoMensagem === 'image' ? 'foto' : 'vídeo'}\n📱 ${msg.telefone}\n\nDra, abra o WhatsApp da clínica pra ver a imagem.\n\n*O que eu faço?*\n\n1️⃣ *Me mande a resposta* — escreva ou mande áudio com o que devo dizer. Eu adapto e te mostro antes de enviar.\n\n2️⃣ *"Eu assumo"* — responda direto à cliente que eu pauso 3h.\n\n3️⃣ *"${nomeIA} lembre em X min"* — aviso a cliente que a Dra tá analisando e volto depois.`
 
         await sender.sendText(
             { instancia: msg.instancia, telefone: clinica.whatsappDoutora, apikey: clinica.evolutionApikey || undefined },
@@ -326,17 +344,17 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
         )
     }
 
-    // 4. Salvar no histórico
+    // 3. Salvar no histórico (NÃO pausa — a Dra decide)
     await memory.saveToHistory(clinica.id, msg.telefone, 'user', `[${msg.tipoMensagem.toUpperCase()} ENVIADO]`, msg.pushName)
 
-    // 5. Log
+    // 4. Log
     await logger.logEvent(clinica.id, 'midia_recebida', {
         telefone: msg.telefone,
         tipo: msg.tipoMensagem,
         pushName: msg.pushName,
     })
 
-    console.log(`[Pipeline] 📸 Mídia recebida de ${nomeCliente} → Dra alertada`)
+    console.log(`[Pipeline] 📸 Mídia de ${nomeCliente} → Dra alertada (sem pausa automática)`)
 }
 
 // ============================================
