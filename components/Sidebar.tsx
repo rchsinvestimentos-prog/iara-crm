@@ -41,8 +41,6 @@ import { useTheme } from './ThemeProvider'
 import SeletorIdioma from './SeletorIdioma'
 import dynamic from 'next/dynamic'
 
-const PausarIARA = dynamic(() => import('./PausarIARA'), { ssr: false })
-
 type Skill = { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; nivel: number }
 
 interface ClinicaItem {
@@ -204,9 +202,11 @@ export default function Sidebar() {
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
-
-        <div className="flex-1 flex justify-center">
-          <PausarIARA />
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg overflow-hidden shadow-lg shadow-[#D99773]/20 border border-white/10">
+            <img src="/iara-avatar.png" alt="IARA" className="w-full h-full object-cover" />
+          </div>
+          <h1 className="text-[14px] font-bold tracking-tight" style={{ color: isDark ? '#FFFFFF' : '#0F4C61' }}>IARA</h1>
         </div>
 
         <button
@@ -286,9 +286,7 @@ export default function Sidebar() {
               </button>
             </div>
           </div>
-          <div className="w-full mt-4 flex justify-center">
-            <PausarIARA />
-          </div>
+
         </div>
 
         {/* Nav */}
