@@ -119,8 +119,10 @@ export default function PlanoPage() {
 
     const planoAtual = stats?.plano ?? 1
     const planoAtualData = planos.find(p => p.nivel === planoAtual) || planos[0]
-    const creditosTotal = planoAtualData.creditos
-    const creditosUsados = stats ? creditosTotal - (stats.creditosRestantes ?? 0) : 0
+    const creditosMensais = planoAtualData.creditos
+    const creditosRestantes = stats?.creditosRestantes ?? 0
+    const creditosTotal = Math.max(creditosMensais, creditosRestantes)
+    const creditosUsados = Math.max(0, creditosTotal - creditosRestantes)
     const percentUsado = creditosTotal > 0 ? Math.min(100, Math.max(0, (creditosUsados / creditosTotal) * 100)) : 0
 
     const precoInstanciaExtra = Math.ceil(planoAtualData.precos[moeda] / 2)
