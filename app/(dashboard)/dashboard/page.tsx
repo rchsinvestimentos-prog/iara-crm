@@ -120,7 +120,7 @@ export default function Dashboard() {
                     </div>
                 </div>
                 <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                    {loading ? 'Buscando dados da sua clínica...' : `Aqui está o resumo da sua ${stats?.nomeIA || 'IARA'}`}
+                    {loading ? 'Buscando dados da sua clínica...' : <>Aqui está o resumo da sua assistente <strong>{stats?.nomeIA || 'IARA'}</strong></>}
                 </p>
             </div>
 
