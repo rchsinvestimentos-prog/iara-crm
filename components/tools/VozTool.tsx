@@ -3,18 +3,31 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Mic, Play, Pause, Check, RefreshCw, Volume2, Lock, Crown, Sparkles, Radio, Square, Headphones, Loader2 } from 'lucide-react'
 
-// Vozes digitais (TTS)
+// ============================================
+// VOZES DIGITAIS (OpenAI TTS) — Plano 1+
+// ============================================
 const vozesTTS = [
     { id: 'nova', nome: 'Nova', desc: 'Jovem, animada e acolhedora', tom: 'Alegre' },
     { id: 'shimmer', nome: 'Shimmer', desc: 'Suave, sofisticada e elegante', tom: 'Premium' },
     { id: 'alloy', nome: 'Alloy', desc: 'Equilibrada, profissional e clara', tom: 'Neutro' },
 ]
 
-// Vozes ultra realistas
-const vozesReais = [
-    { id: 'nova', nome: 'Sofia', desc: 'Tom quente e confiante, ideal pra vendas', tom: 'Vendedora', voiceId: 'nova' },
-    { id: 'shimmer', nome: 'Carolina', desc: 'Suave, empática e super moderna', tom: 'Amiga', voiceId: 'shimmer' },
-    { id: 'alloy', nome: 'Valentina', desc: 'Madura, transmite autoridade e segurança', tom: 'Especialista', voiceId: 'alloy' },
+// ============================================
+// VOZES ULTRA REALISTAS (ElevenLabs BR) — Plano 2+
+// ============================================
+const vozesUltra = [
+    { id: '7eUAxNOneHxqfyRS77mW', nome: 'Carla', desc: 'Confiante e calorosa', tom: 'Vendedora' },
+    { id: 'lWq4KDY8znfkV0DrK8Vb', nome: 'Yasmin', desc: 'Moderna e empática', tom: 'Amiga' },
+    { id: 'oi8rgjIfLgJRsQ6rbZh3', nome: 'Amanda', desc: 'Profissional e acolhedora', tom: 'Especialista' },
+    { id: 'a7l5EMFEpTRuD82NW0rC', nome: 'Rhay', desc: 'Dinâmica e carismática', tom: 'Energia' },
+    { id: 'rthJ5Dw4ng8Orz8mYafh', nome: 'Luana', desc: 'Suave e transmite confiança', tom: 'Tranquila' },
+    { id: 'OB6x7EbXYlhG4DDTB1XU', nome: 'Michelle', desc: 'Elegante e articulada', tom: 'Premium' },
+    { id: 'x3mAOLD9WzlmrFCwA1S3', nome: 'Evellyn', desc: 'Jovem e simpática', tom: 'Alegre' },
+    { id: 'GFPGeIuI7dxt6YeFLE7l', nome: 'Ayres', desc: 'Madura e sofisticada', tom: 'Autoridade' },
+    { id: 'RGymW84CSmfVugnA5tvA', nome: 'Roberta', desc: 'Clara e objetiva', tom: 'Direta' },
+    { id: '5EtawPduB139avoMLQgH', nome: 'Thais', desc: 'Doce e envolvente', tom: 'Acolhedora' },
+    { id: 'e06XicPETIbfUaeHM9zH', nome: 'Fabi', desc: 'Animada e persuasiva', tom: 'Vendas' },
+    { id: 'UZ8QqWVrz7tMdxiglcLh', nome: 'Livia', desc: 'Serena e profissional', tom: 'Consultora' },
 ]
 
 type TipoVoz = 'tts' | 'ultra' | 'clone'
@@ -23,7 +36,7 @@ export default function VozTool() {
     const [nivel, setNivel] = useState(1)
     const [tipoVozAtiva, setTipoVozAtiva] = useState<TipoVoz>('tts')
     const [vozTTSSelecionada, setVozTTSSelecionada] = useState('nova')
-    const [vozUltraSelecionada, setVozUltraSelecionada] = useState('nova')
+    const [vozUltraSelecionada, setVozUltraSelecionada] = useState('7eUAxNOneHxqfyRS77mW')
     const [salvando, setSalvando] = useState(false)
     const [salvo, setSalvo] = useState(false)
 
@@ -52,7 +65,6 @@ export default function VozTool() {
             .catch(() => { })
     }, [])
 
-    // Cleanup audio on unmount
     useEffect(() => {
         return () => {
             if (audioRef.current) audioRef.current.pause()
@@ -61,20 +73,18 @@ export default function VozTool() {
     }, [])
 
     // ============================================
-    // PLAY — Gera TTS e toca
+    // PLAY — Gera TTS (OpenAI ou ElevenLabs) e toca
     // ============================================
-    const playVoice = useCallback(async (voiceId: string, key: string) => {
-        // Se já tá tocando essa mesma, para
+    const playVoice = useCallback(async (voiceId: string, key: string, tipo: 'tts' | 'elevenlabs' = 'tts') => {
         if (tocando === key) {
             audioRef.current?.pause()
             setTocando(null)
             return
         }
 
-        // Parar o que tiver tocando
         if (audioRef.current) audioRef.current.pause()
 
-        // Se tem cache, toca direto
+        // Cache hit
         if (audioCache.current[key]) {
             const audio = new Audio(audioCache.current[key])
             audioRef.current = audio
@@ -90,7 +100,7 @@ export default function VozTool() {
             const res = await fetch('/api/voice-preview', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ voice: voiceId }),
+                body: JSON.stringify({ voice: voiceId, tipo }),
             })
             const data = await res.json()
             if (data.audio) {
@@ -101,6 +111,8 @@ export default function VozTool() {
                 setCarregando(null)
                 audio.onended = () => setTocando(null)
                 audio.play()
+            } else {
+                console.error('Erro preview:', data.error)
             }
         } catch (e) {
             console.error('Erro ao gerar preview:', e)
@@ -142,7 +154,6 @@ export default function VozTool() {
                     return prev + 1
                 })
             }, 1000)
-
         } catch {
             alert('Permita o acesso ao microfone para gravar.')
         }
@@ -165,12 +176,19 @@ export default function VozTool() {
     const salvarVoz = async () => {
         setSalvando(true)
         try {
+            const vozNome = tipoVozAtiva === 'tts'
+                ? vozesTTS.find(v => v.id === vozTTSSelecionada)?.nome || vozTTSSelecionada
+                : tipoVozAtiva === 'ultra'
+                    ? vozesUltra.find(v => v.id === vozUltraSelecionada)?.nome || vozUltraSelecionada
+                    : 'clone'
+
             await fetch('/api/clinica', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     tipo_voz: tipoVozAtiva,
                     voz_assistente: tipoVozAtiva === 'tts' ? vozTTSSelecionada : tipoVozAtiva === 'ultra' ? vozUltraSelecionada : 'clone',
+                    voz_nome: vozNome,
                 }),
             })
             setSalvo(true)
@@ -181,8 +199,20 @@ export default function VozTool() {
 
     const podeAtivarUltra = nivel >= 2
     const podeAtivarClone = nivel >= 3
-
     const formatTime = (s: number) => `0:${String(s).padStart(2, '0')}`
+
+    // Helper: play button
+    const PlayBtn = ({ voiceKey, loading, playing, color }: { voiceKey: string; loading: boolean; playing: boolean; color: string }) => (
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity`} style={{ backgroundColor: color }}>
+            {loading ? (
+                <Loader2 size={13} className="text-white animate-spin" />
+            ) : playing ? (
+                <Pause size={13} className="text-white" />
+            ) : (
+                <Play size={13} className="text-white ml-0.5" />
+            )}
+        </div>
+    )
 
     // ============================================
     // RENDER
@@ -190,7 +220,7 @@ export default function VozTool() {
     return (
         <div className="space-y-6">
 
-            {/* SELETOR DE VOZ */}
+            {/* SELETOR DE TIPO DE VOZ */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
                 <h3 className="text-[13px] font-semibold text-[#0F4C61] mb-1 flex items-center gap-2">
                     <Radio size={15} className="text-[#D99773]" />
@@ -199,6 +229,7 @@ export default function VozTool() {
                 <p className="text-[10px] text-gray-400 mb-4">Selecione o tipo de voz que a sua assistente vai usar nos áudios</p>
 
                 <div className="grid grid-cols-3 gap-3">
+                    {/* TTS */}
                     <button
                         onClick={() => setTipoVozAtiva('tts')}
                         className={`p-4 rounded-xl border-2 transition-all text-left ${tipoVozAtiva === 'tts' ? 'border-[#0F4C61] bg-[#0F4C61]/5' : 'border-gray-100 hover:border-gray-200'}`}
@@ -210,6 +241,7 @@ export default function VozTool() {
                         {tipoVozAtiva === 'tts' && <Check size={14} className="text-[#0F4C61] mt-1" />}
                     </button>
 
+                    {/* Ultra Realista */}
                     <button
                         onClick={() => podeAtivarUltra ? setTipoVozAtiva('ultra') : null}
                         className={`p-4 rounded-xl border-2 transition-all text-left relative ${!podeAtivarUltra ? 'cursor-default' :
@@ -224,6 +256,7 @@ export default function VozTool() {
                         {tipoVozAtiva === 'ultra' && <Check size={14} className="text-[#D99773] mt-1" />}
                     </button>
 
+                    {/* Clone */}
                     <button
                         onClick={() => podeAtivarClone ? setTipoVozAtiva('clone') : null}
                         className={`p-4 rounded-xl border-2 transition-all text-left relative ${!podeAtivarClone ? 'cursor-default' :
@@ -249,7 +282,9 @@ export default function VozTool() {
                 </button>
             </div>
 
+            {/* ============================================ */}
             {/* VOZES DIGITAIS (P1+) */}
+            {/* ============================================ */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
                 <h3 className="text-[13px] font-semibold text-[#0F4C61] mb-1 flex items-center gap-2">
                     <Volume2 size={15} className="text-[#0F4C61]" />
@@ -267,17 +302,8 @@ export default function VozTool() {
                                     : 'bg-gray-50 border-2 border-transparent hover:border-gray-200'
                                 }`}
                         >
-                            <div
-                                onClick={(e) => { e.stopPropagation(); playVoice(voz.id, `tts-${voz.id}`) }}
-                                className="w-9 h-9 rounded-full bg-[#0F4C61] flex items-center justify-center flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                            >
-                                {carregando === `tts-${voz.id}` ? (
-                                    <Loader2 size={13} className="text-white animate-spin" />
-                                ) : tocando === `tts-${voz.id}` ? (
-                                    <Pause size={13} className="text-white" />
-                                ) : (
-                                    <Play size={13} className="text-white ml-0.5" />
-                                )}
+                            <div onClick={(e) => { e.stopPropagation(); playVoice(voz.id, `tts-${voz.id}`, 'tts') }}>
+                                <PlayBtn voiceKey={`tts-${voz.id}`} loading={carregando === `tts-${voz.id}`} playing={tocando === `tts-${voz.id}`} color="#0F4C61" />
                             </div>
                             <div className="flex-1 text-left">
                                 <p className="text-[12px] font-medium text-gray-700">{voz.nome}</p>
@@ -290,7 +316,9 @@ export default function VozTool() {
                 </div>
             </div>
 
-            {/* VOZ ULTRA REALISTA (P2+) */}
+            {/* ============================================ */}
+            {/* VOZ ULTRA REALISTA — 12 vozes BR (P2+) */}
+            {/* ============================================ */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
                 <div className="flex items-center justify-between mb-1">
                     <h3 className="text-[13px] font-semibold text-[#0F4C61] flex items-center gap-2">
@@ -305,8 +333,8 @@ export default function VozTool() {
                 </div>
                 <p className="text-[10px] text-gray-400 mb-4">Vozes tão realistas que parecem humanos de verdade falando. Ouça e sinta a diferença!</p>
 
-                <div className="space-y-2">
-                    {vozesReais.map(voz => (
+                <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-1">
+                    {vozesUltra.map(voz => (
                         <div
                             key={voz.id}
                             onClick={() => { if (podeAtivarUltra) { setVozUltraSelecionada(voz.id); setTipoVozAtiva('ultra') } }}
@@ -315,18 +343,9 @@ export default function VozTool() {
                                     : 'bg-gray-50 border-2 border-transparent hover:border-gray-200'
                                 }`}
                         >
-                            {/* Play — TODO MUNDO pode ouvir */}
-                            <div
-                                onClick={(e) => { e.stopPropagation(); playVoice(voz.voiceId, `ultra-${voz.id}`) }}
-                                className="w-9 h-9 rounded-full bg-[#D99773] flex items-center justify-center flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                            >
-                                {carregando === `ultra-${voz.id}` ? (
-                                    <Loader2 size={13} className="text-white animate-spin" />
-                                ) : tocando === `ultra-${voz.id}` ? (
-                                    <Pause size={13} className="text-white" />
-                                ) : (
-                                    <Play size={13} className="text-white ml-0.5" />
-                                )}
+                            {/* Play — TODO MUNDO pode ouvir, inclusive P1 */}
+                            <div onClick={(e) => { e.stopPropagation(); playVoice(voz.id, `ultra-${voz.id}`, 'elevenlabs') }}>
+                                <PlayBtn voiceKey={`ultra-${voz.id}`} loading={carregando === `ultra-${voz.id}`} playing={tocando === `ultra-${voz.id}`} color="#D99773" />
                             </div>
                             <div className="flex-1 text-left">
                                 <p className="text-[12px] font-medium text-gray-700">{voz.nome}</p>
@@ -345,14 +364,16 @@ export default function VozTool() {
                             <p className="text-[11px] font-medium text-gray-700">Gostou? Faça upgrade para ativar</p>
                             <p className="text-[9px] text-gray-400">Suas clientes não vão perceber que é IA</p>
                         </div>
-                        <a href="/habilidades/plano" className="text-[10px] font-medium px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center gap-1">
+                        <a href="/plano" className="text-[10px] font-medium px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center gap-1">
                             <Crown size={10} /> Upgrade
                         </a>
                     </div>
                 )}
             </div>
 
+            {/* ============================================ */}
             {/* CLONE DA SUA VOZ (P3+) */}
+            {/* ============================================ */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
                 <div className="flex items-center justify-between mb-1">
                     <h3 className="text-[13px] font-semibold text-[#0F4C61] flex items-center gap-2">
@@ -378,18 +399,14 @@ export default function VozTool() {
                                 {gravando ? `Gravando... ${formatTime(tempoGravacao)}` : audioGravado ? 'Áudio gravado!' : 'Grave sua voz por 30 segundos'}
                             </p>
                             <p className="text-[9px] text-gray-400">
-                                {gravando ? 'Fale naturalmente sobre qualquer assunto' : audioGravado ? 'Ouça abaixo o resultado da clonagem' : 'Fale naturalmente por 30 segundos'}
+                                {gravando ? 'Fale naturalmente sobre qualquer assunto' : audioGravado ? 'Ouça abaixo o resultado' : 'Fale naturalmente por 30 segundos'}
                             </p>
                         </div>
                     </div>
 
-                    {/* Barra de progresso da gravação */}
                     {gravando && (
                         <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3">
-                            <div
-                                className="bg-red-500 h-1.5 rounded-full transition-all duration-1000"
-                                style={{ width: `${(tempoGravacao / 30) * 100}%` }}
-                            />
+                            <div className="bg-red-500 h-1.5 rounded-full transition-all duration-1000" style={{ width: `${(tempoGravacao / 30) * 100}%` }} />
                         </div>
                     )}
 
@@ -414,12 +431,11 @@ export default function VozTool() {
                     </div>
                 </div>
 
-                {/* Resultado — áudio gravado vs clone */}
                 {audioGravado && (
                     <div className="grid grid-cols-2 gap-3 mb-4">
                         <div className="p-3 bg-gray-50 rounded-xl">
                             <p className="text-[9px] uppercase tracking-wider text-gray-400 mb-2">Seu Áudio Original</p>
-                            <audio src={audioGravado} controls className="w-full h-8" style={{ filter: 'hue-rotate(210deg)' }} />
+                            <audio src={audioGravado} controls className="w-full h-8" />
                         </div>
                         <div className="p-3 bg-purple-50 rounded-xl">
                             <p className="text-[9px] uppercase tracking-wider text-purple-400 mb-2">Sua Voz Clonada (IA)</p>
@@ -431,7 +447,6 @@ export default function VozTool() {
                     </div>
                 )}
 
-                {/* Upgrade */}
                 {!podeAtivarClone && (
                     <div className="p-3 rounded-xl bg-gradient-to-r from-purple-50 to-fuchsia-50 flex items-center gap-3">
                         <Mic size={16} className="text-purple-500 flex-shrink-0" />
@@ -439,7 +454,7 @@ export default function VozTool() {
                             <p className="text-[11px] font-medium text-gray-700">Ative no Plano 3+ para usar sua voz</p>
                             <p className="text-[9px] text-gray-400">Sua IARA vai falar com a SUA voz clonada</p>
                         </div>
-                        <a href="/habilidades/plano" className="text-[10px] font-medium px-3 py-1.5 rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors flex items-center gap-1">
+                        <a href="/plano" className="text-[10px] font-medium px-3 py-1.5 rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors flex items-center gap-1">
                             <Crown size={10} /> Upgrade
                         </a>
                     </div>
