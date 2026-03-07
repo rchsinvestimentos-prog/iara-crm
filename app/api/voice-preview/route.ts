@@ -1,14 +1,19 @@
 // ============================================
 // API: Preview de vozes TTS + ElevenLabs
 // ============================================
-// Gera áudio de demonstração via OpenAI TTS ou ElevenLabs.
+// Gera áudio de demonstração e cacheia no banco.
+// Na 2ª vez, puxa do cache (instantâneo, sem custo).
 
 import { NextRequest, NextResponse } from 'next/server'
+import { Pool } from 'pg'
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ''
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || ''
 
-const FRASE = 'Oii, tudo bem? Aqui é a secretária da Dra. Me conta, o que você tá buscando? Posso te ajudar com agendamento, tirar dúvidas sobre procedimentos ou qualquer outra coisa!'
+const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+
+// Frase natural — "Doutora" escrita corretamente, IARA se apresenta pelo nome
+const FRASE = 'Oii, tudo bem? Aqui é a Iara, secretária da Doutora Ana. Me conta o que você tá precisando, posso te ajudar com agendamento, tirar dúvidas sobre procedimentos ou qualquer outra coisa!'
 
 export async function POST(request: NextRequest) {
     try {
@@ -18,12 +23,35 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'voice required' }, { status: 400 })
         }
 
+        const tipoFinal = tipo || 'tts'
+
+        // ============================================
+        // 1. Checar cache no banco
+        // ============================================
+        try {
+            const cached = await pool.query(
+                'SELECT audio_base64 FROM cache_voice_preview WHERE voice_id = $1 AND tipo = $2',
+                [voice, tipoFinal]
+            )
+            if (cached.rows.length > 0) {
+                console.log(`[Voice Preview] ✅ Cache hit: ${voice} (${tipoFinal})`)
+                return NextResponse.json({
+                    audio: `data:audio/mp3;base64,${cached.rows[0].audio_base64}`,
+                    voice,
+                    tipo: tipoFinal,
+                    cached: true,
+                })
+            }
+        } catch {
+            // Tabela pode não existir ainda — ignora e gera
+        }
+
+        // ============================================
+        // 2. Gerar áudio
+        // ============================================
         let audioBase64: string
 
-        if (tipo === 'elevenlabs') {
-            // ============================================
-            // ElevenLabs TTS
-            // ============================================
+        if (tipoFinal === 'elevenlabs') {
             if (!ELEVENLABS_API_KEY) {
                 return NextResponse.json({ error: 'ELEVENLABS_API_KEY not configured' }, { status: 500 })
             }
@@ -56,9 +84,6 @@ export async function POST(request: NextRequest) {
             audioBase64 = buffer.toString('base64')
 
         } else {
-            // ============================================
-            // OpenAI TTS
-            // ============================================
             const validVoices = ['nova', 'shimmer', 'alloy', 'echo', 'fable', 'onyx']
             if (!validVoices.includes(voice)) {
                 return NextResponse.json({ error: 'invalid voice' }, { status: 400 })
@@ -93,10 +118,26 @@ export async function POST(request: NextRequest) {
             audioBase64 = buffer.toString('base64')
         }
 
+        // ============================================
+        // 3. Salvar no cache do banco
+        // ============================================
+        try {
+            await pool.query(
+                `INSERT INTO cache_voice_preview (voice_id, tipo, audio_base64)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (voice_id, tipo) DO UPDATE SET audio_base64 = $3, created_at = NOW()`,
+                [voice, tipoFinal, audioBase64]
+            )
+            console.log(`[Voice Preview] 💾 Salvo no cache: ${voice} (${tipoFinal})`)
+        } catch (err) {
+            console.error('[Voice Preview] Erro salvando cache:', err)
+        }
+
         return NextResponse.json({
             audio: `data:audio/mp3;base64,${audioBase64}`,
             voice,
-            tipo: tipo || 'tts',
+            tipo: tipoFinal,
+            cached: false,
         })
 
     } catch (err: any) {
