@@ -2,51 +2,55 @@
 // API: Preview de vozes TTS
 // ============================================
 // Gera um áudio de demonstração com a voz selecionada
-// usando a OpenAI TTS API.
+// usando a OpenAI TTS API (via fetch, sem lib).
 
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ''
 
-// Frases de exemplo que a IARA falaria
-const FRASES: Record<string, string> = {
-    'pt-BR': 'Oii, tudo bem? 😊 Aqui é a secretária da Dra. Me conta, o que você tá buscando? Posso te ajudar com agendamento, tirar dúvidas sobre procedimentos ou qualquer outra coisa!',
-    'en-US': "Hi there! I'm the Doctor's secretary. How can I help you today? I can assist with scheduling, answer questions about procedures, or anything else you need!",
-    'es': '¡Hola! Soy la secretaria de la Dra. ¿En qué puedo ayudarte? Puedo asistirte con citas, resolver dudas sobre procedimientos o cualquier otra cosa.',
-}
+// Frase de exemplo que a IARA falaria
+const FRASE = 'Oii, tudo bem? Aqui é a secretária da Dra. Me conta, o que você tá buscando? Posso te ajudar com agendamento, tirar dúvidas sobre procedimentos ou qualquer outra coisa!'
 
 export async function POST(request: NextRequest) {
     try {
-        const { voice, tipo } = await request.json()
+        const { voice } = await request.json()
 
         if (!voice) {
             return NextResponse.json({ error: 'voice required' }, { status: 400 })
         }
 
-        // Para vozes TTS (OpenAI)
-        const validTTSVoices = ['nova', 'shimmer', 'alloy', 'echo', 'fable', 'onyx']
-        if (!validTTSVoices.includes(voice)) {
+        const validVoices = ['nova', 'shimmer', 'alloy', 'echo', 'fable', 'onyx']
+        if (!validVoices.includes(voice)) {
             return NextResponse.json({ error: 'invalid voice' }, { status: 400 })
         }
 
-        const frase = FRASES['pt-BR']
-
-        const mp3 = await openai.audio.speech.create({
-            model: 'tts-1',
-            voice: voice as any,
-            input: frase,
-            response_format: 'mp3',
-            speed: 1.0,
+        const res = await fetch('https://api.openai.com/v1/audio/speech', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: 'tts-1',
+                voice,
+                input: FRASE,
+                response_format: 'mp3',
+                speed: 1.0,
+            }),
         })
 
-        const buffer = Buffer.from(await mp3.arrayBuffer())
+        if (!res.ok) {
+            const err = await res.text()
+            console.error('[Voice Preview] OpenAI error:', err)
+            return NextResponse.json({ error: 'TTS failed' }, { status: 500 })
+        }
+
+        const buffer = Buffer.from(await res.arrayBuffer())
         const base64 = buffer.toString('base64')
 
         return NextResponse.json({
             audio: `data:audio/mp3;base64,${base64}`,
             voice,
-            tipo: tipo || 'tts',
         })
 
     } catch (err: any) {
