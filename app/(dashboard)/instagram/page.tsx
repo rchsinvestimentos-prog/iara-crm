@@ -50,8 +50,18 @@ export default function InstagramPage() {
     const [loading, setLoading] = useState(true)
     const [plano, setPlano] = useState(1)
     const [salvando, setSalvando] = useState(false)
+    const [conectado, setConectado] = useState(false)
+    const [igUsername, setIgUsername] = useState('')
+    const [conectando, setConectando] = useState(false)
 
     useEffect(() => {
+        // Checar URL params (volta do OAuth)
+        const params = new URLSearchParams(window.location.search)
+        if (params.get('connected') === 'true') {
+            setConectado(true)
+            setIgUsername(params.get('username') || '')
+        }
+
         fetch('/api/instagram/respostas')
             .then(r => r.json())
             .then(data => {
@@ -60,11 +70,26 @@ export default function InstagramPage() {
                 } else {
                     setRespostas(data.respostas || [])
                     setPlano(data.plano || 2)
+                    if (data.config?.ig_username) {
+                        setConectado(true)
+                        setIgUsername(data.config.ig_username)
+                    }
                 }
             })
             .catch(console.error)
             .finally(() => setLoading(false))
     }, [])
+
+    const conectarInstagram = async () => {
+        setConectando(true)
+        try {
+            const res = await fetch('/api/instagram/auth')
+            const data = await res.json()
+            if (data.authUrl) {
+                window.location.href = data.authUrl
+            }
+        } catch (e) { console.error(e); setConectando(false) }
+    }
 
     const salvarTemplate = async (tpl: typeof TEMPLATES[0]) => {
         setSalvando(true)
@@ -75,7 +100,6 @@ export default function InstagramPage() {
                 body: JSON.stringify(tpl),
             })
             if (res.ok) {
-                // Refresh
                 const data = await fetch('/api/instagram/respostas').then(r => r.json())
                 setRespostas(data.respostas || [])
             }
@@ -135,6 +159,62 @@ export default function InstagramPage() {
                 <div className="flex justify-center py-20"><Loader2 size={28} className="animate-spin text-[#D99773]" /></div>
             ) : (
                 <>
+                    {/* Card de Conexão */}
+                    <div className="backdrop-blur-xl rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${conectado ? 'bg-green-500/10' : 'bg-gray-100'}`}>
+                                    <Instagram size={20} className={conectado ? 'text-green-500' : 'text-gray-400'} />
+                                </div>
+                                <div>
+                                    {conectado ? (
+                                        <>
+                                            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                                @{igUsername} <span className="text-green-500 text-xs font-normal ml-1">● Conectado</span>
+                                            </p>
+                                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                                IARA está respondendo DMs e comentários automaticamente
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                                Conecte seu Instagram
+                                            </p>
+                                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                                A IARA vai responder DMs e comentários por você, 24/7
+                                            </p>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                            {!conectado && (
+                                <button
+                                    onClick={conectarInstagram}
+                                    disabled={conectando}
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+                                    style={{ background: 'linear-gradient(135deg, #E1306C, #C13584, #833AB4)' }}
+                                >
+                                    {conectando ? (
+                                        <Loader2 size={14} className="animate-spin" />
+                                    ) : (
+                                        <Instagram size={14} />
+                                    )}
+                                    Conectar Instagram
+                                </button>
+                            )}
+                            {conectado && (
+                                <button
+                                    onClick={conectarInstagram}
+                                    className="text-xs px-3 py-1.5 rounded-lg transition-colors"
+                                    style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-subtle)' }}
+                                >
+                                    Reconectar
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Templates prontos */}
                     <div className="backdrop-blur-xl rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                         <h2 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -210,7 +290,7 @@ export default function InstagramPage() {
                         )}
                     </div>
 
-                    {/* Info ManyChat-style */}
+                    {/* Info */}
                     <div className="rounded-xl p-4 text-sm" style={{ backgroundColor: 'rgba(217,151,115,0.08)', border: '1px solid rgba(217,151,115,0.15)', color: 'var(--text-muted)' }}>
                         <strong style={{ color: 'var(--text-primary)' }}>💡 Como funciona (estilo ManyChat):</strong>
                         <ol className="list-decimal pl-4 mt-2 space-y-1 text-xs">
