@@ -1,30 +1,91 @@
-// Mapeamento central de planos IARA
-// Plano 1: Essencial (Secretária) — $47/€47/R$197
-// Plano 2: Premium (Completo)     — $87/€87/R$397
+// ============================================
+// PLANOS IARA — 4 Níveis
+// ============================================
+// P1 Secretária:    R$97  / $27 / €27   — 500 créditos
+// P2 Estrategista:  R$197 / $47 / €47   — 2000 créditos
+// P3 Designer:      R$297 / $67 / €67   — 5000 créditos
+// P4 Audiovisual:   R$497 / $97 / €97   — 10000 créditos
+//
+// PARA MUDAR ALGO: Edite aqui e tudo atualiza automaticamente
+// (sidebar, página de planos, webhook Hotmart, catraca, etc.)
 
 export const PLANOS = {
-    essencial: { nivel: 1, nome: 'Essencial', hotmart: 'Essencial', whatsapps: 1, instagrams: 0, idiomas: ['pt-BR'], vozClonada: false },
-    premium: { nivel: 2, nome: 'Premium', hotmart: 'Premium', whatsapps: 1, instagrams: 1, idiomas: ['pt-BR', 'pt-PT', 'en-US', 'es'], vozClonada: true },
-    // Futuros planos (desativados)
-    // master: { nivel: 3, nome: 'Master', hotmart: 'Master', whatsapps: 2, instagrams: 1, idiomas: ['pt-BR', 'pt-PT', 'en-US', 'es'], vozClonada: true },
-    // black:  { nivel: 4, nome: 'Black',  hotmart: 'Black',  whatsapps: 3, instagrams: 1, idiomas: ['pt-BR', 'pt-PT', 'en-US', 'es'], vozClonada: true },
+    secretaria: {
+        nivel: 1,
+        nome: 'Secretária',
+        hotmart: 'Secretaria',
+        creditos: 500,
+        whatsapps: 1,
+        instagrams: 0,
+        idiomas: ['pt-BR'],
+        vozClonada: false,
+        crmMini: false,
+        avatarVideo: false,
+        appClinica: false,
+        precos: { brl: 97, usd: 27, eur: 27 },
+    },
+    estrategista: {
+        nivel: 2,
+        nome: 'Estrategista',
+        hotmart: 'Estrategista',
+        creditos: 2000,
+        whatsapps: 1,
+        instagrams: 1,
+        idiomas: ['pt-BR', 'pt-PT', 'en-US', 'es'],
+        vozClonada: false,
+        crmMini: false,
+        avatarVideo: false,
+        appClinica: false,
+        precos: { brl: 197, usd: 47, eur: 47 },
+    },
+    designer: {
+        nivel: 3,
+        nome: 'Designer',
+        hotmart: 'Designer',
+        creditos: 5000,
+        whatsapps: 2,
+        instagrams: 1,
+        idiomas: ['pt-BR', 'pt-PT', 'en-US', 'es'],
+        vozClonada: true,
+        crmMini: true,
+        avatarVideo: false,
+        appClinica: false,
+        precos: { brl: 297, usd: 67, eur: 67 },
+    },
+    audiovisual: {
+        nivel: 4,
+        nome: 'Audiovisual',
+        hotmart: 'Audiovisual',
+        creditos: 10000,
+        whatsapps: 3,
+        instagrams: 1,
+        idiomas: ['pt-BR', 'pt-PT', 'en-US', 'es'],
+        vozClonada: true,
+        crmMini: true,
+        avatarVideo: true,
+        appClinica: true,
+        precos: { brl: 497, usd: 97, eur: 97 },
+    },
 } as const
 
-export const MAX_NIVEL = 2
+export type PlanoKey = keyof typeof PLANOS
+export type PlanoInfo = typeof PLANOS[PlanoKey]
 
-// Aliases (para compatibilidade)
-export const PLAN_ALIASES: Record<string, keyof typeof PLANOS> = {
-    starter: 'essencial',
-    essencial: 'essencial',
-    premium: 'premium',
-    // Aliases antigos → mapeiam pro premium
-    master: 'premium',
-    black: 'premium',
-    // Nomes do painel
-    secretaria: 'essencial',
-    estrategista: 'premium',
-    designer: 'premium',
-    audiovisual: 'premium',
+export const MAX_NIVEL = 4
+
+// Aliases (para compatibilidade com nomes antigos)
+export const PLAN_ALIASES: Record<string, PlanoKey> = {
+    // Nomes novos
+    secretaria: 'secretaria',
+    estrategista: 'estrategista',
+    designer: 'designer',
+    audiovisual: 'audiovisual',
+    // Nomes antigos → mapeiam pros novos
+    essencial: 'secretaria',
+    starter: 'secretaria',
+    premium: 'estrategista',
+    master: 'designer',
+    black: 'audiovisual',
 }
 
 // Converter texto do banco → nível numérico
@@ -36,18 +97,70 @@ export function planoToNivel(plano: string | number | null): number {
 }
 
 // Converter nível numérico → dados do plano
-export function nivelToPlano(nivel: number) {
+export function nivelToPlano(nivel: number): PlanoInfo {
     const entries = Object.values(PLANOS)
     return entries.find(p => p.nivel === nivel) || entries[0]
 }
 
 // Converter texto do banco → dados do plano
-export function getPlanoInfo(plano: string | number | null) {
+export function getPlanoInfo(plano: string | number | null): PlanoInfo {
     return nivelToPlano(planoToNivel(plano))
+}
+
+// Verificar se um feature está disponível no nível
+export function temFeature(nivel: number, feature: keyof PlanoInfo): boolean {
+    const plano = nivelToPlano(nivel)
+    return Boolean(plano[feature])
 }
 
 // Preço da instância extra = metade do valor do plano
 export function precoInstanciaExtra(nivel: number): { usd: number; eur: number; brl: number } {
-    if (nivel >= 2) return { usd: 43.50, eur: 43.50, brl: 198.50 }
-    return { usd: 23.50, eur: 23.50, brl: 98.50 }
+    const plano = nivelToPlano(nivel)
+    return {
+        brl: Math.round(plano.precos.brl / 2 * 100) / 100,
+        usd: Math.round(plano.precos.usd / 2 * 100) / 100,
+        eur: Math.round(plano.precos.eur / 2 * 100) / 100,
+    }
+}
+
+// Lista de features por nível (usado na página de planos e sidebar)
+export function getFeaturesPorNivel(nivel: number): string[] {
+    const features: string[] = []
+
+    // P1
+    features.push('WhatsApp IA (atendimento + agendamento)')
+    features.push('Follow-up automático')
+    features.push('Voz IA (OpenAI TTS)')
+    features.push('Promoções e combos')
+    features.push(`${nivelToPlano(nivel).creditos} créditos/mês`)
+
+    // P2+
+    if (nivel >= 2) {
+        features.push('Instagram DM IA')
+        features.push('4 idiomas (PT-BR, PT-PT, EN, ES)')
+        features.push('Fotos IA (Astria)')
+        features.push('Gerador de posts')
+        features.push('Calendário de conteúdo')
+        features.push('Raio-X Instagram')
+    }
+
+    // P3+
+    if (nivel >= 3) {
+        features.push('Voz Clonada (ElevenLabs)')
+        features.push('CRM Mini (Kanban)')
+        features.push('Lead Scoring')
+        features.push('Multi-clínica')
+        features.push(`${nivelToPlano(nivel).whatsapps} WhatsApps`)
+    }
+
+    // P4
+    if (nivel >= 4) {
+        features.push('Avatar Vídeo IA (10min/mês)')
+        features.push('App da Clínica (PWA)')
+        features.push('White-label')
+        features.push('API access')
+        features.push(`${nivelToPlano(nivel).whatsapps} WhatsApps`)
+    }
+
+    return features
 }

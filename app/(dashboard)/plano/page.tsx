@@ -1,50 +1,85 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, Sparkles, Star, ExternalLink, Loader2, Smartphone, Plus } from 'lucide-react'
+import { Check, Sparkles, Star, ExternalLink, Loader2, Smartphone, Plus, Crown, Gem, Clapperboard } from 'lucide-react'
 
 const HOTMART_LINKS: Record<string, string> = {
-    'Essencial': '#',
-    'Premium': '#',
+    'Secretária': '#',
+    'Estrategista': '#',
+    'Designer': '#',
+    'Audiovisual': '#',
 }
 
 const planos = [
     {
-        nome: 'Essencial',
+        nome: 'Secretária',
         nivel: 1,
         icon: Sparkles,
         cor: '#D99773',
         popular: false,
         creditos: 500,
-        precos: { USD: 47, EUR: 47, BRL: 97 },
+        precos: { USD: 27, EUR: 27, BRL: 97 },
         features: [
             'Atendimento WhatsApp 24/7',
             '1 WhatsApp conectado',
             'Agendamento automático (Google Calendar)',
             'Follow-up de pacientes',
-            'Voz OpenAI TTS',
-            'Relatório semanal',
+            'Voz IA (OpenAI TTS)',
+            'Promoções e Combos',
             'Dashboard de métricas',
         ],
     },
     {
-        nome: 'Premium',
+        nome: 'Estrategista',
         nivel: 2,
         icon: Star,
         cor: '#8B5CF6',
         popular: true,
         creditos: 2000,
-        precos: { USD: 87, EUR: 87, BRL: 197 },
+        precos: { USD: 47, EUR: 47, BRL: 197 },
         features: [
-            'Tudo do Essencial +',
-            '📷 Instagram conectado',
-            'IA Sonnet (respostas premium)',
-            'Voz clonada (ElevenLabs)',
+            'Tudo da Secretária +',
+            '📷 Instagram DM conectado',
             '4 idiomas (PT-BR, PT-PT, EN, ES)',
-            'Fotos IA + Antes/Depois',
+            'Fotos IA (Astria)',
             'Roteiros + Marketing',
             'Posts e Carrosséis',
-            'Até 2.000 mensagens/mês',
+            'Raio-X Instagram',
+            'Calendário de Conteúdo IA',
+        ],
+    },
+    {
+        nome: 'Designer',
+        nivel: 3,
+        icon: Gem,
+        cor: '#06B6D4',
+        popular: false,
+        creditos: 5000,
+        precos: { USD: 67, EUR: 67, BRL: 297 },
+        features: [
+            'Tudo da Estrategista +',
+            '🎙️ Voz Clonada (ElevenLabs)',
+            'CRM Mini (Kanban)',
+            'Lead Scoring',
+            'Multi-clínica',
+            '2 WhatsApps conectados',
+        ],
+    },
+    {
+        nome: 'Audiovisual',
+        nivel: 4,
+        icon: Clapperboard,
+        cor: '#F59E0B',
+        popular: false,
+        creditos: 10000,
+        precos: { USD: 97, EUR: 97, BRL: 497 },
+        features: [
+            'Tudo do Designer +',
+            '🎬 Avatar Vídeo IA (10min/mês)',
+            '📱 App da Clínica (PWA)',
+            'White-label',
+            'API access',
+            '3 WhatsApps conectados',
         ],
     },
 ]
@@ -82,12 +117,13 @@ export default function PlanoPage() {
             .catch(() => { })
     }, [])
 
-    const planoAtual = Math.min(2, stats?.plano ?? 1)
-    const creditosTotal = planos[planoAtual - 1]?.creditos ?? 500
+    const planoAtual = stats?.plano ?? 1
+    const planoAtualData = planos.find(p => p.nivel === planoAtual) || planos[0]
+    const creditosTotal = planoAtualData.creditos
     const creditosUsados = stats ? creditosTotal - (stats.creditosRestantes ?? 0) : 0
     const percentUsado = creditosTotal > 0 ? Math.min(100, Math.max(0, (creditosUsados / creditosTotal) * 100)) : 0
 
-    const precoInstanciaExtra = Math.ceil(planos[planoAtual - 1]?.precos[moeda] / 2)
+    const precoInstanciaExtra = Math.ceil(planoAtualData.precos[moeda] / 2)
 
     const handleComprarInstancia = async () => {
         setComprando(true)
@@ -132,7 +168,7 @@ export default function PlanoPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                                Plano atual: <span className="font-bold" style={{ color: planos[planoAtual - 1]?.cor }}>{planos[planoAtual - 1]?.nome}</span>
+                                Plano atual: <span className="font-bold" style={{ color: planoAtualData.cor }}>{planoAtualData.nome}</span>
                             </p>
                             <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
                                 {stats?.creditosRestantes ?? 0} créditos restantes
@@ -150,7 +186,7 @@ export default function PlanoPage() {
                                         width: `${percentUsado}%`,
                                         background: percentUsado > 80
                                             ? 'linear-gradient(90deg, #EF4444, #DC2626)'
-                                            : `linear-gradient(90deg, ${planos[planoAtual - 1]?.cor}, ${planos[planoAtual - 1]?.cor}CC)`,
+                                            : `linear-gradient(90deg, ${planoAtualData.cor}, ${planoAtualData.cor}CC)`,
                                     }}
                                 />
                             </div>
@@ -162,8 +198,8 @@ export default function PlanoPage() {
                 )}
             </div>
 
-            {/* Grid de planos — 2 colunas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Grid de planos — 4 colunas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 {planos.map((plano, i) => {
                     const isAtual = plano.nivel === planoAtual
                     const hotmartLink = HOTMART_LINKS[plano.nome]

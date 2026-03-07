@@ -6,13 +6,18 @@ import bcrypt from 'bcryptjs'
 // Token de segurança da Hotmart — validar que o request é legítimo
 const HOTMART_HOTTOK = process.env.HOTMART_HOTTOK || ''
 
-// Mapeamento de produto Hotmart → plano IARA
-// Ajuste os IDs dos produtos conforme seus produtos na Hotmart
-const PLANOS_HOTMART: Record<string, { nivel: number; plano: string; creditos: number }> = {
-    // Produto "IARA Essencial" na Hotmart
-    'essencial': { nivel: 1, plano: 'essencial', creditos: 1000 },
-    // Produto "IARA Premium" na Hotmart
-    'premium': { nivel: 2, plano: 'premium', creditos: 5000 },
+// Mapeamento de produto Hotmart → plano IARA (4 planos)
+// Os nomes devem bater com os produtos/planos configurados na Hotmart
+const PLANOS_HOTMART: Record<string, { nivel: number; plano: string; creditos: number; whatsapps: number }> = {
+    'secretaria': { nivel: 1, plano: 'secretaria', creditos: 500, whatsapps: 1 },
+    'estrategista': { nivel: 2, plano: 'estrategista', creditos: 2000, whatsapps: 1 },
+    'designer': { nivel: 3, plano: 'designer', creditos: 5000, whatsapps: 2 },
+    'audiovisual': { nivel: 4, plano: 'audiovisual', creditos: 10000, whatsapps: 3 },
+    // Aliases antigos (pra não quebrar quem já comprou)
+    'essencial': { nivel: 1, plano: 'secretaria', creditos: 500, whatsapps: 1 },
+    'premium': { nivel: 2, plano: 'estrategista', creditos: 2000, whatsapps: 1 },
+    'master': { nivel: 3, plano: 'designer', creditos: 5000, whatsapps: 2 },
+    'black': { nivel: 4, plano: 'audiovisual', creditos: 10000, whatsapps: 3 },
 }
 
 function gerarSenhaTemporaria(): string {
@@ -23,6 +28,22 @@ function gerarSenhaTemporaria(): string {
     for (let i = 0; i < 3; i++) senha += letras[Math.floor(Math.random() * letras.length)]
     for (let i = 0; i < 4; i++) senha += nums[Math.floor(Math.random() * nums.length)]
     return senha
+}
+
+// Detectar qual plano a partir do nome do produto Hotmart
+function detectarPlano(planName: string) {
+    const name = (planName || '').toLowerCase().trim()
+
+    // Tentar match direto primeiro
+    if (PLANOS_HOTMART[name]) return PLANOS_HOTMART[name]
+
+    // Match parcial (pra pegar "IARA Audiovisual", "Plano Designer", etc.)
+    if (name.includes('audiovisual') || name.includes('black')) return PLANOS_HOTMART['audiovisual']
+    if (name.includes('designer') || name.includes('master')) return PLANOS_HOTMART['designer']
+    if (name.includes('estrategista') || name.includes('premium') || name.includes('pro')) return PLANOS_HOTMART['estrategista']
+
+    // Default: Secretária (P1)
+    return PLANOS_HOTMART['secretaria']
 }
 
 // POST /api/hotmart/webhook — recebe eventos da Hotmart
@@ -54,10 +75,7 @@ export async function POST(request: NextRequest) {
 
             // Determinar plano pelo nome do produto ou plan ID
             const planName = subscription?.plan?.name?.toLowerCase() || product?.name?.toLowerCase() || ''
-            let planoConfig = PLANOS_HOTMART['essencial'] // default
-            if (planName.includes('premium') || planName.includes('pro')) {
-                planoConfig = PLANOS_HOTMART['premium']
-            }
+            const planoConfig = detectarPlano(planName)
 
             // Verificar se já existe conta com esse email
             const existente = await prisma.clinica.findUnique({
@@ -103,6 +121,8 @@ export async function POST(request: NextRequest) {
                     nomeAssistente: 'IARA',
                     creditosMensais: planoConfig.creditos,
                     creditosDisponiveis: planoConfig.creditos,
+                    maxInstanciasWhatsapp: planoConfig.whatsapps,
+                    maxInstanciasInstagram: planoConfig.nivel >= 2 ? 1 : 0,
                 },
             })
 
@@ -158,10 +178,7 @@ export async function POST(request: NextRequest) {
 
             if (buyer?.email) {
                 const planName = subscription?.plan?.name?.toLowerCase() || product?.name?.toLowerCase() || ''
-                let planoConfig = PLANOS_HOTMART['essencial']
-                if (planName.includes('premium') || planName.includes('pro')) {
-                    planoConfig = PLANOS_HOTMART['premium']
-                }
+                const planoConfig = detectarPlano(planName)
 
                 await prisma.clinica.updateMany({
                     where: { email: buyer.email },
@@ -170,6 +187,8 @@ export async function POST(request: NextRequest) {
                         plano: planoConfig.plano,
                         creditosMensais: planoConfig.creditos,
                         creditosDisponiveis: planoConfig.creditos,
+                        maxInstanciasWhatsapp: planoConfig.whatsapps,
+                        maxInstanciasInstagram: planoConfig.nivel >= 2 ? 1 : 0,
                     },
                 })
                 console.log(`[Hotmart Webhook] 🔄 Plano trocado: ${buyer.email} → ${planoConfig.plano}`)

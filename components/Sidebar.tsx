@@ -28,6 +28,12 @@ import {
   X,
   Layers,
   Building2,
+  Video,
+  Kanban,
+  Target,
+  Globe,
+  CalendarDays,
+  Search,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTheme } from './ThemeProvider'
@@ -44,7 +50,7 @@ interface ClinicaItem {
 
 const habilidadesMenu: { titulo: string; nivel: number; emoji: string; skills: Skill[] }[] = [
   {
-    titulo: 'Essencial', nivel: 1, emoji: '💬',
+    titulo: 'Secretária', nivel: 1, emoji: '💬',
     skills: [
       { href: '/habilidades/atendimento', label: 'Atendimento', icon: MessageCircle, nivel: 1 },
       { href: '/habilidades/agendamento', label: 'Agenda', icon: Calendar, nivel: 1 },
@@ -53,7 +59,7 @@ const habilidadesMenu: { titulo: string; nivel: number; emoji: string; skills: S
     ],
   },
   {
-    titulo: 'Premium', nivel: 2, emoji: '⭐',
+    titulo: 'Estrategista', nivel: 2, emoji: '⭐',
     skills: [
       { href: '/habilidades/instagram', label: 'Instagram', icon: Instagram, nivel: 2 },
       { href: '/habilidades/marketing', label: 'Marketing', icon: BarChart3, nivel: 2 },
@@ -63,6 +69,24 @@ const habilidadesMenu: { titulo: string; nivel: number; emoji: string; skills: S
       { href: '/habilidades/colagem', label: 'Antes/Depois', icon: Layers, nivel: 2 },
       { href: '/habilidades/marca', label: 'Marca', icon: Award, nivel: 2 },
       { href: '/habilidades/editor', label: 'Editor', icon: Edit3, nivel: 2 },
+      { href: '/habilidades/raiox', label: 'Raio-X Instagram', icon: Search, nivel: 2 },
+      { href: '/habilidades/calendario', label: 'Calendário Conteúdo', icon: CalendarDays, nivel: 2 },
+    ],
+  },
+  {
+    titulo: 'Designer', nivel: 3, emoji: '💎',
+    skills: [
+      { href: '/habilidades/voz-clonada', label: 'Voz Clonada', icon: Mic, nivel: 3 },
+      { href: '/habilidades/crm', label: 'CRM Mini', icon: Kanban, nivel: 3 },
+      { href: '/habilidades/leads', label: 'Lead Scoring', icon: Target, nivel: 3 },
+      { href: '/habilidades/multi-clinica', label: 'Multi-clínica', icon: Building2, nivel: 3 },
+    ],
+  },
+  {
+    titulo: 'Audiovisual', nivel: 4, emoji: '🎬',
+    skills: [
+      { href: '/habilidades/videos', label: 'Avatar Vídeo', icon: Video, nivel: 4 },
+      { href: '/habilidades/app-config', label: 'App da Clínica', icon: Globe, nivel: 4 },
     ],
   },
 ]
@@ -85,10 +109,10 @@ export default function Sidebar() {
     fetch('/api/clinica')
       .then(r => r.json())
       .then(data => {
-        if (data?.nivel) setPlanoAtual(Math.min(2, Number(data.nivel)))
+        if (data?.nivel) setPlanoAtual(Number(data.nivel))
         if (data?.nome_clinica || data?.nomeClinica) setNomeClinica(data.nome_clinica || data.nomeClinica)
-        if (data?.nivel >= 2) setNomePlano('Premium')
-        else setNomePlano('Essencial')
+        const nomes: Record<number, string> = { 1: 'Secretária', 2: 'Estrategista', 3: 'Designer', 4: 'Audiovisual' }
+        setNomePlano(nomes[Number(data?.nivel)] || 'Secretária')
         if (data?.id) setClinicaAtiva(Number(data.id))
       })
       .catch(() => { })
