@@ -31,6 +31,8 @@ export default function InstanciasPage() {
     const [showModal, setShowModal] = useState(false);
     const [novaInstancia, setNovaInstancia] = useState({ canal: 'whatsapp', nome_instancia: '', nome_assistente: 'IARA', idioma: 'pt-BR' });
     const [error, setError] = useState('');
+    const [calendarConnected, setCalendarConnected] = useState(false);
+    const [calendarId, setCalendarId] = useState('');
 
     useEffect(() => { fetchInstancias(); }, []);
 
@@ -41,6 +43,8 @@ export default function InstanciasPage() {
             setInstancias(data.instancias || []);
             setLimites(data.limites || { max_instancias_whatsapp: 1, max_instancias_instagram: 0 });
             setPlano(data.plano || 1);
+            setCalendarConnected(!!data.calendarConnected);
+            setCalendarId(data.calendarId || '');
         } catch (e) { console.error(e); }
         setLoading(false);
     }
@@ -256,6 +260,36 @@ export default function InstanciasPage() {
                     ))}
                 </div>
             )}
+
+            {/* Lista de Google Calendar */}
+            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>🗓️ Google Calendar</h2>
+            <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                background: 'rgba(66, 133, 244, 0.06)', borderRadius: 16, padding: '16px 20px',
+                border: '1px solid rgba(66, 133, 244, 0.15)', marginBottom: 24
+            }}>
+                <div>
+                    <div style={{ fontWeight: 600, fontSize: 15 }}>
+                        {calendarConnected ? '🟢' : '🔴'} Google Calendar
+                    </div>
+                    <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>
+                        {calendarConnected
+                            ? `Agenda conectada: ${calendarId || 'primary'}`
+                            : 'Conecte para a IARA ver sua agenda e agendar automaticamente'}
+                    </div>
+                </div>
+                <button
+                    onClick={() => window.open('/api/auth/google-calendar', '_self')}
+                    style={{
+                        background: calendarConnected ? 'rgba(0,0,0,0.05)' : 'linear-gradient(135deg, #4285F4, #34A853)',
+                        color: calendarConnected ? '#333' : '#fff',
+                        border: 'none', borderRadius: 12,
+                        padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14
+                    }}
+                >
+                    {calendarConnected ? '🔄 Reconectar' : '🗓️ Conectar Google Calendar'}
+                </button>
+            </div>
 
             {/* Upgrade CTA */}
             {plano < 4 && (

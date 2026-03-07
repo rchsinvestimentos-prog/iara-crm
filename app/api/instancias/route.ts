@@ -36,8 +36,20 @@ export async function GET(req: Request) {
   return NextResponse.json({
     instancias,
     limites: (limites as any[])[0] || { max_instancias_whatsapp: 1, max_instancias_instagram: 0 },
-    plano: user.plano
+    plano: user.plano,
+    calendarConnected: false,
+    calendarId: ''
   });
+
+  // TODO: When clinica-user relationship is clear, query google_calendar_token
+  // For now, try raw query
+  /*
+  const calData = await prisma.$queryRaw`
+    SELECT google_calendar_token, google_calendar_id 
+    FROM clinica WHERE user_id = ${user.id} LIMIT 1
+  ` as any[];
+  const cal = calData?.[0];
+  */
 }
 
 // POST — Cria nova instância
