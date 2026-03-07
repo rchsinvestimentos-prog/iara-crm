@@ -51,13 +51,25 @@ export async function POST(request: NextRequest) {
         const data = await res.json()
         const voiceId = data.voice_id
 
-        // Salvar voice_id no banco
+        // Buscar configuracoes atuais para fazer merge
+        const clinicaAtual = await prisma.clinica.findUnique({
+            where: { id: clinicaId },
+            select: { configuracoes: true }
+        })
+        const cfgAtual = (clinicaAtual?.configuracoes as Record<string, unknown>) || {}
+
+        // Salvar voice_id no banco (vozClonada é o campo real no schema)
         await prisma.clinica.update({
             where: { id: clinicaId },
             data: {
-                voiceId: voiceId,
-                voiceProvider: 'elevenlabs',
-            } as Record<string, unknown>,
+                vozClonada: voiceId,
+                configuracoes: {
+                    ...cfgAtual,
+                    voice_id_clonada: voiceId,
+                    tipo_voz_ativa: 'clone',
+                    usar_voz_clonada: true,
+                },
+            },
         })
 
         // Também salvar no banco N8N

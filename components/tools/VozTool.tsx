@@ -63,6 +63,17 @@ export default function VozTool() {
                 else if (data?.plano >= 2) setTipoVozAtiva('ultra')
             })
             .catch(() => { })
+
+        // Carregar a voz salva (está em configuracoes)
+        fetch('/api/clinica')
+            .then(r => r.json())
+            .then(data => {
+                const cfg = data?.configuracoes || {}
+                if (cfg.tipo_voz_ativa) setTipoVozAtiva(cfg.tipo_voz_ativa)
+                if (cfg.openai_voice_id) setVozTTSSelecionada(cfg.openai_voice_id)
+                if (cfg.eleven_voice_id) setVozUltraSelecionada(cfg.eleven_voice_id)
+            })
+            .catch(() => { })
     }, [])
 
     useEffect(() => {
@@ -182,13 +193,34 @@ export default function VozTool() {
                     ? vozesUltra.find(v => v.id === vozUltraSelecionada)?.nome || vozUltraSelecionada
                     : 'clone'
 
+            // Montar configuracoes com as chaves que audio.ts realmente lê
+            const cfgUpdate: Record<string, unknown> = {
+                tipo_voz_ativa: tipoVozAtiva,
+                voz_nome: vozNome,
+            }
+
+            if (tipoVozAtiva === 'tts') {
+                // OpenAI TTS — audio.ts lê cfg.openai_voice_id
+                cfgUpdate.openai_voice_id = vozTTSSelecionada
+            } else if (tipoVozAtiva === 'ultra') {
+                // ElevenLabs — audio.ts lê cfg.eleven_voice_id
+                cfgUpdate.eleven_voice_id = vozUltraSelecionada
+                cfgUpdate.usar_voz_clonada = false
+            } else if (tipoVozAtiva === 'clone') {
+                // Voz clonada — audio.ts lê cfg.usar_voz_clonada + vozClonada
+                cfgUpdate.usar_voz_clonada = true
+            }
+
+            // Buscar configuracoes atuais e fazer merge
+            const res = await fetch('/api/clinica')
+            const dados = await res.json()
+            const cfgAtual = dados.configuracoes || {}
+
             await fetch('/api/clinica', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    tipo_voz: tipoVozAtiva,
-                    voz_assistente: tipoVozAtiva === 'tts' ? vozTTSSelecionada : tipoVozAtiva === 'ultra' ? vozUltraSelecionada : 'clone',
-                    voz_nome: vozNome,
+                    configuracoes: { ...cfgAtual, ...cfgUpdate },
                 }),
             })
             setSalvo(true)
@@ -245,7 +277,7 @@ export default function VozTool() {
                     <button
                         onClick={() => podeAtivarUltra ? setTipoVozAtiva('ultra') : null}
                         className={`p-4 rounded-xl border-2 transition-all text-left relative ${!podeAtivarUltra ? 'cursor-default' :
-                                tipoVozAtiva === 'ultra' ? 'border-[#D99773] bg-[#D99773]/5' : 'border-gray-100 hover:border-gray-200'
+                            tipoVozAtiva === 'ultra' ? 'border-[#D99773] bg-[#D99773]/5' : 'border-gray-100 hover:border-gray-200'
                             }`}
                     >
                         {!podeAtivarUltra && <Lock size={12} className="absolute top-3 right-3 text-gray-300" />}
@@ -260,7 +292,7 @@ export default function VozTool() {
                     <button
                         onClick={() => podeAtivarClone ? setTipoVozAtiva('clone') : null}
                         className={`p-4 rounded-xl border-2 transition-all text-left relative ${!podeAtivarClone ? 'cursor-default' :
-                                tipoVozAtiva === 'clone' ? 'border-purple-400 bg-purple-50' : 'border-gray-100 hover:border-gray-200'
+                            tipoVozAtiva === 'clone' ? 'border-purple-400 bg-purple-50' : 'border-gray-100 hover:border-gray-200'
                             }`}
                     >
                         {!podeAtivarClone && <Lock size={12} className="absolute top-3 right-3 text-gray-300" />}
@@ -298,8 +330,8 @@ export default function VozTool() {
                             key={voz.id}
                             onClick={() => { setVozTTSSelecionada(voz.id); setTipoVozAtiva('tts') }}
                             className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer ${vozTTSSelecionada === voz.id && tipoVozAtiva === 'tts'
-                                    ? 'bg-[#0F4C61]/5 border-2 border-[#0F4C61]'
-                                    : 'bg-gray-50 border-2 border-transparent hover:border-gray-200'
+                                ? 'bg-[#0F4C61]/5 border-2 border-[#0F4C61]'
+                                : 'bg-gray-50 border-2 border-transparent hover:border-gray-200'
                                 }`}
                         >
                             <div onClick={(e) => { e.stopPropagation(); playVoice(voz.id, `tts-${voz.id}`, 'tts') }}>
@@ -339,8 +371,8 @@ export default function VozTool() {
                             key={voz.id}
                             onClick={() => { if (podeAtivarUltra) { setVozUltraSelecionada(voz.id); setTipoVozAtiva('ultra') } }}
                             className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${podeAtivarUltra ? 'cursor-pointer' : ''} ${podeAtivarUltra && vozUltraSelecionada === voz.id && tipoVozAtiva === 'ultra'
-                                    ? 'bg-[#D99773]/5 border-2 border-[#D99773]'
-                                    : 'bg-gray-50 border-2 border-transparent hover:border-gray-200'
+                                ? 'bg-[#D99773]/5 border-2 border-[#D99773]'
+                                : 'bg-gray-50 border-2 border-transparent hover:border-gray-200'
                                 }`}
                         >
                             {/* Play — TODO MUNDO pode ouvir, inclusive P1 */}

@@ -163,39 +163,42 @@ export function determineOutputType(
 
     const nivel = clinica.nivel || 1
     const cfg = (clinica.configuracoes as any) || {}
-    const integ = (clinica.integracoes as any) || {}
 
-    const voiceEleven = cfg.eleven_voice_id || integ.eleven_voice_id || integ.elevenlabs_voice_id || null
+    // -----------------------------------------------
+    // Lê as preferências salvas pelo VozTool
+    // -----------------------------------------------
+    const tipoVozAtiva = cfg.tipo_voz_ativa || (nivel >= 3 && clinica.vozClonada ? 'clone' : nivel >= 2 ? 'ultra' : 'tts')
+    const openaiVoiceId = cfg.openai_voice_id || 'nova'
+    const elevenVoiceId = cfg.eleven_voice_id || null
     const voiceClonada = cfg.voice_id_clonada || clinica.vozClonada || null
-    const usarClonada = cfg.usar_voz_clonada === true || String(cfg.preferir_voz || '').toLowerCase() === 'clonada'
 
-    if (nivel <= 1) {
-        // P1: OpenAI TTS com voz "nova" (feminina, natural)
-        return {
-            tipoSaida: 'audio',
-            provedorVoz: 'openai_tts',
-            voiceId: cfg.openai_voice_id || 'nova',
+    console.log(`[Audio] 🎙️ Tipo voz: ${tipoVozAtiva} | nivel: ${nivel}`)
+
+    // -----------------------------------------------
+    // CLONE (Plano 3+)
+    // -----------------------------------------------
+    if (tipoVozAtiva === 'clone' && nivel >= 3 && voiceClonada) {
+        return { tipoSaida: 'audio', provedorVoz: 'elevenlabs', voiceId: voiceClonada }
+    }
+
+    // -----------------------------------------------
+    // ULTRA - ElevenLabs (Plano 2+)
+    // -----------------------------------------------
+    if (tipoVozAtiva === 'ultra' && nivel >= 2) {
+        if (elevenVoiceId) {
+            return { tipoSaida: 'audio', provedorVoz: 'elevenlabs', voiceId: elevenVoiceId }
         }
+        // Sem voice_id ElevenLabs configurado → fallback OpenAI
+        console.log('[Audio] ⚠️ Ultra selecionado mas sem eleven_voice_id → fallback OpenAI')
+        return { tipoSaida: 'audio', provedorVoz: 'openai_tts', voiceId: openaiVoiceId }
     }
 
-    // P2+: ElevenLabs
-    const voiceId = usarClonada && voiceClonada ? voiceClonada : (voiceEleven || voiceClonada)
-
-    // Se não tem voice_id configurado, cai pro OpenAI
-    if (!voiceId) {
-        return {
-            tipoSaida: 'audio',
-            provedorVoz: 'openai_tts',
-            voiceId: 'nova',
-        }
-    }
-
-    return {
-        tipoSaida: 'audio',
-        provedorVoz: 'elevenlabs',
-        voiceId,
-    }
+    // -----------------------------------------------
+    // TTS - OpenAI (todos os planos)
+    // -----------------------------------------------
+    return { tipoSaida: 'audio', provedorVoz: 'openai_tts', voiceId: openaiVoiceId }
 }
+
 
 /**
  * Gera áudio a partir de texto usando OpenAI TTS.
