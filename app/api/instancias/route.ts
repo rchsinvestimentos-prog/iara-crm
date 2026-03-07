@@ -9,7 +9,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
+  const user = await prisma.clinica.findUnique({
     where: { email: session.user.email },
     select: { id: true, plano: true }
   });
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
+  const user = await prisma.clinica.findUnique({
     where: { email: session.user.email },
     select: { id: true, plano: true }
   });
@@ -178,7 +178,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
+  const user = await prisma.clinica.findUnique({
     where: { email: session.user.email },
     select: { id: true }
   });

@@ -96,6 +96,18 @@ export async function POST(request: NextRequest) {
             // LOG DE DEBUG PARA DESCOBRIR O FORMATO DA EVOLUTION V2
             console.log(`[Webhook] 🚨 DEBUG AUDIO RECEIVED:`, JSON.stringify(body).slice(0, 1000))
 
+            // Salvar payload no banco para debug (temporário)
+            try {
+                const debugPayload = JSON.stringify(body).slice(0, 5000)
+                await prisma.$executeRaw`
+                    INSERT INTO debug_logs (tipo, payload, created_at)
+                    VALUES ('audio_webhook', ${debugPayload}::text, NOW())
+                    ON CONFLICT DO NOTHING
+                `
+            } catch (dbErr) {
+                console.log('[Webhook] Debug log save failed (tabela pode não existir):', dbErr)
+            }
+
             // Tentar extrair base64 de todos os paths possíveis da Evolution API
             audioBase64 = data.message?.base64
                 || data.base64

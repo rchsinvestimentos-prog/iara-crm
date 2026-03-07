@@ -111,6 +111,23 @@ export async function downloadAudioFromEvolution(
             console.log(`[Audio] ✅ Audio baixado (${(base64.length / 1024).toFixed(0)}KB base64)`)
         } else {
             console.error('[Audio] ❌ Resposta OK mas base64 veio null/vazio:', JSON.stringify(data).slice(0, 200))
+
+            // Fallback: tentar baixar direto da URL do audioMessage (Evolution v2 inclui url no payload)
+            const mediaUrl = rawMessage?.audioMessage?.url || rawMessage?.audioMessage?.directPath
+            if (mediaUrl && mediaUrl.startsWith('http')) {
+                console.log(`[Audio] 🔄 Tentando download direto da URL: ${mediaUrl.slice(0, 80)}`)
+                try {
+                    const dlRes = await fetch(mediaUrl, {
+                        headers: { 'User-Agent': 'WhatsApp/2.23.20.0' }
+                    })
+                    if (dlRes.ok) {
+                        const buf = await dlRes.arrayBuffer()
+                        return Buffer.from(buf).toString('base64')
+                    }
+                } catch (dlErr) {
+                    console.error('[Audio] ❌ Fallback URL download falhou:', dlErr)
+                }
+            }
         }
 
         return base64

@@ -214,7 +214,9 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     const resposta = await aiEngine.callAI(
         systemPrompt,
         textoMensagem,
-        (clinica.configuracoes as any)?.modelo_sonnet
+        (clinica.configuracoes as any)?.modelo_sonnet,
+        historico,
+        tipoEntrada
     )
 
     // ================================================
