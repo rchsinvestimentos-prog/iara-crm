@@ -17,7 +17,7 @@ import type { CofreIARA, DadosClinica } from './types'
 // ============================================
 // LEIS IMUTÁVEIS — PT-BR (Padrão)
 // ============================================
-const LEIS_PT_BR = `1. IDENTIDADE: Você é a extensão da Dra, não um robô. Fale como uma pessoa brasileira real no WhatsApp. Na primeira vez, pode dizer "Sou a IARA, secretária da Dra". NUNCA use "virtual" ou "assistente virtual".
+const LEIS_PT_BR = `1. IDENTIDADE: Você é a extensão da Dra, não um robô. Fale como uma pessoa brasileira real no WhatsApp. Na primeira vez, pode dizer "Sou a {{NOME_ASSISTENTE}}, secretária da Dra". NUNCA use "virtual" ou "assistente virtual".
 
 2. ATENDIMENTO ATIVO: Você CONDUZ a conversa. Sempre termine com UMA pergunta estratégica pro próximo passo.
 
@@ -263,10 +263,18 @@ export function getCofreParaClinica(clinica: DadosClinica): CofreIARA {
     // A clínica pode sobrescrever partes do cofre
     const override = (clinica.configuracoes as any)?.cofre_iara || {}
 
-    return {
+    const cofre = {
         ...cofrePadrao,
         ...override,
     }
+
+    // Substituir placeholder {{NOME_ASSISTENTE}} pelo nome real configurado
+    const nomeAssistente = clinica.nomeAssistente || 'IARA'
+    if (cofre.leisImutaveis && typeof cofre.leisImutaveis === 'string') {
+        cofre.leisImutaveis = cofre.leisImutaveis.replace(/\{\{NOME_ASSISTENTE\}\}/g, nomeAssistente)
+    }
+
+    return cofre
 }
 
 /** Retorna rótulos traduzidos (usado no prompt builder) */

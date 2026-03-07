@@ -84,8 +84,11 @@ export async function downloadAudioFromEvolution(
         return null
     }
 
+    // ===================================================
+    // ESTRATÉGIA 1: getBase64FromMediaMessage (padrão)
+    // ===================================================
     try {
-        console.log(`[Audio] 📥 Baixando áudio da Evolution... (instance: ${instanceName}, msgId: ${messageId})`)
+        console.log(`[Audio] 📥 [1/3] Tentando getBase64FromMediaMessage... (instance: ${instanceName}, msgId: ${messageId})`)
         const res = await fetch(`${EVOLUTION_URL}/chat/getBase64FromMediaMessage/${instanceName}`, {
             method: 'POST',
             headers: {
@@ -98,45 +101,93 @@ export async function downloadAudioFromEvolution(
             }),
         })
 
-        if (!res.ok) {
-            const errText = await res.text().catch(() => 'no body')
-            console.error(`[Audio] ❌ Erro ao baixar áudio da Evolution (status ${res.status}): ${errText.slice(0, 200)}`)
-            return null
-        }
-
-        const data = await res.json()
-        const base64 = data.base64 || null
-
-        if (base64) {
-            console.log(`[Audio] ✅ Audio baixado (${(base64.length / 1024).toFixed(0)}KB base64)`)
+        if (res.ok) {
+            const data = await res.json()
+            const base64 = data.base64 || data.audio || null
+            if (base64 && base64.length > 100) {
+                console.log(`[Audio] ✅ [1/3] Base64 obtido (${(base64.length / 1024).toFixed(0)}KB)`)
+                return base64
+            }
+            console.log(`[Audio] ⚠️ [1/3] Resposta OK mas base64 vazio:`, JSON.stringify(data).slice(0, 100))
         } else {
-            console.error('[Audio] ❌ Resposta OK mas base64 veio null/vazio:', JSON.stringify(data).slice(0, 200))
+            console.log(`[Audio] ⚠️ [1/3] Status ${res.status} — tentando próxima estratégia`)
+        }
+    } catch (err) {
+        console.error('[Audio] ❌ [1/3] Erro:', err)
+    }
 
-            // Fallback: tentar baixar direto da URL do audioMessage (Evolution v2 inclui url no payload)
-            const mediaUrl = rawMessage?.audioMessage?.url || rawMessage?.audioMessage?.directPath
-            if (mediaUrl && mediaUrl.startsWith('http')) {
-                console.log(`[Audio] 🔄 Tentando download direto da URL: ${mediaUrl.slice(0, 80)}`)
-                try {
-                    const dlRes = await fetch(mediaUrl, {
-                        headers: { 'User-Agent': 'WhatsApp/2.23.20.0' }
-                    })
-                    if (dlRes.ok) {
-                        const buf = await dlRes.arrayBuffer()
-                        return Buffer.from(buf).toString('base64')
+    // ===================================================
+    // ESTRATÉGIA 2: /message/download-media (Evolution v2)
+    // ===================================================
+    try {
+        console.log(`[Audio] 📥 [2/3] Tentando download-media endpoint...`)
+        const res = await fetch(`${EVOLUTION_URL}/message/download-media/${instanceName}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': EVOLUTION_KEY,
+            },
+            body: JSON.stringify({
+                message: rawMessage || { key: { id: messageId } },
+            }),
+        })
+
+        if (res.ok) {
+            const contentType = res.headers.get('content-type') || ''
+            if (contentType.includes('audio') || contentType.includes('octet-stream') || contentType.includes('application')) {
+                const buf = await res.arrayBuffer()
+                if (buf.byteLength > 100) {
+                    const base64 = Buffer.from(buf).toString('base64')
+                    console.log(`[Audio] ✅ [2/3] Binary obtido (${(buf.byteLength / 1024).toFixed(0)}KB)`)
+                    return base64
+                }
+            } else {
+                const data = await res.json().catch(() => null)
+                if (data) {
+                    const base64 = data.base64 || data.audio || null
+                    if (base64 && base64.length > 100) {
+                        console.log(`[Audio] ✅ [2/3] Base64 JSON obtido (${(base64.length / 1024).toFixed(0)}KB)`)
+                        return base64
                     }
-                } catch (dlErr) {
-                    console.error('[Audio] ❌ Fallback URL download falhou:', dlErr)
                 }
             }
+            console.log(`[Audio] ⚠️ [2/3] Resposta OK mas sem dados utilizáveis`)
+        } else {
+            console.log(`[Audio] ⚠️ [2/3] Status ${res.status}`)
         }
-
-        return base64
-
     } catch (err) {
-        console.error('[Audio] Erro download:', err)
-        return null
+        console.error('[Audio] ❌ [2/3] Erro:', err)
     }
+
+    // ===================================================
+    // ESTRATÉGIA 3: Download direto da URL (Evolution v2 fallback)
+    // ===================================================
+    const mediaUrl = rawMessage?.audioMessage?.url
+        || rawMessage?.message?.audioMessage?.url
+        || rawMessage?.audioMessage?.directPath
+    if (mediaUrl && (mediaUrl.startsWith('http://') || mediaUrl.startsWith('https://'))) {
+        try {
+            console.log(`[Audio] 📥 [3/3] Download direto da URL: ${mediaUrl.slice(0, 80)}`)
+            const res = await fetch(mediaUrl, {
+                headers: { 'User-Agent': 'WhatsApp/2.23.20.0 A' }
+            })
+            if (res.ok) {
+                const buf = await res.arrayBuffer()
+                if (buf.byteLength > 100) {
+                    const base64 = Buffer.from(buf).toString('base64')
+                    console.log(`[Audio] ✅ [3/3] URL download OK (${(buf.byteLength / 1024).toFixed(0)}KB)`)
+                    return base64
+                }
+            }
+        } catch (err) {
+            console.error('[Audio] ❌ [3/3] Erro:', err)
+        }
+    }
+
+    console.error(`[Audio] ❌ Todas as 3 estratégias falharam para msgId: ${messageId}`)
+    return null
 }
+
 
 // ============================================
 // TTS (Text-to-Speech)
