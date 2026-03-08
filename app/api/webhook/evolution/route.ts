@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
             canal: 'whatsapp',
             timestamp: Date.now(),
             isFromMe,
-            rawMessage: message
+            rawMessage: data  // Full object with key + message (Evolution API needs this)
         }
 
         // Processa de forma assíncrona (não bloqueia o webhook)
