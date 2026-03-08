@@ -7,39 +7,39 @@ import { prisma } from '@/lib/prisma'
 
 export const FEATURE_LIMITS: Record<number, Record<string, number>> = {
     1: {
-        antesDepois: 3,
-        roteiros: 3,
-        raioX: 1,
-        fotosIA: 2,
-        posts: 1,
-        marca: 1,
+        roteiros: 3,         // degustação (Carrossel, Reels, Stories) → bloqueia pra upgrade
+        posts: 3,            // degustação → bloqueia 
+        raioX: 1,            // degustação → bloqueia
+        fotosIA: 3,          // degustação → bloqueia
+        marca: 1,            // degustação → bloqueia
+        antesDepois: 3,      // degustação → bloqueia
         campanhaContatos: 10,
     },
     2: {
-        antesDepois: 15,
-        roteiros: 15,
-        raioX: 5,
-        fotosIA: 10,
+        roteiros: 20,
         posts: 10,
+        raioX: 3,
+        fotosIA: 10,
         marca: 3,
+        antesDepois: 15,
         campanhaContatos: 50,
     },
     3: {
-        antesDepois: 50,
-        roteiros: 50,
-        raioX: 15,
-        fotosIA: 30,
+        roteiros: 60,
         posts: 30,
+        raioX: 10,
+        fotosIA: 20,
         marca: 10,
+        antesDepois: 30,
         campanhaContatos: 200,
     },
     4: {
-        antesDepois: -1,
         roteiros: -1,
+        posts: -1,
         raioX: -1,
         fotosIA: -1,
-        posts: -1,
         marca: -1,
+        antesDepois: -1,
         campanhaContatos: -1,
     },
 }
