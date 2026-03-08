@@ -14,7 +14,7 @@ export const PLANOS = {
         nivel: 1,
         nome: 'Secretária',
         hotmart: 'Secretaria',
-        creditos: 500,
+        creditos: 1000,
         whatsapps: 1,
         instagrams: 0,
         idiomas: ['pt-BR'],
@@ -23,12 +23,13 @@ export const PLANOS = {
         avatarVideo: false,
         appClinica: false,
         precos: { brl: 97, usd: 27, eur: 27 },
+        precosAnuais: { brl: 77, usd: 22, eur: 22 },   // ~20% off
     },
     estrategista: {
         nivel: 2,
         nome: 'Estrategista',
         hotmart: 'Estrategista',
-        creditos: 2000,
+        creditos: 5000,
         whatsapps: 1,
         instagrams: 1,
         idiomas: ['pt-BR', 'pt-PT', 'en-US', 'es'],
@@ -37,6 +38,7 @@ export const PLANOS = {
         avatarVideo: false,
         appClinica: false,
         precos: { brl: 197, usd: 47, eur: 47 },
+        precosAnuais: { brl: 157, usd: 37, eur: 37 },   // ~20% off
     },
     designer: {
         nivel: 3,
@@ -51,6 +53,7 @@ export const PLANOS = {
         avatarVideo: false,
         appClinica: false,
         precos: { brl: 297, usd: 67, eur: 67 },
+        precosAnuais: { brl: 237, usd: 54, eur: 54 },   // ~20% off
     },
     audiovisual: {
         nivel: 4,
@@ -65,6 +68,7 @@ export const PLANOS = {
         avatarVideo: true,
         appClinica: true,
         precos: { brl: 497, usd: 97, eur: 97 },
+        precosAnuais: { brl: 397, usd: 77, eur: 77 },   // ~20% off
     },
 } as const
 
