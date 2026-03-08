@@ -17,6 +17,7 @@ import {
   Mic,
   Edit3,
   Bot,
+  Shield,
   Settings,
   CreditCard,
   LogOut,
@@ -392,6 +393,10 @@ export default function Sidebar() {
           <Link href="/simulador" className={linkClass('/simulador')}>
             <Bot size={17} strokeWidth={1.8} />
             <span>Simulador</span>
+          </Link>
+          <Link href="/cofre" className={linkClass('/cofre')}>
+            <Shield size={17} strokeWidth={1.8} />
+            <span>Personalizar IA</span>
           </Link>
           <Link href="/melhorar-iara" className={linkClass('/melhorar-iara')}>
             <Sparkles size={17} strokeWidth={1.8} />
