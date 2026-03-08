@@ -13,9 +13,9 @@
 // Webhook Base64: ENABLED (pra receber áudios inline)
 
 import { NextRequest, NextResponse } from 'next/server'
-import { processMessage } from '@/lib/engine'
-import type { MensagemRecebida } from '@/lib/engine'
 import { randomUUID } from 'crypto'
+import { prisma } from '@/lib/prisma'
+import { autoCaptureCRM } from '@/lib/auto-capture'
 
 // Secret pra autenticar o webhook (opcional, mas recomendado)
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || ''
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
         const pushName = data.pushName || ''
 
         // Detectar tipo de mensagem
-        let tipoMensagem: MensagemRecebida['tipoMensagem'] = 'text'
+        let tipoMensagem: 'text' | 'audio' | 'image' | 'video' | 'document' = 'text'
         let textoMensagem = ''
         let audioBase64: string | undefined
 
@@ -131,9 +131,30 @@ export async function POST(request: NextRequest) {
         }
 
         // ================================================
+        // AUTO-CAPTURE CRM
+        // ================================================
+        // Cria/atualiza contato no CRM quando recebe msg de cliente
+        if (!isFromMe && telefone) {
+            // Descobrir qual clínica é baseado na instância
+            const clinica = await prisma.clinica.findFirst({
+                where: { evolutionInstance: instance },
+                select: { id: true }
+            })
+
+            if (clinica) {
+                autoCaptureCRM({
+                    clinicaId: clinica.id,
+                    telefone,
+                    pushName,
+                    canal: 'whatsapp',
+                }).catch(err => console.error('[Webhook] AutoCapture error:', err))
+            }
+        }
+
+        // ================================================
         // MONTAR MENSAGEM E PROCESSAR
         // ================================================
-        const mensagem: MensagemRecebida = {
+        const mensagem = {
             telefone,
             pushName,
             mensagem: textoMensagem,
@@ -144,14 +165,11 @@ export async function POST(request: NextRequest) {
             canal: 'whatsapp',
             timestamp: Date.now(),
             isFromMe,
-            rawMessage: message // Necessário para baixar media se base64 falhar
+            rawMessage: message
         }
 
-        // Processa de forma assíncrona (não bloqueia o webhook)
-        // A Evolution espera resposta rápida, o processamento pode demorar
-        processMessage(mensagem).catch((err) => {
-            console.error('[Webhook] ❌ Erro no pipeline:', err)
-        })
+        // Log para debug (a processMessage real vem do pipeline N8N)
+        console.log(`[Webhook] 📩 ${isFromMe ? 'SENT' : 'RECV'} ${telefone} (${instance}): ${textoMensagem?.slice(0, 50) || tipoMensagem}`)
 
         return NextResponse.json({ ok: true, requestId: mensagem.requestId })
 
