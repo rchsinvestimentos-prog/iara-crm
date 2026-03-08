@@ -37,19 +37,11 @@ export async function GET(req: NextRequest) {
             where: {
                 retornoData: { lte: agora },
                 retornoEnviado: false,
-                retornoMensagem: { not: null },
             },
             include: {
-                clinica: {
-                    select: {
-                        id: true,
-                        evolutionInstance: true,
-                        evolutionApikey: true,
-                        nomeClinica: true,
-                    }
-                }
+                clinica: true,
             },
-            take: 50, // Limitar por batch
+            take: 50,
         })
 
         if (pendentes.length === 0) {
