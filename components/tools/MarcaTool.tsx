@@ -26,17 +26,37 @@ export default function MarcaTool() {
     const [paletaSel, setPaletaSel] = useState(0)
     const [fonteSel, setFonteSel] = useState(0)
     const [gerando, setGerando] = useState(false)
+    const [marcaGerada, setMarcaGerada] = useState<any>(null)
     const feature = useFeatureLimit('marca')
 
     const handleGerar = async () => {
         if (!nomeClinica.trim()) return
         if (!feature.permitido) { alert('Você atingiu o limite de marcas grátis este mês! Faça upgrade para criar mais.'); return }
         setGerando(true)
-        setTimeout(() => {
+        try {
+            const res = await fetch('/api/gerar-conteudo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tipo: 'marca',
+                    nome: nomeClinica,
+                    especialidade: nicho,
+                    estilo
+                })
+            })
+            const data = await res.json()
+            if (data.sucesso) {
+                setMarcaGerada(data.marca)
+                setEtapa('resultado')
+                feature.increment()
+            } else {
+                alert(data.error || 'Erro ao gerar marca')
+            }
+        } catch {
+            alert('Erro de conexão. Tente novamente.')
+        } finally {
             setGerando(false)
-            setEtapa('resultado')
-            feature.increment()
-        }, 2500)
+        }
     }
 
     if (etapa === 'resultado') {

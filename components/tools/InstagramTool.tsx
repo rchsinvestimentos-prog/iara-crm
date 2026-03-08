@@ -37,41 +37,54 @@ const hashtagsSugeridas = [
 
 export default function InstagramTool() {
     const [analisando, setAnalisando] = useState(false)
+    const [handle, setHandle] = useState('')
+    const [analise, setAnalise] = useState<any>(null)
     const feature = useFeatureLimit('raioX')
+
+    const handleAnalisar = async () => {
+        if (!handle.trim()) { alert('Digite o @ do Instagram'); return }
+        if (!feature.permitido) { alert('Você atingiu o limite de análises grátis este mês! Faça upgrade.'); return }
+        setAnalisando(true)
+        try {
+            const res = await fetch('/api/gerar-conteudo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tipo: 'raioX', handle })
+            })
+            const data = await res.json()
+            if (data.sucesso) {
+                setAnalise(data.analise)
+                feature.increment()
+            } else {
+                alert(data.error || 'Erro ao analisar perfil')
+            }
+        } catch {
+            alert('Erro de conexão. Tente novamente.')
+        } finally {
+            setAnalisando(false)
+        }
+    }
 
     return (
         <div className="space-y-6">
             <FeatureLimitBanner {...feature} />
-            {/* Métricas */}
-            <div className="grid grid-cols-4 gap-3">
-                {metricas.map((m, i) => (
-                    <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4">
-                        <m.icon size={16} className="text-gray-300 mb-3" strokeWidth={1.5} />
-                        <p className="text-xl font-bold text-[#0F4C61]">{m.valor}</p>
-                        <div className="flex items-center gap-1.5 mt-1">
-                            <span className="text-[11px] text-gray-400">{m.label}</span>
-                            <span className={`text-[10px] font-medium flex items-center gap-0.5 ${m.up ? 'text-green-500' : 'text-red-400'}`}>
-                                {m.up ? <ArrowUp size={9} /> : <ArrowDown size={9} />}
-                                {m.change}
-                            </span>
-                        </div>
-                    </div>
-                ))}
-            </div>
 
-            {/* Sugestões de melhoria */}
+            {/* Input do handle */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[13px] font-semibold text-[#0F4C61] flex items-center gap-2">
-                        <TrendingUp size={15} className="text-[#D99773]" />
-                        Análise e Sugestões
-                    </h3>
+                <h3 className="text-[13px] font-semibold text-[#0F4C61] flex items-center gap-2 mb-4">
+                    <Instagram size={15} className="text-[#D99773]" />
+                    Analisar Perfil
+                </h3>
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={handle}
+                        onChange={e => setHandle(e.target.value)}
+                        placeholder="@nomedaclinica"
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    />
                     <button
-                        onClick={async () => {
-                            if (!feature.permitido) { alert('Você atingiu o limite de análises grátis este mês! Faça upgrade.'); return }
-                            setAnalisando(true);
-                            setTimeout(async () => { setAnalisando(false); await feature.increment() }, 2000)
-                        }}
+                        onClick={handleAnalisar}
                         className="text-[11px] font-medium px-3 py-1.5 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1.5 disabled:opacity-50"
                         disabled={analisando}
                     >

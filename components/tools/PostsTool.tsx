@@ -17,17 +17,33 @@ export default function PostsTool() {
     const [templateSel, setTemplateSel] = useState<number | null>(null)
     const [gerando, setGerando] = useState(false)
     const [postGerado, setPostGerado] = useState(false)
+    const [conteudoPost, setConteudoPost] = useState('')
     const feature = useFeatureLimit('posts')
 
     const handleGerar = async () => {
         if (!tema.trim()) return
         if (!feature.permitido) { alert('Você atingiu o limite de posts grátis este mês! Faça upgrade para criar mais.'); return }
         setGerando(true)
-        setTimeout(() => {
+        try {
+            const tipoNome = templateSel !== null ? templates[templateSel].nome : 'carrossel'
+            const res = await fetch('/api/gerar-conteudo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tipo: 'post', tema, tipoPost: tipoNome })
+            })
+            const data = await res.json()
+            if (data.sucesso) {
+                setConteudoPost(data.conteudo)
+                setPostGerado(true)
+                feature.increment()
+            } else {
+                alert(data.error || 'Erro ao gerar post')
+            }
+        } catch {
+            alert('Erro de conexão. Tente novamente.')
+        } finally {
             setGerando(false)
-            setPostGerado(true)
-            feature.increment()
-        }, 2500)
+        }
     }
 
     return (

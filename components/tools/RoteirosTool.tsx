@@ -16,34 +16,24 @@ export default function RoteirosTool() {
         if (!assunto.trim()) return
         if (!feature.permitido) { alert('Você atingiu o limite de roteiros grátis este mês! Faça upgrade para criar mais.'); return }
         setGerando(true)
-        setTimeout(() => {
+        try {
+            const res = await fetch('/api/gerar-conteudo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tipo: 'roteiro', assunto, formato: estilo === 'educativo' ? 'reels' : estilo })
+            })
+            const data = await res.json()
+            if (data.sucesso) {
+                setRoteiro(data.conteudo)
+                feature.increment()
+            } else {
+                alert(data.error || 'Erro ao gerar roteiro')
+            }
+        } catch (err) {
+            alert('Erro de conexão. Tente novamente.')
+        } finally {
             setGerando(false)
-            setRoteiro(`🎬 ROTEIRO: ${assunto.toUpperCase()}
-
-📌 HOOK (primeiros 3 segundos):
-"Você sabia que 90% das mulheres cometem esse erro com a sobrancelha?"
-
-📍 CENA 1 - PROBLEMA:
-[Mostre a câmera frontal]
-"Se você sofre com sobrancelha falhada, esse vídeo é pra você..."
-
-📍 CENA 2 - SOLUÇÃO:
-[B-roll do procedimento]
-"A micropigmentação fio a fio resolve isso de forma natural. Dura 1-2 anos!"
-
-📍 CENA 3 - PROVA:
-[Mostre antes e depois]
-"Olha esse resultado incrível da minha cliente..."
-
-📍 CENA 4 - CTA:
-[Olhe pra câmera e sorria]
-"Quer agendar a sua? Link na bio! 💜"
-
-🎵 Áudio sugerido: Use o trending sound do momento
-⏱️ Duração: 15-30 segundos
-#micropigmentação #sobrancelha #autoestima #beauty`)
-            feature.increment()
-        }, 2000)
+        }
     }
 
     return (
