@@ -104,8 +104,12 @@ export async function GET(req: NextRequest) {
             timestamp: agora.toISOString(),
         })
 
-    } catch (err) {
+    } catch (err: any) {
         console.error('[Cron/Retornos] Fatal:', err)
-        return NextResponse.json({ error: 'Erro interno do cron' }, { status: 500 })
+        return NextResponse.json({
+            error: 'Erro interno do cron',
+            message: err?.message || String(err),
+            stack: err?.stack?.split('\n').slice(0, 5),
+        }, { status: 500 })
     }
 }
