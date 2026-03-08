@@ -16,6 +16,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { autoCaptureCRM } from '@/lib/auto-capture'
+import { processMessage } from '@/lib/engine'
+import type { MensagemRecebida } from '@/lib/engine'
 
 // Secret pra autenticar o webhook (opcional, mas recomendado)
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || ''
@@ -154,7 +156,7 @@ export async function POST(request: NextRequest) {
         // ================================================
         // MONTAR MENSAGEM E PROCESSAR
         // ================================================
-        const mensagem = {
+        const mensagem: MensagemRecebida = {
             telefone,
             pushName,
             mensagem: textoMensagem,
@@ -168,8 +170,10 @@ export async function POST(request: NextRequest) {
             rawMessage: message
         }
 
-        // Log para debug (a processMessage real vem do pipeline N8N)
-        console.log(`[Webhook] 📩 ${isFromMe ? 'SENT' : 'RECV'} ${telefone} (${instance}): ${textoMensagem?.slice(0, 50) || tipoMensagem}`)
+        // Processa de forma assíncrona (não bloqueia o webhook)
+        processMessage(mensagem).catch((err) => {
+            console.error('[Webhook] ❌ Erro no pipeline:', err)
+        })
 
         return NextResponse.json({ ok: true, requestId: mensagem.requestId })
 
