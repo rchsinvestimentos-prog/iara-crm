@@ -131,6 +131,11 @@ model Clinica {
   // JSON configs
   configuracoes        Json?     @default("{}") @db.JsonB
   integracoes          Json?     @default("{}") @db.JsonB
+
+  // Relations
+  contatos             Contato[]
+  crmColunas           CrmColuna[]
+  campanhas            Campanha[]
   
   @@map("users")
 }
@@ -261,3 +266,86 @@ model AdminUser {
   @@map("admin_users")
 }
 
+// ============================================
+// CRM — Colunas customizáveis do Kanban
+// ============================================
+
+model CrmColuna {
+  id        String  @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId Int     @map("clinica_id")
+  nome      String
+  slug      String
+  cor       String  @default("#D99773")
+  ordem     Int     @default(0)
+  
+  clinica   Clinica @relation(fields: [clinicaId], references: [id])
+
+  @@unique([clinicaId, slug])
+  @@index([clinicaId])
+  @@map("crm_colunas")
+}
+
+// ============================================
+// CRM — Contatos
+// ============================================
+
+model Contato {
+  id              String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId       Int       @map("clinica_id")
+  nome            String
+  telefone        String
+  email           String?
+  origem          String    @default("whatsapp")
+  etapa           String    @default("novo")
+  tags            String[]  @default([])
+  notas           String?   @db.Text
+  ultimoContato   DateTime? @map("ultimo_contato")
+  retornoData     DateTime? @map("retorno_data")
+  retornoMensagem String?   @map("retorno_mensagem") @db.Text
+  retornoEnviado  Boolean   @default(false) @map("retorno_enviado")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @map("updated_at")
+
+  clinica         Clinica   @relation(fields: [clinicaId], references: [id])
+
+  @@unique([clinicaId, telefone])
+  @@index([clinicaId, etapa])
+  @@map("contatos")
+}
+
+// ============================================
+// Campanhas — Disparo em massa
+// ============================================
+
+model Campanha {
+  id          String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId   Int       @map("clinica_id")
+  nome        String
+  mensagem    String    @db.Text
+  filtroEtapa String?   @map("filtro_etapa")
+  status      String    @default("rascunho")
+  totalEnvios Int       @default(0) @map("total_envios")
+  totalErros  Int       @default(0) @map("total_erros")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  clinica     Clinica   @relation(fields: [clinicaId], references: [id])
+  envios      CampanhaEnvio[]
+
+  @@index([clinicaId])
+  @@map("campanhas")
+}
+
+model CampanhaEnvio {
+  id          String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  campanhaId  String    @map("campanha_id")
+  telefone    String
+  nome        String?
+  status      String    @default("pendente")
+  enviadoEm   DateTime? @map("enviado_em")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  campanha    Campanha  @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
+
+  @@index([campanhaId])
+  @@map("campanha_envios")
+}

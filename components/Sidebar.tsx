@@ -35,6 +35,8 @@ import {
   Globe,
   CalendarDays,
   Search,
+  Megaphone,
+  Users,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTheme } from './ThemeProvider'
@@ -301,6 +303,14 @@ export default function Sidebar() {
             <Link href="/conversas" className={linkClass('/conversas')}>
               <MessageCircle size={17} strokeWidth={1.8} />
               <span>Conversas</span>
+            </Link>
+            <Link href="/crm" className={linkClass('/crm')}>
+              <Users size={17} strokeWidth={1.8} />
+              <span>CRM</span>
+            </Link>
+            <Link href="/campanhas" className={linkClass('/campanhas')}>
+              <Megaphone size={17} strokeWidth={1.8} />
+              <span>Campanhas</span>
             </Link>
           </div>
 
