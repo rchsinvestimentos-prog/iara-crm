@@ -10,11 +10,6 @@ export async function POST(request: NextRequest) {
         const clinicaId = await getClinicaId(session)
         if (!clinicaId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-        const clinica = await prisma.clinica.findUnique({ where: { id: clinicaId }, select: { nivel: true } })
-        if (!clinica || clinica.nivel < 4) {
-            return NextResponse.json({ error: 'Recurso exclusivo do Plano 4' }, { status: 403 })
-        }
-
         const body = await request.json()
         const { contatos } = body as { contatos: { nome: string; telefone: string }[] }
 

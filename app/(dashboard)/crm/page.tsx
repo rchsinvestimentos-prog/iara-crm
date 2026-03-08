@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Upload, Search, GripVertical, Phone, MessageSquare, Tag, Clock, X, Edit3, Trash2, Calendar, Send, Loader2, Lock } from 'lucide-react'
+import { Plus, Upload, Search, GripVertical, Phone, MessageSquare, Tag, Clock, X, Edit3, Trash2, Calendar, Send, Loader2 } from 'lucide-react'
 
 interface Coluna { id: string; nome: string; slug: string; cor: string; ordem: number }
 interface Contato {
@@ -15,7 +15,6 @@ export default function CrmPage() {
     const [colunas, setColunas] = useState<Coluna[]>([])
     const [contatos, setContatos] = useState<Contato[]>([])
     const [loading, setLoading] = useState(true)
-    const [blocked, setBlocked] = useState(false)
     const [busca, setBusca] = useState('')
     const [showAddModal, setShowAddModal] = useState(false)
     const [showImportModal, setShowImportModal] = useState(false)
@@ -45,11 +44,6 @@ export default function CrmPage() {
             ])
             const colData = await colRes.json()
             const conData = await conRes.json()
-
-            if (colRes.status === 403 || conRes.status === 403) {
-                setBlocked(true)
-                return
-            }
 
             setColunas(colData.colunas || [])
             setContatos(conData.contatos || [])
@@ -180,19 +174,6 @@ export default function CrmPage() {
 
     if (loading) {
         return <div className="flex items-center justify-center h-96"><Loader2 size={24} className="animate-spin text-[#D99773]" /></div>
-    }
-
-    if (blocked) {
-        return (
-            <div className="flex flex-col items-center justify-center h-96 text-center">
-                <Lock size={48} className="mb-4 opacity-20" style={{ color: 'var(--text-muted)' }} />
-                <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>CRM — Plano 4</h2>
-                <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>O CRM com Kanban e Disparos em Massa é exclusivo do Plano 4.</p>
-                <a href="/plano" className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-[#D99773] text-white hover:bg-[#C4875F] transition-all">
-                    Fazer Upgrade
-                </a>
-            </div>
-        )
     }
 
     return (
