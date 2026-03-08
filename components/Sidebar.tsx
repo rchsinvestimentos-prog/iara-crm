@@ -16,6 +16,7 @@ import {
   Award,
   Mic,
   Edit3,
+  Bot,
   Settings,
   CreditCard,
   LogOut,
@@ -387,6 +388,10 @@ export default function Sidebar() {
           <Link href="/configuracoes" className={linkClass('/configuracoes')}>
             <Settings size={17} strokeWidth={1.8} />
             <span>Configurações</span>
+          </Link>
+          <Link href="/simulador" className={linkClass('/simulador')}>
+            <Bot size={17} strokeWidth={1.8} />
+            <span>Simulador</span>
           </Link>
           <Link href="/melhorar-iara" className={linkClass('/melhorar-iara')}>
             <Sparkles size={17} strokeWidth={1.8} />
