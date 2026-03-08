@@ -1,12 +1,23 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { MessageSquare, Users, Calendar, TrendingUp, ArrowUpRight, Sparkles, Loader2 } from 'lucide-react'
+import { MessageSquare, Users, Calendar, TrendingUp, ArrowUpRight, Sparkles, Loader2, Clock, DollarSign, UserPlus, Target } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 
 const OnboardingChecklist = dynamic(() => import('@/components/OnboardingChecklist'), { ssr: false })
 const PausarIARA = dynamic(() => import('@/components/PausarIARA'), { ssr: false })
+
+interface ROI {
+    tempoEconomizadoHoras: number
+    faturamentoEstimado: number
+    contatosMes: number
+    mensagensMes: number
+    agendamentosMes: number
+    creditosUsados: number
+    creditosMensais: number
+    percentualCreditos: number
+}
 
 interface Stats {
     mensagensHoje: number
@@ -18,6 +29,7 @@ interface Stats {
     nomeIA: string
     conversasRecentes: { telefone: string; nome: string; ultimaMensagem: string; ultimaData: string }[]
     fonte: string
+    roi?: ROI
 }
 
 interface AgendamentoReal {
@@ -126,6 +138,82 @@ export default function Dashboard() {
 
             {/* Onboarding Checklist — primeiros passos */}
             <OnboardingChecklist />
+
+            {/* ROI Hero Section */}
+            {stats?.roi && !loading && (
+                <div className="relative rounded-2xl overflow-hidden animate-fade-in" style={{ animationDelay: '0.05s' }}>
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(217,151,115,0.08) 0%, rgba(15,76,97,0.15) 50%, rgba(139,92,246,0.08) 100%)' }} />
+                    <div className="absolute inset-0 backdrop-blur-xl" style={{ backgroundColor: 'var(--bg-card)', opacity: 0.85 }} />
+                    <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, transparent, #D99773, #8B5CF6, transparent)' }} />
+
+                    <div className="relative p-5 sm:p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className="w-8 h-8 rounded-lg bg-[#D99773]/20 flex items-center justify-center">
+                                <Sparkles size={16} className="text-[#D99773]" />
+                            </div>
+                            <div>
+                                <h3 className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                    O que a {stats.nomeIA} fez por você este mês
+                                </h3>
+                                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                                    Resultados em tempo real
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                            {/* Tempo economizado */}
+                            <div className="text-center p-4 rounded-xl" style={{ backgroundColor: 'rgba(217,151,115,0.08)', border: '1px solid rgba(217,151,115,0.15)' }}>
+                                <Clock size={22} className="mx-auto mb-2 text-[#D99773]" strokeWidth={1.5} />
+                                <p className="text-2xl font-bold" style={{ color: '#D99773' }}>{stats.roi.tempoEconomizadoHoras}h</p>
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Tempo economizado</p>
+                            </div>
+
+                            {/* Faturamento estimado */}
+                            <div className="text-center p-4 rounded-xl" style={{ backgroundColor: 'rgba(6,214,160,0.08)', border: '1px solid rgba(6,214,160,0.15)' }}>
+                                <DollarSign size={22} className="mx-auto mb-2 text-[#06D6A0]" strokeWidth={1.5} />
+                                <p className="text-2xl font-bold" style={{ color: '#06D6A0' }}>R$ {stats.roi.faturamentoEstimado.toLocaleString('pt-BR')}</p>
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Faturamento estimado</p>
+                            </div>
+
+                            {/* Contatos novos */}
+                            <div className="text-center p-4 rounded-xl" style={{ backgroundColor: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.15)' }}>
+                                <UserPlus size={22} className="mx-auto mb-2 text-[#8B5CF6]" strokeWidth={1.5} />
+                                <p className="text-2xl font-bold" style={{ color: '#8B5CF6' }}>{stats.roi.contatosMes}</p>
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Contatos captados</p>
+                            </div>
+
+                            {/* Agendamentos */}
+                            <div className="text-center p-4 rounded-xl" style={{ backgroundColor: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
+                                <Target size={22} className="mx-auto mb-2 text-[#3B82F6]" strokeWidth={1.5} />
+                                <p className="text-2xl font-bold" style={{ color: '#3B82F6' }}>{stats.roi.agendamentosMes}</p>
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Agendamentos no mês</p>
+                            </div>
+                        </div>
+
+                        {/* Barra de créditos */}
+                        <div className="mt-4 p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)' }}>
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>Créditos usados</span>
+                                <span className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>
+                                    {stats.roi.creditosUsados} / {stats.roi.creditosMensais}
+                                </span>
+                            </div>
+                            <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border-subtle)' }}>
+                                <div
+                                    className="h-full rounded-full transition-all duration-1000"
+                                    style={{
+                                        width: `${Math.min(stats.roi.percentualCreditos, 100)}%`,
+                                        background: stats.roi.percentualCreditos > 80
+                                            ? 'linear-gradient(90deg, #EF4444, #F97316)'
+                                            : 'linear-gradient(90deg, #D99773, #8B5CF6)',
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>

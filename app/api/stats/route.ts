@@ -23,6 +23,7 @@ export async function GET() {
                 nomeAssistente: true,
                 nivel: true,
                 creditosDisponiveis: true,
+                creditosMensais: true,
             },
         })
 
@@ -84,6 +85,57 @@ export async function GET() {
             `
         } catch { /* sem conversas ainda */ }
 
+        // ========== ROI Metrics ==========
+        let contatosMes = 0
+        let mensagensMes = 0
+        let agendamentosMes = 0
+
+        const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+        const inicioMesISO = inicioMes.toISOString()
+
+        try {
+            const r = await prisma.$queryRaw<{ count: bigint }[]>`
+                SELECT COUNT(*)::bigint as count 
+                FROM contatos 
+                WHERE clinica_id = ${clinicaId} 
+                  AND created_at >= ${inicioMesISO}::timestamp
+            `
+            contatosMes = Number(r[0]?.count ?? 0)
+        } catch { /* tabela pode não existir */ }
+
+        try {
+            const r = await prisma.$queryRaw<{ count: bigint }[]>`
+                SELECT COUNT(*)::bigint as count 
+                FROM historico_conversas 
+                WHERE user_id = ${clinicaId} 
+                  AND created_at >= ${inicioMesISO}::timestamp
+            `
+            mensagensMes = Number(r[0]?.count ?? 0)
+        } catch { /* sem dados */ }
+
+        try {
+            const r = await prisma.$queryRaw<{ count: bigint }[]>`
+                SELECT COUNT(*)::bigint as count 
+                FROM agendamentos 
+                WHERE user_id = ${clinicaId} 
+                  AND created_at >= ${inicioMesISO}::timestamp
+                  AND status != 'cancelado'
+            `
+            agendamentosMes = Number(r[0]?.count ?? 0)
+        } catch { /* sem dados */ }
+
+        // Tempo economizado: ~3 min por mensagem respondida
+        const tempoEconomizadoMin = mensagensMes * 3
+        const tempoEconomizadoHoras = Math.round(tempoEconomizadoMin / 60)
+
+        // Faturamento estimado: R$200 por agendamento realizado
+        const faturamentoEstimado = agendamentosMes * 200
+
+        // Percentual de créditos usados
+        const creditosMensais = clinica.creditosMensais ?? 1000
+        const creditosUsados = creditosMensais - (clinica.creditosDisponiveis ?? 0)
+        const percentualCreditos = Math.round((creditosUsados / creditosMensais) * 100)
+
         return NextResponse.json({
             mensagensHoje,
             totalConversas,
@@ -94,6 +146,17 @@ export async function GET() {
             nomeIA: clinica.nomeAssistente || 'IARA',
             conversasRecentes,
             fonte: 'unificado',
+            // ROI
+            roi: {
+                tempoEconomizadoHoras,
+                faturamentoEstimado,
+                contatosMes,
+                mensagensMes,
+                agendamentosMes,
+                creditosUsados,
+                creditosMensais,
+                percentualCreditos,
+            },
         })
     } catch (err) {
         console.error('Erro crítico em /api/stats:', err)
