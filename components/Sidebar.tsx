@@ -323,7 +323,7 @@ export default function Sidebar() {
           {/* Skills Groups */}
           <div className="space-y-0.5 mb-4">
             {habilidadesMenu.map((grupo) => {
-              const desbloqueado = planoAtual >= grupo.nivel
+              const desbloqueado = true // Todas as habilidades são acessíveis — limites controlam uso
               const isExpanded = expandedGroups.includes(grupo.nivel)
 
               return (
@@ -347,7 +347,7 @@ export default function Sidebar() {
                     <div className="ml-3 pl-3 space-y-0.5 py-0.5" style={{ borderLeft: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)'}` }}>
                       {grupo.skills.map((skill) => {
                         const active = pathname === skill.href
-                        const habilitada = planoAtual >= skill.nivel
+                        const habilitada = true // Limites de uso em vez de bloqueio de acesso
                         return (
                           <Link
                             key={skill.href}
@@ -361,8 +361,8 @@ export default function Sidebar() {
                           >
                             {habilitada ? <skill.icon size={14} /> : <Lock size={12} strokeWidth={1.5} />}
                             <span>{skill.label}</span>
-                            {!habilitada && (
-                              <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#D99773]/10 text-[#D99773]">PRO</span>
+                            {planoAtual < skill.nivel && (
+                              <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#D99773]/10 text-[#D99773]">TRIAL</span>
                             )}
                           </Link>
                         )
