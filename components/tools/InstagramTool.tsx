@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { Instagram, TrendingUp, Clock, Hash, Eye, Heart, MessageSquare, Users, Wand2, ArrowUp, ArrowDown } from 'lucide-react'
+import { useFeatureLimit } from '@/hooks/useFeatureLimit'
+import FeatureLimitBanner from '@/components/FeatureLimitBanner'
 
 const metricas = [
     { label: 'Seguidores', valor: '2.847', change: '+124', up: true, icon: Users },
@@ -35,9 +37,11 @@ const hashtagsSugeridas = [
 
 export default function InstagramTool() {
     const [analisando, setAnalisando] = useState(false)
+    const feature = useFeatureLimit('raioX')
 
     return (
         <div className="space-y-6">
+            <FeatureLimitBanner {...feature} />
             {/* Métricas */}
             <div className="grid grid-cols-4 gap-3">
                 {metricas.map((m, i) => (
@@ -63,7 +67,11 @@ export default function InstagramTool() {
                         Análise e Sugestões
                     </h3>
                     <button
-                        onClick={() => { setAnalisando(true); setTimeout(() => setAnalisando(false), 2000) }}
+                        onClick={async () => {
+                            if (!feature.permitido) { alert('Você atingiu o limite de análises grátis este mês! Faça upgrade.'); return }
+                            setAnalisando(true);
+                            setTimeout(async () => { setAnalisando(false); await feature.increment() }, 2000)
+                        }}
                         className="text-[11px] font-medium px-3 py-1.5 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1.5 disabled:opacity-50"
                         disabled={analisando}
                     >

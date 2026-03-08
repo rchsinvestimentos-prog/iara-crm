@@ -2,6 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Upload, Download, RotateCw, FlipHorizontal, Layers, Image as ImageIcon, Type, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
+import { useFeatureLimit } from '@/hooks/useFeatureLimit'
+import FeatureLimitBanner from '@/components/FeatureLimitBanner'
 
 /* ===== TEMPLATES ===== */
 const templates = [
@@ -32,6 +34,7 @@ export default function CollagemTool() {
     const [logoOpacity, setLogoOpacity] = useState(80)
     const [logoSize, setLogoSize] = useState(15) // % do canvas
     const [mostrarLabels, setMostrarLabels] = useState(true)
+    const feature = useFeatureLimit('antesDepois')
 
     /* Upload helper */
     const handleUpload = (setter: (v: string) => void) => {
@@ -274,8 +277,9 @@ export default function CollagemTool() {
     useEffect(() => { desenhar() }, [desenhar])
 
     /* Export */
-    const handleExport = () => {
+    const handleExport = async () => {
         if (!canvasRef.current) return
+        if (!feature.permitido) { alert('Você atingiu o limite de Antes e Depois grátis este mês! Faça upgrade para criar mais.'); return }
         // Re-render at full resolution
         const fmt = formatos[formatoSel]
         const exportCanvas = document.createElement('canvas')
@@ -290,12 +294,14 @@ export default function CollagemTool() {
         a.href = url
         a.download = `colagem-${templates[templateSel].id}-${formatos[formatoSel].id}.png`
         a.click()
+        await feature.increment()
     }
 
     const temAmbasFotos = antes && depois
 
     return (
         <div className="space-y-6">
+            <FeatureLimitBanner {...feature} />
             {/* Step 1: Upload */}
             <div className="glass-card p-6">
                 <h3 className="font-semibold text-petroleo mb-4 flex items-center gap-2">

@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { Award, Wand2, Download, Palette, Type, Copy } from 'lucide-react'
+import { useFeatureLimit } from '@/hooks/useFeatureLimit'
+import FeatureLimitBanner from '@/components/FeatureLimitBanner'
 
 const paletas = [
     { nome: 'Terrosos', cores: ['#D99773', '#0F4C61', '#F0F8FA', '#2D2D2D', '#FFFFFF'] },
@@ -24,13 +26,16 @@ export default function MarcaTool() {
     const [paletaSel, setPaletaSel] = useState(0)
     const [fonteSel, setFonteSel] = useState(0)
     const [gerando, setGerando] = useState(false)
+    const feature = useFeatureLimit('marca')
 
-    const handleGerar = () => {
+    const handleGerar = async () => {
         if (!nomeClinica.trim()) return
+        if (!feature.permitido) { alert('Você atingiu o limite de marcas grátis este mês! Faça upgrade para criar mais.'); return }
         setGerando(true)
         setTimeout(() => {
             setGerando(false)
             setEtapa('resultado')
+            feature.increment()
         }, 2500)
     }
 
@@ -121,6 +126,7 @@ export default function MarcaTool() {
 
     return (
         <div className="space-y-6">
+            <FeatureLimitBanner {...feature} />
             {/* Formulário */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
                 <h3 className="text-[13px] font-semibold text-[#0F4C61] flex items-center gap-2 mb-4">

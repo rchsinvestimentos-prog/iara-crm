@@ -2,15 +2,19 @@
 
 import { useState } from 'react'
 import { FileText, Wand2, Copy, Download, Hash, Clock } from 'lucide-react'
+import { useFeatureLimit } from '@/hooks/useFeatureLimit'
+import FeatureLimitBanner from '@/components/FeatureLimitBanner'
 
 export default function RoteirosTool() {
     const [assunto, setAssunto] = useState('')
     const [estilo, setEstilo] = useState('educativo')
     const [gerando, setGerando] = useState(false)
     const [roteiro, setRoteiro] = useState('')
+    const feature = useFeatureLimit('roteiros')
 
-    const handleGerar = () => {
+    const handleGerar = async () => {
         if (!assunto.trim()) return
+        if (!feature.permitido) { alert('Você atingiu o limite de roteiros grátis este mês! Faça upgrade para criar mais.'); return }
         setGerando(true)
         setTimeout(() => {
             setGerando(false)
@@ -38,11 +42,13 @@ export default function RoteirosTool() {
 🎵 Áudio sugerido: Use o trending sound do momento
 ⏱️ Duração: 15-30 segundos
 #micropigmentação #sobrancelha #autoestima #beauty`)
+            feature.increment()
         }, 2000)
     }
 
     return (
         <div className="space-y-6">
+            <FeatureLimitBanner {...feature} />
             {/* Criar roteiro */}
             <div className="glass-card p-6">
                 <h3 className="font-semibold text-petroleo mb-4 flex items-center gap-2">

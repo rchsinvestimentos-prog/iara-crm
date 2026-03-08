@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { Camera, Download, Wand2, RefreshCw } from 'lucide-react'
+import { useFeatureLimit } from '@/hooks/useFeatureLimit'
+import FeatureLimitBanner from '@/components/FeatureLimitBanner'
 
 const estilos = [
     { nome: 'Profissional', desc: 'Ambiente de clínica', emoji: '💼' },
@@ -14,17 +16,21 @@ export default function AvatarTool() {
     const [estiloSel, setEstiloSel] = useState(0)
     const [gerando, setGerando] = useState(false)
     const [gerado, setGerado] = useState(false)
+    const feature = useFeatureLimit('fotosIA')
 
-    const handleGerar = () => {
+    const handleGerar = async () => {
+        if (!feature.permitido) { alert('Você atingiu o limite de fotos IA grátis este mês! Faça upgrade para gerar mais.'); return }
         setGerando(true)
         setTimeout(() => {
             setGerando(false)
             setGerado(true)
+            feature.increment()
         }, 3000)
     }
 
     return (
         <div className="space-y-6">
+            <FeatureLimitBanner {...feature} />
             {/* Foto base */}
             <div className="glass-card p-6">
                 <h3 className="font-semibold text-petroleo mb-4 flex items-center gap-2">
@@ -60,8 +66,8 @@ export default function AvatarTool() {
                             key={i}
                             onClick={() => setEstiloSel(i)}
                             className={`p-4 rounded-2xl border-2 transition-all text-center ${estiloSel === i
-                                    ? 'border-terracota bg-terracota/5'
-                                    : 'border-transparent bg-glacial hover:border-terracota/30'
+                                ? 'border-terracota bg-terracota/5'
+                                : 'border-transparent bg-glacial hover:border-terracota/30'
                                 }`}
                         >
                             <span className="text-2xl block mb-2">{e.emoji}</span>

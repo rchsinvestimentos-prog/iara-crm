@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { Paintbrush, Wand2, Download, ChevronLeft, ChevronRight, Plus, Image } from 'lucide-react'
+import { useFeatureLimit } from '@/hooks/useFeatureLimit'
+import FeatureLimitBanner from '@/components/FeatureLimitBanner'
 
 const templates = [
     { nome: 'Antes e Depois', tipo: 'Carrossel 5 slides', cor: '#D99773' },
@@ -15,19 +17,22 @@ export default function PostsTool() {
     const [templateSel, setTemplateSel] = useState<number | null>(null)
     const [gerando, setGerando] = useState(false)
     const [postGerado, setPostGerado] = useState(false)
+    const feature = useFeatureLimit('posts')
 
-    const handleGerar = () => {
+    const handleGerar = async () => {
         if (!tema.trim()) return
+        if (!feature.permitido) { alert('Você atingiu o limite de posts grátis este mês! Faça upgrade para criar mais.'); return }
         setGerando(true)
-        // TODO: POST webhook N8N
         setTimeout(() => {
             setGerando(false)
             setPostGerado(true)
+            feature.increment()
         }, 2500)
     }
 
     return (
         <div className="space-y-6">
+            <FeatureLimitBanner {...feature} />
             {/* Templates */}
             <div className="glass-card p-6">
                 <h3 className="font-semibold text-petroleo mb-4 flex items-center gap-2">
@@ -40,8 +45,8 @@ export default function PostsTool() {
                             key={i}
                             onClick={() => setTemplateSel(i)}
                             className={`p-4 rounded-2xl border-2 transition-all text-left ${templateSel === i
-                                    ? 'border-terracota bg-terracota/5'
-                                    : 'border-transparent bg-glacial hover:border-terracota/30'
+                                ? 'border-terracota bg-terracota/5'
+                                : 'border-transparent bg-glacial hover:border-terracota/30'
                                 }`}
                         >
                             <div
