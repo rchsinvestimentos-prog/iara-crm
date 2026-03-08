@@ -136,6 +136,7 @@ model Clinica {
   contatos             Contato[]
   crmColunas           CrmColuna[]
   campanhas            Campanha[]
+  usoFeatures          UsoFeature[]
   
   @@map("users")
 }
@@ -348,4 +349,22 @@ model CampanhaEnvio {
 
   @@index([campanhaId])
   @@map("campanha_envios")
+}
+
+// ============================================
+// Uso de Features — controle de limites freemium
+// ============================================
+
+model UsoFeature {
+  id        String  @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId Int     @map("clinica_id")
+  feature   String  @db.VarChar(50)
+  mesAno    String  @map("mes_ano") @db.VarChar(7)
+  usado     Int     @default(0)
+
+  clinica   Clinica @relation(fields: [clinicaId], references: [id])
+
+  @@unique([clinicaId, feature, mesAno])
+  @@index([clinicaId])
+  @@map("uso_features")
 }

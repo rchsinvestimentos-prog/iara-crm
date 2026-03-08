@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Send, Beaker, Loader2, Lock, CheckCircle2, XCircle, Clock, Megaphone, X } from 'lucide-react'
+import { Plus, Send, Beaker, Loader2, CheckCircle2, XCircle, Clock, Megaphone, X, Zap } from 'lucide-react'
 
 interface Campanha {
     id: string; nome: string; mensagem: string; filtroEtapa?: string
@@ -14,7 +14,7 @@ export default function CampanhasPage() {
     const [campanhas, setCampanhas] = useState<Campanha[]>([])
     const [colunas, setColunas] = useState<Coluna[]>([])
     const [loading, setLoading] = useState(true)
-    const [blocked, setBlocked] = useState(false)
+    const [limites, setLimites] = useState<{ usado: number; limite: number; restante: number; ilimitado: boolean } | null>(null)
     const [showNewModal, setShowNewModal] = useState(false)
     const [nome, setNome] = useState('')
     const [mensagem, setMensagem] = useState('')
@@ -28,11 +28,11 @@ export default function CampanhasPage() {
                 fetch('/api/campanhas'),
                 fetch('/api/crm-colunas'),
             ])
-            if (campRes.status === 403) { setBlocked(true); return }
             const campData = await campRes.json()
             const colData = await colRes.json()
             setCampanhas(campData.campanhas || [])
             setColunas(colData.colunas || [])
+            if (campData.limites) setLimites(campData.limites)
         } catch { /* */ }
         finally { setLoading(false) }
     }, [])
@@ -96,19 +96,21 @@ export default function CampanhasPage() {
 
     if (loading) return <div className="flex items-center justify-center h-96"><Loader2 size={24} className="animate-spin text-[#D99773]" /></div>
 
-    if (blocked) {
-        return (
-            <div className="flex flex-col items-center justify-center h-96 text-center">
-                <Lock size={48} className="mb-4 opacity-20" style={{ color: 'var(--text-muted)' }} />
-                <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Campanhas — Plano 4</h2>
-                <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>Disparos em massa são exclusivos do Plano 4.</p>
-                <a href="/plano" className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-[#D99773] text-white hover:bg-[#C4875F] transition-all">Fazer Upgrade</a>
-            </div>
-        )
-    }
-
     return (
         <div className="animate-fade-in">
+            {/* Usage banner */}
+            {limites && !limites.ilimitado && (
+                <div className="mb-4 px-4 py-3 rounded-xl flex items-center justify-between" style={{ backgroundColor: 'rgba(217,151,115,0.08)', border: '1px solid rgba(217,151,115,0.15)' }}>
+                    <div className="flex items-center gap-2">
+                        <Zap size={14} className="text-[#D99773]" />
+                        <span className="text-[12px]" style={{ color: 'var(--text-primary)' }}>
+                            <strong>{limites.restante}</strong> de {limites.limite} envios restantes este mês
+                        </span>
+                    </div>
+                    <a href="/plano" className="text-[11px] font-semibold text-[#D99773] hover:underline">Upgrade →</a>
+                </div>
+            )}
+
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Campanhas</h1>

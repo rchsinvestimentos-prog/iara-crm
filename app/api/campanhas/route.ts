@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { checkFeature, getLimite, incrementFeature } from '@/lib/feature-limits'
 
 // GET /api/campanhas — Lista campanhas
 export async function GET() {
@@ -10,18 +11,18 @@ export async function GET() {
         const clinicaId = await getClinicaId(session)
         if (!clinicaId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-        const clinica = await prisma.clinica.findUnique({ where: { id: clinicaId }, select: { nivel: true } })
-        if (!clinica || clinica.nivel < 4) {
-            return NextResponse.json({ error: 'Recurso exclusivo do Plano 4' }, { status: 403 })
-        }
-
         const campanhas = await prisma.campanha.findMany({
             where: { clinicaId },
             orderBy: { createdAt: 'desc' },
             include: { _count: { select: { envios: true } } },
         })
 
-        return NextResponse.json({ campanhas })
+        // Retornar info de limite junto
+        const clinica = await prisma.clinica.findUnique({ where: { id: clinicaId }, select: { nivel: true } })
+        const nivel = clinica?.nivel ?? 1
+        const featureCheck = await checkFeature(clinicaId, nivel, 'campanhaContatos')
+
+        return NextResponse.json({ campanhas, limites: featureCheck })
     } catch (err) {
         console.error('Erro GET /api/campanhas:', err)
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
@@ -39,9 +40,7 @@ export async function POST(request: NextRequest) {
             where: { id: clinicaId },
             select: { nivel: true },
         })
-        if (!clinica || clinica.nivel < 4) {
-            return NextResponse.json({ error: 'Recurso exclusivo do Plano 4' }, { status: 403 })
-        }
+        const nivel = clinica?.nivel ?? 1
 
         const { nome, mensagem, filtroEtapa } = await request.json()
 
@@ -49,17 +48,37 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Nome e mensagem são obrigatórios' }, { status: 400 })
         }
 
+        // Verificar limite de contatos para campanhas
+        const limiteContatos = getLimite(nivel, 'campanhaContatos')
+        const featureCheck = await checkFeature(clinicaId, nivel, 'campanhaContatos')
+
         // Buscar contatos que vão receber
         const whereContatos: Record<string, unknown> = { clinicaId }
         if (filtroEtapa) whereContatos.etapa = filtroEtapa
 
-        const contatos = await prisma.contato.findMany({
+        let contatos = await prisma.contato.findMany({
             where: whereContatos as any,
             select: { telefone: true, nome: true },
         })
 
         if (contatos.length === 0) {
             return NextResponse.json({ error: 'Nenhum contato encontrado para esta etapa' }, { status: 400 })
+        }
+
+        // Aplicar limite: se não é ilimitado, cortar a lista
+        let limitado = false
+        if (!featureCheck.ilimitado) {
+            const restante = featureCheck.restante
+            if (restante <= 0) {
+                return NextResponse.json({
+                    error: `Você já usou seus ${featureCheck.limite} envios de campanha este mês. Faça upgrade para enviar mais!`,
+                    upgrade: true,
+                }, { status: 403 })
+            }
+            if (contatos.length > restante) {
+                contatos = contatos.slice(0, restante)
+                limitado = true
+            }
         }
 
         // Criar campanha + envios
@@ -79,7 +98,17 @@ export async function POST(request: NextRequest) {
             include: { _count: { select: { envios: true } } },
         })
 
-        return NextResponse.json({ ok: true, campanha })
+        // Incrementar uso
+        await incrementFeature(clinicaId, 'campanhaContatos', contatos.length)
+
+        return NextResponse.json({
+            ok: true,
+            campanha,
+            limitado,
+            mensagemLimite: limitado
+                ? `Seu plano permite ${limiteContatos} envios/mês. A campanha foi criada com ${contatos.length} contatos. Faça upgrade para enviar para todos!`
+                : undefined,
+        })
     } catch (err) {
         console.error('Erro POST /api/campanhas:', err)
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
