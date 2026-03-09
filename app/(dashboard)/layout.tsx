@@ -17,9 +17,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     useEffect(() => {
         fetch('/api/clinica')
-            .then(r => r.json())
+            .then(r => r.ok ? r.json() : null)
             .then(data => {
-                if (!data?.aceite_termos && !data?.aceiteTermos) {
+                if (data?.id && !data?.aceite_termos && !data?.aceiteTermos) {
                     setShowTermos(true)
                 }
                 setNomeClinica(data?.nome_clinica || data?.nomeClinica || '')
@@ -60,8 +60,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Modal de aceite — NÃO aparece em /termos e /privacidade */}
             {!loading && showTermos && !isLegalPage && (
                 <TermosModal
-                    nomeClinica={nomeClinica}
-                    onAccept={() => setShowTermos(false)}
+                    tipo="termos_uso"
+                    onAceito={() => setShowTermos(false)}
                 />
             )}
 
