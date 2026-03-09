@@ -180,6 +180,31 @@ export default function Dashboard() {
             {/* Upsell — aparece quando créditos atingem 80% */}
             <UpsellBanner />
 
+            {/* Empty State — clínica nova sem atividade */}
+            {!loading && stats && stats.mensagensHoje === 0 && stats.totalConversas === 0 && stats.agendamentosHoje === 0 && (
+                <div className="rounded-2xl p-6 text-center animate-fade-in" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                    <p className="text-4xl mb-3">🚀</p>
+                    <h3 className="text-[16px] font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                        Tudo pronto! Agora é só conectar o WhatsApp.
+                    </h3>
+                    <p className="text-[12px] mb-4 max-w-md mx-auto" style={{ color: 'var(--text-muted)' }}>
+                        Sua {stats.nomeIA || 'IARA'} está configurada e aguardando a primeira mensagem.
+                        Quando uma cliente mandar uma mensagem, ela vai aparecer aqui automaticamente!
+                    </p>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                        <Link href="/instancias" className="px-4 py-2 rounded-xl text-[12px] font-semibold text-white transition-all hover:scale-105" style={{ background: 'linear-gradient(135deg, #06D6A0, #059669)' }}>
+                            📱 Conectar WhatsApp
+                        </Link>
+                        <Link href="/configuracoes" className="px-4 py-2 rounded-xl text-[12px] font-medium transition-all" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}>
+                            ⚙️ Configurar Clínica
+                        </Link>
+                        <Link href="/cofre" className="px-4 py-2 rounded-xl text-[12px] font-medium transition-all" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}>
+                            🧠 Personalizar IA
+                        </Link>
+                    </div>
+                </div>
+            )}
+
             {/* ROI Hero Section */}
             {stats?.roi && !loading && (stats.roi.contatosMes > 0 || stats.roi.mensagensMes > 0) && (
                 <div className="relative rounded-2xl overflow-hidden animate-fade-in" style={{ animationDelay: '0.05s' }}>
