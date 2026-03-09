@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { MessageSquare, Users, Calendar, TrendingUp, ArrowUpRight, Sparkles, Loader2, Clock, DollarSign, UserPlus, Target } from 'lucide-react'
+import { MessageSquare, Users, Calendar, TrendingUp, ArrowUpRight, Sparkles, Loader2, Clock, DollarSign, UserPlus, Target, WifiOff, Wifi } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 
@@ -73,6 +73,7 @@ export default function Dashboard() {
     const [stats, setStats] = useState<Stats | null>(null)
     const [agendamentos, setAgendamentos] = useState<AgendamentoReal[]>([])
     const [loading, setLoading] = useState(true)
+    const [whatsappConectado, setWhatsappConectado] = useState<boolean | null>(null)
 
     useEffect(() => {
         async function fetchData() {
@@ -89,6 +90,20 @@ export default function Dashboard() {
                     const data = await agendRes.json()
                     setAgendamentos(data.agendamentos || [])
                 }
+
+                // Checar WhatsApp
+                try {
+                    const wpRes = await fetch('/api/instancias')
+                    if (wpRes.ok) {
+                        const wpData = await wpRes.json()
+                        const instancias = wpData.instancias || wpData || []
+                        if (Array.isArray(instancias) && instancias.length > 0) {
+                            setWhatsappConectado(instancias.some((i: any) => i.status === 'open' || i.connectionStatus === 'open'))
+                        } else {
+                            setWhatsappConectado(false)
+                        }
+                    }
+                } catch { setWhatsappConectado(null) }
             } catch (err) {
                 console.error('Erro ao carregar dashboard:', err)
             } finally {
@@ -139,8 +154,30 @@ export default function Dashboard() {
             {/* Onboarding Checklist — primeiros passos */}
             <OnboardingChecklist />
 
+            {/* Banner WhatsApp desconectado */}
+            {whatsappConectado === false && !loading && (
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl animate-fade-in"
+                    style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    <WifiOff size={18} className="text-red-400 flex-shrink-0" />
+                    <div className="flex-1">
+                        <p className="text-[13px] font-medium text-red-400">WhatsApp desconectado</p>
+                        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Sua IARA não está recebendo mensagens. Reconecte para continuar atendendo.</p>
+                    </div>
+                    <Link href="/instancias" className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all">
+                        Reconectar
+                    </Link>
+                </div>
+            )}
+
+            {whatsappConectado === true && !loading && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg animate-fade-in text-[11px]"
+                    style={{ backgroundColor: 'rgba(6, 214, 160, 0.06)', border: '1px solid rgba(6, 214, 160, 0.12)', color: '#06D6A0' }}>
+                    <Wifi size={13} /> WhatsApp conectado e ativo
+                </div>
+            )}
+
             {/* ROI Hero Section */}
-            {stats?.roi && !loading && (
+            {stats?.roi && !loading && (stats.roi.contatosMes > 0 || stats.roi.mensagensMes > 0) && (
                 <div className="relative rounded-2xl overflow-hidden animate-fade-in" style={{ animationDelay: '0.05s' }}>
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(217,151,115,0.08) 0%, rgba(15,76,97,0.15) 50%, rgba(139,92,246,0.08) 100%)' }} />
                     <div className="absolute inset-0 backdrop-blur-xl" style={{ backgroundColor: 'var(--bg-card)', opacity: 0.85 }} />

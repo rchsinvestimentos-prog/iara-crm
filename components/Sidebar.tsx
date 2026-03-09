@@ -18,6 +18,7 @@ import {
   Edit3,
   Bot,
   Shield,
+  Gift,
   Settings,
   CreditCard,
   LogOut,
@@ -397,6 +398,10 @@ export default function Sidebar() {
           <Link href="/cofre" className={linkClass('/cofre')}>
             <Shield size={17} strokeWidth={1.8} />
             <span>Personalizar IA</span>
+          </Link>
+          <Link href="/indicacoes" className={linkClass('/indicacoes')}>
+            <Gift size={17} strokeWidth={1.8} />
+            <span>Indicações</span>
           </Link>
           <Link href="/melhorar-iara" className={linkClass('/melhorar-iara')}>
             <Sparkles size={17} strokeWidth={1.8} />

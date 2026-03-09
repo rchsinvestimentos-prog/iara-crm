@@ -94,5 +94,6 @@ export const config = {
         '/instancias/:path*',
         '/melhorar-iara/:path*',
         '/instagram/:path*',
+        '/indicacoes/:path*',
     ],
 }
