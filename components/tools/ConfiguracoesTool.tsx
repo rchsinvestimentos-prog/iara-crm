@@ -195,6 +195,12 @@ export default function ConfiguracoesTool() {
     const [showReviewHelp, setShowReviewHelp] = useState(false)
     const [placesResults, setPlacesResults] = useState<any[]>([])
     const [placesLoading, setPlacesLoading] = useState(false)
+    const [blacklist, setBlacklist] = useState('')
+    const [horarioInicio, setHorarioInicio] = useState('08:00')
+    const [horarioFim, setHorarioFim] = useState('20:00')
+    const [diasAtendimento, setDiasAtendimento] = useState([1, 2, 3, 4, 5]) // seg-sex
+    const [mensagemForaHorario, setMensagemForaHorario] = useState('')
+    const [mensagemAniversario, setMensagemAniversario] = useState('')
     const [cuidadosPos, setCuidadosPos] = useState('')
     const [politicaCancelamento, setPoliticaCancelamento] = useState('')
     const [mensagemBoasVindas, setMensagemBoasVindas] = useState('')
@@ -267,6 +273,12 @@ export default function ConfiguracoesTool() {
                 // VIP
                 setLinkMaps(data.linkMaps || '')
                 setLinkGoogleReview(data.linkGoogleReview || '')
+                setBlacklist((data.blacklist || []).join('\n'))
+                setHorarioInicio(data.horarioInicio || '08:00')
+                setHorarioFim(data.horarioFim || '20:00')
+                setDiasAtendimento(data.diasAtendimento || [1, 2, 3, 4, 5])
+                setMensagemForaHorario(data.mensagemForaHorario || '')
+                setMensagemAniversario(data.mensagemAniversario || '')
                 setCuidadosPos(data.cuidadosPos || '')
                 setPoliticaCancelamento(data.politicaCancelamento || '')
                 setMensagemBoasVindas(data.mensagemBoasVindas || '')
@@ -337,6 +349,12 @@ export default function ConfiguracoesTool() {
                     daCursos,
                     linkMaps: linkMaps || null,
                     linkGoogleReview: linkGoogleReview || null,
+                    blacklist: blacklist.split('\n').map(n => n.trim().replace(/\D/g, '')).filter(Boolean),
+                    horarioInicio,
+                    horarioFim,
+                    diasAtendimento,
+                    mensagemForaHorario: mensagemForaHorario || null,
+                    mensagemAniversario: mensagemAniversario || null,
                     cuidadosPos: cuidadosPos || null,
                     politicaCancelamento: politicaCancelamento || null,
                     mensagemBoasVindas: mensagemBoasVindas || null,
@@ -836,6 +854,73 @@ export default function ConfiguracoesTool() {
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* ============ 1B. ATENDIMENTO ============ */}
+            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
+                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
+                    ⏰ Horário de Atendimento
+                </h3>
+                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>A IARA só responde dentro deste horário. Fora dele, envia uma mensagem automática.</p>
+
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Início</label>
+                        <input type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} className={inputClass} style={inputStyle} />
+                    </div>
+                    <div>
+                        <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Fim</label>
+                        <input type="time" value={horarioFim} onChange={e => setHorarioFim(e.target.value)} className={inputClass} style={inputStyle} />
+                    </div>
+                </div>
+
+                <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Dias de atendimento</label>
+                <div className="flex gap-1 mb-3">
+                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((dia, i) => (
+                        <button key={i} onClick={() => setDiasAtendimento(prev => prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i])}
+                            className="px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all"
+                            style={{
+                                backgroundColor: diasAtendimento.includes(i) ? '#D99773' : 'var(--bg-subtle)',
+                                color: diasAtendimento.includes(i) ? 'white' : 'var(--text-muted)',
+                                border: `1px solid ${diasAtendimento.includes(i) ? '#D99773' : 'var(--border-default)'}`,
+                            }}>
+                            {dia}
+                        </button>
+                    ))}
+                </div>
+
+                <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>💬 Mensagem fora do horário (opcional)</label>
+                <textarea value={mensagemForaHorario} onChange={e => setMensagemForaHorario(e.target.value)} rows={2}
+                    className={`w-full ${inputClass} resize-none`} style={inputStyle}
+                    placeholder="Olá! Nosso horário de atendimento é de seg-sex das 08h às 20h. Retornaremos em breve! 😊" />
+            </div>
+
+            {/* ============ 1C. BLACKLIST ============ */}
+            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
+                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
+                    🚫 Números Bloqueados
+                </h3>
+                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>A IARA ignora esses números completamente. Um por linha.</p>
+                <textarea value={blacklist} onChange={e => setBlacklist(e.target.value)} rows={3}
+                    className={`w-full ${inputClass} resize-none`} style={inputStyle}
+                    placeholder="5511999998888
+5521988887777" />
+                {blacklist.trim() && (
+                    <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                        {blacklist.split('\n').filter(n => n.trim()).length} número(s) bloqueado(s)
+                    </p>
+                )}
+            </div>
+
+            {/* ============ 1D. ANIVERSARIO ============ */}
+            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
+                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
+                    🎂 Mensagem de Aniversário
+                </h3>
+                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>Enviada automaticamente para clientes do CRM que fazem aniversário. Use {'{nome}'} e {'{clinica}'} como variáveis.</p>
+                <textarea value={mensagemAniversario} onChange={e => setMensagemAniversario(e.target.value)} rows={4}
+                    className={`w-full ${inputClass} resize-none`} style={inputStyle}
+                    placeholder="🎂 Parabéns, {nome}!!! 🎉 Aqui é da {clinica}. Que esse dia seja maravilhoso! 💜" />
             </div>
 
             {/* ============ 2. DIFERENCIAIS ============ */}

@@ -96,5 +96,6 @@ export const config = {
         '/instagram/:path*',
         '/indicacoes/:path*',
         '/historico-creditos/:path*',
+        '/features/:path*',
     ],
 }

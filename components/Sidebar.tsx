@@ -20,6 +20,7 @@ import {
   Shield,
   Gift,
   History,
+  Zap,
   Settings,
   CreditCard,
   LogOut,
@@ -399,6 +400,10 @@ export default function Sidebar() {
           <Link href="/cofre" className={linkClass('/cofre')}>
             <Shield size={17} strokeWidth={1.8} />
             <span>Personalizar IA</span>
+          </Link>
+          <Link href="/features" className={linkClass('/features')}>
+            <Zap size={17} strokeWidth={1.8} />
+            <span>Features</span>
           </Link>
           <Link href="/indicacoes" className={linkClass('/indicacoes')}>
             <Gift size={17} strokeWidth={1.8} />
