@@ -204,6 +204,35 @@ export default function CrmPage() {
                 </div>
             </div>
 
+            {/* Pipeline Funnel Stats */}
+            {colunas.length > 0 && (
+                <div className="grid gap-2 mb-4" style={{ gridTemplateColumns: `repeat(${Math.min(colunas.length, 6)}, 1fr)` }}>
+                    {colunas.map((col, i) => {
+                        const count = filteredContatos.filter(c => c.etapa === col.slug).length
+                        const prevCount = i > 0 ? filteredContatos.filter(c => c.etapa === colunas[i - 1].slug).length : null
+                        const conversion = prevCount ? Math.round((count / prevCount) * 100) : null
+                        const total = filteredContatos.length || 1
+                        return (
+                            <div key={col.id} className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: col.cor }} />
+                                    <p className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{col.nome}</p>
+                                </div>
+                                <p className="text-[20px] font-bold" style={{ color: 'var(--text-primary)' }}>{count}</p>
+                                {conversion !== null && (
+                                    <p className="text-[9px]" style={{ color: conversion >= 50 ? '#06D6A0' : conversion >= 25 ? '#EAB308' : '#EF4444' }}>
+                                        {conversion}% conversão
+                                    </p>
+                                )}
+                                <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-subtle)' }}>
+                                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((count / total) * 100)}%`, backgroundColor: col.cor }} />
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+
             {/* Kanban Board */}
             <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: 'calc(100vh - 220px)' }}>
                 {colunas.map(col => {

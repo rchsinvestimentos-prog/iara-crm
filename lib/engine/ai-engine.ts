@@ -46,7 +46,26 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     const { clinica, mensagem, pushName, tipoEntrada, procedimentos, feedbacks, memoria, agendaContext } = ctx
 
     const nivel = clinica.nivel || 1
-    const idioma = (nivel >= 2 ? clinica.idioma : 'pt-BR') || 'pt-BR'
+
+    // --- Auto-detect idioma da cliente (multilíngue) ---
+    // Se a clínica tem idioma configurado, usa esse.
+    // Se não, detecta automaticamente pelo texto da mensagem.
+    const detectLanguage = (msg: string): string => {
+        const m = msg.toLowerCase()
+        // Inglês
+        if (/\b(hello|hi|hey|how|what|where|when|why|please|thank|appointment|price|schedule)\b/.test(m)) return 'en-US'
+        // Espanhol
+        if (/\b(hola|buenos|cómo|qué|cuánto|quisiera|precio|cita|gracias|necesito)\b/.test(m)) return 'es-ES'
+        // Italiano
+        if (/\b(ciao|buongiorno|quanto|che|come|quando|appuntamento|grazie|vorrei)\b/.test(m)) return 'it-IT'
+        // Francês
+        if (/\b(bonjour|salut|comment|combien|quand|rendez-vous|merci|je voudrais)\b/.test(m)) return 'fr-FR'
+        return 'pt-BR'
+    }
+
+    const idiomaClinica = clinica.idioma || 'pt-BR'
+    // Mantém idioma da clínica se configurado, senão auto-detecta
+    const idioma = idiomaClinica !== 'pt-BR' ? idiomaClinica : detectLanguage(mensagem)
     const labels = getLabels(idioma)
     const cofre = getCofreParaClinica(clinica)
 
