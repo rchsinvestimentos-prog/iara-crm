@@ -193,6 +193,8 @@ export default function ConfiguracoesTool() {
     const [linkMaps, setLinkMaps] = useState('')
     const [linkGoogleReview, setLinkGoogleReview] = useState('')
     const [showReviewHelp, setShowReviewHelp] = useState(false)
+    const [placesResults, setPlacesResults] = useState<any[]>([])
+    const [placesLoading, setPlacesLoading] = useState(false)
     const [cuidadosPos, setCuidadosPos] = useState('')
     const [politicaCancelamento, setPoliticaCancelamento] = useState('')
     const [mensagemBoasVindas, setMensagemBoasVindas] = useState('')
@@ -756,46 +758,81 @@ export default function ConfiguracoesTool() {
                         {linkMaps && <a href={linkMaps} target="_blank" rel="noopener noreferrer" className="text-[9px] mt-1 inline-block hover:underline" style={{ color: '#0F4C61' }}>🔗 Testar link no Maps</a>}
                     </div>
 
-                    {/* Link Google Review — amigável para a Dra */}
+                    {/* Link Google Review — busca automática via Places */}
                     <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.15)' }}>
-                        <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center justify-between mb-2">
                             <label className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                                ⭐ Link de Avaliação Google
+                                ⭐ Avaliação Google
                                 <span className="ml-2 text-[9px] font-normal px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(6,214,160,0.15)', color: '#06D6A0' }}>Automático no NPS</span>
                             </label>
-                            <button onClick={() => setShowReviewHelp(!showReviewHelp)} className="text-[10px] px-2 py-1 rounded-lg transition-all" style={{ color: '#EAB308', border: '1px solid rgba(234,179,8,0.3)', backgroundColor: 'rgba(234,179,8,0.1)' }}>
-                                {showReviewHelp ? '✕ Fechar' : '❓ Como pegar?'}
-                            </button>
                         </div>
 
-                        {showReviewHelp && (
-                            <div className="mb-3 p-3 rounded-lg text-[11px] space-y-1.5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-                                <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>3 passos simples:</p>
-                                <p style={{ color: 'var(--text-secondary)' }}>1️⃣ Clique em <strong>"Buscar minha clínica"</strong> abaixo</p>
-                                <p style={{ color: 'var(--text-secondary)' }}>2️⃣ No Google, clique em <strong>"Avaliar"</strong> ou <strong>"Write a review"</strong></p>
-                                <p style={{ color: 'var(--text-secondary)' }}>3️⃣ Copie o link da barra de endereço e cole no campo abaixo</p>
-                                <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>💡 A sua IARA vai incluir esse link automaticamente nas mensagens de avaliação pós-atendimento!</p>
+                        {!linkGoogleReview ? (
+                            <>
+                                <p className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>
+                                    Clique abaixo para encontrar sua clínica no Google e configurar automaticamente.
+                                </p>
+                                <button
+                                    onClick={async () => {
+                                        if (!nomeClinica.trim()) return
+                                        setPlacesLoading(true)
+                                        setPlacesResults([])
+                                        try {
+                                            const q = [nomeClinica, endereco].filter(Boolean).join(' ')
+                                            const res = await fetch(`/api/google-places?q=${encodeURIComponent(q)}`)
+                                            const data = await res.json()
+                                            if (data.noKey) {
+                                                alert('Configure a variável GOOGLE_PLACES_API_KEY para usar esta funcionalidade.')
+                                            } else {
+                                                setPlacesResults(data.results || [])
+                                                if ((data.results || []).length === 0) alert('Nenhuma clínica encontrada. Tente salvar o nome e endereço primeiro.')
+                                            }
+                                        } catch { alert('Erro ao buscar. Tente novamente.') }
+                                        finally { setPlacesLoading(false) }
+                                    }}
+                                    disabled={placesLoading || !nomeClinica.trim()}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-semibold transition-all hover:scale-[1.01] disabled:opacity-40"
+                                    style={{ backgroundColor: '#EAB308', color: '#000' }}
+                                >
+                                    {placesLoading ? <span className="animate-spin">&#9696;</span> : '🔍'}
+                                    {placesLoading ? 'Buscando...' : 'Buscar minha clínica no Google'}
+                                </button>
+
+                                {/* Resultados */}
+                                {placesResults.length > 0 && (
+                                    <div className="mt-3 space-y-2">
+                                        <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>Qual dessas é a sua clínica?</p>
+                                        {placesResults.map((place, i) => (
+                                            <div key={i} className="flex items-center justify-between gap-3 p-3 rounded-xl transition-all hover:scale-[1.01] cursor-pointer"
+                                                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}
+                                                onClick={() => {
+                                                    setLinkGoogleReview(place.linkReview)
+                                                    setPlacesResults([])
+                                                }}
+                                            >
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[12px] font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{place.nome}</p>
+                                                    <p className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{place.endereco}</p>
+                                                    {place.rating && <p className="text-[10px]" style={{ color: '#EAB308' }}>⭐ {place.rating} ({place.totalRatings || 0} avaliações)</p>}
+                                                </div>
+                                                <button className="px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap flex-shrink-0" style={{ backgroundColor: '#06D6A0', color: '#000' }}>
+                                                    Essa é a minha! ✓
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Não encontrou? Salve o nome e endereço da clínica e tente novamente.</p>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'rgba(6,214,160,0.08)', border: '1px solid rgba(6,214,160,0.2)' }}>
+                                <span className="text-lg">✅</span>
+                                <div className="flex-1">
+                                    <p className="text-[12px] font-semibold" style={{ color: '#06D6A0' }}>Clínica conectada!</p>
+                                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>A IARA vai pedir avaliação automaticamente após cada atendimento.</p>
+                                </div>
+                                <button onClick={() => { setLinkGoogleReview(''); setPlacesResults([]) }} className="text-[10px] px-2 py-1 rounded-lg" style={{ color: 'var(--text-muted)', border: '1px solid var(--border-default)' }}>Trocar</button>
                             </div>
-                        )}
-
-                        <div className="flex gap-2">
-                            <input
-                                className={`${inputClass} flex-1`}
-                                style={inputStyle}
-                                value={linkGoogleReview}
-                                onChange={(e) => setLinkGoogleReview(e.target.value)}
-                                placeholder="Cole aqui o link do Google para avaliar a clínica"
-                            />
-                            <button
-                                onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((nomeClinica || 'minha clínica') + ' avaliações')}`, '_blank')}
-                                className="px-3 py-2 rounded-xl text-[11px] font-medium whitespace-nowrap transition-all hover:scale-105 flex-shrink-0"
-                                style={{ backgroundColor: '#EAB308', color: '#000' }}
-                            >
-                                🔍 Buscar minha clínica
-                            </button>
-                        </div>
-                        {linkGoogleReview && (
-                            <a href={linkGoogleReview} target="_blank" rel="noopener noreferrer" className="text-[9px] mt-1 inline-block hover:underline" style={{ color: '#06D6A0' }}>✅ Testar link de avaliação</a>
                         )}
                     </div>
                 </div>
