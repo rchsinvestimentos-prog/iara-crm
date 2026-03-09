@@ -17,22 +17,27 @@ function LoginContent() {
     const [resetLoading, setResetLoading] = useState(false)
     const searchParams = useSearchParams()
 
-    // Auto-login por token de impersonação (admin suporte)
+    // Auto-login por token (impersonação ou magic link de reset)
     useEffect(() => {
-        const token = searchParams.get('impersonateToken')
+        const impersonateToken = searchParams.get('impersonateToken')
+        const magicToken = searchParams.get('magicToken')
+        const token = impersonateToken || magicToken
         if (!token) return
 
         setLoading(true)
-        // Primeiro faz logout da sessão atual (admin), depois loga como cliente
+        // Primeiro faz logout da sessão atual, depois loga com o token
         signOut({ redirect: false }).then(() => {
             signIn('credentials', {
                 impersonateToken: token,
                 redirect: false,
             }).then((result) => {
                 if (result?.ok) {
-                    window.location.href = '/dashboard'
+                    // Magic link → pede nova senha após login
+                    window.location.href = magicToken
+                        ? '/dashboard?trocarSenha=1'
+                        : '/dashboard'
                 } else {
-                    setError('Token inválido ou expirado')
+                    setError('Link inválido ou expirado. Solicite um novo.')
                     setLoading(false)
                 }
             })

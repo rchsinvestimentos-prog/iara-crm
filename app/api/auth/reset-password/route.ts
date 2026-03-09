@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { Resend } from 'resend'
 
 /**
  * POST /api/auth/reset-password
- * Gera uma nova senha aleatória, salva no banco e envia por email.
+ * Gera um magic link (token único), salva em tokenAtivacao e envia por email.
+ * A cliente clica → auto-login via impersonateToken → pede nova senha.
  * Body: { email: string }
  */
 export async function POST(request: NextRequest) {
@@ -24,24 +25,22 @@ export async function POST(request: NextRequest) {
 
         // Sempre retorna sucesso (segurança — não revela se email existe)
         if (!clinica) {
-            return NextResponse.json({ ok: true, message: 'Se o email estiver cadastrado, você receberá uma nova senha.' })
+            return NextResponse.json({ ok: true, message: 'Se o email estiver cadastrado, você receberá um link de acesso.' })
         }
 
-        // Gera senha aleatória de 8 caracteres
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
-        let novaSenha = ''
-        for (let i = 0; i < 8; i++) {
-            novaSenha += chars.charAt(Math.floor(Math.random() * chars.length))
-        }
+        // Gera token seguro
+        const token = crypto.randomBytes(32).toString('hex')
 
-        // Hash e salva
-        const senhaHash = await bcrypt.hash(novaSenha, 12)
+        // Salva no campo tokenAtivacao (reutiliza fluxo de impersonação — uso único)
         await prisma.clinica.update({
             where: { id: clinica.id },
-            data: { senha: senhaHash },
+            data: { tokenAtivacao: token },
         })
 
-        // Envia email com a nova senha
+        // Monta magic link
+        const magicLink = `https://app.iara.click/login?magicToken=${token}`
+
+        // Envia email com magic link
         if (process.env.RESEND_API_KEY) {
             const resend = new Resend(process.env.RESEND_API_KEY)
             const primeiroNome = (clinica.nomeClinica || 'Dra').split(' ')[0]
@@ -49,7 +48,7 @@ export async function POST(request: NextRequest) {
             await resend.emails.send({
                 from: process.env.RESEND_FROM || 'Iara - Secretária Virtual com IA <noreply@iara.click>',
                 to: clinica.email || email,
-                subject: `${primeiroNome}, sua nova senha IARA 🔑`,
+                subject: `${primeiroNome}, seu link de acesso IARA 🔑`,
                 html: `
 <!DOCTYPE html>
 <html>
@@ -68,27 +67,22 @@ export async function POST(request: NextRequest) {
             <td style="background:linear-gradient(135deg,rgba(217,151,115,0.08),rgba(15,76,97,0.08));border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:32px;">
                 <h1 style="color:#FFFFFF;font-size:22px;margin:0 0 8px 0;">Olá, ${primeiroNome}! 🔑</h1>
                 <p style="color:#9CA3AF;font-size:14px;line-height:1.6;margin:0 0 24px 0;">
-                    Recebemos seu pedido de recuperação de senha. Aqui está sua nova senha:
+                    Recebemos seu pedido de recuperação de senha. Clique no botão abaixo para acessar seu painel e cadastrar uma nova senha:
                 </p>
 
-                <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:20px;margin-bottom:24px;text-align:center;">
-                    <p style="color:#6B7280;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;">Sua nova senha</p>
-                    <p style="color:#D99773;font-size:28px;font-weight:bold;font-family:monospace;letter-spacing:4px;margin:0;">${novaSenha}</p>
-                </div>
-
-                <a href="https://app.iara.click/login" style="display:block;text-align:center;background:linear-gradient(135deg,#D99773,#C07A55);color:#FFFFFF;font-weight:600;font-size:14px;padding:14px;border-radius:12px;text-decoration:none;">
+                <a href="${magicLink}" style="display:block;text-align:center;background:linear-gradient(135deg,#D99773,#C07A55);color:#FFFFFF;font-weight:600;font-size:14px;padding:14px;border-radius:12px;text-decoration:none;">
                     Acessar meu painel →
                 </a>
 
                 <p style="color:#6B7280;font-size:11px;margin-top:20px;text-align:center;">
-                    Recomendamos trocar a senha após o primeiro acesso.
+                    Este link é válido para um único acesso. Após clicar, você será solicitada a criar uma nova senha.
                 </p>
             </td>
         </tr>
         <tr>
             <td align="center" style="padding-top:24px;">
                 <p style="color:#374151;font-size:10px;margin:0;">
-                    Se você não solicitou essa alteração, entre em contato com o suporte.
+                    Se você não solicitou essa alteração, ignore este email.
                 </p>
             </td>
         </tr>
@@ -98,10 +92,10 @@ export async function POST(request: NextRequest) {
                 `,
             })
 
-            console.log(`[Reset] ✅ Nova senha enviada para ${clinica.email}`)
+            console.log(`[Reset] ✅ Magic link enviado para ${clinica.email}`)
         }
 
-        return NextResponse.json({ ok: true, message: 'Se o email estiver cadastrado, você receberá uma nova senha.' })
+        return NextResponse.json({ ok: true, message: 'Se o email estiver cadastrado, você receberá um link de acesso.' })
     } catch (err: any) {
         console.error('[Reset] ❌ Erro:', err)
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })

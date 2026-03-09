@@ -3,7 +3,8 @@
 import Sidebar from '@/components/Sidebar'
 import { IdiomaProvider } from '@/components/IdiomaProvider'
 import TermosModal from '@/components/TermosModal'
-import { useState, useEffect } from 'react'
+import TrocarSenhaModal from '@/components/TrocarSenhaModal'
+import { useState, useEffect, Suspense } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 
@@ -63,6 +64,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     onAccept={() => setShowTermos(false)}
                 />
             )}
+
+            {/* Modal de troca de senha (magic link reset) */}
+            <Suspense fallback={null}>
+                <TrocarSenhaModal />
+            </Suspense>
         </IdiomaProvider>
     )
 }
