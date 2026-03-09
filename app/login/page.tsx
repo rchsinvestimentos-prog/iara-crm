@@ -89,7 +89,7 @@ function LoginContent() {
                     <h1 className="text-3xl font-bold text-white tracking-tight mb-2">
                         Bem-vinda à <span className="title-serif">IARA</span>
                     </h1>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-400">
                         Acesse o painel da sua clínica
                     </p>
                 </div>
@@ -131,6 +131,11 @@ function LoginContent() {
                                 >
                                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
+                            </div>
+                            <div className="text-right mt-1">
+                                <a href="https://wa.me/5511999999999?text=Esqueci%20minha%20senha%20do%20painel%20IARA" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:text-[#D99773] transition-colors">
+                                    Esqueci minha senha
+                                </a>
                             </div>
                         </div>
 
