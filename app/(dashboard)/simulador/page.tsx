@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Loader2, ArrowLeft, Bot, User, Trash2 } from 'lucide-react'
+import { Send, Loader2, ArrowLeft, Bot, User, Trash2, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 
 interface Msg {
@@ -82,6 +82,12 @@ export default function SimuladorPage() {
                 </div>
             </div>
 
+            {/* Banner modo teste */}
+            <div className="flex-none mb-3 flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-medium animate-fade-in"
+                style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', color: '#F59E0B' }}>
+                <AlertTriangle size={14} />
+                🧪 Modo Teste — Nada é enviado para clientes reais. Use para testar como sua IARA responde.
+            </div>
             {/* Chat area */}
             <div
                 ref={containerRef}

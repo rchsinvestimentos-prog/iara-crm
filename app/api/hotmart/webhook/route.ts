@@ -9,24 +9,28 @@ const HOTMART_HOTTOK = process.env.HOTMART_HOTTOK || ''
 // Mapeamento de produto Hotmart → plano IARA (4 planos)
 // Os nomes devem bater com os produtos/planos configurados na Hotmart
 const PLANOS_HOTMART: Record<string, { nivel: number; plano: string; creditos: number; whatsapps: number }> = {
-    'secretaria': { nivel: 1, plano: 'secretaria', creditos: 500, whatsapps: 1 },
-    'estrategista': { nivel: 2, plano: 'estrategista', creditos: 2000, whatsapps: 1 },
+    'secretaria': { nivel: 1, plano: 'secretaria', creditos: 1000, whatsapps: 1 },
+    'estrategista': { nivel: 2, plano: 'estrategista', creditos: 5000, whatsapps: 1 },
     'designer': { nivel: 3, plano: 'designer', creditos: 5000, whatsapps: 2 },
     'audiovisual': { nivel: 4, plano: 'audiovisual', creditos: 10000, whatsapps: 3 },
     // Aliases antigos (pra não quebrar quem já comprou)
-    'essencial': { nivel: 1, plano: 'secretaria', creditos: 500, whatsapps: 1 },
-    'premium': { nivel: 2, plano: 'estrategista', creditos: 2000, whatsapps: 1 },
+    'essencial': { nivel: 1, plano: 'secretaria', creditos: 1000, whatsapps: 1 },
+    'premium': { nivel: 2, plano: 'estrategista', creditos: 5000, whatsapps: 1 },
     'master': { nivel: 3, plano: 'designer', creditos: 5000, whatsapps: 2 },
     'black': { nivel: 4, plano: 'audiovisual', creditos: 10000, whatsapps: 3 },
 }
 
 function gerarSenhaTemporaria(): string {
-    // Gera senha legível: 3 letras + 4 números
-    const letras = 'abcdefghijkmnpqrstuvwxyz'
+    // Gera senha forte: 3 letras + 2 MAIÚSCULAS + 4 números + 1 especial
+    const lower = 'abcdefghijkmnpqrstuvwxyz'
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
     const nums = '23456789'
+    const special = '!@#&'
     let senha = ''
-    for (let i = 0; i < 3; i++) senha += letras[Math.floor(Math.random() * letras.length)]
+    for (let i = 0; i < 3; i++) senha += lower[Math.floor(Math.random() * lower.length)]
+    for (let i = 0; i < 2; i++) senha += upper[Math.floor(Math.random() * upper.length)]
     for (let i = 0; i < 4; i++) senha += nums[Math.floor(Math.random() * nums.length)]
+    senha += special[Math.floor(Math.random() * special.length)]
     return senha
 }
 
@@ -51,10 +55,14 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
 
-        // Validar hottok
+        // Validar hottok — SEMPRE (segurança)
         const hottok = request.headers.get('X-HOTMART-HOTTOK') || body?.hottok
-        if (HOTMART_HOTTOK && hottok !== HOTMART_HOTTOK) {
-            console.warn('[Hotmart Webhook] Hottok inválido')
+        if (!HOTMART_HOTTOK) {
+            console.error('[Hotmart Webhook] ❌ HOTMART_HOTTOK não configurado no env!')
+            return NextResponse.json({ error: 'Configuração inválida' }, { status: 500 })
+        }
+        if (hottok !== HOTMART_HOTTOK) {
+            console.warn('[Hotmart Webhook] ❌ Hottok inválido')
             return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
         }
 

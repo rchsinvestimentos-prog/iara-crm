@@ -86,5 +86,13 @@ export const config = {
         '/feedback/:path*',
         '/financeiro/:path*',
         '/logs/:path*',
+        // Rotas que estavam desprotegidas (fix auditoria)
+        '/crm/:path*',
+        '/campanhas/:path*',
+        '/simulador/:path*',
+        '/midia/:path*',
+        '/instancias/:path*',
+        '/melhorar-iara/:path*',
+        '/instagram/:path*',
     ],
 }
