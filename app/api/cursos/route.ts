@@ -14,6 +14,7 @@ const CreateCursoSchema = z.object({
     desconto: z.number().min(0).max(100).optional().default(0),
     parcelas: z.string().max(50).optional().nullable(),
     descricao: z.string().max(5000).optional().nullable(),
+    link: z.string().max(500).optional().nullable(),
 })
 
 const UpdateCursoSchema = CreateCursoSchema.extend({

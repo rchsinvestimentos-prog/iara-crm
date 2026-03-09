@@ -13,6 +13,7 @@ interface Procedimento {
     desconto: number
     parcelas: string | null
     duracao: string | null
+    descricao: string | null
 }
 
 interface Curso {
@@ -25,6 +26,7 @@ interface Curso {
     desconto: number
     parcelas: string | null
     descricao: string | null
+    link: string | null
 }
 
 interface PromocaoProcedimento {
@@ -127,6 +129,10 @@ export default function ConfiguracoesTool() {
     const [whatsappClinica, setWhatsappClinica] = useState('')
     const [whatsappPessoal, setWhatsappPessoal] = useState('')
     const [diferenciais, setDiferenciais] = useState('')
+    const [diferencialItems, setDiferencialItems] = useState<string[]>([])
+    const [novoDiferencial, setNovoDiferencial] = useState('')
+    const [editandoDifIdx, setEditandoDifIdx] = useState<number | null>(null)
+    const [editandoDifTexto, setEditandoDifTexto] = useState('')
 
     // ---- Perfil da Profissional ----
     const [nomeDoutora, setNomeDoutora] = useState('')
@@ -158,7 +164,7 @@ export default function ConfiguracoesTool() {
     const [procedimentos, setProcedimentos] = useState<Procedimento[]>([])
     const [editandoProc, setEditandoProc] = useState<string | null>(null)
     const [novoProc, setNovoProc] = useState(false)
-    const [formProc, setFormProc] = useState<Procedimento>({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '' })
+    const [formProc, setFormProc] = useState<Procedimento>({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '' })
     const [savingProc, setSavingProc] = useState(false)
 
     // ---- Cursos ----
@@ -166,7 +172,7 @@ export default function ConfiguracoesTool() {
     const [cursos, setCursos] = useState<Curso[]>([])
     const [editandoCurso, setEditandoCurso] = useState<string | null>(null)
     const [novoCurso, setNovoCurso] = useState(false)
-    const [formCurso, setFormCurso] = useState<Curso>({ id: '', nome: '', modalidade: 'presencial', valor: 0, duracao: '', vagas: null, desconto: 0, parcelas: '', descricao: '' })
+    const [formCurso, setFormCurso] = useState<Curso>({ id: '', nome: '', modalidade: 'presencial', valor: 0, duracao: '', vagas: null, desconto: 0, parcelas: '', descricao: '', link: '' })
     const [savingCurso, setSavingCurso] = useState(false)
 
     // ---- Promoções ----
@@ -226,6 +232,7 @@ export default function ConfiguracoesTool() {
                 setWhatsappClinica(data.whatsappClinica || '')
                 setWhatsappPessoal(data.whatsappDoutora || '')
                 setDiferenciais(data.diferenciais || '')
+                setDiferencialItems((data.diferenciais || '').split('\n').map((s: string) => s.trim()).filter(Boolean))
                 setNomeDoutora(data.nomeDoutora || '')
                 setTratamentoDoutora(data.tratamentoDoutora || 'Pelo nome')
                 setEndereco(data.endereco || '')
@@ -321,7 +328,7 @@ export default function ConfiguracoesTool() {
                     whatsappDoutora: whatsappPessoal || null,
                     nomeDoutora: nomeDoutora || null,
                     tratamentoDoutora: tratamentoDoutora || 'Pelo nome',
-                    diferenciais: diferenciais || null,
+                    diferenciais: diferencialItems.length > 0 ? diferencialItems.join('\n') : null,
                     endereco: endereco || null,
                     horarioSemana: horarioSemana || null,
                     almocoSemana: almocoSemana || null,
@@ -365,8 +372,8 @@ export default function ConfiguracoesTool() {
         try {
             const method = editandoProc ? 'PUT' : 'POST'
             const body = editandoProc
-                ? { id: editandoProc, nome: formProc.nome, valor: formProc.valor, desconto: formProc.desconto, parcelas: formProc.parcelas || null, duracao: formProc.duracao || null }
-                : { nome: formProc.nome, valor: formProc.valor, desconto: formProc.desconto, parcelas: formProc.parcelas || null, duracao: formProc.duracao || null }
+                ? { id: editandoProc, nome: formProc.nome, valor: formProc.valor, desconto: formProc.desconto, parcelas: formProc.parcelas || null, duracao: formProc.duracao || null, descricao: formProc.descricao || null }
+                : { nome: formProc.nome, valor: formProc.valor, desconto: formProc.desconto, parcelas: formProc.parcelas || null, duracao: formProc.duracao || null, descricao: formProc.descricao || null }
 
             const res = await fetch('/api/procedimentos', {
                 method,
@@ -379,7 +386,7 @@ export default function ConfiguracoesTool() {
                 if (procRes.ok) setProcedimentos(await procRes.json())
                 setEditandoProc(null)
                 setNovoProc(false)
-                setFormProc({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '' })
+                setFormProc({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '' })
             }
         } catch (err) {
             console.error('Erro ao salvar procedimento:', err)
@@ -399,7 +406,7 @@ export default function ConfiguracoesTool() {
 
     const editarProc = (p: Procedimento) => {
         setEditandoProc(p.id)
-        setFormProc({ ...p, parcelas: p.parcelas || '', duracao: p.duracao || '' })
+        setFormProc({ ...p, parcelas: p.parcelas || '', duracao: p.duracao || '', descricao: p.descricao || '' })
         setNovoProc(true)
     }
 
@@ -411,8 +418,8 @@ export default function ConfiguracoesTool() {
         try {
             const method = editandoCurso ? 'PUT' : 'POST'
             const body = editandoCurso
-                ? { id: editandoCurso, nome: formCurso.nome, modalidade: formCurso.modalidade, valor: formCurso.valor, duracao: formCurso.duracao || null, vagas: formCurso.vagas, desconto: formCurso.desconto, parcelas: formCurso.parcelas || null, descricao: formCurso.descricao || null }
-                : { nome: formCurso.nome, modalidade: formCurso.modalidade, valor: formCurso.valor, duracao: formCurso.duracao || null, vagas: formCurso.vagas, desconto: formCurso.desconto, parcelas: formCurso.parcelas || null, descricao: formCurso.descricao || null }
+                ? { id: editandoCurso, nome: formCurso.nome, modalidade: formCurso.modalidade, valor: formCurso.valor, duracao: formCurso.duracao || null, vagas: formCurso.vagas, desconto: formCurso.desconto, parcelas: formCurso.parcelas || null, descricao: formCurso.descricao || null, link: formCurso.link || null }
+                : { nome: formCurso.nome, modalidade: formCurso.modalidade, valor: formCurso.valor, duracao: formCurso.duracao || null, vagas: formCurso.vagas, desconto: formCurso.desconto, parcelas: formCurso.parcelas || null, descricao: formCurso.descricao || null, link: formCurso.link || null }
 
             const res = await fetch('/api/cursos', {
                 method,
@@ -425,7 +432,7 @@ export default function ConfiguracoesTool() {
                 if (cursoRes.ok) setCursos(await cursoRes.json())
                 setEditandoCurso(null)
                 setNovoCurso(false)
-                setFormCurso({ id: '', nome: '', modalidade: 'presencial', valor: 0, duracao: '', vagas: null, desconto: 0, parcelas: '', descricao: '' })
+                setFormCurso({ id: '', nome: '', modalidade: 'presencial', valor: 0, duracao: '', vagas: null, desconto: 0, parcelas: '', descricao: '', link: '' })
             }
         } catch (err) {
             console.error('Erro ao salvar curso:', err)
@@ -445,7 +452,7 @@ export default function ConfiguracoesTool() {
 
     const editarCurso = (c: Curso) => {
         setEditandoCurso(c.id)
-        setFormCurso({ ...c, duracao: c.duracao || '', parcelas: c.parcelas || '', descricao: c.descricao || '' })
+        setFormCurso({ ...c, duracao: c.duracao || '', parcelas: c.parcelas || '', descricao: c.descricao || '', link: c.link || '' })
         setNovoCurso(true)
     }
 
@@ -767,104 +774,78 @@ export default function ConfiguracoesTool() {
                     <Award size={15} className="text-[#D99773]" />
                     Diferenciais da Clínica
                 </h3>
-                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>A IARA usa esses diferenciais para convencer as clientes a agendarem</p>
-                <textarea
-                    className="w-full px-3 py-2 text-[13px] rounded-xl focus:outline-none transition-colors resize-none h-24"
-                    style={inputStyle}
-                    value={diferenciais}
-                    onChange={(e) => setDiferenciais(e.target.value)}
-                    placeholder="Ex: 10 anos de experiência, especialização internacional, uso de tecnologia exclusiva, prêmios, atendimento humanizado..."
-                />
-            </div>
+                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>A IARA usa esses diferenciais para convencer as clientes a agendarem. Ex: &ldquo;10 anos de experiência&rdquo;, &ldquo;Especialização internacional&rdquo;, &ldquo;Atendimento humanizado&rdquo;.</p>
 
-            {/* ============ 3. SUA SECRETÁRIA (Instruções para a IA) ============ */}
-            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
-                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
-                    <Bot size={15} className="text-[#D99773]" />
-                    Sua Secretária
-                </h3>
-                <p className="text-[10px] mb-4" style={{ color: 'var(--text-muted)' }}>Configure orientações e regras que a IARA deve seguir em todas as conversas com suas clientes.</p>
-
-                <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)' }}>
-                    <div className="flex items-center gap-2 mb-1">
-                        <MessageSquareText size={13} className="text-[#D99773]" />
-                        <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Instruções e Orientações</p>
+                {/* Lista de diferenciais */}
+                {diferencialItems.map((item, idx) => (
+                    <div key={idx} className="flex items-start gap-2 mb-2">
+                        {editandoDifIdx === idx ? (
+                            <>
+                                <input
+                                    className="flex-1 px-2 py-1.5 text-[11px] rounded-lg focus:outline-none"
+                                    style={inputStyle}
+                                    value={editandoDifTexto}
+                                    onChange={e => setEditandoDifTexto(e.target.value)}
+                                    autoFocus
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && editandoDifTexto.trim()) {
+                                            const items = [...diferencialItems]; items[idx] = editandoDifTexto.trim(); setDiferencialItems(items); setEditandoDifIdx(null)
+                                        }
+                                        if (e.key === 'Escape') setEditandoDifIdx(null)
+                                    }}
+                                />
+                                <button onClick={() => { const items = [...diferencialItems]; items[idx] = editandoDifTexto.trim(); setDiferencialItems(items); setEditandoDifIdx(null); }} className="text-[10px] px-2 py-1 rounded-lg" style={{ backgroundColor: '#D99773', color: '#fff' }}>✓</button>
+                                <button onClick={() => setEditandoDifIdx(null)} className="text-[10px] px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-muted)' }}>✕</button>
+                            </>
+                        ) : (
+                            <>
+                                <div className="flex-1 px-2 py-1.5 text-[11px] rounded-lg" style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}>
+                                    {item}
+                                </div>
+                                <button onClick={() => { setEditandoDifIdx(idx); setEditandoDifTexto(item); }} className="p-1.5 rounded-lg hover:opacity-70 transition-opacity" style={{ color: 'var(--text-muted)' }} title="Editar">
+                                    <Edit3 size={11} />
+                                </button>
+                                <button onClick={() => setDiferencialItems(diferencialItems.filter((_, i) => i !== idx))} className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-red-400" title="Excluir">
+                                    <Trash2 size={11} />
+                                </button>
+                            </>
+                        )}
                     </div>
-                    <p className="text-[9px] mb-3" style={{ color: 'var(--text-muted)' }}>Aqui você diz para a IARA o que ela DEVE ou NÃO DEVE fazer. Exemplos: &ldquo;Não ofereça desconto no botox&rdquo;, &ldquo;Sempre pergunte se já fez o procedimento antes&rdquo;, &ldquo;Não mande áudio no 1º contato&rdquo;.</p>
+                ))}
 
-                    {/* Lista de instruções existentes */}
-                    {feedbackItems.map((item, idx) => (
-                        <div key={idx} className="flex items-start gap-2 mb-2">
-                            {editandoFeedbackIdx === idx ? (
-                                <>
-                                    <input
-                                        className="flex-1 px-2 py-1.5 text-[11px] rounded-lg focus:outline-none"
-                                        style={inputStyle}
-                                        value={editandoFeedbackTexto}
-                                        onChange={e => setEditandoFeedbackTexto(e.target.value)}
-                                        autoFocus
-                                        onKeyDown={e => {
-                                            if (e.key === 'Enter') {
-                                                const items = [...feedbackItems]
-                                                items[idx] = editandoFeedbackTexto.trim()
-                                                setFeedbackItems(items)
-                                                setEditandoFeedbackIdx(null)
-                                            }
-                                            if (e.key === 'Escape') setEditandoFeedbackIdx(null)
-                                        }}
-                                    />
-                                    <button onClick={() => { const items = [...feedbackItems]; items[idx] = editandoFeedbackTexto.trim(); setFeedbackItems(items); setEditandoFeedbackIdx(null); }} className="text-[10px] px-2 py-1 rounded-lg" style={{ backgroundColor: '#D99773', color: '#fff' }}>✓</button>
-                                    <button onClick={() => setEditandoFeedbackIdx(null)} className="text-[10px] px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-muted)' }}>✕</button>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="flex-1 px-2 py-1.5 text-[11px] rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}>
-                                        {item}
-                                    </div>
-                                    <button onClick={() => { setEditandoFeedbackIdx(idx); setEditandoFeedbackTexto(item); }} className="p-1.5 rounded-lg hover:opacity-70 transition-opacity" style={{ color: 'var(--text-muted)' }} title="Editar">
-                                        <Edit3 size={11} />
-                                    </button>
-                                    <button onClick={() => setFeedbackItems(feedbackItems.filter((_, i) => i !== idx))} className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-red-400" title="Excluir">
-                                        <Trash2 size={11} />
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    ))}
-
-                    {/* Adicionar nova instrução */}
-                    <div className="flex gap-2 mt-2">
-                        <input
-                            className="flex-1 px-2 py-1.5 text-[11px] rounded-lg focus:outline-none"
-                            style={innerInputStyle}
-                            value={novoFeedback}
-                            onChange={e => setNovoFeedback(e.target.value)}
-                            placeholder="Ex: Não mande áudio no 1º contato..."
-                            onKeyDown={e => {
-                                if (e.key === 'Enter' && novoFeedback.trim()) {
-                                    setFeedbackItems([...feedbackItems, novoFeedback.trim()])
-                                    setNovoFeedback('')
-                                }
-                            }}
-                        />
-                        <button
-                            onClick={() => { if (novoFeedback.trim()) { setFeedbackItems([...feedbackItems, novoFeedback.trim()]); setNovoFeedback('') } }}
-                            className="text-[10px] px-3 py-1 rounded-lg flex items-center gap-1 disabled:opacity-40"
-                            style={{ backgroundColor: '#D99773', color: '#fff' }}
-                            disabled={!novoFeedback.trim()}
-                        >
-                            <Plus size={11} /> Adicionar
-                        </button>
-                    </div>
+                {/* Adicionar novo diferencial */}
+                <div className="flex gap-2 mt-2">
+                    <input
+                        className="flex-1 px-2 py-1.5 text-[11px] rounded-lg focus:outline-none"
+                        style={innerInputStyle}
+                        value={novoDiferencial}
+                        onChange={e => setNovoDiferencial(e.target.value)}
+                        placeholder="Ex: 10 anos de experiência em harmonização..."
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && novoDiferencial.trim()) {
+                                setDiferencialItems([...diferencialItems, novoDiferencial.trim()])
+                                setNovoDiferencial('')
+                            }
+                        }}
+                    />
+                    <button
+                        onClick={() => { if (novoDiferencial.trim()) { setDiferencialItems([...diferencialItems, novoDiferencial.trim()]); setNovoDiferencial('') } }}
+                        className="text-[10px] px-3 py-1 rounded-lg flex items-center gap-1 disabled:opacity-40"
+                        style={{ backgroundColor: '#D99773', color: '#fff' }}
+                        disabled={!novoDiferencial.trim()}
+                    >
+                        <Plus size={11} /> Adicionar
+                    </button>
                 </div>
             </div>
 
-            {/* ============ 4. PROCEDIMENTOS ============ */}
+
+            {/* ============ 3. PROCEDIMENTOS ============ */}
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>💉 Procedimentos ({procedimentos.length})</h3>
                     <button
-                        onClick={() => { setNovoProc(true); setEditandoProc(null); setFormProc({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '' }) }}
+                        onClick={() => { setNovoProc(true); setEditandoProc(null); setFormProc({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '' }) }}
                         className="text-[11px] font-medium px-3 py-1.5 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1.5"
                     >
                         <Plus size={12} /> Adicionar
@@ -903,6 +884,16 @@ export default function ConfiguracoesTool() {
                                     <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={formProc.parcelas || ''} onChange={(e) => setFormProc({ ...formProc, parcelas: e.target.value })} placeholder="3x sem juros" />
                                 </div>
                             </div>
+                            <div className="col-span-2">
+                                <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>📋 Mais Informações <span className="text-[9px]" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>(opcional — ajuda a IARA falar com mais propriedade)</span></label>
+                                <textarea
+                                    className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none transition-colors resize-none h-16"
+                                    style={innerInputStyle}
+                                    value={formProc.descricao || ''}
+                                    onChange={(e) => setFormProc({ ...formProc, descricao: e.target.value })}
+                                    placeholder="Ex: Técnica fio a fio com pigmentos importados. Resultado natural que dura até 18 meses. Ideal para quem tem falhas ou quer redesenhar..."
+                                />
+                            </div>
                             <div className="flex gap-2">
                                 <button onClick={salvarProc} disabled={savingProc} className="text-[11px] font-medium px-4 py-2 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1.5 disabled:opacity-50">
                                     {savingProc ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Salvar
@@ -931,6 +922,7 @@ export default function ConfiguracoesTool() {
                                         {p.desconto > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-600">-{p.desconto}%</span>}
                                         {p.parcelas && <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>💳 {p.parcelas}</span>}
                                     </div>
+                                    {p.descricao && <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>📋 {p.descricao}</p>}
                                 </div>
                                 <button onClick={() => editarProc(p)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}>
                                     <Edit3 size={13} />
@@ -966,7 +958,7 @@ export default function ConfiguracoesTool() {
 
                             {!novoCurso && (
                                 <button
-                                    onClick={() => { setNovoCurso(true); setEditandoCurso(null); setFormCurso({ id: '', nome: '', modalidade: 'presencial', valor: 0, duracao: '', vagas: null, desconto: 0, parcelas: '', descricao: '' }) }}
+                                    onClick={() => { setNovoCurso(true); setEditandoCurso(null); setFormCurso({ id: '', nome: '', modalidade: 'presencial', valor: 0, duracao: '', vagas: null, desconto: 0, parcelas: '', descricao: '', link: '' }) }}
                                     className="text-[11px] font-medium px-3 py-1.5 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1.5 mb-4"
                                 >
                                     <Plus size={12} /> Adicionar Curso
@@ -1042,6 +1034,10 @@ export default function ConfiguracoesTool() {
                                                 onChange={(e) => setFormCurso({ ...formCurso, descricao: e.target.value })}
                                                 placeholder="Ex: Curso intensivo de 3 dias com prática em modelo real. Inclui kit completo de pigmentos, certificado internacional, e acesso ao grupo VIP de suporte por 6 meses. Aprenda as técnicas de shadow, fio a fio e aquarela..."
                                             />
+                                        </div>
+                                        <div>
+                                            <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>🔗 Página de Vendas <span className="text-[9px]" style={{ opacity: 0.7 }}>(opcional)</span></label>
+                                            <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={formCurso.link || ''} onChange={(e) => setFormCurso({ ...formCurso, link: e.target.value })} placeholder="https://seusite.com/curso-micropigmentacao" />
                                         </div>
                                     </div>
                                     <div className="flex gap-2">

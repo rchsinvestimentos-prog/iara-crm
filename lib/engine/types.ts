@@ -125,6 +125,7 @@ export interface Procedimento {
     desconto: number
     parcelas: string | null
     duracao: string | null
+    descricao: string | null
 }
 
 /** Feedback da Dra */

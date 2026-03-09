@@ -96,6 +96,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
             if (proc.valor) catalogoTexto += ` — ${moeda} ${proc.valor}`
             if (proc.duracao) catalogoTexto += ` (${proc.duracao})`
             catalogoTexto += '\n'
+            if (proc.descricao) catalogoTexto += `  ℹ️ ${proc.descricao}\n`
         })
     } else {
         catalogoTexto += `${labels.semCatalogo}\n`

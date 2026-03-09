@@ -11,6 +11,7 @@ const CreateProcSchema = z.object({
     desconto: z.number().min(0).max(100).optional().default(0),
     parcelas: z.string().max(50).optional().nullable(),
     duracao: z.string().max(20).optional().nullable(),
+    descricao: z.string().max(2000).optional().nullable(),
 })
 
 const UpdateProcSchema = CreateProcSchema.extend({
