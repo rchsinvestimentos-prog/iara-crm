@@ -96,7 +96,7 @@ function LoginContent() {
                         <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-400 border-2 border-[#0B0F19] shadow-[0_0_10px_rgba(74,222,128,0.5)]" />
                     </div>
                     <h1 className="text-3xl font-bold text-white tracking-tight mb-2">
-                        Bem-vinda à <span className="title-serif">IARA</span>
+                        Bem-vinda à <span className="font-serif font-bold" style={{ background: 'linear-gradient(135deg, #D99773, #E8B89A)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>IARA</span>
                     </h1>
                     <p className="text-sm text-gray-400">
                         Acesse o painel da sua clínica
