@@ -95,5 +95,6 @@ export const config = {
         '/melhorar-iara/:path*',
         '/instagram/:path*',
         '/indicacoes/:path*',
+        '/historico-creditos/:path*',
     ],
 }

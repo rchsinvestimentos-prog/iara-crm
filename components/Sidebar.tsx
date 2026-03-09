@@ -19,6 +19,7 @@ import {
   Bot,
   Shield,
   Gift,
+  History,
   Settings,
   CreditCard,
   LogOut,
@@ -402,6 +403,10 @@ export default function Sidebar() {
           <Link href="/indicacoes" className={linkClass('/indicacoes')}>
             <Gift size={17} strokeWidth={1.8} />
             <span>Indicações</span>
+          </Link>
+          <Link href="/historico-creditos" className={linkClass('/historico-creditos')}>
+            <History size={17} strokeWidth={1.8} />
+            <span>Créditos Usados</span>
           </Link>
           <Link href="/melhorar-iara" className={linkClass('/melhorar-iara')}>
             <Sparkles size={17} strokeWidth={1.8} />
