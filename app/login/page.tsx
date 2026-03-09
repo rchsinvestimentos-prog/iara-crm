@@ -11,6 +11,10 @@ function LoginContent() {
     const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
     const [error, setError] = useState('')
+    const [resetMode, setResetMode] = useState(false)
+    const [resetEmail, setResetEmail] = useState('')
+    const [resetSent, setResetSent] = useState(false)
+    const [resetLoading, setResetLoading] = useState(false)
     const searchParams = useSearchParams()
 
     // Auto-login por token de impersonação (admin suporte)
@@ -133,9 +137,13 @@ function LoginContent() {
                                 </button>
                             </div>
                             <div className="text-right mt-1">
-                                <a href="https://wa.me/5511999999999?text=Esqueci%20minha%20senha%20do%20painel%20IARA" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:text-[#D99773] transition-colors">
+                                <button
+                                    type="button"
+                                    onClick={() => { setResetMode(true); setResetEmail(email); setResetSent(false) }}
+                                    className="text-xs text-gray-500 hover:text-[#D99773] transition-colors"
+                                >
                                     Esqueci minha senha
-                                </a>
+                                </button>
                             </div>
                         </div>
 
@@ -162,6 +170,70 @@ function LoginContent() {
                         </button>
                     </form>
                 </div>
+
+                {/* Reset Password Modal */}
+                {resetMode && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setResetMode(false)}>
+                        <div className="w-full max-w-sm bg-[#111827] border border-white/[0.06] rounded-2xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                            {resetSent ? (
+                                <div className="text-center">
+                                    <p className="text-3xl mb-3">📧</p>
+                                    <h3 className="text-lg font-bold text-white mb-2">Email enviado!</h3>
+                                    <p className="text-sm text-gray-400 mb-4">
+                                        Se o email estiver cadastrado, você receberá uma nova senha em instantes.
+                                    </p>
+                                    <button
+                                        onClick={() => { setResetMode(false); setResetSent(false) }}
+                                        className="w-full py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-[#D99773] to-[#C07A55] text-white"
+                                    >
+                                        Voltar ao login
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <h3 className="text-lg font-bold text-white mb-1">Esqueceu a senha? 🔑</h3>
+                                    <p className="text-sm text-gray-400 mb-4">
+                                        Digite seu email e enviaremos uma nova senha.
+                                    </p>
+                                    <input
+                                        type="email"
+                                        value={resetEmail}
+                                        onChange={e => setResetEmail(e.target.value)}
+                                        placeholder="seu@email.com"
+                                        className="input-field mb-4"
+                                    />
+                                    <button
+                                        onClick={async () => {
+                                            if (!resetEmail.trim()) return
+                                            setResetLoading(true)
+                                            try {
+                                                await fetch('/api/auth/reset-password', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ email: resetEmail }),
+                                                })
+                                                setResetSent(true)
+                                            } catch { /* */ }
+                                            finally { setResetLoading(false) }
+                                        }}
+                                        disabled={resetLoading || !resetEmail.trim()}
+                                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-[#D99773] to-[#C07A55] text-white disabled:opacity-50"
+                                    >
+                                        {resetLoading ? (
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        ) : 'Enviar nova senha'}
+                                    </button>
+                                    <button
+                                        onClick={() => setResetMode(false)}
+                                        className="w-full mt-2 py-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                                    >
+                                        Voltar ao login
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* Footer */}
                 <p className="text-center text-xs text-gray-600 mt-6">
