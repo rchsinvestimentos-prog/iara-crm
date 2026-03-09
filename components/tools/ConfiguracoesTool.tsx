@@ -191,6 +191,8 @@ export default function ConfiguracoesTool() {
     const [enderecoComplemento, setEnderecoComplemento] = useState('')
     const [endereco, setEndereco] = useState('')
     const [linkMaps, setLinkMaps] = useState('')
+    const [linkGoogleReview, setLinkGoogleReview] = useState('')
+    const [showReviewHelp, setShowReviewHelp] = useState(false)
     const [cuidadosPos, setCuidadosPos] = useState('')
     const [politicaCancelamento, setPoliticaCancelamento] = useState('')
     const [mensagemBoasVindas, setMensagemBoasVindas] = useState('')
@@ -262,6 +264,7 @@ export default function ConfiguracoesTool() {
                 setDaCursos(data.daCursos || false)
                 // VIP
                 setLinkMaps(data.linkMaps || '')
+                setLinkGoogleReview(data.linkGoogleReview || '')
                 setCuidadosPos(data.cuidadosPos || '')
                 setPoliticaCancelamento(data.politicaCancelamento || '')
                 setMensagemBoasVindas(data.mensagemBoasVindas || '')
@@ -331,6 +334,7 @@ export default function ConfiguracoesTool() {
                     antecedenciaMinima: antecedenciaMinima || null,
                     daCursos,
                     linkMaps: linkMaps || null,
+                    linkGoogleReview: linkGoogleReview || null,
                     cuidadosPos: cuidadosPos || null,
                     politicaCancelamento: politicaCancelamento || null,
                     mensagemBoasVindas: mensagemBoasVindas || null,
@@ -750,6 +754,49 @@ export default function ConfiguracoesTool() {
                         <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Link do Google Maps <span className="text-[9px] font-normal">(gerado automaticamente)</span></label>
                         <input className={inputClass} style={inputStyle} value={linkMaps} onChange={(e) => setLinkMaps(e.target.value)} placeholder="https://maps.google.com/..." />
                         {linkMaps && <a href={linkMaps} target="_blank" rel="noopener noreferrer" className="text-[9px] mt-1 inline-block hover:underline" style={{ color: '#0F4C61' }}>🔗 Testar link no Maps</a>}
+                    </div>
+
+                    {/* Link Google Review — amigável para a Dra */}
+                    <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.15)' }}>
+                        <div className="flex items-center justify-between mb-1">
+                            <label className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                ⭐ Link de Avaliação Google
+                                <span className="ml-2 text-[9px] font-normal px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(6,214,160,0.15)', color: '#06D6A0' }}>Automático no NPS</span>
+                            </label>
+                            <button onClick={() => setShowReviewHelp(!showReviewHelp)} className="text-[10px] px-2 py-1 rounded-lg transition-all" style={{ color: '#EAB308', border: '1px solid rgba(234,179,8,0.3)', backgroundColor: 'rgba(234,179,8,0.1)' }}>
+                                {showReviewHelp ? '✕ Fechar' : '❓ Como pegar?'}
+                            </button>
+                        </div>
+
+                        {showReviewHelp && (
+                            <div className="mb-3 p-3 rounded-lg text-[11px] space-y-1.5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                                <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>3 passos simples:</p>
+                                <p style={{ color: 'var(--text-secondary)' }}>1️⃣ Clique em <strong>"Buscar minha clínica"</strong> abaixo</p>
+                                <p style={{ color: 'var(--text-secondary)' }}>2️⃣ No Google, clique em <strong>"Avaliar"</strong> ou <strong>"Write a review"</strong></p>
+                                <p style={{ color: 'var(--text-secondary)' }}>3️⃣ Copie o link da barra de endereço e cole no campo abaixo</p>
+                                <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>💡 A sua IARA vai incluir esse link automaticamente nas mensagens de avaliação pós-atendimento!</p>
+                            </div>
+                        )}
+
+                        <div className="flex gap-2">
+                            <input
+                                className={`${inputClass} flex-1`}
+                                style={inputStyle}
+                                value={linkGoogleReview}
+                                onChange={(e) => setLinkGoogleReview(e.target.value)}
+                                placeholder="Cole aqui o link do Google para avaliar a clínica"
+                            />
+                            <button
+                                onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent((nomeClinica || 'minha clínica') + ' avaliações')}`, '_blank')}
+                                className="px-3 py-2 rounded-xl text-[11px] font-medium whitespace-nowrap transition-all hover:scale-105 flex-shrink-0"
+                                style={{ backgroundColor: '#EAB308', color: '#000' }}
+                            >
+                                🔍 Buscar minha clínica
+                            </button>
+                        </div>
+                        {linkGoogleReview && (
+                            <a href={linkGoogleReview} target="_blank" rel="noopener noreferrer" className="text-[9px] mt-1 inline-block hover:underline" style={{ color: '#06D6A0' }}>✅ Testar link de avaliação</a>
+                        )}
                     </div>
                 </div>
             </div>
