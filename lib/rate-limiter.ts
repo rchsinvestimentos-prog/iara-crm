@@ -103,3 +103,23 @@ export const anthropicLimiter = getRateLimiter('anthropic', 50, 60000)   // 50 r
 export const openaiLimiter = getRateLimiter('openai', 60, 60000)        // 60 req/min
 export const elevenLabsLimiter = getRateLimiter('elevenlabs', 20, 60000) // 20 req/min
 export const whisperLimiter = getRateLimiter('whisper', 30, 60000)      // 30 req/min
+
+/**
+ * Convenience: check + record in one call.
+ * Returns { allowed: boolean }
+ * 
+ * Usage: const { allowed } = checkRateLimit(clinicaId, 'anthropic')
+ */
+export function checkRateLimit(clinicaId: string | number, limiterName: 'anthropic' | 'openai' | 'elevenlabs' | 'whisper'): { allowed: boolean } {
+    const map: Record<string, RateLimiter> = {
+        anthropic: anthropicLimiter,
+        openai: openaiLimiter,
+        elevenlabs: elevenLabsLimiter,
+        whisper: whisperLimiter,
+    }
+    const limiter = map[limiterName]
+    if (!limiter) return { allowed: true }
+    const allowed = limiter.canProceed(clinicaId)
+    if (allowed) limiter.record(clinicaId)
+    return { allowed }
+}

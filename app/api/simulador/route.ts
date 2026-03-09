@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { buildSystemPrompt } from '@/lib/engine/ai-engine'
+import { checkRateLimit } from '@/lib/rate-limiter'
 
 /**
  * POST /api/simulador
@@ -25,6 +26,15 @@ export async function POST(request: NextRequest) {
         })
 
         if (!clinica) return NextResponse.json({ error: 'Clínica não encontrada' }, { status: 404 })
+
+        // Rate limit: máx 20 msgs/min no simulador (evitar abuso)
+        const rl = checkRateLimit(String(clinicaId), 'anthropic')
+        if (!rl.allowed) {
+            return NextResponse.json(
+                { error: 'Muitas mensagens em seguida. Aguarde 1 minuto.' },
+                { status: 429 }
+            )
+        }
 
         const body = await request.json()
         const { mensagem, historico = [] } = body
