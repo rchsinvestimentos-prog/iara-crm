@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic'
 
 const OnboardingChecklist = dynamic(() => import('@/components/OnboardingChecklist'), { ssr: false })
 const PausarIARA = dynamic(() => import('@/components/PausarIARA'), { ssr: false })
+const UpsellBanner = dynamic(() => import('@/components/UpsellBanner'), { ssr: false })
 
 interface ROI {
     tempoEconomizadoHoras: number
@@ -175,6 +176,9 @@ export default function Dashboard() {
                     <Wifi size={13} /> WhatsApp conectado e ativo
                 </div>
             )}
+
+            {/* Upsell — aparece quando créditos atingem 80% */}
+            <UpsellBanner />
 
             {/* ROI Hero Section */}
             {stats?.roi && !loading && (stats.roi.contatosMes > 0 || stats.roi.mensagensMes > 0) && (
