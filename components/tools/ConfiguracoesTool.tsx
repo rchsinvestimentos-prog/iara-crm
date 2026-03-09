@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Building2, Phone, Award, Save, Plus, Trash2, Edit3, QrCode, RefreshCw, Wifi, WifiOff, Loader2, Check, Clock, GraduationCap, Calendar, Tag, Package, MapPin, CreditCard, MessageSquare, Instagram, HelpCircle, ShieldCheck, Heart, MessageSquareText, Bot } from 'lucide-react'
+import { Building2, Phone, Award, Save, Plus, Trash2, Edit3, QrCode, RefreshCw, Wifi, WifiOff, Loader2, Check, Clock, GraduationCap, Calendar, Tag, Package, MapPin, CreditCard, MessageSquare, Instagram, ShieldCheck, Heart, MessageSquareText, Bot } from 'lucide-react'
 
 // ==================== Interfaces ====================
 
@@ -58,10 +58,7 @@ interface Combo {
     procedimentos: ComboProcedimento[]
 }
 
-interface FaqItem {
-    pergunta: string
-    resposta: string
-}
+
 
 interface FormasPagamento {
     pix: boolean
@@ -107,7 +104,7 @@ interface ClinicaData {
     googleCalendarId: string | null
     googleCalendarToken: string | null
     // VIP
-    faqPersonalizado: FaqItem[] | null
+    faqPersonalizado: any[] | null
     cuidadosPos: string | null
     politicaCancelamento: string | null
     formasPagamento: FormasPagamento | null
@@ -200,9 +197,10 @@ export default function ConfiguracoesTool() {
     const [showReviewHelp, setShowReviewHelp] = useState(false)
     const [placesResults, setPlacesResults] = useState<any[]>([])
     const [placesLoading, setPlacesLoading] = useState(false)
-    const [cuidadosPos, setCuidadosPos] = useState<{ nome: string; comoUsar: string; quemNaoPode: string }[]>([])
+    const [cuidadosPos, setCuidadosPos] = useState<{ procedimentoNome: string; nome: string; comoUsar: string; quemNaoPode: string }[]>([])
     const [politicaCancelamento, setPoliticaCancelamento] = useState('')
-    const [faq, setFaq] = useState<FaqItem[]>([])
+    const [autorizouCuidadosPos, setAutorizouCuidadosPos] = useState<string | null>(null)
+    const [showDisclaimerPos, setShowDisclaimerPos] = useState(false)
     const [formasPagamento, setFormasPagamento] = useState<FormasPagamento>({ pix: false, chavePix: '', cartao: false, dinheiro: false, observacoes: '' })
     const [redesSociais, setRedesSociais] = useState<RedesSociais>({ instagram: '', tiktok: '', facebook: '', site: '' })
 
@@ -275,16 +273,17 @@ export default function ConfiguracoesTool() {
                 if (data.cuidadosPos) {
                     try {
                         const cp = typeof data.cuidadosPos === 'string' ? JSON.parse(data.cuidadosPos) : data.cuidadosPos
-                        if (Array.isArray(cp)) setCuidadosPos(cp)
+                        if (Array.isArray(cp)) setCuidadosPos(cp.map((item: any) => ({ procedimentoNome: item.procedimentoNome || '', nome: item.nome || '', comoUsar: item.comoUsar || '', quemNaoPode: item.quemNaoPode || '' })))
                     } catch { setCuidadosPos([]) }
                 }
+                if (data.autorizouCuidadosPos) setAutorizouCuidadosPos(data.autorizouCuidadosPos)
                 setPoliticaCancelamento(data.politicaCancelamento || '')
 
                 setFeedbacks(data.feedbacks || '')
                 // Parse feedbacks string into CRUD list (each line is an item)
                 const fbStr: string = data.feedbacks || ''
                 setFeedbackItems(fbStr.trim() ? fbStr.split('\n').filter((l: string) => l.trim()) : [])
-                setFaq(data.faqPersonalizado || [])
+                // FAQ moved to Secretária config
                 setFormasPagamento(data.formasPagamento || { pix: false, chavePix: '', cartao: false, dinheiro: false, observacoes: '' })
                 setRedesSociais(data.redesSociais || { instagram: '', tiktok: '', facebook: '', site: '' })
 
@@ -347,8 +346,8 @@ export default function ConfiguracoesTool() {
                     linkMaps: linkMaps || null,
                     linkGoogleReview: linkGoogleReview || null,
                     cuidadosPos: JSON.stringify(cuidadosPos),
+                    autorizouCuidadosPos: autorizouCuidadosPos || null,
                     politicaCancelamento: politicaCancelamento || null,
-                    faqPersonalizado: faq,
                     formasPagamento,
                     redesSociais,
                 }),
@@ -509,12 +508,25 @@ export default function ConfiguracoesTool() {
         } catch (err) { console.error('Erro:', err) }
     }
 
-    // ==================== FAQ Helpers ====================
+    // ==================== Pós-Procedimento Helpers ====================
 
-    const addFaq = () => setFaq([...faq, { pergunta: '', resposta: '' }])
-    const removeFaq = (i: number) => setFaq(faq.filter((_, idx) => idx !== i))
-    const updateFaq = (i: number, field: 'pergunta' | 'resposta', val: string) => {
-        const updated = [...faq]; updated[i] = { ...updated[i], [field]: val }; setFaq(updated)
+    const handleAddCuidadoPos = () => {
+        if (procedimentos.length === 0) return
+        setCuidadosPos([...cuidadosPos, { procedimentoNome: '', nome: '', comoUsar: '', quemNaoPode: '' }])
+    }
+
+    const handleSalvarComDisclaimer = () => {
+        if (cuidadosPos.length > 0 && !autorizouCuidadosPos) {
+            setShowDisclaimerPos(true)
+        } else {
+            salvarClinica()
+        }
+    }
+
+    const confirmarDisclaimer = () => {
+        setAutorizouCuidadosPos(new Date().toISOString())
+        setShowDisclaimerPos(false)
+        setTimeout(() => salvarClinica(), 100)
     }
 
     // ==================== Helpers ====================
@@ -1473,62 +1485,58 @@ export default function ConfiguracoesTool() {
                                 <Heart size={13} className="text-[#D99773]" />
                                 <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Orientações Pós-Procedimento ({cuidadosPos.length})</p>
                             </div>
-                            <button onClick={() => setCuidadosPos([...cuidadosPos, { nome: '', comoUsar: '', quemNaoPode: '' }])} className="text-[10px] px-2 py-1 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1"><Plus size={10} /> Adicionar</button>
+                            <button onClick={handleAddCuidadoPos} disabled={procedimentos.length === 0} className="text-[10px] px-2 py-1 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"><Plus size={10} /> Adicionar</button>
                         </div>
                         <div className="p-2 rounded-lg mb-3 bg-amber-500/10">
-                            <p className="text-[9px] font-medium text-amber-600">💡 A IARA usa essas informações para orientar as clientes após procedimentos. Ex: &ldquo;Para Micropigmentação, recomendamos passar Bepantol…&rdquo;</p>
+                            <p className="text-[9px] font-medium text-amber-600">💡 A IARA usa essas informações para orientar as clientes após procedimentos. Selecione o procedimento e cadastre os produtos recomendados.</p>
                         </div>
-                        <div className="space-y-3">
-                            {cuidadosPos.map((item, i) => (
-                                <div key={i} className="p-3 rounded-lg space-y-2" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-[10px] font-bold" style={{ color: '#D99773' }}>Produto {i + 1}</span>
-                                        <button onClick={() => setCuidadosPos(cuidadosPos.filter((_, j) => j !== i))} className="p-1 rounded hover:bg-red-500/10" style={{ color: 'var(--text-muted)' }}><Trash2 size={11} /></button>
+                        {autorizouCuidadosPos && (
+                            <div className="p-2 rounded-lg mb-3 bg-green-500/10">
+                                <p className="text-[9px] font-medium text-green-600">✅ Autorização concedida em {new Date(autorizouCuidadosPos).toLocaleDateString('pt-BR')} — A profissional autorizou a IARA a compartilhar estas orientações.</p>
+                            </div>
+                        )}
+                        {procedimentos.length === 0 ? (
+                            <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'var(--bg-card)', border: '1px dashed var(--border-default)' }}>
+                                <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>⚠️ Cadastre seus procedimentos primeiro</p>
+                                <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>Você precisa cadastrar os procedimentos na seção acima antes de adicionar orientações pós-procedimento.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {cuidadosPos.map((item, i) => (
+                                    <div key={i} className="p-3 rounded-lg space-y-2" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-bold" style={{ color: '#D99773' }}>Orientação {i + 1}</span>
+                                            <button onClick={() => setCuidadosPos(cuidadosPos.filter((_, j) => j !== i))} className="p-1 rounded hover:bg-red-500/10" style={{ color: 'var(--text-muted)' }}><Trash2 size={11} /></button>
+                                        </div>
+                                        <select className="w-full px-2 py-1.5 text-[11px] rounded-lg focus:outline-none" style={innerInputStyle}
+                                            value={item.procedimentoNome} onChange={e => { const cp = [...cuidadosPos]; cp[i] = { ...cp[i], procedimentoNome: e.target.value }; setCuidadosPos(cp) }}>
+                                            <option value="">Selecione o procedimento...</option>
+                                            {procedimentos.map(p => (
+                                                <option key={p.id} value={p.nome}>{p.nome}</option>
+                                            ))}
+                                        </select>
+                                        <input className="w-full px-2 py-1.5 text-[11px] rounded-lg focus:outline-none" style={innerInputStyle}
+                                            value={item.nome} onChange={e => { const cp = [...cuidadosPos]; cp[i] = { ...cp[i], nome: e.target.value }; setCuidadosPos(cp) }}
+                                            placeholder="Nome do produto (Ex: Bepantol Derma)" />
+                                        <input className="w-full px-2 py-1.5 text-[11px] rounded-lg focus:outline-none" style={innerInputStyle}
+                                            value={item.comoUsar} onChange={e => { const cp = [...cuidadosPos]; cp[i] = { ...cp[i], comoUsar: e.target.value }; setCuidadosPos(cp) }}
+                                            placeholder="Como usar (Ex: Aplicar fina camada 3x ao dia por 7 dias)" />
+                                        <input className="w-full px-2 py-1.5 text-[11px] rounded-lg focus:outline-none" style={innerInputStyle}
+                                            value={item.quemNaoPode} onChange={e => { const cp = [...cuidadosPos]; cp[i] = { ...cp[i], quemNaoPode: e.target.value }; setCuidadosPos(cp) }}
+                                            placeholder="Quem NÃO pode usar (Ex: Gestantes, alérgicos a lanolina)" />
                                     </div>
-                                    <input className="w-full px-2 py-1.5 text-[11px] rounded-lg focus:outline-none" style={innerInputStyle}
-                                        value={item.nome} onChange={e => { const cp = [...cuidadosPos]; cp[i] = { ...cp[i], nome: e.target.value }; setCuidadosPos(cp) }}
-                                        placeholder="Nome do produto (Ex: Bepantol Derma)" />
-                                    <input className="w-full px-2 py-1.5 text-[11px] rounded-lg focus:outline-none" style={innerInputStyle}
-                                        value={item.comoUsar} onChange={e => { const cp = [...cuidadosPos]; cp[i] = { ...cp[i], comoUsar: e.target.value }; setCuidadosPos(cp) }}
-                                        placeholder="Como usar (Ex: Aplicar fina camada 3x ao dia por 7 dias)" />
-                                    <input className="w-full px-2 py-1.5 text-[11px] rounded-lg focus:outline-none" style={innerInputStyle}
-                                        value={item.quemNaoPode} onChange={e => { const cp = [...cuidadosPos]; cp[i] = { ...cp[i], quemNaoPode: e.target.value }; setCuidadosPos(cp) }}
-                                        placeholder="Quem NÃO pode usar (Ex: Gestantes, alérgicos a lanolina)" />
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
-                    {/* FAQ Personalizado */}
-                    <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)' }}>
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                                <HelpCircle size={13} className="text-[#D99773]" />
-                                <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>FAQ — Perguntas Frequentes ({faq.length})</p>
-                            </div>
-                            <button onClick={addFaq} className="text-[10px] px-2 py-1 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1"><Plus size={10} /> Adicionar</button>
-                        </div>
-                        <p className="text-[9px] mb-2" style={{ color: 'var(--text-muted)' }}>Cadastre perguntas que suas clientes sempre fazem e a IARA responde automaticamente</p>
-                        <div className="space-y-2">
-                            {faq.map((item, i) => (
-                                <div key={i} className="p-2 rounded-lg space-y-1" style={{ backgroundColor: 'var(--bg-card)' }}>
-                                    <div className="flex items-start gap-2">
-                                        <div className="flex-1 space-y-1">
-                                            <input className="w-full px-2 py-1.5 text-[11px] rounded-lg focus:outline-none" style={innerInputStyle} value={item.pergunta} onChange={e => updateFaq(i, 'pergunta', e.target.value)} placeholder="Ex: Quanto tempo dura a micropigmentação?" />
-                                            <input className="w-full px-2 py-1.5 text-[11px] rounded-lg focus:outline-none" style={innerInputStyle} value={item.resposta} onChange={e => updateFaq(i, 'resposta', e.target.value)} placeholder="Ex: Em média de 1 a 2 anos, dependendo do tipo de pele e cuidados..." />
-                                        </div>
-                                        <button onClick={() => removeFaq(i)} className="p-1 rounded hover:bg-red-500/10" style={{ color: 'var(--text-muted)' }}><Trash2 size={11} /></button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+
                 </div>
             </div >
 
             {/* ============ BOTÃO SALVAR TUDO ============ */}
             < button
-                onClick={salvarClinica}
+                onClick={handleSalvarComDisclaimer}
                 disabled={saving}
                 className="w-full py-3 bg-[#0F4C61] text-white rounded-xl text-[13px] font-medium flex items-center justify-center gap-2 hover:bg-[#0F4C61]/90 transition-colors disabled:opacity-50"
             >
@@ -1542,6 +1550,32 @@ export default function ConfiguracoesTool() {
                     )
                 }
             </button >
+
+            {/* ============ MODAL DISCLAIMER PÓS-PROCEDIMENTO ============ */}
+            {showDisclaimerPos && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="w-full max-w-md rounded-2xl p-6 space-y-4" style={{ backgroundColor: 'var(--bg-card)' }}>
+                        <div className="flex items-center gap-2">
+                            <ShieldCheck size={20} className="text-amber-500" />
+                            <h3 className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>Autorização Necessária</h3>
+                        </div>
+                        <div className="p-3 rounded-lg bg-amber-500/10">
+                            <p className="text-[11px] leading-relaxed text-amber-700">
+                                Ao salvar as orientações pós-procedimento, você declara que:
+                            </p>
+                            <ul className="text-[10px] mt-2 space-y-1 text-amber-700 list-disc pl-4">
+                                <li>As informações cadastradas são de sua total responsabilidade.</li>
+                                <li>A IARA é apenas um meio de transmissão e <strong>não se responsabiliza</strong> pelo conteúdo das orientações médicas.</li>
+                                <li>Você autoriza a IARA a compartilhar essas orientações com suas clientes quando apropriado.</li>
+                            </ul>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => setShowDisclaimerPos(false)} className="flex-1 py-2 rounded-lg text-[11px] font-medium" style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>Cancelar</button>
+                            <button onClick={confirmarDisclaimer} className="flex-1 py-2 rounded-lg text-[11px] font-medium bg-[#0F4C61] text-white">Autorizo e Salvar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     )
 }

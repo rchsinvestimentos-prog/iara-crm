@@ -45,6 +45,7 @@ const UpdateClinicaSchema = z.object({
     // VIP Personalization
     faqPersonalizado: z.any().optional().nullable(),
     cuidadosPos: z.string().max(5000).optional().nullable(),
+    autorizouCuidadosPos: z.string().optional().nullable(),
     politicaCancelamento: z.string().max(5000).optional().nullable(),
     formasPagamento: z.any().optional().nullable(),
     linkMaps: z.string().max(500).optional().nullable(),
@@ -107,6 +108,9 @@ export async function PUT(request: Request) {
         // Converter aceiteTermos string → Date pra Prisma
         if (dataToUpdate.aceiteTermos && typeof dataToUpdate.aceiteTermos === 'string') {
             dataToUpdate.aceiteTermos = new Date(dataToUpdate.aceiteTermos as string)
+        }
+        if (dataToUpdate.autorizouCuidadosPos && typeof dataToUpdate.autorizouCuidadosPos === 'string') {
+            dataToUpdate.autorizouCuidadosPos = new Date(dataToUpdate.autorizouCuidadosPos as string)
         }
 
         const updated = await prisma.clinica.update({

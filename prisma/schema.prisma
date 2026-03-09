@@ -118,6 +118,7 @@ model Clinica {
   // Personalização VIP
   faqPersonalizado     Json?     @default("[]") @map("faq_personalizado") @db.JsonB
   cuidadosPos          String?   @map("cuidados_pos")
+  autorizouCuidadosPos DateTime? @map("autorizou_cuidados_pos")
   politicaCancelamento String?   @map("politica_cancelamento")
   formasPagamento      Json?     @default("{}") @map("formas_pagamento") @db.JsonB
   linkMaps             String?   @map("link_maps") @db.VarChar(500)
