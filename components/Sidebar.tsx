@@ -21,6 +21,8 @@ import {
   Gift,
   History,
   Zap,
+  CalendarDays,
+  FileText,
   Settings,
   CreditCard,
   LogOut,
@@ -38,7 +40,6 @@ import {
   Kanban,
   Target,
   Globe,
-  CalendarDays,
   Search,
   Megaphone,
   Users,
@@ -404,6 +405,14 @@ export default function Sidebar() {
           <Link href="/features" className={linkClass('/features')}>
             <Zap size={17} strokeWidth={1.8} />
             <span>Features</span>
+          </Link>
+          <Link href="/agenda" className={linkClass('/agenda')}>
+            <CalendarDays size={17} strokeWidth={1.8} />
+            <span>Agenda</span>
+          </Link>
+          <Link href="/templates" className={linkClass('/templates')}>
+            <FileText size={17} strokeWidth={1.8} />
+            <span>Templates</span>
           </Link>
           <Link href="/indicacoes" className={linkClass('/indicacoes')}>
             <Gift size={17} strokeWidth={1.8} />

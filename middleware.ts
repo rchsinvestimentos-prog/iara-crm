@@ -97,5 +97,7 @@ export const config = {
         '/indicacoes/:path*',
         '/historico-creditos/:path*',
         '/features/:path*',
+        '/agenda/:path*',
+        '/templates/:path*',
     ],
 }
