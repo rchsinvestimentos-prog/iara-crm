@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Building2, Phone, Award, Save, Plus, Trash2, Edit3, QrCode, RefreshCw, Wifi, WifiOff, Loader2, Check, Clock, GraduationCap, Calendar, Tag, Package, MapPin, CreditCard, MessageSquare, Instagram, HelpCircle, ShieldCheck, Heart, MessageSquareText } from 'lucide-react'
+import { Building2, Phone, Award, Save, Plus, Trash2, Edit3, QrCode, RefreshCw, Wifi, WifiOff, Loader2, Check, Clock, GraduationCap, Calendar, Tag, Package, MapPin, CreditCard, MessageSquare, Instagram, HelpCircle, ShieldCheck, Heart, MessageSquareText, Bot } from 'lucide-react'
 
 // ==================== Interfaces ====================
 
@@ -612,79 +612,6 @@ export default function ConfiguracoesTool() {
                         </div>
                     </div>
 
-                    {/* ======= FEEDBACKS / INSTRUÇÕES ======= */}
-                    <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)' }}>
-                        <div className="flex items-center gap-2 mb-2">
-                            <MessageSquareText size={13} className="text-[#D99773]" />
-                            <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Instruções Extras / Feedbacks</p>
-                        </div>
-                        <p className="text-[9px] mb-3" style={{ color: 'var(--text-muted)' }}>Cada instrução fica salva separadamente — adicione, edite ou exclua quando quiser.</p>
-
-                        {/* Lista de feedbacks existentes */}
-                        {feedbackItems.map((item, idx) => (
-                            <div key={idx} className="flex items-start gap-2 mb-2">
-                                {editandoFeedbackIdx === idx ? (
-                                    <>
-                                        <input
-                                            className="flex-1 px-2 py-1.5 text-[11px] rounded-lg focus:outline-none"
-                                            style={inputStyle}
-                                            value={editandoFeedbackTexto}
-                                            onChange={e => setEditandoFeedbackTexto(e.target.value)}
-                                            autoFocus
-                                            onKeyDown={e => {
-                                                if (e.key === 'Enter') {
-                                                    const items = [...feedbackItems]
-                                                    items[idx] = editandoFeedbackTexto.trim()
-                                                    setFeedbackItems(items)
-                                                    setEditandoFeedbackIdx(null)
-                                                }
-                                                if (e.key === 'Escape') setEditandoFeedbackIdx(null)
-                                            }}
-                                        />
-                                        <button onClick={() => { const items = [...feedbackItems]; items[idx] = editandoFeedbackTexto.trim(); setFeedbackItems(items); setEditandoFeedbackIdx(null); }} className="text-[10px] px-2 py-1 rounded-lg" style={{ backgroundColor: '#D99773', color: '#fff' }}>✓</button>
-                                        <button onClick={() => setEditandoFeedbackIdx(null)} className="text-[10px] px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-muted)' }}>✕</button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="flex-1 px-2 py-1.5 text-[11px] rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}>
-                                            {item}
-                                        </div>
-                                        <button onClick={() => { setEditandoFeedbackIdx(idx); setEditandoFeedbackTexto(item); }} className="p-1.5 rounded-lg hover:opacity-70 transition-opacity" style={{ color: 'var(--text-muted)' }} title="Editar">
-                                            <Edit3 size={11} />
-                                        </button>
-                                        <button onClick={() => setFeedbackItems(feedbackItems.filter((_, i) => i !== idx))} className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-red-400" title="Excluir">
-                                            <Trash2 size={11} />
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                        ))}
-
-                        {/* Adicionar novo feedback */}
-                        <div className="flex gap-2 mt-2">
-                            <input
-                                className="flex-1 px-2 py-1.5 text-[11px] rounded-lg focus:outline-none"
-                                style={innerInputStyle}
-                                value={novoFeedback}
-                                onChange={e => setNovoFeedback(e.target.value)}
-                                placeholder="Ex: Não mande áudio no 1º contato..."
-                                onKeyDown={e => {
-                                    if (e.key === 'Enter' && novoFeedback.trim()) {
-                                        setFeedbackItems([...feedbackItems, novoFeedback.trim()])
-                                        setNovoFeedback('')
-                                    }
-                                }}
-                            />
-                            <button
-                                onClick={() => { if (novoFeedback.trim()) { setFeedbackItems([...feedbackItems, novoFeedback.trim()]); setNovoFeedback('') } }}
-                                className="text-[10px] px-3 py-1 rounded-lg flex items-center gap-1 disabled:opacity-40"
-                                style={{ backgroundColor: '#D99773', color: '#fff' }}
-                                disabled={!novoFeedback.trim()}
-                            >
-                                <Plus size={11} /> Adicionar
-                            </button>
-                        </div>
-                    </div>
 
                     <div>
                         <label className={labelClass} style={{ color: 'var(--text-muted)' }}>CEP</label>
@@ -848,6 +775,88 @@ export default function ConfiguracoesTool() {
                     onChange={(e) => setDiferenciais(e.target.value)}
                     placeholder="Ex: 10 anos de experiência, especialização internacional, uso de tecnologia exclusiva, prêmios, atendimento humanizado..."
                 />
+            </div>
+
+            {/* ============ 3. SUA SECRETÁRIA (Instruções para a IA) ============ */}
+            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
+                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
+                    <Bot size={15} className="text-[#D99773]" />
+                    Sua Secretária
+                </h3>
+                <p className="text-[10px] mb-4" style={{ color: 'var(--text-muted)' }}>Configure orientações e regras que a IARA deve seguir em todas as conversas com suas clientes.</p>
+
+                <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)' }}>
+                    <div className="flex items-center gap-2 mb-1">
+                        <MessageSquareText size={13} className="text-[#D99773]" />
+                        <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Instruções e Orientações</p>
+                    </div>
+                    <p className="text-[9px] mb-3" style={{ color: 'var(--text-muted)' }}>Aqui você diz para a IARA o que ela DEVE ou NÃO DEVE fazer. Exemplos: &ldquo;Não ofereça desconto no botox&rdquo;, &ldquo;Sempre pergunte se já fez o procedimento antes&rdquo;, &ldquo;Não mande áudio no 1º contato&rdquo;.</p>
+
+                    {/* Lista de instruções existentes */}
+                    {feedbackItems.map((item, idx) => (
+                        <div key={idx} className="flex items-start gap-2 mb-2">
+                            {editandoFeedbackIdx === idx ? (
+                                <>
+                                    <input
+                                        className="flex-1 px-2 py-1.5 text-[11px] rounded-lg focus:outline-none"
+                                        style={inputStyle}
+                                        value={editandoFeedbackTexto}
+                                        onChange={e => setEditandoFeedbackTexto(e.target.value)}
+                                        autoFocus
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') {
+                                                const items = [...feedbackItems]
+                                                items[idx] = editandoFeedbackTexto.trim()
+                                                setFeedbackItems(items)
+                                                setEditandoFeedbackIdx(null)
+                                            }
+                                            if (e.key === 'Escape') setEditandoFeedbackIdx(null)
+                                        }}
+                                    />
+                                    <button onClick={() => { const items = [...feedbackItems]; items[idx] = editandoFeedbackTexto.trim(); setFeedbackItems(items); setEditandoFeedbackIdx(null); }} className="text-[10px] px-2 py-1 rounded-lg" style={{ backgroundColor: '#D99773', color: '#fff' }}>✓</button>
+                                    <button onClick={() => setEditandoFeedbackIdx(null)} className="text-[10px] px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-muted)' }}>✕</button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex-1 px-2 py-1.5 text-[11px] rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}>
+                                        {item}
+                                    </div>
+                                    <button onClick={() => { setEditandoFeedbackIdx(idx); setEditandoFeedbackTexto(item); }} className="p-1.5 rounded-lg hover:opacity-70 transition-opacity" style={{ color: 'var(--text-muted)' }} title="Editar">
+                                        <Edit3 size={11} />
+                                    </button>
+                                    <button onClick={() => setFeedbackItems(feedbackItems.filter((_, i) => i !== idx))} className="p-1.5 rounded-lg hover:opacity-70 transition-opacity text-red-400" title="Excluir">
+                                        <Trash2 size={11} />
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    ))}
+
+                    {/* Adicionar nova instrução */}
+                    <div className="flex gap-2 mt-2">
+                        <input
+                            className="flex-1 px-2 py-1.5 text-[11px] rounded-lg focus:outline-none"
+                            style={innerInputStyle}
+                            value={novoFeedback}
+                            onChange={e => setNovoFeedback(e.target.value)}
+                            placeholder="Ex: Não mande áudio no 1º contato..."
+                            onKeyDown={e => {
+                                if (e.key === 'Enter' && novoFeedback.trim()) {
+                                    setFeedbackItems([...feedbackItems, novoFeedback.trim()])
+                                    setNovoFeedback('')
+                                }
+                            }}
+                        />
+                        <button
+                            onClick={() => { if (novoFeedback.trim()) { setFeedbackItems([...feedbackItems, novoFeedback.trim()]); setNovoFeedback('') } }}
+                            className="text-[10px] px-3 py-1 rounded-lg flex items-center gap-1 disabled:opacity-40"
+                            style={{ backgroundColor: '#D99773', color: '#fff' }}
+                            disabled={!novoFeedback.trim()}
+                        >
+                            <Plus size={11} /> Adicionar
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* ============ 4. PROCEDIMENTOS ============ */}
