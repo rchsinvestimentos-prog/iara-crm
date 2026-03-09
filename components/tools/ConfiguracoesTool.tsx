@@ -124,7 +124,6 @@ export default function ConfiguracoesTool() {
 
     // ---- Dados da Clínica ----
     const [nomeClinica, setNomeClinica] = useState('')
-    const [nomeIA, setNomeIA] = useState('')
     const [whatsappClinica, setWhatsappClinica] = useState('')
     const [whatsappPessoal, setWhatsappPessoal] = useState('')
     const [diferenciais, setDiferenciais] = useState('')
@@ -195,15 +194,8 @@ export default function ConfiguracoesTool() {
     const [showReviewHelp, setShowReviewHelp] = useState(false)
     const [placesResults, setPlacesResults] = useState<any[]>([])
     const [placesLoading, setPlacesLoading] = useState(false)
-    const [blacklist, setBlacklist] = useState('')
-    const [horarioInicio, setHorarioInicio] = useState('08:00')
-    const [horarioFim, setHorarioFim] = useState('20:00')
-    const [diasAtendimento, setDiasAtendimento] = useState([1, 2, 3, 4, 5]) // seg-sex
-    const [mensagemForaHorario, setMensagemForaHorario] = useState('')
-    const [mensagemAniversario, setMensagemAniversario] = useState('')
-    const [cuidadosPos, setCuidadosPos] = useState('')
+    const [cuidadosPos, setCuidadosPos] = useState<{ nome: string; comoUsar: string; quemNaoPode: string }[]>([])
     const [politicaCancelamento, setPoliticaCancelamento] = useState('')
-    const [mensagemBoasVindas, setMensagemBoasVindas] = useState('')
     const [faq, setFaq] = useState<FaqItem[]>([])
     const [formasPagamento, setFormasPagamento] = useState<FormasPagamento>({ pix: false, chavePix: '', cartao: false, dinheiro: false, observacoes: '' })
     const [redesSociais, setRedesSociais] = useState<RedesSociais>({ instagram: '', tiktok: '', facebook: '', site: '' })
@@ -231,7 +223,6 @@ export default function ConfiguracoesTool() {
                 const data = await clinicaRes.json()
                 setClinica(data)
                 setNomeClinica(data.nomeClinica || data.nome || '')
-                setNomeIA(data.nomeAssistente || 'IARA')
                 setWhatsappClinica(data.whatsappClinica || '')
                 setWhatsappPessoal(data.whatsappDoutora || '')
                 setDiferenciais(data.diferenciais || '')
@@ -273,15 +264,15 @@ export default function ConfiguracoesTool() {
                 // VIP
                 setLinkMaps(data.linkMaps || '')
                 setLinkGoogleReview(data.linkGoogleReview || '')
-                setBlacklist((data.blacklist || []).join('\n'))
-                setHorarioInicio(data.horarioInicio || '08:00')
-                setHorarioFim(data.horarioFim || '20:00')
-                setDiasAtendimento(data.diasAtendimento || [1, 2, 3, 4, 5])
-                setMensagemForaHorario(data.mensagemForaHorario || '')
-                setMensagemAniversario(data.mensagemAniversario || '')
-                setCuidadosPos(data.cuidadosPos || '')
+                // Cuidados pós — structured
+                if (data.cuidadosPos) {
+                    try {
+                        const cp = typeof data.cuidadosPos === 'string' ? JSON.parse(data.cuidadosPos) : data.cuidadosPos
+                        if (Array.isArray(cp)) setCuidadosPos(cp)
+                    } catch { setCuidadosPos([]) }
+                }
                 setPoliticaCancelamento(data.politicaCancelamento || '')
-                setMensagemBoasVindas(data.mensagemBoasVindas || '')
+
                 setFeedbacks(data.feedbacks || '')
                 // Parse feedbacks string into CRUD list (each line is an item)
                 const fbStr: string = data.feedbacks || ''
@@ -326,7 +317,6 @@ export default function ConfiguracoesTool() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     nomeClinica,
-                    nomeAssistente: nomeIA,
                     whatsappClinica: whatsappClinica || null,
                     whatsappDoutora: whatsappPessoal || null,
                     nomeDoutora: nomeDoutora || null,
@@ -349,16 +339,8 @@ export default function ConfiguracoesTool() {
                     daCursos,
                     linkMaps: linkMaps || null,
                     linkGoogleReview: linkGoogleReview || null,
-                    blacklist: blacklist.split('\n').map(n => n.trim().replace(/\D/g, '')).filter(Boolean),
-                    horarioInicio,
-                    horarioFim,
-                    diasAtendimento,
-                    mensagemForaHorario: mensagemForaHorario || null,
-                    mensagemAniversario: mensagemAniversario || null,
-                    cuidadosPos: cuidadosPos || null,
+                    cuidadosPos: JSON.stringify(cuidadosPos),
                     politicaCancelamento: politicaCancelamento || null,
-                    mensagemBoasVindas: mensagemBoasVindas || null,
-                    feedbacks: feedbackItems.length > 0 ? feedbackItems.join('\n') : null,
                     faqPersonalizado: faq,
                     formasPagamento,
                     redesSociais,
@@ -560,15 +542,9 @@ export default function ConfiguracoesTool() {
                     Sua Clínica
                 </h3>
                 <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Nome da Clínica</label>
-                            <input className={inputClass} style={inputStyle} value={nomeClinica} onChange={(e) => setNomeClinica(e.target.value)} placeholder="Studio Maria Helena" />
-                        </div>
-                        <div>
-                            <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Nome da IA</label>
-                            <input className={inputClass} style={inputStyle} value={nomeIA} onChange={(e) => setNomeIA(e.target.value)} placeholder="IARA" />
-                        </div>
+                    <div>
+                        <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Nome da Clínica</label>
+                        <input className={inputClass} style={inputStyle} value={nomeClinica} onChange={(e) => setNomeClinica(e.target.value)} placeholder="Studio Maria Helena" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -856,72 +832,7 @@ export default function ConfiguracoesTool() {
                 </div>
             </div>
 
-            {/* ============ 1B. ATENDIMENTO ============ */}
-            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
-                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
-                    ⏰ Horário de Atendimento
-                </h3>
-                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>A IARA só responde dentro deste horário. Fora dele, envia uma mensagem automática.</p>
 
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div>
-                        <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Início</label>
-                        <input type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} className={inputClass} style={inputStyle} />
-                    </div>
-                    <div>
-                        <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Fim</label>
-                        <input type="time" value={horarioFim} onChange={e => setHorarioFim(e.target.value)} className={inputClass} style={inputStyle} />
-                    </div>
-                </div>
-
-                <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Dias de atendimento</label>
-                <div className="flex gap-1 mb-3">
-                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((dia, i) => (
-                        <button key={i} onClick={() => setDiasAtendimento(prev => prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i])}
-                            className="px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all"
-                            style={{
-                                backgroundColor: diasAtendimento.includes(i) ? '#D99773' : 'var(--bg-subtle)',
-                                color: diasAtendimento.includes(i) ? 'white' : 'var(--text-muted)',
-                                border: `1px solid ${diasAtendimento.includes(i) ? '#D99773' : 'var(--border-default)'}`,
-                            }}>
-                            {dia}
-                        </button>
-                    ))}
-                </div>
-
-                <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>💬 Mensagem fora do horário (opcional)</label>
-                <textarea value={mensagemForaHorario} onChange={e => setMensagemForaHorario(e.target.value)} rows={2}
-                    className={`w-full ${inputClass} resize-none`} style={inputStyle}
-                    placeholder="Olá! Nosso horário de atendimento é de seg-sex das 08h às 20h. Retornaremos em breve! 😊" />
-            </div>
-
-            {/* ============ 1C. BLACKLIST ============ */}
-            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
-                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
-                    🚫 Números Bloqueados
-                </h3>
-                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>A IARA ignora esses números completamente. Um por linha.</p>
-                <textarea value={blacklist} onChange={e => setBlacklist(e.target.value)} rows={3}
-                    className={`w-full ${inputClass} resize-none`} style={inputStyle}
-                    placeholder="5511999998888
-5521988887777" />
-                {blacklist.trim() && (
-                    <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                        {blacklist.split('\n').filter(n => n.trim()).length} número(s) bloqueado(s)
-                    </p>
-                )}
-            </div>
-
-            {/* ============ 1D. ANIVERSARIO ============ */}
-            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
-                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
-                    🎂 Mensagem de Aniversário
-                </h3>
-                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>Enviada automaticamente para clientes do CRM que fazem aniversário. Use {'{nome}'} e {'{clinica}'} como variáveis.</p>
-                <textarea value={mensagemAniversario} onChange={e => setMensagemAniversario(e.target.value)} rows={4}
-                    className={`w-full ${inputClass} resize-none`} style={inputStyle}
-                    placeholder="🎂 Parabéns, {nome}!!! 🎉 Aqui é da {clinica}. Que esse dia seja maravilhoso! 💜" />
-            </div>
 
             {/* ============ 2. DIFERENCIAIS ============ */}
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
@@ -1503,15 +1414,6 @@ export default function ConfiguracoesTool() {
                 <p className="text-[10px] mb-4" style={{ color: 'var(--text-muted)' }}>Quanto mais detalhes, mais inteligente e personalizada a IARA fica para sua clínica</p>
 
                 <div className="space-y-4">
-                    {/* Mensagem de boas-vindas */}
-                    <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)' }}>
-                        <div className="flex items-center gap-2 mb-2">
-                            <MessageSquare size={13} className="text-[#D99773]" />
-                            <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Mensagem de Boas-Vindas</p>
-                        </div>
-                        <textarea className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none resize-none h-16" style={innerInputStyle} value={mensagemBoasVindas} onChange={e => setMensagemBoasVindas(e.target.value)} placeholder="Ex: Oi! 😊 Que bom te ver por aqui! Sou a IARA, assistente da [clínica]. Como posso te ajudar hoje?" />
-                    </div>
-
                     {/* Localização — link Maps (endereço já está na seção Clínica) */}
 
                     {/* Formas de pagamento */}
@@ -1559,16 +1461,37 @@ export default function ConfiguracoesTool() {
                         <textarea className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none resize-none h-20" style={innerInputStyle} value={politicaCancelamento} onChange={e => setPoliticaCancelamento(e.target.value)} placeholder="Ex: Cancelamentos devem ser feitos com 24h de antecedência. Reagendamentos sem custo. No-show será cobrado 50% do valor..." />
                     </div>
 
-                    {/* Orientações pós-procedimento */}
+                    {/* Orientações pós-procedimento — Estruturado */}
                     <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)' }}>
-                        <div className="flex items-center gap-2 mb-2">
-                            <Heart size={13} className="text-[#D99773]" />
-                            <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Orientações Pós-Procedimento</p>
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                                <Heart size={13} className="text-[#D99773]" />
+                                <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Orientações Pós-Procedimento ({cuidadosPos.length})</p>
+                            </div>
+                            <button onClick={() => setCuidadosPos([...cuidadosPos, { nome: '', comoUsar: '', quemNaoPode: '' }])} className="text-[10px] px-2 py-1 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1"><Plus size={10} /> Adicionar</button>
                         </div>
-                        <div className="p-2 rounded-lg mb-2 bg-amber-500/10">
-                            <p className="text-[9px] font-medium text-amber-600">⚠️ A IARA NÃO faz diagnósticos e NÃO receita nada. Se a cliente perguntar sobre cuidados pós, a IARA encaminha para a Dra responder diretamente.</p>
+                        <div className="p-2 rounded-lg mb-3 bg-amber-500/10">
+                            <p className="text-[9px] font-medium text-amber-600">💡 A IARA usa essas informações para orientar as clientes após procedimentos. Ex: &ldquo;Para Micropigmentação, recomendamos passar Bepantol…&rdquo;</p>
                         </div>
-                        <textarea className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none resize-none h-20" style={innerInputStyle} value={cuidadosPos} onChange={e => setCuidadosPos(e.target.value)} placeholder="Ex: Orientações gerais que a Dra autoriza a IARA compartilhar (como 'evitar sol nas primeiras 24h'). Para dúvidas clínicas, a IARA sempre consulta a Dra." />
+                        <div className="space-y-3">
+                            {cuidadosPos.map((item, i) => (
+                                <div key={i} className="p-3 rounded-lg space-y-2" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-bold" style={{ color: '#D99773' }}>Produto {i + 1}</span>
+                                        <button onClick={() => setCuidadosPos(cuidadosPos.filter((_, j) => j !== i))} className="p-1 rounded hover:bg-red-500/10" style={{ color: 'var(--text-muted)' }}><Trash2 size={11} /></button>
+                                    </div>
+                                    <input className="w-full px-2 py-1.5 text-[11px] rounded-lg focus:outline-none" style={innerInputStyle}
+                                        value={item.nome} onChange={e => { const cp = [...cuidadosPos]; cp[i] = { ...cp[i], nome: e.target.value }; setCuidadosPos(cp) }}
+                                        placeholder="Nome do produto (Ex: Bepantol Derma)" />
+                                    <input className="w-full px-2 py-1.5 text-[11px] rounded-lg focus:outline-none" style={innerInputStyle}
+                                        value={item.comoUsar} onChange={e => { const cp = [...cuidadosPos]; cp[i] = { ...cp[i], comoUsar: e.target.value }; setCuidadosPos(cp) }}
+                                        placeholder="Como usar (Ex: Aplicar fina camada 3x ao dia por 7 dias)" />
+                                    <input className="w-full px-2 py-1.5 text-[11px] rounded-lg focus:outline-none" style={innerInputStyle}
+                                        value={item.quemNaoPode} onChange={e => { const cp = [...cuidadosPos]; cp[i] = { ...cp[i], quemNaoPode: e.target.value }; setCuidadosPos(cp) }}
+                                        placeholder="Quem NÃO pode usar (Ex: Gestantes, alérgicos a lanolina)" />
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     {/* FAQ Personalizado */}

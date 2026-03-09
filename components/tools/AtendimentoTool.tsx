@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { MessageCircle, Plus, Trash2, Save, Sparkles, Shield, ToggleLeft, ToggleRight, Loader2, Check, Bot } from 'lucide-react'
+import { MessageCircle, Plus, Trash2, Save, Sparkles, Shield, ToggleLeft, ToggleRight, Loader2, Check, Bot, Clock, Ban, Cake, MessageSquareText } from 'lucide-react'
 import SimulatorDrawer from './SimulatorDrawer'
 
 // Funcionalidades que a IARA pode fazer — a Dra liga/desliga
@@ -29,13 +29,32 @@ export default function AtendimentoTool() {
     // UI states
     const [simOpen, setSimOpen] = useState(false)
 
-    // Campos sincronizados com o banco
+    // Personalidade
     const [nomeIA, setNomeIA] = useState('')
     const [humor, setHumor] = useState('amigavel')
     const [tom, setTom] = useState('informal')
     const [emojis, setEmojis] = useState('moderado')
     const [fraseFavorita, setFraseFavorita] = useState('')
     const [funcionalidades, setFuncionalidades] = useState(funcionalidadesDefault)
+
+    // Modo IA
+    const [modoIA, setModoIA] = useState<'secretaria' | 'ia_pura'>('secretaria')
+
+    // Horário de operação da IARA
+    const [sempreLigada, setSempreLigada] = useState(true)
+    const [horarioInicio, setHorarioInicio] = useState('08:00')
+    const [horarioFim, setHorarioFim] = useState('20:00')
+    const [diasAtendimento, setDiasAtendimento] = useState<number[]>([1, 2, 3, 4, 5])
+    const [mensagemForaHorario, setMensagemForaHorario] = useState('')
+
+    // Blacklist
+    const [blacklist, setBlacklist] = useState('')
+
+    // Aniversário
+    const [mensagemAniversario, setMensagemAniversario] = useState('')
+
+    // Boas-vindas
+    const [mensagemBoasVindas, setMensagemBoasVindas] = useState('')
 
     // Feedbacks
     const [feedbacks, setFeedbacks] = useState<string[]>([])
@@ -53,7 +72,30 @@ export default function AtendimentoTool() {
                 setEmojis(data.emojis || 'moderado')
                 setFraseFavorita(data.fraseDespedida || 'Qualquer coisa me chama! 💜')
 
-                // Carregar funcionalidades salvas (se existirem no JSON)
+                // Modo IA
+                if (data.modoIA) setModoIA(data.modoIA)
+
+                // Horário de operação IARA
+                if (data.sempreLigada !== undefined && data.sempreLigada !== null) {
+                    setSempreLigada(data.sempreLigada)
+                }
+                if (data.horarioInicio) setHorarioInicio(data.horarioInicio)
+                if (data.horarioFim) setHorarioFim(data.horarioFim)
+                if (data.diasAtendimento) {
+                    try {
+                        const dias = typeof data.diasAtendimento === 'string'
+                            ? JSON.parse(data.diasAtendimento) : data.diasAtendimento
+                        if (Array.isArray(dias)) setDiasAtendimento(dias)
+                    } catch { /* default */ }
+                }
+                if (data.mensagemForaHorario) setMensagemForaHorario(data.mensagemForaHorario)
+
+                // Blacklist, Aniversário, Boas-vindas
+                if (data.blacklist) setBlacklist(data.blacklist)
+                if (data.mensagemAniversario) setMensagemAniversario(data.mensagemAniversario)
+                if (data.mensagemBoasVindas) setMensagemBoasVindas(data.mensagemBoasVindas)
+
+                // Funcionalidades
                 if (data.funcionalidades) {
                     try {
                         const saved = typeof data.funcionalidades === 'string'
@@ -66,12 +108,11 @@ export default function AtendimentoTool() {
                     } catch { /* usar defaults */ }
                 }
 
-                // Carregar feedbacks
+                // Feedbacks
                 if (data.feedbacks) {
                     try {
                         const fb = typeof data.feedbacks === 'string'
-                            ? JSON.parse(data.feedbacks)
-                            : data.feedbacks
+                            ? JSON.parse(data.feedbacks) : data.feedbacks
                         if (Array.isArray(fb)) setFeedbacks(fb)
                     } catch { /* usar vazio */ }
                 }
@@ -90,7 +131,6 @@ export default function AtendimentoTool() {
         setSaving(true)
         setSaved(false)
         try {
-            // Montar objeto de funcionalidades como Record<string, boolean>
             const funcsObj: Record<string, boolean> = {}
             funcionalidades.forEach(f => { funcsObj[f.id] = f.ativo })
 
@@ -105,6 +145,15 @@ export default function AtendimentoTool() {
                     fraseDespedida: fraseFavorita,
                     funcionalidades: JSON.stringify(funcsObj),
                     feedbacks: JSON.stringify(feedbacks),
+                    modoIA,
+                    sempreLigada,
+                    horarioInicio,
+                    horarioFim,
+                    diasAtendimento: JSON.stringify(diasAtendimento),
+                    mensagemForaHorario,
+                    blacklist,
+                    mensagemAniversario,
+                    mensagemBoasVindas,
                 }),
             })
 
@@ -131,73 +180,240 @@ export default function AtendimentoTool() {
         return (
             <div className="flex items-center justify-center py-20">
                 <Loader2 size={24} className="animate-spin text-[#D99773]" />
-                <span className="ml-3 text-sm" style={{ color: 'var(--text-muted)' }}>Carregando configurações...</span>
+                <span className="ml-3 text-sm" style={{ color: 'var(--text-muted)' }}>Carregando configurações da secretária...</span>
             </div>
         )
     }
 
+    const cardStyle = { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }
+    const inputStyle = { backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }
+    const inputClass = "w-full px-3 py-2 text-[13px] rounded-xl focus:outline-none transition-colors"
+
     return (
         <div className="space-y-6">
-            {/* Personalização da IARA */}
-            <div className="backdrop-blur-xl rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
-                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}>
-                    <Sparkles size={15} className="text-[#D99773]" />
-                    Personalidade da IARA
+
+            {/* ============ MODO DA IA ============ */}
+            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
+                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
+                    🤖 Modo de Atendimento
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Nome da Assistente</label>
-                        <input
-                            className="w-full px-3 py-2 text-[13px] rounded-xl focus:outline-none transition-colors"
-                            style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                            value={nomeIA} onChange={(e) => setNomeIA(e.target.value)}
-                            placeholder="Ex: Sofia, Luna, Bella..."
-                        />
-                        <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>As clientes vão conhecer a IARA pelo nome: <strong>{nomeIA}</strong></p>
-                    </div>
-                    <div>
-                        <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Humor / Personalidade</label>
-                        <select className="w-full px-3 py-2 text-[13px] rounded-xl focus:outline-none" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} value={humor} onChange={(e) => setHumor(e.target.value)}>
-                            <option value="amigavel">🎀 Melhor Amiga (BFF) — alegre, próxima</option>
-                            <option value="profissional">💼 Profissional — direta e objetiva</option>
-                            <option value="luxo">💎 Elegante — sofisticada e premium</option>
-                            <option value="acolhedora">🤗 Acolhedora — carinhosa e empática</option>
-                            <option value="energetica">⚡ Energética — entusiasmada e motivada</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Tom de Conversa</label>
-                        <select className="w-full px-3 py-2 text-[13px] rounded-xl focus:outline-none" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} value={tom} onChange={(e) => setTom(e.target.value)}>
-                            <option value="informal">💬 Informal — tipo WhatsApp com amiga</option>
-                            <option value="semi_formal">📋 Semi-formal — simpática mas profissional</option>
-                            <option value="formal">🏥 Formal — linguagem técnica e séria</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Uso de Emojis</label>
-                        <select className="w-full px-3 py-2 text-[13px] rounded-xl focus:outline-none" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} value={emojis} onChange={(e) => setEmojis(e.target.value)}>
-                            <option value="nenhum">🚫 Nenhum emoji</option>
-                            <option value="moderado">😊 Moderado (1 por mensagem)</option>
-                            <option value="bastante">😍🎉 Bastante (2-3 por mensagem)</option>
-                        </select>
-                    </div>
-                    <div className="md:col-span-2">
-                        <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Frase de Despedida</label>
-                        <input
-                            className="w-full px-3 py-2 text-[13px] rounded-xl focus:outline-none transition-colors"
-                            style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                            value={fraseFavorita} onChange={(e) => setFraseFavorita(e.target.value)}
-                            placeholder="Ex: Qualquer coisa me chama! 💜"
-                        />
-                    </div>
+                <p className="text-[10px] mb-4" style={{ color: 'var(--text-muted)' }}>
+                    Escolha como a IA se comporta no WhatsApp da sua clínica.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button
+                        onClick={() => setModoIA('secretaria')}
+                        className="p-4 rounded-xl text-left transition-all"
+                        style={{
+                            backgroundColor: modoIA === 'secretaria' ? 'rgba(217,151,115,0.12)' : 'var(--bg-subtle)',
+                            border: `2px solid ${modoIA === 'secretaria' ? '#D99773' : 'var(--border-default)'}`,
+                        }}
+                    >
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xl">💬</span>
+                            <span className="text-[13px] font-bold" style={{ color: modoIA === 'secretaria' ? '#D99773' : 'var(--text-primary)' }}>
+                                Modo Secretária
+                            </span>
+                            {modoIA === 'secretaria' && <Check size={14} className="text-[#D99773] ml-auto" />}
+                        </div>
+                        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            A IA se apresenta como <strong>{nomeIA || 'IARA'}</strong>, com personalidade, nome, tom de voz e emojis. As clientes sabem que falam com uma secretária virtual.
+                        </p>
+                    </button>
+
+                    <button
+                        onClick={() => setModoIA('ia_pura')}
+                        className="p-4 rounded-xl text-left transition-all"
+                        style={{
+                            backgroundColor: modoIA === 'ia_pura' ? 'rgba(139,92,246,0.12)' : 'var(--bg-subtle)',
+                            border: `2px solid ${modoIA === 'ia_pura' ? '#8B5CF6' : 'var(--border-default)'}`,
+                        }}
+                    >
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xl">🤖</span>
+                            <span className="text-[13px] font-bold" style={{ color: modoIA === 'ia_pura' ? '#8B5CF6' : 'var(--text-primary)' }}>
+                                Modo IA
+                            </span>
+                            {modoIA === 'ia_pura' && <Check size={14} className="text-[#8B5CF6] ml-auto" />}
+                        </div>
+                        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            A IA responde de forma direta, sem se identificar como secretária e sem personalidade. Ideal para quem tem atendentes humanas e quer a IA como suporte.
+                        </p>
+                    </button>
                 </div>
             </div>
 
-            {/* Funcionalidades (toggles) */}
-            <div className="backdrop-blur-xl rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+            {/* ============ HORÁRIO DE OPERAÇÃO DA IARA ============ */}
+            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
+                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
+                    <Clock size={15} className="text-[#D99773]" />
+                    Horário de Operação da {nomeIA || 'IARA'}
+                </h3>
+                <p className="text-[10px] mb-4" style={{ color: 'var(--text-muted)' }}>
+                    Defina quando a {nomeIA || 'IARA'} responde automaticamente. Fora do horário, pode enviar uma mensagem automática.
+                </p>
+
+                {/* Toggle Sempre Ligada */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                    <button
+                        onClick={() => setSempreLigada(true)}
+                        className="p-3 rounded-xl text-left transition-all"
+                        style={{
+                            backgroundColor: sempreLigada ? 'rgba(6,214,160,0.1)' : 'var(--bg-subtle)',
+                            border: `2px solid ${sempreLigada ? '#06D6A0' : 'var(--border-default)'}`,
+                        }}
+                    >
+                        <div className="flex items-center gap-2">
+                            <span className="text-lg">⚡</span>
+                            <span className="text-[12px] font-bold" style={{ color: sempreLigada ? '#06D6A0' : 'var(--text-primary)' }}>
+                                Sempre Ligada (24/7)
+                            </span>
+                            {sempreLigada && <Check size={14} className="text-green-400 ml-auto" />}
+                        </div>
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                            A {nomeIA || 'IARA'} responde a qualquer hora, todos os dias.
+                        </p>
+                    </button>
+
+                    <button
+                        onClick={() => setSempreLigada(false)}
+                        className="p-3 rounded-xl text-left transition-all"
+                        style={{
+                            backgroundColor: !sempreLigada ? 'rgba(217,151,115,0.1)' : 'var(--bg-subtle)',
+                            border: `2px solid ${!sempreLigada ? '#D99773' : 'var(--border-default)'}`,
+                        }}
+                    >
+                        <div className="flex items-center gap-2">
+                            <span className="text-lg">🕐</span>
+                            <span className="text-[12px] font-bold" style={{ color: !sempreLigada ? '#D99773' : 'var(--text-primary)' }}>
+                                Horários Específicos
+                            </span>
+                            {!sempreLigada && <Check size={14} className="text-[#D99773] ml-auto" />}
+                        </div>
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                            A {nomeIA || 'IARA'} atende somente nos horários e dias definidos.
+                        </p>
+                    </button>
+                </div>
+
+                {/* Campos de horário (só aparece se não for sempre ligada) */}
+                {!sempreLigada && (
+                    <div className="space-y-3 p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Início</label>
+                                <input type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} className={inputClass} style={inputStyle} />
+                            </div>
+                            <div>
+                                <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Fim</label>
+                                <input type="time" value={horarioFim} onChange={e => setHorarioFim(e.target.value)} className={inputClass} style={inputStyle} />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Dias que a {nomeIA || 'IARA'} atende</label>
+                            <div className="flex gap-1">
+                                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((dia, i) => (
+                                    <button key={i} onClick={() => setDiasAtendimento(prev => prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i])}
+                                        className="px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all"
+                                        style={{
+                                            backgroundColor: diasAtendimento.includes(i) ? '#D99773' : 'var(--bg-card)',
+                                            color: diasAtendimento.includes(i) ? 'white' : 'var(--text-muted)',
+                                            border: `1px solid ${diasAtendimento.includes(i) ? '#D99773' : 'var(--border-default)'}`,
+                                        }}>
+                                        {dia}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>💬 Mensagem fora do horário (opcional)</label>
+                            <textarea value={mensagemForaHorario} onChange={e => setMensagemForaHorario(e.target.value)} rows={2}
+                                className={`w-full ${inputClass} resize-none`} style={inputStyle}
+                                placeholder="Olá! Nosso horário de atendimento é de seg-sex das 08h às 20h. Retornaremos em breve! 😊" />
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* ============ PERSONALIDADE ============ */}
+            {modoIA === 'secretaria' && (
+                <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
+                    <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}>
+                        <Sparkles size={15} className="text-[#D99773]" />
+                        Personalidade da {nomeIA || 'IARA'}
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Nome da Assistente</label>
+                            <input
+                                className={inputClass}
+                                style={inputStyle}
+                                value={nomeIA} onChange={(e) => setNomeIA(e.target.value)}
+                                placeholder="Ex: Sofia, Luna, Bella..."
+                            />
+                            <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>As clientes vão conhecer a IA pelo nome: <strong>{nomeIA}</strong></p>
+                        </div>
+                        <div>
+                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Humor / Personalidade</label>
+                            <select className={inputClass} style={inputStyle} value={humor} onChange={(e) => setHumor(e.target.value)}>
+                                <option value="amigavel">🎀 Melhor Amiga (BFF) — alegre, próxima</option>
+                                <option value="profissional">💼 Profissional — direta e objetiva</option>
+                                <option value="luxo">💎 Elegante — sofisticada e premium</option>
+                                <option value="acolhedora">🤗 Acolhedora — carinhosa e empática</option>
+                                <option value="energetica">⚡ Energética — entusiasmada e motivada</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Tom de Conversa</label>
+                            <select className={inputClass} style={inputStyle} value={tom} onChange={(e) => setTom(e.target.value)}>
+                                <option value="informal">💬 Informal — tipo WhatsApp com amiga</option>
+                                <option value="semi_formal">📋 Semi-formal — simpática mas profissional</option>
+                                <option value="formal">🏥 Formal — linguagem técnica e séria</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Uso de Emojis</label>
+                            <select className={inputClass} style={inputStyle} value={emojis} onChange={(e) => setEmojis(e.target.value)}>
+                                <option value="nenhum">🚫 Nenhum emoji</option>
+                                <option value="moderado">😊 Moderado (1 por mensagem)</option>
+                                <option value="bastante">😍🎉 Bastante (2-3 por mensagem)</option>
+                            </select>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Frase de Despedida</label>
+                            <input
+                                className={inputClass}
+                                style={inputStyle}
+                                value={fraseFavorita} onChange={(e) => setFraseFavorita(e.target.value)}
+                                placeholder="Ex: Qualquer coisa me chama! 💜"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ============ MENSAGEM DE BOAS-VINDAS ============ */}
+            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
+                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
+                    <MessageSquareText size={15} className="text-[#D99773]" />
+                    Mensagem de Boas-Vindas
+                </h3>
+                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>
+                    Enviada automaticamente quando uma nova cliente conversa pela primeira vez. Deixe vazio para usar o padrão.
+                </p>
+                <textarea value={mensagemBoasVindas} onChange={e => setMensagemBoasVindas(e.target.value)} rows={3}
+                    className={`w-full ${inputClass} resize-none`} style={inputStyle}
+                    placeholder="Olá! 👋 Seja bem-vinda! Sou a IARA, assistente virtual da clínica..." />
+            </div>
+
+            {/* ============ FUNCIONALIDADES (toggles) ============ */}
+            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
                     <Shield size={15} className="text-[#D99773]" />
-                    O que a IARA pode fazer
+                    O que a {nomeIA || 'IARA'} pode fazer
                 </h3>
                 <p className="text-[10px] mb-4" style={{ color: 'var(--text-muted)' }}>
                     Ative ou desative funcionalidades. Alterações são salvas ao clicar em &quot;Salvar&quot;.
@@ -227,14 +443,45 @@ export default function AtendimentoTool() {
                 </div>
             </div>
 
-            {/* Feedbacks para a IARA */}
-            <div className="backdrop-blur-xl rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+            {/* ============ BLACKLIST ============ */}
+            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
+                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
+                    <Ban size={15} className="text-red-400" />
+                    Números Bloqueados
+                </h3>
+                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>A {nomeIA || 'IARA'} ignora esses números completamente. Um por linha.</p>
+                <textarea value={blacklist} onChange={e => setBlacklist(e.target.value)} rows={3}
+                    className={`w-full ${inputClass} resize-none`} style={inputStyle}
+                    placeholder={"5511999998888\n5521988887777"} />
+                {blacklist.trim() && (
+                    <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                        {blacklist.split('\n').filter(n => n.trim()).length} número(s) bloqueado(s)
+                    </p>
+                )}
+            </div>
+
+            {/* ============ ANIVERSÁRIO ============ */}
+            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
+                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
+                    <Cake size={15} className="text-[#D99773]" />
+                    Mensagem de Aniversário
+                </h3>
+                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>
+                    Enviada automaticamente para clientes do CRM que fazem aniversário. Use {'{nome}'} e {'{clinica}'} como variáveis.
+                </p>
+                <textarea value={mensagemAniversario} onChange={e => setMensagemAniversario(e.target.value)} rows={4}
+                    className={`w-full ${inputClass} resize-none`} style={inputStyle}
+                    placeholder="🎂 Parabéns, {nome}!!! 🎉 Aqui é da {clinica}. Que esse dia seja maravilhoso! 💜" />
+            </div>
+
+            {/* ============ FEEDBACKS ============ */}
+            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
                     <MessageCircle size={15} className="text-[#D99773]" />
-                    Feedbacks para a IARA
+                    Feedbacks para a {nomeIA || 'IARA'}
                 </h3>
                 <p className="text-[10px] mb-4" style={{ color: 'var(--text-muted)' }}>
-                    Ensine a IARA! Diga o que ela NÃO deve fazer ou como deve se comportar.
+                    Ensine a {nomeIA || 'IARA'}! Diga o que ela NÃO deve fazer ou como deve se comportar.
                 </p>
                 <div className="space-y-2 mb-4">
                     {feedbacks.length === 0 && (
@@ -254,8 +501,8 @@ export default function AtendimentoTool() {
                 </div>
                 <div className="flex gap-2">
                     <input
-                        className="flex-1 px-3 py-2 text-[12px] rounded-xl focus:outline-none"
-                        style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+                        className={`flex-1 ${inputClass}`}
+                        style={inputStyle}
                         value={novoFeedback}
                         onChange={(e) => setNovoFeedback(e.target.value)}
                         placeholder='Ex: "Não fale sobre concorrentes"...'
@@ -291,7 +538,7 @@ export default function AtendimentoTool() {
                 ) : saved ? (
                     <><Check size={16} /> Salvo com sucesso! ✅</>
                 ) : (
-                    <><Save size={16} /> Salvar Alterações</>
+                    <><Save size={16} /> Salvar Configurações da Secretária</>
                 )}
             </button>
 
@@ -302,7 +549,7 @@ export default function AtendimentoTool() {
                 style={{ background: 'linear-gradient(135deg, #0F4C61, #1a6e8b)' }}
             >
                 <Bot size={18} />
-                <span className="hidden sm:inline">Testar IARA</span>
+                <span className="hidden sm:inline">Testar {nomeIA || 'IARA'}</span>
             </button>
 
             {/* Drawer do Simulador */}
