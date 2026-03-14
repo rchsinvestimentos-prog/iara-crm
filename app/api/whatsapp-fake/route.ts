@@ -29,21 +29,44 @@ const FAKE_PUSH_NAME = 'Tester 🧪'
 export async function POST(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions)
-        const clinicaId = await getClinicaId(session)
-        if (!clinicaId) {
-            return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+        if (!session?.user) {
+            return NextResponse.json({ error: 'Sessão inválida — faça login novamente' }, { status: 401 })
+        }
+
+        // ================================================
+        // 0. RESOLVER CLÍNICA — suporta admin e cliente
+        // ================================================
+        const isAdminUser = (session.user as any).userType === 'admin'
+        let clinicaId: number | null = null
+
+        if (isAdminUser) {
+            // Admin não tem clinicaId próprio — busca 1ª clínica ativa
+            const primeira = await prisma.clinica.findFirst({
+                where: { status: 'ativo' },
+                orderBy: { id: 'asc' },
+                select: { id: true },
+            })
+            clinicaId = primeira?.id ?? null
+        } else {
+            clinicaId = await getClinicaId(session)
+        }
+
+        if (!clinicaId || isNaN(clinicaId)) {
+            return NextResponse.json({
+                error: 'Nenhuma clínica encontrada. Configure sua clínica antes de usar o simulador.',
+            }, { status: 401 })
         }
 
         const body = await request.json()
         const {
-            mensagem,           // texto da mensagem
-            audioBase64,        // áudio em base64 (se enviou voz)
-            imageBase64,        // imagem em base64 (se enviou foto)
-            imageMimeType,      // 'image/jpeg' | 'image/png' | 'image/webp'
-            tipoMensagem = 'text', // 'text' | 'audio' | 'image'
-            historico = [],     // histórico da conversa (para contexto)
-            modoVoz = false,    // true = quer resposta em áudio (TTS)
-            simularIsFromMe = false, // simula msg DA doutora (testa pausa)
+            mensagem,
+            audioBase64,
+            imageBase64,
+            imageMimeType,
+            tipoMensagem = 'text',
+            historico = [],
+            modoVoz = false,
+            simularIsFromMe = false,
         } = body
 
         const logs: string[] = []
@@ -51,6 +74,8 @@ export async function POST(request: NextRequest) {
             console.log(`[WA-Fake] ${msg}`)
             logs.push(msg)
         }
+
+        if (isAdminUser) log(`👑 Admin mode — testando clínica ID ${clinicaId}`)
 
         // ================================================
         // 1. BUSCAR CLÍNICA
@@ -60,7 +85,7 @@ export async function POST(request: NextRequest) {
         })
 
         if (!clinica) {
-            return NextResponse.json({ error: 'Clínica não encontrada' }, { status: 404 })
+            return NextResponse.json({ error: `Clínica ID ${clinicaId} não encontrada` }, { status: 404 })
         }
 
         const cfg = (clinica.configuracoes as any) || {}
