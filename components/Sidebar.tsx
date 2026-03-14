@@ -397,15 +397,17 @@ export default function Sidebar() {
             <Settings size={17} strokeWidth={1.8} />
             <span>Configurações</span>
           </Link>
-          <Link href="/simulador" className={linkClass('/simulador')}>
-            <Bot size={17} strokeWidth={1.8} />
-            <span>Simulador</span>
-          </Link>
           {isAdmin && (
-            <Link href="/whatsapp-fake" className={linkClass('/whatsapp-fake')}>
-              <TestTube2 size={17} strokeWidth={1.8} />
-              <span>WA Fake 🧪</span>
-            </Link>
+            <>
+              <Link href="/simulador" className={linkClass('/simulador')}>
+                <Bot size={17} strokeWidth={1.8} />
+                <span>Simulador</span>
+              </Link>
+              <Link href="/whatsapp-fake" className={linkClass('/whatsapp-fake')}>
+                <TestTube2 size={17} strokeWidth={1.8} />
+                <span>WA Fake 🧪</span>
+              </Link>
+            </>
           )}
           <Link href="/cofre" className={linkClass('/cofre')}>
             <Shield size={17} strokeWidth={1.8} />
