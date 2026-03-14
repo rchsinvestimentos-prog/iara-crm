@@ -43,6 +43,7 @@ import {
   Search,
   Megaphone,
   Users,
+  TestTube2,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTheme } from './ThemeProvider'
@@ -397,6 +398,10 @@ export default function Sidebar() {
           <Link href="/simulador" className={linkClass('/simulador')}>
             <Bot size={17} strokeWidth={1.8} />
             <span>Simulador</span>
+          </Link>
+          <Link href="/whatsapp-fake" className={linkClass('/whatsapp-fake')}>
+            <TestTube2 size={17} strokeWidth={1.8} />
+            <span>WA Fake 🧪</span>
           </Link>
           <Link href="/cofre" className={linkClass('/cofre')}>
             <Shield size={17} strokeWidth={1.8} />
