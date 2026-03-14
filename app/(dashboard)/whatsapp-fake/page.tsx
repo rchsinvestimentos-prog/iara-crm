@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { Mic, MicOff, Send, Trash2, Volume2, Play, Pause, RefreshCw, Info, PhoneOff, ImagePlus, X } from 'lucide-react'
 
 // ============================================
@@ -232,6 +234,30 @@ function BolhaMensagem({ bubble }: { bubble: Bubble }) {
 // COMPONENTE PRINCIPAL — WhatsApp Fake
 // ============================================
 export default function WhatsAppFakePage() {
+    const { data: session, status } = useSession()
+    const router = useRouter()
+    const isAdmin = (session?.user as any)?.userType === 'admin'
+
+    // Guard: redirecionar não-admins
+    useEffect(() => {
+        if (status === 'loading') return
+        if (!isAdmin) {
+            router.replace('/dashboard')
+        }
+    }, [status, isAdmin, router])
+
+    // Enquanto carrega sessão ou não é admin — tela em branco
+    if (status === 'loading' || !isAdmin) {
+        return (
+            <div className="flex items-center justify-center h-screen text-gray-400">
+                <div className="text-center">
+                    <div className="text-4xl mb-3">🔒</div>
+                    <p className="text-sm">Acesso restrito ao administrador</p>
+                </div>
+            </div>
+        )
+    }
+
     const [bubbles, setBubbles] = useState<Bubble[]>([
         {
             id: 'system-welcome',

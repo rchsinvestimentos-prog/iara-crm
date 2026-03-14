@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { signOut } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react'
 import {
   LayoutDashboard,
   MessageCircle,
@@ -105,6 +105,8 @@ const habilidadesMenu: { titulo: string; nivel: number; emoji: string; skills: S
 export default function Sidebar() {
   const pathname = usePathname()
   const { theme, toggleTheme } = useTheme()
+  const { data: session } = useSession()
+  const isAdmin = (session?.user as any)?.userType === 'admin'
   const [expandedGroups, setExpandedGroups] = useState<number[]>([1])
   const [mobileOpen, setMobileOpen] = useState(false)
   const [planoAtual, setPlanoAtual] = useState(1)
@@ -399,10 +401,12 @@ export default function Sidebar() {
             <Bot size={17} strokeWidth={1.8} />
             <span>Simulador</span>
           </Link>
-          <Link href="/whatsapp-fake" className={linkClass('/whatsapp-fake')}>
-            <TestTube2 size={17} strokeWidth={1.8} />
-            <span>WA Fake 🧪</span>
-          </Link>
+          {isAdmin && (
+            <Link href="/whatsapp-fake" className={linkClass('/whatsapp-fake')}>
+              <TestTube2 size={17} strokeWidth={1.8} />
+              <span>WA Fake 🧪</span>
+            </Link>
+          )}
           <Link href="/cofre" className={linkClass('/cofre')}>
             <Shield size={17} strokeWidth={1.8} />
             <span>Personalizar IA</span>
