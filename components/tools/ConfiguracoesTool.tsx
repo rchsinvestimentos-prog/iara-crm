@@ -573,16 +573,24 @@ export default function ConfiguracoesTool() {
         if (!formCombo.nome.trim() || formCombo.procedimentoIds.length === 0) return
         setSavingCombo(true)
         try {
-            const valorOriginal = procedimentos.filter(p => formCombo.procedimentoIds.includes(p.id)).reduce((s, p) => s + p.valor, 0)
+            const valorOriginal = procedimentos.filter(p => formCombo.procedimentoIds.includes(String(p.id))).reduce((s, p) => s + Number(p.valor), 0)
             const method = editandoCombo ? 'PUT' : 'POST'
-            const body = editandoCombo ? { id: editandoCombo, ...formCombo, valorOriginal } : { ...formCombo, valorOriginal }
-            const res = await fetch('/api/combos', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+            const payload = {
+                ...(editandoCombo ? { id: editandoCombo } : {}),
+                ...formCombo,
+                procedimentoIds: formCombo.procedimentoIds.map(id => String(id)),
+                valorOriginal,
+            }
+            const res = await fetch('/api/combos', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
             if (res.ok) {
                 const r = await fetch('/api/combos'); if (r.ok) setCombos(await r.json())
                 setEditandoCombo(null); setNovoCombo(false)
                 setFormCombo({ nome: '', descricao: '', valorCombo: 0, procedimentoIds: [] })
+            } else {
+                const errData = await res.json().catch(() => null)
+                alert(`Erro ao salvar combo: ${errData?.error || res.statusText}${errData?.details ? '\n' + JSON.stringify(errData.details) : ''}`)
             }
-        } catch (err) { console.error('Erro ao salvar combo:', err) }
+        } catch (err) { console.error('Erro ao salvar combo:', err); alert('Erro de rede ao salvar combo') }
         finally { setSavingCombo(false) }
     }
 
@@ -1386,9 +1394,10 @@ export default function ConfiguracoesTool() {
                                 <div className="flex flex-wrap gap-2">
                                     {procedimentos.map(p => (
                                         <button key={p.id} onClick={() => {
-                                            const ids = formPromo.procedimentoIds.includes(p.id) ? formPromo.procedimentoIds.filter(id => id !== p.id) : [...formPromo.procedimentoIds, p.id]
+                                            const sid = String(p.id)
+                                            const ids = formPromo.procedimentoIds.includes(sid) ? formPromo.procedimentoIds.filter(id => id !== sid) : [...formPromo.procedimentoIds, sid]
                                             setFormPromo({ ...formPromo, procedimentoIds: ids })
-                                        }} className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all ${formPromo.procedimentoIds.includes(p.id) ? 'bg-[#D99773]/20 text-[#D99773] border border-[#D99773]/30' : 'border hover:opacity-80'}`} style={!formPromo.procedimentoIds.includes(p.id) ? { color: 'var(--text-muted)', borderColor: 'var(--border-default)' } : {}}>
+                                        }} className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all ${formPromo.procedimentoIds.includes(String(p.id)) ? 'bg-[#D99773]/20 text-[#D99773] border border-[#D99773]/30' : 'border hover:opacity-80'}`} style={!formPromo.procedimentoIds.includes(String(p.id)) ? { color: 'var(--text-muted)', borderColor: 'var(--border-default)' } : {}}>
                                             {p.nome} — R$ {p.valor}
                                         </button>
                                     ))}
@@ -1495,16 +1504,17 @@ export default function ConfiguracoesTool() {
                                 <div className="flex flex-wrap gap-2">
                                     {procedimentos.map(p => (
                                         <button key={p.id} onClick={() => {
-                                            const ids = formCombo.procedimentoIds.includes(p.id) ? formCombo.procedimentoIds.filter(id => id !== p.id) : [...formCombo.procedimentoIds, p.id]
+                                            const sid = String(p.id)
+                                            const ids = formCombo.procedimentoIds.includes(sid) ? formCombo.procedimentoIds.filter(id => id !== sid) : [...formCombo.procedimentoIds, sid]
                                             setFormCombo({ ...formCombo, procedimentoIds: ids })
-                                        }} className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all ${formCombo.procedimentoIds.includes(p.id) ? 'bg-[#D99773]/20 text-[#D99773] border border-[#D99773]/30' : 'border hover:opacity-80'}`} style={!formCombo.procedimentoIds.includes(p.id) ? { color: 'var(--text-muted)', borderColor: 'var(--border-default)' } : {}}>
+                                        }} className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all ${formCombo.procedimentoIds.includes(String(p.id)) ? 'bg-[#D99773]/20 text-[#D99773] border border-[#D99773]/30' : 'border hover:opacity-80'}`} style={!formCombo.procedimentoIds.includes(String(p.id)) ? { color: 'var(--text-muted)', borderColor: 'var(--border-default)' } : {}}>
                                             {p.nome} — R$ {p.valor}
                                         </button>
                                     ))}
                                 </div>
                                 {formCombo.procedimentoIds.length > 0 && (
                                     <p className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>
-                                        💰 Valor individual: R$ {procedimentos.filter(p => formCombo.procedimentoIds.includes(p.id)).reduce((s, p) => s + p.valor, 0).toFixed(2)}
+                                        💰 Valor individual: R$ {procedimentos.filter(p => formCombo.procedimentoIds.includes(String(p.id))).reduce((s, p) => s + Number(p.valor), 0).toFixed(2)}
                                     </p>
                                 )}
                             </div>
