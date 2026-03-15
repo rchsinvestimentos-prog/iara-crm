@@ -20,6 +20,13 @@ interface Clinica {
     criado_em: string
     autorizou_cuidados_pos: string | null
     cuidados_pos: string | null
+    onboarding: {
+        dados: boolean
+        secretaria: boolean
+        conexoes: boolean
+        done: number
+        total: number
+    }
 }
 
 const planoNomes: Record<number, string> = { 1: 'Essencial', 2: 'Premium' }
@@ -197,7 +204,7 @@ export default function AdminClinicas() {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.04))' }}>
-                                    {['Clínica', 'Plano', 'Status', 'Créditos', 'WhatsApp', 'Pós-Proc', 'Expira em', 'Desde', ''].map((h, i) => (
+                                    {['Clínica', 'Plano', 'Status', 'Créditos', 'WhatsApp', 'Setup', 'Pós-Proc', 'Expira em', 'Desde', ''].map((h, i) => (
                                         <th key={i} className="text-left px-5 py-3 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{h}</th>
                                     ))}
                                 </tr>
@@ -230,6 +237,14 @@ export default function AdminClinicas() {
                                         <td className="px-5 py-3.5">
                                             <span className={`text-[11px] ${c.whatsapp_status === 'conectado' ? 'text-green-400' : 'text-gray-500'}`}>
                                                 {c.whatsapp_status === 'conectado' ? '✅ Conectado' : '⚪ Não conectado'}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <span
+                                                className={`text-[10px] font-semibold ${c.onboarding.done === 3 ? 'text-green-400' : c.onboarding.done >= 1 ? 'text-amber-400' : 'text-gray-500'}`}
+                                                title={`Dados: ${c.onboarding.dados ? '✅' : '❌'} | IA: ${c.onboarding.secretaria ? '✅' : '❌'} | WhatsApp: ${c.onboarding.conexoes ? '✅' : '❌'}`}
+                                            >
+                                                {c.onboarding.done}/{c.onboarding.total} {c.onboarding.done === 3 ? '✅' : ''}
                                             </span>
                                         </td>
                                         <td className="px-5 py-3.5">

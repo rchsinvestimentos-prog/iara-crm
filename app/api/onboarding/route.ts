@@ -21,11 +21,10 @@ export async function GET() {
                 whatsappClinica: true,
                 evolutionInstance: true,
                 nomeAssistente: true,
-                personalidade: true,
-                tomDeVoz: true,
+                personalidadeVoz: true,
+                tomAtendimento: true,
                 humor: true,
-                horaInicio: true,
-                horaFim: true,
+                horarioSemana: true,
             },
         })
 
@@ -51,15 +50,14 @@ export async function GET() {
             clinica.nomeClinica &&
             clinica.nomeClinica.trim() !== '' &&
             temProcedimentos &&
-            clinica.horaInicio &&
-            clinica.horaFim
+            clinica.horarioSemana
         )
 
         // Etapa 2: Secretária configurada — nomeAssistente preenchido + personalidade/tom/humor
         const etapa2 = !!(
             clinica.nomeAssistente &&
             clinica.nomeAssistente.trim() !== '' &&
-            (clinica.personalidade || clinica.tomDeVoz || clinica.humor)
+            (clinica.personalidadeVoz || clinica.tomAtendimento || clinica.humor)
         )
 
         // Etapa 3: WhatsApp conectado — evolutionInstance existe + verificar conexão real

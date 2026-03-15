@@ -41,6 +41,10 @@ export async function GET() {
                 proximaRenovacao: true,
                 autorizouCuidadosPos: true,
                 cuidadosPos: true,
+                personalidadeVoz: true,
+                tomAtendimento: true,
+                humor: true,
+                horarioSemana: true,
             },
             orderBy: { createdAt: 'desc' },
         })
@@ -69,6 +73,21 @@ export async function GET() {
             await Promise.all(checks)
         }
 
+        // Contar procedimentos ativos por clínica
+        const procedimentosCounts = new Map<number, number>()
+        try {
+            const counts = await prisma.$queryRaw<{ user_id: number; count: bigint }[]>`
+                SELECT user_id, COUNT(*)::bigint as count
+                FROM procedimentos
+                WHERE ativo = true AND user_id IS NOT NULL
+                GROUP BY user_id
+            `
+            for (const row of counts) {
+                procedimentosCounts.set(row.user_id, Number(row.count))
+            }
+        } catch { /* tabela pode não existir */ }
+
+
         const result = clinicas.map((c: typeof clinicas[number]) => ({
             id: c.id,
             nome_clinica: c.nomeClinica || c.nome,
@@ -91,6 +110,15 @@ export async function GET() {
             criado_em: c.createdAt,
             autorizou_cuidados_pos: c.autorizouCuidadosPos,
             cuidados_pos: c.cuidadosPos,
+            onboarding: (() => {
+                const whatsConnected = statusMap.get(c.id) === 'conectado'
+                const temProcs = (procedimentosCounts.get(c.id) ?? 0) > 0
+                const dados = !!(c.nomeClinica && c.nomeClinica.trim() !== '' && temProcs && c.horarioSemana)
+                const secretaria = !!(c.nomeAssistente && c.nomeAssistente.trim() !== '' && (c.personalidadeVoz || c.tomAtendimento || c.humor))
+                const conexoes = whatsConnected
+                const done = [dados, secretaria, conexoes].filter(Boolean).length
+                return { dados, secretaria, conexoes, done, total: 3 }
+            })(),
         }))
 
         return NextResponse.json({ clinicas: result })
