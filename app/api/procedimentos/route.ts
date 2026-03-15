@@ -7,11 +7,11 @@ import { z } from 'zod'
 // Validation schemas — types match actual DB columns
 const CreateProcSchema = z.object({
     nome: z.string().min(1).max(100),
-    valor: z.number().min(0).max(100000),
-    desconto: z.number().min(0).max(100000).optional().default(0),
-    parcelas: z.number().int().min(0).max(48).optional().nullable(),
-    duracao: z.number().int().min(0).max(600).optional().nullable(),
-    descricao: z.string().max(2000).optional().nullable(),
+    valor: z.number().min(0).max(999999),
+    desconto: z.number().min(0).max(999999).optional().default(0),
+    parcelas: z.number().int().min(0).max(999).optional().nullable(),
+    duracao: z.number().int().min(0).max(1440).optional().nullable(),
+    descricao: z.string().max(5000).optional().nullable(),
 })
 
 const UpdateProcSchema = CreateProcSchema.extend({
