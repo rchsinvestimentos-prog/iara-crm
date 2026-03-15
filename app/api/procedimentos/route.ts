@@ -28,8 +28,9 @@ export async function GET() {
             return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
         }
 
+        const cid = String(clinicaId)
         const procedimentos = await prisma.procedimento.findMany({
-            where: { clinicaId, ativo: true },
+            where: { clinicaId: cid, ativo: true },
             orderBy: { createdAt: 'desc' },
         })
 
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
         const validated = CreateProcSchema.parse(body)
 
         const proc = await prisma.procedimento.create({
-            data: { clinicaId, ...validated },
+            data: { clinicaId: String(clinicaId), ...validated },
         })
 
         return NextResponse.json(proc)
@@ -80,7 +81,7 @@ export async function PUT(request: NextRequest) {
 
         // Verificar que o procedimento pertence à clínica
         const existing = await prisma.procedimento.findFirst({
-            where: { id: validated.id, clinicaId },
+            where: { id: validated.id, clinicaId: String(clinicaId) },
         })
 
         if (!existing) {
@@ -118,7 +119,7 @@ export async function DELETE(request: NextRequest) {
 
         // Verificar ownership antes de deletar
         const existing = await prisma.procedimento.findFirst({
-            where: { id, clinicaId },
+            where: { id, clinicaId: String(clinicaId) },
         })
 
         if (!existing) {
