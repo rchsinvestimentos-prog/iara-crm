@@ -553,19 +553,7 @@ export default function AtendimentoTool() {
                 )}
             </div>
 
-            {/* ============ ANIVERSÁRIO ============ */}
-            <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
-                <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
-                    <Cake size={15} className="text-[#D99773]" />
-                    Mensagem de Aniversário
-                </h3>
-                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>
-                    Enviada automaticamente para clientes do CRM que fazem aniversário. Use {'{nome}'} e {'{clinica}'} como variáveis.
-                </p>
-                <textarea value={mensagemAniversario} onChange={e => setMensagemAniversario(e.target.value)} rows={4}
-                    className={`w-full ${inputClass} resize-none`} style={inputStyle}
-                    placeholder="🎂 Parabéns, {nome}!!! 🎉 Aqui é da {clinica}. Que esse dia seja maravilhoso! 💜" />
-            </div>
+            {/* Aniversário movido para /contatos */}
 
             {/* ============ FEEDBACKS ============ */}
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
