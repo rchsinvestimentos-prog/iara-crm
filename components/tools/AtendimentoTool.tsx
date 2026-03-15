@@ -26,6 +26,8 @@ export default function AtendimentoTool() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
+    const [savingBloco, setSavingBloco] = useState<string | null>(null)
+    const [savedBloco, setSavedBloco] = useState<string | null>(null)
 
     // UI states
     const [simOpen, setSimOpen] = useState(false)
@@ -177,6 +179,47 @@ export default function AtendimentoTool() {
         )
     }
 
+    // Salvar apenas um bloco específico
+    const salvarBloco = async (blocoId: string, dados: Record<string, unknown>) => {
+        setSavingBloco(blocoId)
+        setSavedBloco(null)
+        try {
+            const res = await fetch('/api/clinica', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados),
+            })
+            if (res.ok) {
+                setSavedBloco(blocoId)
+                setTimeout(() => setSavedBloco(null), 3000)
+            } else {
+                console.error('Erro ao salvar bloco:', await res.text())
+            }
+        } catch (err) {
+            console.error('Erro ao salvar bloco:', err)
+        } finally {
+            setSavingBloco(null)
+        }
+    }
+
+    // Componente de botão salvar por bloco
+    const BotaoSalvarBloco = ({ blocoId, dados, label }: { blocoId: string; dados: Record<string, unknown>; label?: string }) => (
+        <button
+            onClick={() => salvarBloco(blocoId, dados)}
+            disabled={savingBloco === blocoId}
+            className="mt-4 w-full py-2.5 rounded-xl text-[12px] font-medium flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: 'rgba(15,76,97,0.1)', color: '#0F4C61', border: '1px solid rgba(15,76,97,0.2)' }}
+        >
+            {savingBloco === blocoId ? (
+                <><Loader2 size={14} className="animate-spin" /> Salvando...</>
+            ) : savedBloco === blocoId ? (
+                <><Check size={14} /> Salvo! ✅</>
+            ) : (
+                <><Save size={14} /> {label || 'Salvar'}</>
+            )}
+        </button>
+    )
+
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
@@ -243,6 +286,7 @@ export default function AtendimentoTool() {
                         </p>
                     </button>
                 </div>
+                <BotaoSalvarBloco blocoId="modo" dados={{ modoIA }} label="Salvar Modo" />
             </div>
 
             {/* ============ HORÁRIO DE OPERAÇÃO DA IARA ============ */}
@@ -337,6 +381,7 @@ export default function AtendimentoTool() {
                         </div>
                     </div>
                 )}
+                <BotaoSalvarBloco blocoId="horario" dados={{ sempreLigada, horarioInicio, horarioFim, diasAtendimento: JSON.stringify(diasAtendimento), mensagemForaHorario }} label="Salvar Horário" />
             </div>
 
             {/* ============ PERSONALIDADE ============ */}
@@ -393,6 +438,7 @@ export default function AtendimentoTool() {
                             />
                         </div>
                     </div>
+                    <BotaoSalvarBloco blocoId="personalidade" dados={{ nomeAssistente: nomeIA, humor, tomAtendimento: tom, emojis, fraseDespedida: fraseFavorita }} label="Salvar Personalidade" />
                 </div>
             )}
 
@@ -408,6 +454,7 @@ export default function AtendimentoTool() {
                 <textarea value={mensagemBoasVindas} onChange={e => setMensagemBoasVindas(e.target.value)} rows={3}
                     className={`w-full ${inputClass} resize-none`} style={inputStyle}
                     placeholder="Olá! 👋 Seja bem-vinda! Sou a IARA, assistente virtual da clínica..." />
+                <BotaoSalvarBloco blocoId="boasvindas" dados={{ mensagemBoasVindas }} label="Salvar Mensagem" />
             </div>
 
             {/* ============ FUNCIONALIDADES (toggles) ============ */}
@@ -442,6 +489,7 @@ export default function AtendimentoTool() {
                         </div>
                     ))}
                 </div>
+                <BotaoSalvarBloco blocoId="funcionalidades" dados={{ funcionalidades: JSON.stringify(funcionalidades.reduce((acc: Record<string, boolean>, f) => ({ ...acc, [f.id]: f.ativo }), {})) }} label="Salvar Funcionalidades" />
             </div>
 
             {/* ============ BLACKLIST ============ */}
@@ -551,6 +599,7 @@ export default function AtendimentoTool() {
                         </p>
                     </div>
                 )}
+                <BotaoSalvarBloco blocoId="blacklist" dados={{ blacklist }} label="Salvar Blacklist" />
             </div>
 
             {/* Aniversário movido para /contatos */}
@@ -606,6 +655,7 @@ export default function AtendimentoTool() {
                         <Plus size={14} />
                     </button>
                 </div>
+                <BotaoSalvarBloco blocoId="feedbacks" dados={{ feedbacks: JSON.stringify(feedbacks) }} label="Salvar Feedbacks" />
             </div>
 
             {/* Salvar Tudo */}
