@@ -498,8 +498,16 @@ export default function WhatsAppFakePage() {
                 stream.getTracks().forEach(t => t.stop())
                 const blob = new Blob(audioChunks.current, { type: 'audio/webm' })
                 const audioUrl = URL.createObjectURL(blob)
+
+                // Converter para base64 em chunks (evita stack overflow com spread operator)
                 const arrayBuffer = await blob.arrayBuffer()
-                const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+                const bytes = new Uint8Array(arrayBuffer)
+                let binary = ''
+                const chunkSize = 8192
+                for (let i = 0; i < bytes.length; i += chunkSize) {
+                    binary += String.fromCharCode(...bytes.slice(i, i + chunkSize))
+                }
+                const base64 = btoa(binary)
 
                 addBubble({ role: 'user', text: '', audioUrl, tipo: 'audio' })
                 const loadingId = addBubble({ role: 'iara', text: '', tipo: 'text', loading: true })

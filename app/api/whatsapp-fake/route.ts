@@ -463,12 +463,36 @@ export async function POST(request: NextRequest) {
 
         if (modoVoz || clienteEnviouAudio) {
             log(`🎙️ Gerando TTS (modo voz ativo)...`)
-            // Aplicar overrides de plano/voz para testes
-            const clinicaOverride = { ...clinica, nivel: nivel } as any
+            let configSaida: any
+
             if (overrideVoz) {
-                clinicaOverride.configuracoes = { ...cfg, tipo_voz_ativa: overrideVoz }
+                // Override direto — bypass determineOutputType para garantir teste
+                if (overrideVoz === 'clone') {
+                    const voiceClonada = cfg.voice_id_clonada || (clinica as any).vozClonada || cfg.eleven_voice_id || null
+                    if (voiceClonada) {
+                        configSaida = { tipoSaida: 'audio', provedorVoz: 'elevenlabs', voiceId: voiceClonada }
+                    } else {
+                        log('⚠️ Sem voz clonada configurada → fallback OpenAI TTS')
+                        configSaida = { tipoSaida: 'audio', provedorVoz: 'openai_tts', voiceId: cfg.openai_voice_id || 'nova' }
+                    }
+                } else if (overrideVoz === 'ultra') {
+                    const elevenId = cfg.eleven_voice_id || cfg.voice_id_clonada || (clinica as any).vozClonada || null
+                    if (elevenId) {
+                        configSaida = { tipoSaida: 'audio', provedorVoz: 'elevenlabs', voiceId: elevenId }
+                    } else {
+                        log('⚠️ Sem eleven_voice_id configurado → fallback OpenAI TTS')
+                        configSaida = { tipoSaida: 'audio', provedorVoz: 'openai_tts', voiceId: cfg.openai_voice_id || 'nova' }
+                    }
+                } else {
+                    // tts (OpenAI)
+                    configSaida = { tipoSaida: 'audio', provedorVoz: 'openai_tts', voiceId: cfg.openai_voice_id || 'nova' }
+                }
+                log(`🎯 Override voz: ${configSaida.provedorVoz} / ${configSaida.voiceId}`)
+            } else {
+                // Sem override — usar lógica normal
+                const clinicaOverride = { ...clinica, nivel: nivel } as any
+                configSaida = determineOutputType(clinicaOverride, true)
             }
-            const configSaida = determineOutputType(clinicaOverride, true)
 
             if (configSaida.tipoSaida === 'audio') {
                 audioResposta = await generateTTS(respostaIA, configSaida)
