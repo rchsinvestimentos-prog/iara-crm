@@ -37,7 +37,7 @@ function audioB64ToUrl(b64: string): string {
     const binary = atob(b64)
     const bytes = new Uint8Array(binary.length)
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-    const blob = new Blob([bytes], { type: 'audio/mp3' })
+    const blob = new Blob([bytes], { type: 'audio/mpeg' })
     return URL.createObjectURL(blob)
 }
 
@@ -66,6 +66,33 @@ function BolhaAudio({ audioUrl, compact = false }: { audioUrl: string; compact?:
     const [duration, setDuration] = useState(0)
     const audioRef = useRef<HTMLAudioElement>(null)
 
+    // Workaround: blob URLs often don't have duration metadata
+    // We force the browser to calculate it by seeking to a large time
+    useEffect(() => {
+        const audio = audioRef.current
+        if (!audio) return
+        const handleLoaded = () => {
+            if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+                setDuration(audio.duration)
+            } else {
+                // Force duration calculation for blob URLs
+                audio.currentTime = 1e10
+                const onSeek = () => {
+                    audio.removeEventListener('timeupdate', onSeek)
+                    if (audio.duration && isFinite(audio.duration)) {
+                        setDuration(audio.duration)
+                    }
+                    audio.currentTime = 0
+                }
+                audio.addEventListener('timeupdate', onSeek)
+            }
+        }
+        audio.addEventListener('loadedmetadata', handleLoaded)
+        // Also try if already loaded
+        if (audio.readyState >= 1) handleLoaded()
+        return () => audio.removeEventListener('loadedmetadata', handleLoaded)
+    }, [audioUrl])
+
     const togglePlay = () => {
         if (!audioRef.current) return
         if (playing) {
@@ -75,18 +102,25 @@ function BolhaAudio({ audioUrl, compact = false }: { audioUrl: string; compact?:
         }
     }
 
-    const formatDuration = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+    const formatDuration = (s: number) => {
+        if (!s || !isFinite(s) || s < 0) return '0:00'
+        return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+    }
 
     return (
         <div className={`flex items-center gap-2 ${compact ? 'py-1' : 'py-2'} max-w-[220px]`}>
             <audio
                 ref={audioRef}
                 src={audioUrl}
+                preload="metadata"
                 onPlay={() => setPlaying(true)}
                 onPause={() => setPlaying(false)}
                 onEnded={() => { setPlaying(false); setProgress(0) }}
-                onDurationChange={e => setDuration(e.currentTarget.duration)}
-                onTimeUpdate={e => setProgress((e.currentTarget.currentTime / e.currentTarget.duration) * 100 || 0)}
+                onDurationChange={e => {
+                    const d = e.currentTarget.duration
+                    if (d && isFinite(d) && d > 0) setDuration(d)
+                }}
+                onTimeUpdate={e => setProgress((e.currentTarget.currentTime / (duration || 1)) * 100)}
             />
             <button
                 onClick={togglePlay}
