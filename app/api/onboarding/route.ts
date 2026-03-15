@@ -80,14 +80,28 @@ export async function GET() {
             }
         }
 
-        // Etapa 4: Tudo concluído (todas as anteriores OK)
-        const etapa4 = etapa1 && etapa2 && etapa3
+        // Etapa 4: Contatos — pelo menos 1 contato cadastrado
+        let etapa4contatos = false
+        try {
+            const r = await prisma.$queryRaw<{ count: bigint }[]>`
+                SELECT COUNT(*)::bigint as count
+                FROM contatos
+                WHERE clinica_id = ${clinicaId}
+            `
+            etapa4contatos = Number(r[0]?.count ?? 0) > 0
+        } catch {
+            // tabela pode não existir
+        }
+
+        // Etapa 5: Tudo concluído (todas as anteriores OK)
+        const etapa5 = etapa1 && etapa2 && etapa3 && etapa4contatos
 
         return NextResponse.json({
             dados: etapa1,
             secretaria: etapa2,
             conexoes: etapa3,
-            aproveitar: etapa4,
+            contatos: etapa4contatos,
+            aproveitar: etapa5,
         })
     } catch (err) {
         console.error('Erro em /api/onboarding:', err)

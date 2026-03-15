@@ -35,8 +35,15 @@ const CHECKLIST_ITEMS: ChecklistItem[] = [
         linkLabel: 'Conectar agora',
     },
     {
+        id: 'contatos',
+        titulo: 'Etapa 4 — Conecte seus Contatos',
+        descricao: 'Importe do Google ou cadastre manualmente',
+        link: '/contatos',
+        linkLabel: 'Importar contatos',
+    },
+    {
         id: 'aproveitar',
-        titulo: 'Etapa 4 — Aproveite tudo! 🎉',
+        titulo: 'Etapa 5 — Aproveite tudo! 🎉',
         descricao: 'Veja sua IARA trabalhando 24/7',
         link: '#video-funcionalidades',
         linkLabel: 'Assistir vídeo',
@@ -47,6 +54,7 @@ interface OnboardingStatus {
     dados: boolean
     secretaria: boolean
     conexoes: boolean
+    contatos: boolean
     aproveitar: boolean
 }
 
