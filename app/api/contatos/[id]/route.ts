@@ -11,14 +11,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         if (!clinicaId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
         const body = await request.json()
-        const { nome, telefone, email, notas, tags, etapa } = body
+        const { nome, telefone, email, notas, tags, etapa, cpf, dataNascimento, memoriaIA } = body
 
         const contato = await prisma.contato.updateMany({
-            where: { id: params.id, clinicaId },
+            where: { id: parseInt(params.id), clinicaId },
             data: {
                 ...(nome !== undefined && { nome }),
                 ...(telefone !== undefined && { telefone }),
                 ...(email !== undefined && { email }),
+                ...(cpf !== undefined && { cpf }),
+                ...(dataNascimento !== undefined && { dataNascimento: dataNascimento ? new Date(dataNascimento) : null }),
+                ...(memoriaIA !== undefined && { memoriaIA }),
                 ...(notas !== undefined && { notas }),
                 ...(tags !== undefined && { tags }),
                 ...(etapa !== undefined && { etapa }),
@@ -45,7 +48,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
         if (!clinicaId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
         const result = await prisma.contato.deleteMany({
-            where: { id: params.id, clinicaId },
+            where: { id: parseInt(params.id), clinicaId },
         })
 
         if (result.count === 0) {

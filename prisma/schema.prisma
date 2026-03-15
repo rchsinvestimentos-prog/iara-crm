@@ -297,6 +297,10 @@ model Contato {
   clinicaId       Int?      @map("clinica_id")
   nome            String?   @db.VarChar(200)
   telefone        String    @map("numero_whatsapp") @db.VarChar(50)
+  cpf             String?   @db.VarChar(14)
+  email           String?   @db.VarChar(200)
+  dataNascimento  DateTime? @map("data_nascimento")
+  memoriaIA       String?   @map("memoria_ia") @db.Text
   origem          String?   @default("whatsapp")
   etapa           String?   @default("novo")
   tags            String[]  @default([])

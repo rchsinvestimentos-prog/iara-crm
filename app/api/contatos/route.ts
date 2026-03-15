@@ -20,6 +20,8 @@ export async function GET(request: NextRequest) {
             where.OR = [
                 { nome: { contains: busca, mode: 'insensitive' } },
                 { telefone: { contains: busca } },
+                { cpf: { contains: busca } },
+                { email: { contains: busca, mode: 'insensitive' } },
             ]
         }
 
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
         if (!clinicaId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
         const body = await request.json()
-        const { nome, telefone, email, etapa, notas, tags } = body
+        const { nome, telefone, email, etapa, notas, tags, cpf, dataNascimento, memoriaIA } = body
 
         if (!nome || !telefone) {
             return NextResponse.json({ error: 'Nome e telefone são obrigatórios' }, { status: 400 })
@@ -52,8 +54,30 @@ export async function POST(request: NextRequest) {
 
         const contato = await prisma.contato.upsert({
             where: { clinicaId_telefone: { clinicaId, telefone } },
-            update: { nome, email, notas, tags: tags || [], etapa: etapa || undefined, updatedAt: new Date() },
-            create: { clinicaId, nome, telefone, email, origem: 'manual', etapa: etapa || 'novo', notas, tags: tags || [] },
+            update: {
+                nome,
+                email,
+                cpf: cpf || undefined,
+                dataNascimento: dataNascimento ? new Date(dataNascimento) : undefined,
+                memoriaIA: memoriaIA || undefined,
+                notas,
+                tags: tags || [],
+                etapa: etapa || undefined,
+                updatedAt: new Date(),
+            },
+            create: {
+                clinicaId,
+                nome,
+                telefone,
+                email,
+                cpf,
+                dataNascimento: dataNascimento ? new Date(dataNascimento) : undefined,
+                memoriaIA,
+                origem: 'manual',
+                etapa: etapa || 'novo',
+                notas,
+                tags: tags || [],
+            },
         })
 
         return NextResponse.json({ ok: true, contato })

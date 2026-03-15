@@ -317,6 +317,10 @@ export default function Sidebar() {
               <Users size={17} strokeWidth={1.8} />
               <span>CRM</span>
             </Link>
+            <Link href="/contatos" className={linkClass('/contatos')}>
+              <UserCheck size={17} strokeWidth={1.8} />
+              <span>Contatos</span>
+            </Link>
             <Link href="/campanhas" className={linkClass('/campanhas')}>
               <Megaphone size={17} strokeWidth={1.8} />
               <span>Campanhas</span>
