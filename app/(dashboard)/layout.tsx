@@ -4,6 +4,7 @@ import Sidebar from '@/components/Sidebar'
 import { IdiomaProvider } from '@/components/IdiomaProvider'
 import TermosModal from '@/components/TermosModal'
 import TrocarSenhaModal from '@/components/TrocarSenhaModal'
+import { SessionProvider } from 'next-auth/react'
 import { useState, useEffect, Suspense } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
@@ -29,6 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }, [])
 
     return (
+        <SessionProvider>
         <IdiomaProvider>
             <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
                 <div className="noise-overlay" />
@@ -70,5 +72,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <TrocarSenhaModal />
             </Suspense>
         </IdiomaProvider>
+        </SessionProvider>
     )
 }
