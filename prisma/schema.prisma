@@ -171,7 +171,7 @@ model Curso {
 
 model Procedimento {
   id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId   String
+  clinicaId   String   @map("user_id")
   nome        String
   valor       Float    @default(0)
   desconto    Int      @default(0)
