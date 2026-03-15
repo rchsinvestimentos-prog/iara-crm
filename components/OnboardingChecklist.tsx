@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { CheckCircle2, Circle, ChevronRight, Sparkles } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CheckCircle2, Circle, ChevronRight, Sparkles, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
 interface ChecklistItem {
@@ -43,35 +43,46 @@ const CHECKLIST_ITEMS: ChecklistItem[] = [
     },
 ]
 
-const STORAGE_KEY = 'iara_onboarding_v1'
-
-function getCompleted(): string[] {
-    if (typeof window === 'undefined') return []
-    try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
-    } catch {
-        return []
-    }
+interface OnboardingStatus {
+    dados: boolean
+    secretaria: boolean
+    conexoes: boolean
+    aproveitar: boolean
 }
 
 export default function OnboardingChecklist() {
-    const [completed, setCompleted] = useState<string[]>(getCompleted)
+    const [status, setStatus] = useState<OnboardingStatus | null>(null)
+    const [loading, setLoading] = useState(true)
     const [collapsed, setCollapsed] = useState(false)
 
-    const total = CHECKLIST_ITEMS.length
-    const done = completed.length
-    const pct = Math.round((done / total) * 100)
+    useEffect(() => {
+        fetch('/api/onboarding')
+            .then(r => r.json())
+            .then(data => {
+                if (data && !data.error) {
+                    setStatus(data)
+                }
+            })
+            .catch(() => {})
+            .finally(() => setLoading(false))
+    }, [])
 
-    // Auto-collapse when 100% done
-    const isAllDone = done === total
-
-    const toggle = (id: string) => {
-        const next = completed.includes(id)
-            ? completed.filter(c => c !== id)
-            : [...completed, id]
-        setCompleted(next)
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+    if (loading) {
+        return (
+            <div className="backdrop-blur-xl rounded-2xl p-5 animate-fade-in flex items-center gap-3" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                <Loader2 size={16} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Verificando configurações...</span>
+            </div>
+        )
     }
+
+    if (!status) return null
+
+    const completedIds = CHECKLIST_ITEMS.filter(item => status[item.id as keyof OnboardingStatus]).map(item => item.id)
+    const total = CHECKLIST_ITEMS.length
+    const done = completedIds.length
+    const pct = Math.round((done / total) * 100)
+    const isAllDone = done === total
 
     if (isAllDone) {
         return (
@@ -117,23 +128,19 @@ export default function OnboardingChecklist() {
             {!collapsed && (
                 <div className="px-4 pb-4 space-y-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
                     {CHECKLIST_ITEMS.map((item) => {
-                        const isDone = completed.includes(item.id)
+                        const isDone = completedIds.includes(item.id)
                         return (
                             <div
                                 key={item.id}
                                 className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 ${isDone ? 'opacity-60' : ''}`}
                                 style={{ backgroundColor: isDone ? 'transparent' : 'var(--bg-subtle)' }}
                             >
-                                <button
-                                    onClick={() => toggle(item.id)}
-                                    className="flex-shrink-0 transition-transform hover:scale-110"
-                                    title={isDone ? 'Marcar como pendente' : 'Marcar como concluído'}
-                                >
+                                <div className="flex-shrink-0">
                                     {isDone
                                         ? <CheckCircle2 size={19} className="text-green-500" />
                                         : <Circle size={19} style={{ color: 'var(--text-muted)' }} />
                                     }
-                                </button>
+                                </div>
                                 <div className="flex-1 min-w-0">
                                     <p className={`text-sm font-medium ${isDone ? 'line-through' : ''}`} style={{ color: 'var(--text-primary)' }}>
                                         {item.titulo}
