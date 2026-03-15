@@ -25,8 +25,6 @@ export async function GET() {
                 tomAtendimento: true,
                 humor: true,
                 horarioSemana: true,
-                modoIA: true,
-                sempreLigada: true,
             },
         })
 
@@ -47,20 +45,19 @@ export async function GET() {
             // tabela pode não existir
         }
 
-        // Etapa 1: Dados cadastrados — nomeClinica preenchido + pelo menos 1 procedimento
+        // Etapa 1: Dados cadastrados — nomeClinica preenchido + pelo menos 1 procedimento + horários
         const etapa1 = !!(
             clinica.nomeClinica &&
             clinica.nomeClinica.trim() !== '' &&
-            temProcedimentos
+            temProcedimentos &&
+            clinica.horarioSemana
         )
 
-        // Etapa 2: Secretária configurada — humor OU tom OU modoIA definido
-        // (AtendimentoTool salva humor, tomAtendimento, modoIA)
+        // Etapa 2: Secretária configurada — nomeAssistente preenchido + personalidade/tom/humor
         const etapa2 = !!(
-            clinica.humor ||
-            clinica.tomAtendimento ||
-            clinica.personalidadeVoz ||
-            clinica.modoIA
+            clinica.nomeAssistente &&
+            clinica.nomeAssistente.trim() !== '' &&
+            (clinica.personalidadeVoz || clinica.tomAtendimento || clinica.humor)
         )
 
         // Etapa 3: WhatsApp conectado — evolutionInstance existe + verificar conexão real
@@ -78,12 +75,8 @@ export async function GET() {
                     const data = await res.json()
                     etapa3 = data?.instance?.state === 'open' || data?.state === 'open'
                 } catch {
-                    // Se falhar a verificação, considera como conectado se tem instância
-                    etapa3 = !!clinica.evolutionInstance
+                    etapa3 = false
                 }
-            } else {
-                // Se não tem Evolution API configurada, considera que tem instância = ok
-                etapa3 = !!clinica.evolutionInstance
             }
         }
 
