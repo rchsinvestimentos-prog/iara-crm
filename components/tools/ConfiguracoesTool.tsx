@@ -119,6 +119,8 @@ export default function ConfiguracoesTool() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
+    const [savingBloco, setSavingBloco] = useState<string | null>(null)
+    const [savedBloco, setSavedBloco] = useState<string | null>(null)
     const [clinica, setClinica] = useState<ClinicaData | null>(null)
 
     // ---- Dados da Clínica ----
@@ -311,6 +313,71 @@ export default function ConfiguracoesTool() {
     }, [])
 
     useEffect(() => { loadData() }, [loadData])
+
+    // ==================== Salvar Bloco Individual ====================
+
+    const salvarBloco = async (bloco: string) => {
+        setSavingBloco(bloco)
+        setSavedBloco(null)
+        try {
+            let payload: Record<string, any> = {}
+
+            if (bloco === 'dados') {
+                payload = {
+                    nomeClinica,
+                    whatsappClinica: whatsappClinica || null,
+                    whatsappDoutora: whatsappPessoal || null,
+                    nomeDoutora: nomeDoutora || null,
+                    tratamentoDoutora: tratamentoDoutora || 'Pelo nome',
+                    endereco: endereco || null,
+                    linkMaps: linkMaps || null,
+                    linkGoogleReview: linkGoogleReview || null,
+                }
+            } else if (bloco === 'diferenciais') {
+                payload = {
+                    diferenciais: diferencialItems.length > 0 ? diferencialItems.join('\n') : null,
+                }
+            } else if (bloco === 'horarios') {
+                payload = {
+                    horarioSemana: horarioSemana || null,
+                    almocoSemana: almocoSemana || null,
+                    atendeSabado,
+                    horarioSabado: horarioSabado || null,
+                    almocoSabado: almocoSabado || null,
+                    atendeDomingo,
+                    horarioDomingo: horarioDomingo || null,
+                    almocoDomingo: almocoDomingo || null,
+                    atendeFeriado,
+                    horarioFeriado: horarioFeriado || null,
+                    almocoFeriado: almocoFeriado || null,
+                    intervaloAtendimento,
+                    antecedenciaMinima: antecedenciaMinima || null,
+                }
+            } else if (bloco === 'vip') {
+                payload = {
+                    politicaCancelamento: politicaCancelamento || null,
+                    formasPagamento,
+                    redesSociais,
+                    cuidadosPos: JSON.stringify(cuidadosPos),
+                    autorizouCuidadosPos: autorizouCuidadosPos || null,
+                }
+            }
+
+            const res = await fetch('/api/clinica', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            })
+            if (res.ok) {
+                setSavedBloco(bloco)
+                setTimeout(() => setSavedBloco(null), 3000)
+            }
+        } catch (err) {
+            console.error('Erro ao salvar bloco:', err)
+        } finally {
+            setSavingBloco(null)
+        }
+    }
 
     // ==================== Salvar Clínica ====================
 
@@ -778,6 +845,21 @@ export default function ConfiguracoesTool() {
                 </div>
             </div>
 
+            {/* Salvar Dados da Clínica */}
+            <button
+                onClick={() => salvarBloco('dados')}
+                disabled={savingBloco === 'dados'}
+                className="w-full py-2.5 rounded-xl text-[12px] font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                style={{ backgroundColor: savingBloco === 'dados' ? '#0F4C61' : savedBloco === 'dados' ? '#16a34a' : '#0F4C61', color: '#fff' }}
+            >
+                {savingBloco === 'dados' ? (
+                    <><Loader2 size={14} className="animate-spin" /> Salvando...</>
+                ) : savedBloco === 'dados' ? (
+                    <><Check size={14} /> Salvo com sucesso!</>
+                ) : (
+                    <><Save size={14} /> Salvar Dados da Clínica</>
+                )}
+            </button>
 
 
             {/* ============ 2. DIFERENCIAIS ============ */}
@@ -850,6 +932,22 @@ export default function ConfiguracoesTool() {
                     </button>
                 </div>
             </div>
+
+            {/* Salvar Diferenciais */}
+            <button
+                onClick={() => salvarBloco('diferenciais')}
+                disabled={savingBloco === 'diferenciais'}
+                className="w-full py-2.5 rounded-xl text-[12px] font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                style={{ backgroundColor: savingBloco === 'diferenciais' ? '#0F4C61' : savedBloco === 'diferenciais' ? '#16a34a' : '#0F4C61', color: '#fff' }}
+            >
+                {savingBloco === 'diferenciais' ? (
+                    <><Loader2 size={14} className="animate-spin" /> Salvando...</>
+                ) : savedBloco === 'diferenciais' ? (
+                    <><Check size={14} /> Salvo com sucesso!</>
+                ) : (
+                    <><Save size={14} /> Salvar Diferenciais</>
+                )}
+            </button>
 
 
             {/* ============ 3. PROCEDIMENTOS ============ */}
@@ -1224,6 +1322,22 @@ export default function ConfiguracoesTool() {
                 </div>
             </div >
 
+            {/* Salvar Horários */}
+            <button
+                onClick={() => salvarBloco('horarios')}
+                disabled={savingBloco === 'horarios'}
+                className="w-full py-2.5 rounded-xl text-[12px] font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                style={{ backgroundColor: savingBloco === 'horarios' ? '#0F4C61' : savedBloco === 'horarios' ? '#16a34a' : '#0F4C61', color: '#fff' }}
+            >
+                {savingBloco === 'horarios' ? (
+                    <><Loader2 size={14} className="animate-spin" /> Salvando...</>
+                ) : savedBloco === 'horarios' ? (
+                    <><Check size={14} /> Salvo com sucesso!</>
+                ) : (
+                    <><Save size={14} /> Salvar Horários</>
+                )}
+            </button>
+
             {/* ============ 8. PROMOÇÕES ============ */}
             < div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle} >
                 <div className="flex items-center justify-between mb-4">
@@ -1533,6 +1647,22 @@ export default function ConfiguracoesTool() {
 
                 </div>
             </div >
+
+            {/* Salvar Personalização VIP */}
+            <button
+                onClick={() => salvarBloco('vip')}
+                disabled={savingBloco === 'vip'}
+                className="w-full py-2.5 rounded-xl text-[12px] font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                style={{ backgroundColor: savingBloco === 'vip' ? '#0F4C61' : savedBloco === 'vip' ? '#16a34a' : '#0F4C61', color: '#fff' }}
+            >
+                {savingBloco === 'vip' ? (
+                    <><Loader2 size={14} className="animate-spin" /> Salvando...</>
+                ) : savedBloco === 'vip' ? (
+                    <><Check size={14} /> Salvo com sucesso!</>
+                ) : (
+                    <><Save size={14} /> Salvar Personalização VIP</>
+                )}
+            </button>
 
             {/* ============ BOTÃO SALVAR TUDO ============ */}
             < button
