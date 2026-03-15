@@ -11,7 +11,11 @@ interface TermosModalProps {
 const TEXTOS = {
     termos_uso: {
         titulo: 'Termos de Uso — IARA',
-        conteudo: `Ao utilizar a plataforma IARA, você declara estar ciente e de acordo com os seguintes termos:
+        conteudo: `⚠️ A IARA é uma Inteligência Artificial. Como toda IA, ela pode cometer erros.
+
+A IARA NÃO recomenda, sugere ou prescreve nenhum tipo de procedimento, tratamento, medicamento ou conduta clínica. Ela apenas repassa as informações que VOCÊ, profissional, cadastrar no sistema.
+
+Ao utilizar a plataforma IARA, você declara estar ciente e de acordo com os seguintes termos:
 
 1. NATUREZA DO SERVIÇO: A IARA é uma ferramenta de automação de atendimento via WhatsApp. Ela NÃO é uma profissional de saúde, médica, esteticista ou consultora.
 

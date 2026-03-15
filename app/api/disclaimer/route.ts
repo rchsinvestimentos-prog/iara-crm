@@ -54,10 +54,12 @@ export async function POST(request: NextRequest) {
         await prisma.clinica.update({
             where: { id: clinicaId },
             data: {
+                // Setar o campo aceiteTermos (DateTime) para o layout parar de mostrar o modal
+                ...(tipo === 'termos_uso' ? { aceiteTermos: new Date() } : {}),
                 configuracoes: {
                     ...config,
                     disclaimers,
-                    // Marcar aceite dos termos
+                    // Marcar aceite nos JSON também
                     ...(tipo === 'termos_uso' ? { termosAceitos: true, termosAceitosEm: new Date().toISOString() } : {}),
                     ...(tipo === 'pos_procedimento' ? { disclaimerPosAceito: true, disclaimerPosAceitoEm: new Date().toISOString() } : {}),
                 },
