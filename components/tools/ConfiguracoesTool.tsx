@@ -441,7 +441,7 @@ export default function ConfiguracoesTool() {
                 valor: Number(formProc.valor) || 0,
                 desconto: Number(formProc.desconto) || 0,
                 parcelas: formProc.parcelas ? Number(formProc.parcelas) : null,
-                duracao: formProc.duracao ? Number(formProc.duracao) : null,
+                duracao: formProc.duracao ? Number(formProc.duracao) : 0,
                 descricao: formProc.descricao || null,
             }
 
@@ -990,8 +990,8 @@ export default function ConfiguracoesTool() {
                                     <input type="number" className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={formProc.valor || ''} onChange={(e) => setFormProc({ ...formProc, valor: Number(e.target.value) })} placeholder="497" />
                                 </div>
                                 <div>
-                                    <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Duração</label>
-                                    <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={formProc.duracao || ''} onChange={(e) => setFormProc({ ...formProc, duracao: e.target.value })} placeholder="1h30" />
+                                    <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Duração (minutos)</label>
+                                    <input type="number" min="0" className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={formProc.duracao || ''} onChange={(e) => setFormProc({ ...formProc, duracao: e.target.value })} placeholder="Apenas números. Ex: 90" />
                                 </div>
                                 <div>
                                     <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Desconto máx. (%)</label>
@@ -1004,7 +1004,7 @@ export default function ConfiguracoesTool() {
                                 </div>
                                 <div>
                                     <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Parcelas</label>
-                                    <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={formProc.parcelas || ''} onChange={(e) => setFormProc({ ...formProc, parcelas: e.target.value })} placeholder="3x sem juros" />
+                                    <input type="number" min="0" className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={formProc.parcelas || ''} onChange={(e) => setFormProc({ ...formProc, parcelas: e.target.value })} placeholder="Ex: 12" />
                                 </div>
                             </div>
                             <div className="col-span-2">
@@ -1041,7 +1041,7 @@ export default function ConfiguracoesTool() {
                                     <p className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{p.nome}</p>
                                     <div className="flex items-center gap-3 mt-1">
                                         <span className="text-[11px] font-semibold" style={{ color: '#0F4C61' }}>R$ {p.valor}</span>
-                                        {p.duracao && <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>⏱ {p.duracao}</span>}
+                                        {p.duracao && <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>⏱ {p.duracao} min</span>}
                                         {p.desconto > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-600">-{p.desconto}%</span>}
                                         {p.parcelas && <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>💳 {p.parcelas}</span>}
                                     </div>

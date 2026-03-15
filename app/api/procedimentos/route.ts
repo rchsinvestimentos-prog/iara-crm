@@ -10,7 +10,7 @@ const CreateProcSchema = z.object({
     valor: z.number().min(0).max(999999),
     desconto: z.number().min(0).max(999999).optional().default(0),
     parcelas: z.number().int().min(0).max(999).optional().nullable(),
-    duracao: z.number().int().min(0).max(1440).optional().nullable(),
+    duracao: z.number().int().min(0).max(1440).optional().default(0),
     descricao: z.string().max(5000).optional().nullable(),
 })
 
