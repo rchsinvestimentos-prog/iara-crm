@@ -161,10 +161,37 @@ export async function POST(
                 }
             }
 
-            // 2. Deletar registros relacionados (procedimentos, etc.)
-            try {
-                await prisma.$executeRawUnsafe(`DELETE FROM procedimentos WHERE "clinicaId" = '${clinicaId}'`)
-            } catch (e) { /* tabela pode não existir */ }
+            // 2. Deletar TODOS os registros relacionados (cascade manual)
+            const tabelasRaw = [
+                'procedimentos',
+                'historico_conversa',
+                'status_conversa',
+                'cache_respostas',
+                'memoria_cliente',
+                'cuidados_pos',
+            ]
+            for (const tabela of tabelasRaw) {
+                try {
+                    await prisma.$executeRawUnsafe(`DELETE FROM "${tabela}" WHERE clinica_id = ${clinicaId}`)
+                } catch { /* tabela pode não existir */ }
+            }
+
+            // Tabelas com clinicaId no Prisma schema
+            try { await prisma.usoFeature.deleteMany({ where: { clinicaId } }) } catch {}
+            try { await prisma.contato.deleteMany({ where: { clinicaId } }) } catch {}
+            try { await prisma.crmColuna.deleteMany({ where: { clinicaId } }) } catch {}
+            try { await prisma.campanha.deleteMany({ where: { clinicaId } }) } catch {}
+
+            // Tabelas raw com "clinicaId" (aspas) — formato Prisma
+            const tabelasPrismaCol = [
+                'procedimentos',
+                'leads_crm',
+            ]
+            for (const tabela of tabelasPrismaCol) {
+                try {
+                    await prisma.$executeRawUnsafe(`DELETE FROM "${tabela}" WHERE "clinicaId" = ${clinicaId}`)
+                } catch { /* tabela pode não existir */ }
+            }
 
             // 3. Deletar a clínica do banco
             await prisma.clinica.delete({ where: { id: clinicaId } })
