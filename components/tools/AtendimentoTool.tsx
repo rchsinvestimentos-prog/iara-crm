@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { MessageCircle, Plus, Trash2, Save, Sparkles, Shield, ToggleLeft, ToggleRight, Loader2, Check, Bot, Clock, Ban, Cake, MessageSquareText } from 'lucide-react'
+import { MessageCircle, Plus, Trash2, Save, Sparkles, Shield, ToggleLeft, ToggleRight, Loader2, Check, Bot, Clock, Ban, Cake, MessageSquareText, Pencil, X } from 'lucide-react'
 import SimulatorDrawer from './SimulatorDrawer'
 
 // Funcionalidades que a IARA pode fazer — a Dra liga/desliga
@@ -450,14 +450,106 @@ export default function AtendimentoTool() {
                     <Ban size={15} className="text-red-400" />
                     Números Bloqueados
                 </h3>
-                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>A {nomeIA || 'IARA'} ignora esses números completamente. Um por linha.</p>
-                <textarea value={blacklist} onChange={e => setBlacklist(e.target.value)} rows={3}
-                    className={`w-full ${inputClass} resize-none`} style={inputStyle}
-                    placeholder={"5511999998888\n5521988887777"} />
+                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>A {nomeIA || 'IARA'} ignora esses números completamente.</p>
+
+                {/* Input para adicionar novo número */}
+                <div className="flex gap-2 mb-3">
+                    <div className="flex-1 flex items-center rounded-xl overflow-hidden" style={{ ...inputStyle, padding: 0 }}>
+                        <span className="px-3 py-2 text-[12px] font-semibold shrink-0" style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8' }}>+55</span>
+                        <input
+                            id="blacklist-input"
+                            type="tel"
+                            className={`flex-1 bg-transparent border-none outline-none px-3 py-2 text-[12px]`}
+                            style={{ color: 'var(--text-primary)' }}
+                            placeholder="11999998888"
+                            maxLength={11}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    const inp = e.currentTarget
+                                    const raw = inp.value.replace(/\D/g, '')
+                                    if (raw.length < 10) return
+                                    const full = '55' + raw
+                                    const nums = blacklist.split('\n').filter(n => n.trim())
+                                    if (!nums.includes(full)) {
+                                        setBlacklist([...nums, full].join('\n'))
+                                    }
+                                    inp.value = ''
+                                }
+                            }}
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        className="px-3 rounded-xl text-[11px] font-medium transition-all hover:scale-105"
+                        style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+                        onClick={() => {
+                            const inp = document.getElementById('blacklist-input') as HTMLInputElement
+                            if (!inp) return
+                            const raw = inp.value.replace(/\D/g, '')
+                            if (raw.length < 10) return
+                            const full = '55' + raw
+                            const nums = blacklist.split('\n').filter(n => n.trim())
+                            if (!nums.includes(full)) {
+                                setBlacklist([...nums, full].join('\n'))
+                            }
+                            inp.value = ''
+                            inp.focus()
+                        }}
+                    >
+                        <Plus size={14} />
+                    </button>
+                </div>
+
+                {/* Lista de números bloqueados */}
                 {blacklist.trim() && (
-                    <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                        {blacklist.split('\n').filter(n => n.trim()).length} número(s) bloqueado(s)
-                    </p>
+                    <div className="space-y-1.5">
+                        {blacklist.split('\n').filter(n => n.trim()).map((num, idx) => {
+                            const formatted = num.length >= 12
+                                ? `+${num.slice(0,2)} (${num.slice(2,4)}) ${num.slice(4,9)}-${num.slice(9)}`
+                                : num
+                            return (
+                                <div key={idx} className="flex items-center justify-between px-3 py-2 rounded-xl transition-colors"
+                                    style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)' }}>
+                                    <span className="text-[12px] font-mono tracking-wide" style={{ color: 'var(--text-primary)' }}>
+                                        {formatted}
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            className="p-1 rounded-lg transition-colors hover:bg-red-500/20"
+                                            title="Editar"
+                                            onClick={() => {
+                                                const nums = blacklist.split('\n').filter(n => n.trim())
+                                                const raw = nums[idx].startsWith('55') ? nums[idx].slice(2) : nums[idx]
+                                                const inp = document.getElementById('blacklist-input') as HTMLInputElement
+                                                if (inp) { inp.value = raw; inp.focus() }
+                                                nums.splice(idx, 1)
+                                                setBlacklist(nums.join('\n'))
+                                            }}
+                                        >
+                                            <Pencil size={12} className="text-amber-400" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="p-1 rounded-lg transition-colors hover:bg-red-500/20"
+                                            title="Excluir"
+                                            onClick={() => {
+                                                const nums = blacklist.split('\n').filter(n => n.trim())
+                                                nums.splice(idx, 1)
+                                                setBlacklist(nums.join('\n'))
+                                            }}
+                                        >
+                                            <X size={12} className="text-red-400" />
+                                        </button>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                        <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                            {blacklist.split('\n').filter(n => n.trim()).length} número(s) bloqueado(s)
+                        </p>
+                    </div>
                 )}
             </div>
 
