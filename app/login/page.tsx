@@ -5,6 +5,12 @@ import { signIn, signOut } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { Sparkles, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react'
 
+const ADMIN_HOSTS = ['adm.iara.click', 'admin.iara.click']
+function isAdminDomain() {
+    if (typeof window === 'undefined') return false
+    return ADMIN_HOSTS.some(h => window.location.hostname === h)
+}
+
 function LoginContent() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
@@ -33,9 +39,10 @@ function LoginContent() {
             }).then((result) => {
                 if (result?.ok) {
                     // Magic link → pede nova senha após login
+                    const dest = isAdminDomain() ? '/admin' : '/dashboard'
                     window.location.href = magicToken
-                        ? '/dashboard?trocarSenha=1'
-                        : '/dashboard'
+                        ? `${dest}?trocarSenha=1`
+                        : dest
                 } else {
                     setError('Link inválido ou expirado. Solicite um novo.')
                     setLoading(false)
@@ -63,7 +70,7 @@ function LoginContent() {
             }
 
             // Login bem-sucedido — redirecionar
-            window.location.href = '/dashboard'
+            window.location.href = isAdminDomain() ? '/admin' : '/dashboard'
         } catch {
             setError('Erro ao conectar. Tente novamente.')
             setLoading(false)
