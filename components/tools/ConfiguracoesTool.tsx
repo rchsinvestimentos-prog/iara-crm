@@ -542,14 +542,21 @@ export default function ConfiguracoesTool() {
         setSavingPromo(true)
         try {
             const method = editandoPromo ? 'PUT' : 'POST'
-            const body = editandoPromo ? { id: editandoPromo, ...formPromo } : formPromo
-            const res = await fetch('/api/promocoes', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+            const payload = {
+                ...(editandoPromo ? { id: editandoPromo } : {}),
+                ...formPromo,
+                procedimentoIds: formPromo.procedimentoIds.map(id => String(id)),
+            }
+            const res = await fetch('/api/promocoes', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
             if (res.ok) {
                 const r = await fetch('/api/promocoes'); if (r.ok) setPromocoes(await r.json())
                 setEditandoPromo(null); setNovaPromo(false)
                 setFormPromo({ nome: '', descricao: '', instrucaoIara: '', tipoDesconto: 'percentual', valorDesconto: 0, dataInicio: '', dataFim: '', procedimentoIds: [] })
+            } else {
+                const errData = await res.json().catch(() => null)
+                alert(`Erro ao salvar promoção: ${errData?.error || res.statusText}${errData?.details ? '\n' + JSON.stringify(errData.details) : ''}`)
             }
-        } catch (err) { console.error('Erro ao salvar promoção:', err) }
+        } catch (err) { console.error('Erro ao salvar promoção:', err); alert('Erro de rede ao salvar promoção') }
         finally { setSavingPromo(false) }
     }
 
