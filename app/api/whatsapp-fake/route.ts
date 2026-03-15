@@ -67,6 +67,8 @@ export async function POST(request: NextRequest) {
             historico = [],
             modoVoz = false,
             simularIsFromMe = false,
+            overrideNivel,
+            overrideVoz,
         } = body
 
         const logs: string[] = []
@@ -89,8 +91,9 @@ export async function POST(request: NextRequest) {
         }
 
         const cfg = (clinica.configuracoes as any) || {}
-        const nivel = clinica.nivel || 1
-        log(`✅ Clínica: ${clinica.nomeClinica} (P${nivel})`)
+        const nivel = overrideNivel ? Number(overrideNivel) : (clinica.nivel || 1)
+        log(`✅ Clínica: ${clinica.nomeClinica} (P${nivel}${overrideNivel ? ' [OVERRIDE]' : ''})`)
+        if (overrideVoz) log(`🎤 Voz override: ${overrideVoz}`)
 
         // ================================================
         // 2. CATRACA — verificar acesso
@@ -460,7 +463,12 @@ export async function POST(request: NextRequest) {
 
         if (modoVoz || clienteEnviouAudio) {
             log(`🎙️ Gerando TTS (modo voz ativo)...`)
-            const configSaida = determineOutputType(clinica as any, true)
+            // Aplicar overrides de plano/voz para testes
+            const clinicaOverride = { ...clinica, nivel: nivel } as any
+            if (overrideVoz) {
+                clinicaOverride.configuracoes = { ...cfg, tipo_voz_ativa: overrideVoz }
+            }
+            const configSaida = determineOutputType(clinicaOverride, true)
 
             if (configSaida.tipoSaida === 'audio') {
                 audioResposta = await generateTTS(respostaIA, configSaida)

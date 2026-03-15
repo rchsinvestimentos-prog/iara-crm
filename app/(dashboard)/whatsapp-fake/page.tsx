@@ -308,6 +308,8 @@ export default function WhatsAppFakePage() {
     const [recording, setRecording] = useState(false)
     const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>('ativo')
     const [creditosRestantes, setCreditosRestantes] = useState<number | null>(null)
+    const [planoOverride, setPlanoOverride] = useState<number>(0) // 0 = usar real
+    const [vozOverride, setVozOverride] = useState<string>('')  // '' = usar real
 
     // Estados de imagem
     const [imagemPendente, setImagemPendente] = useState<{
@@ -416,6 +418,8 @@ export default function WhatsAppFakePage() {
                     imageMimeType: mimeType,
                     tipoMensagem: 'image',
                     modoVoz,
+                    ...(planoOverride ? { overrideNivel: planoOverride } : {}),
+                    ...(vozOverride ? { overrideVoz: vozOverride } : {}),
                     historico: bubbles
                         .filter(b => !b.loading && !b.silencio && b.id !== 'system-welcome')
                         .slice(-6)
@@ -459,7 +463,14 @@ export default function WhatsAppFakePage() {
             const res = await fetch('/api/whatsapp-fake', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mensagem: text, tipoMensagem: 'text', modoVoz, historico }),
+                body: JSON.stringify({
+                    mensagem: text,
+                    tipoMensagem: 'text',
+                    modoVoz,
+                    historico,
+                    ...(planoOverride ? { overrideNivel: planoOverride } : {}),
+                    ...(vozOverride ? { overrideVoz: vozOverride } : {}),
+                }),
             })
             const data = await res.json()
             handleResponse(loadingId, data)
@@ -498,7 +509,14 @@ export default function WhatsAppFakePage() {
                     const res = await fetch('/api/whatsapp-fake', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ audioBase64: base64, tipoMensagem: 'audio', modoVoz: true, historico: [] }),
+                        body: JSON.stringify({
+                            audioBase64: base64,
+                            tipoMensagem: 'audio',
+                            modoVoz: true,
+                            historico: [],
+                            ...(planoOverride ? { overrideNivel: planoOverride } : {}),
+                            ...(vozOverride ? { overrideVoz: vozOverride } : {}),
+                        }),
                     })
                     const data = await res.json()
                     handleResponse(loadingId, data)
@@ -705,6 +723,51 @@ export default function WhatsAppFakePage() {
                         <Trash2 size={14} />
                     </button>
                 </div>
+            </div>
+
+            {/* ================================================
+                CONTROL BAR — Plano & Voz
+            ================================================ */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-[#131c22] border-b border-gray-700/20 flex-shrink-0">
+                <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Teste:</span>
+
+                {/* Selector de Plano */}
+                <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-gray-500">Plano</span>
+                    <select
+                        value={planoOverride}
+                        onChange={e => setPlanoOverride(Number(e.target.value))}
+                        className="bg-[#2a3942] text-gray-200 text-xs px-2 py-1 rounded-lg border border-gray-600/50 outline-none focus:border-[#a67c52]/50 cursor-pointer"
+                    >
+                        <option value={0}>Real (da clínica)</option>
+                        <option value={1}>P1 — Secretária</option>
+                        <option value={2}>P2 — Avançado</option>
+                        <option value={3}>P3 — Premium</option>
+                        <option value={4}>P4 — Enterprise</option>
+                    </select>
+                </div>
+
+                {/* Selector de Voz */}
+                <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-gray-500">Voz</span>
+                    <select
+                        value={vozOverride}
+                        onChange={e => setVozOverride(e.target.value)}
+                        className="bg-[#2a3942] text-gray-200 text-xs px-2 py-1 rounded-lg border border-gray-600/50 outline-none focus:border-[#a67c52]/50 cursor-pointer"
+                    >
+                        <option value="">Real (da clínica)</option>
+                        <option value="tts">🔊 OpenAI TTS (nova)</option>
+                        <option value="ultra">✨ ElevenLabs Ultra</option>
+                        <option value="clone">🎤 Voz Clonada</option>
+                    </select>
+                </div>
+
+                {/* Indicativo atual */}
+                {(planoOverride > 0 || vozOverride) && (
+                    <span className="text-[10px] text-[#a67c52] bg-[#a67c52]/10 px-2 py-0.5 rounded-full">
+                        ⚡ Override ativo
+                    </span>
+                )}
             </div>
 
             {/* ================================================
