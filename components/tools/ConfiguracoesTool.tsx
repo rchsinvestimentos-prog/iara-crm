@@ -633,6 +633,7 @@ export default function ConfiguracoesTool() {
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className={labelClass} style={{ color: 'var(--text-muted)' }}>WhatsApp da Clínica</label>
+                            <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>Número que a IARA usa para atender seus clientes</p>
                             <div className="flex gap-1">
                                 <select className="px-1 py-2 text-[11px] rounded-xl focus:outline-none w-[75px] shrink-0" style={inputStyle}
                                     value={whatsappClinica.match(/^\d{1,3}(?=\d{8,})/)?.[0] || '55'}
@@ -655,6 +656,7 @@ export default function ConfiguracoesTool() {
                         </div>
                         <div>
                             <label className={labelClass} style={{ color: 'var(--text-muted)' }}>WhatsApp Pessoal (Dra)</label>
+                            <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>Você recebe relatórios e notificações neste número</p>
                             <div className="flex gap-1">
                                 <select className="px-1 py-2 text-[11px] rounded-xl focus:outline-none w-[75px] shrink-0" style={inputStyle}
                                     value={whatsappPessoal.match(/^\d{1,3}(?=\d{8,})/)?.[0] || '55'}
