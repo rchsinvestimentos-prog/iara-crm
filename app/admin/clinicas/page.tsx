@@ -18,6 +18,8 @@ interface Clinica {
     pct_credito: number
     proxima_renovacao: string | null
     criado_em: string
+    autorizou_cuidados_pos: string | null
+    cuidados_pos: string | null
 }
 
 const planoNomes: Record<number, string> = { 1: 'Essencial', 2: 'Premium' }
@@ -195,7 +197,7 @@ export default function AdminClinicas() {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.04))' }}>
-                                    {['Clínica', 'Plano', 'Status', 'Créditos', 'WhatsApp', 'Expira em', 'Desde', ''].map((h, i) => (
+                                    {['Clínica', 'Plano', 'Status', 'Créditos', 'WhatsApp', 'Pós-Proc', 'Expira em', 'Desde', ''].map((h, i) => (
                                         <th key={i} className="text-left px-5 py-3 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{h}</th>
                                     ))}
                                 </tr>
@@ -229,6 +231,13 @@ export default function AdminClinicas() {
                                             <span className={`text-[11px] ${c.whatsapp_status === 'conectado' ? 'text-green-400' : 'text-gray-500'}`}>
                                                 {c.whatsapp_status === 'conectado' ? '✅ Conectado' : '⚪ Não conectado'}
                                             </span>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            {c.autorizou_cuidados_pos ? (
+                                                <span className="text-[10px] text-green-400" title={`Autorizado em ${new Date(c.autorizou_cuidados_pos).toLocaleString('pt-BR')}`}>✅ {new Date(c.autorizou_cuidados_pos).toLocaleDateString('pt-BR')}</span>
+                                            ) : (
+                                                <span className="text-[10px] text-gray-500">—</span>
+                                            )}
                                         </td>
                                         <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--text-muted)' }}>
                                             {c.proxima_renovacao ? new Date(c.proxima_renovacao).toLocaleDateString('pt-BR') : '∞'}

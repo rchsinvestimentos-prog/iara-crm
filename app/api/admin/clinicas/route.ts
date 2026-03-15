@@ -39,6 +39,8 @@ export async function GET() {
                 evolutionInstance: true,
                 createdAt: true,
                 proximaRenovacao: true,
+                autorizouCuidadosPos: true,
+                cuidadosPos: true,
             },
             orderBy: { createdAt: 'desc' },
         })
@@ -87,6 +89,8 @@ export async function GET() {
             total_agendamentos: 0,
             total_procedimentos: 0,
             criado_em: c.createdAt,
+            autorizou_cuidados_pos: c.autorizouCuidadosPos,
+            cuidados_pos: c.cuidadosPos,
         }))
 
         return NextResponse.json({ clinicas: result })
