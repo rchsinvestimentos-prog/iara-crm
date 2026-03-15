@@ -4,18 +4,18 @@ import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
-// Validation schemas
+// Validation schemas — types match actual DB columns
 const CreateProcSchema = z.object({
     nome: z.string().min(1).max(100),
     valor: z.number().min(0).max(100000),
-    desconto: z.number().min(0).max(100).optional().default(0),
-    parcelas: z.string().max(50).optional().nullable(),
-    duracao: z.string().max(20).optional().nullable(),
+    desconto: z.number().min(0).max(100000).optional().default(0),
+    parcelas: z.number().int().min(0).max(48).optional().nullable(),
+    duracao: z.number().int().min(0).max(600).optional().nullable(),
     descricao: z.string().max(2000).optional().nullable(),
 })
 
 const UpdateProcSchema = CreateProcSchema.extend({
-    id: z.string().min(1),
+    id: z.number().int(),
 })
 
 // GET /api/procedimentos
@@ -28,14 +28,22 @@ export async function GET() {
             return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
         }
 
-        const cid = String(clinicaId)
+        const cid = Number(clinicaId)
         const procedimentos = await prisma.procedimento.findMany({
             where: { clinicaId: cid, ativo: true },
             orderBy: { createdAt: 'desc' },
         })
 
-        return NextResponse.json(procedimentos)
-    } catch {
+        // Convert Decimal to number for JSON serialization
+        const result = procedimentos.map(p => ({
+            ...p,
+            valor: Number(p.valor),
+            desconto: Number(p.desconto),
+        }))
+
+        return NextResponse.json(result)
+    } catch (err) {
+        console.error('[GET /api/procedimentos] Erro:', err)
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
     }
 }
@@ -54,10 +62,22 @@ export async function POST(request: NextRequest) {
         const validated = CreateProcSchema.parse(body)
 
         const proc = await prisma.procedimento.create({
-            data: { clinicaId: String(clinicaId), ...validated },
+            data: {
+                clinicaId: Number(clinicaId),
+                nome: validated.nome,
+                valor: validated.valor,
+                desconto: validated.desconto,
+                parcelas: validated.parcelas ?? null,
+                duracao: validated.duracao ?? null,
+                descricao: validated.descricao ?? null,
+            },
         })
 
-        return NextResponse.json(proc)
+        return NextResponse.json({
+            ...proc,
+            valor: Number(proc.valor),
+            desconto: Number(proc.desconto),
+        })
     } catch (err) {
         if (err instanceof z.ZodError) {
             return NextResponse.json({ error: 'Dados inválidos', details: err.issues }, { status: 400 })
@@ -82,7 +102,7 @@ export async function PUT(request: NextRequest) {
 
         // Verificar que o procedimento pertence à clínica
         const existing = await prisma.procedimento.findFirst({
-            where: { id: validated.id, clinicaId: String(clinicaId) },
+            where: { id: validated.id, clinicaId: Number(clinicaId) },
         })
 
         if (!existing) {
@@ -95,12 +115,17 @@ export async function PUT(request: NextRequest) {
             data,
         })
 
-        return NextResponse.json(proc)
+        return NextResponse.json({
+            ...proc,
+            valor: Number(proc.valor),
+            desconto: Number(proc.desconto),
+        })
     } catch (err) {
         if (err instanceof z.ZodError) {
             return NextResponse.json({ error: 'Dados inválidos', details: err.issues }, { status: 400 })
         }
-        return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 })
+        console.error('[PUT /api/procedimentos] Erro:', err)
+        return NextResponse.json({ error: 'Erro ao atualizar', details: String(err) }, { status: 500 })
     }
 }
 
@@ -115,12 +140,15 @@ export async function DELETE(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url)
-        const id = searchParams.get('id')
-        if (!id) return NextResponse.json({ error: 'ID obrigatório' }, { status: 400 })
+        const idStr = searchParams.get('id')
+        if (!idStr) return NextResponse.json({ error: 'ID obrigatório' }, { status: 400 })
+
+        const id = Number(idStr)
+        if (isNaN(id)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
 
         // Verificar ownership antes de deletar
         const existing = await prisma.procedimento.findFirst({
-            where: { id, clinicaId: String(clinicaId) },
+            where: { id, clinicaId: Number(clinicaId) },
         })
 
         if (!existing) {
@@ -133,7 +161,8 @@ export async function DELETE(request: NextRequest) {
         })
 
         return NextResponse.json({ ok: true })
-    } catch {
-        return NextResponse.json({ error: 'Erro ao deletar' }, { status: 500 })
+    } catch (err) {
+        console.error('[DELETE /api/procedimentos] Erro:', err)
+        return NextResponse.json({ error: 'Erro ao deletar', details: String(err) }, { status: 500 })
     }
 }

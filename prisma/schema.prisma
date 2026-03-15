@@ -170,17 +170,16 @@ model Curso {
 // ============================================
 
 model Procedimento {
-  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId   String   @map("user_id")
-  nome        String
-  valor       Float    @default(0)
-  desconto    Int      @default(0)
-  parcelas    String?  @db.VarChar(50)
-  duracao     String?  @db.VarChar(50)
-  descricao   String?  @db.Text
-  ativo       Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("createdAt")
-  updatedAt   DateTime @default(now()) @map("updatedAt")
+  id          Int       @id @default(autoincrement())
+  clinicaId   Int?      @map("user_id")
+  nome        String    @db.VarChar(255)
+  valor       Decimal   @default(0) @map("preco_normal") @db.Decimal
+  desconto    Decimal   @default(0) @map("preco_minimo") @db.Decimal
+  parcelas    Int?      @map("parcelamento_padrao")
+  duracao     Int?      @map("duracao_minutos")
+  descricao   String?   @db.Text
+  ativo       Boolean?  @default(true)
+  createdAt   DateTime? @default(now()) @map("created_at")
 
   @@index([clinicaId])
   @@map("procedimentos")

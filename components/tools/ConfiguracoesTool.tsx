@@ -436,12 +436,12 @@ export default function ConfiguracoesTool() {
         try {
             const method = editandoProc ? 'PUT' : 'POST'
             const payload = {
-                ...(editandoProc ? { id: editandoProc } : {}),
+                ...(editandoProc ? { id: Number(editandoProc) } : {}),
                 nome: formProc.nome,
                 valor: Number(formProc.valor) || 0,
                 desconto: Number(formProc.desconto) || 0,
-                parcelas: formProc.parcelas || null,
-                duracao: formProc.duracao || null,
+                parcelas: formProc.parcelas ? Number(formProc.parcelas) : null,
+                duracao: formProc.duracao ? Number(formProc.duracao) : null,
                 descricao: formProc.descricao || null,
             }
 
