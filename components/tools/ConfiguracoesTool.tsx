@@ -435,14 +435,22 @@ export default function ConfiguracoesTool() {
         setSavingProc(true)
         try {
             const method = editandoProc ? 'PUT' : 'POST'
-            const body = editandoProc
-                ? { id: editandoProc, nome: formProc.nome, valor: formProc.valor, desconto: formProc.desconto, parcelas: formProc.parcelas || null, duracao: formProc.duracao || null, descricao: formProc.descricao || null }
-                : { nome: formProc.nome, valor: formProc.valor, desconto: formProc.desconto, parcelas: formProc.parcelas || null, duracao: formProc.duracao || null, descricao: formProc.descricao || null }
+            const payload = {
+                ...(editandoProc ? { id: editandoProc } : {}),
+                nome: formProc.nome,
+                valor: Number(formProc.valor) || 0,
+                desconto: Number(formProc.desconto) || 0,
+                parcelas: formProc.parcelas || null,
+                duracao: formProc.duracao || null,
+                descricao: formProc.descricao || null,
+            }
+
+            console.log('[salvarProc] enviando:', method, payload)
 
             const res = await fetch('/api/procedimentos', {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
+                body: JSON.stringify(payload),
             })
 
             if (res.ok) {
@@ -451,9 +459,14 @@ export default function ConfiguracoesTool() {
                 setEditandoProc(null)
                 setNovoProc(false)
                 setFormProc({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '' })
+            } else {
+                const errData = await res.json().catch(() => ({}))
+                console.error('[salvarProc] Erro API:', res.status, errData)
+                alert(`Erro ao salvar procedimento: ${errData?.error || res.statusText}${errData?.details ? '\n' + JSON.stringify(errData.details) : ''}`)
             }
         } catch (err) {
             console.error('Erro ao salvar procedimento:', err)
+            alert('Erro de conexão ao salvar procedimento')
         } finally {
             setSavingProc(false)
         }

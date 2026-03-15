@@ -62,7 +62,8 @@ export async function POST(request: NextRequest) {
         if (err instanceof z.ZodError) {
             return NextResponse.json({ error: 'Dados inválidos', details: err.issues }, { status: 400 })
         }
-        return NextResponse.json({ error: 'Erro ao criar' }, { status: 500 })
+        console.error('[POST /api/procedimentos] Erro:', err)
+        return NextResponse.json({ error: 'Erro ao criar', details: String(err) }, { status: 500 })
     }
 }
 
