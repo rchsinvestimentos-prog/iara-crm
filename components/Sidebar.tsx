@@ -397,18 +397,7 @@ export default function Sidebar() {
             <Settings size={17} strokeWidth={1.8} />
             <span>Configurações</span>
           </Link>
-          {isAdmin && (
-            <>
-              <Link href="/simulador" className={linkClass('/simulador')}>
-                <Bot size={17} strokeWidth={1.8} />
-                <span>Simulador</span>
-              </Link>
-              <Link href="/whatsapp-fake" className={linkClass('/whatsapp-fake')}>
-                <TestTube2 size={17} strokeWidth={1.8} />
-                <span>WA Fake 🧪</span>
-              </Link>
-            </>
-          )}
+          {/* WA Fake e Simulador removidos — só no admin (adm.iara.click) */}
           <Link href="/cofre" className={linkClass('/cofre')}>
             <Shield size={17} strokeWidth={1.8} />
             <span>Personalizar IA</span>

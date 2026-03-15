@@ -18,6 +18,7 @@ import {
     Star,
     Stethoscope,
     Map,
+    TestTube2,
 } from 'lucide-react'
 import { useState } from 'react'
 import { canAccessPage, ROLE_LABELS, ROLE_COLORS } from '@/lib/permissions'
@@ -32,6 +33,7 @@ const menuItems = [
     { href: '/admin/financeiro', label: 'Financeiro', icon: CreditCard },
     { href: '/admin/feedback', label: 'Feedback', icon: Star },
     { href: '/admin/links', label: 'Links & Features', icon: Map },
+    { href: '/admin/whatsapp-fake', label: 'WA Fake 🧪', icon: TestTube2 },
     { href: '/admin/config', label: 'Config Global', icon: Settings },
     { href: '/admin/equipe', label: 'Equipe', icon: Users },
 ]

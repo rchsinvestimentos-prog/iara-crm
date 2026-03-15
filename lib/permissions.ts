@@ -31,7 +31,7 @@ export const ROLE_COLORS: Record<AdminRole, string> = {
 const PERMISSIONS: Record<AdminRole, AdminPermissions> = {
     super_admin: {
         label: 'Super Admin',
-        pages: ['dashboard', 'clinicas', 'diagnostico', 'conversas', 'logs', 'saude', 'financeiro', 'feedback', 'links', 'config', 'equipe'],
+        pages: ['dashboard', 'clinicas', 'diagnostico', 'conversas', 'logs', 'saude', 'financeiro', 'feedback', 'links', 'whatsapp-fake', 'config', 'equipe'],
         canCreate: true,
         canEdit: true,
         canDelete: true,
@@ -52,7 +52,7 @@ const PERMISSIONS: Record<AdminRole, AdminPermissions> = {
     },
     desenvolvimento: {
         label: 'Desenvolvimento',
-        pages: ['dashboard', 'clinicas', 'diagnostico', 'conversas', 'logs', 'saude', 'feedback', 'links', 'config', 'equipe'],
+        pages: ['dashboard', 'clinicas', 'diagnostico', 'conversas', 'logs', 'saude', 'feedback', 'links', 'whatsapp-fake', 'config', 'equipe'],
         canCreate: true,
         canEdit: true,
         canDelete: false,
@@ -77,6 +77,7 @@ const HREF_TO_PAGE: Record<string, string> = {
     '/admin/financeiro': 'financeiro',
     '/admin/feedback': 'feedback',
     '/admin/links': 'links',
+    '/admin/whatsapp-fake': 'whatsapp-fake',
     '/admin/config': 'config',
     '/admin/equipe': 'equipe',
 }
