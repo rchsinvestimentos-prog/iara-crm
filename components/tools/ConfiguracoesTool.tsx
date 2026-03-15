@@ -605,21 +605,21 @@ export default function ConfiguracoesTool() {
 
     const handleAddCuidadoPos = () => {
         if (procedimentos.length === 0) return
+        if (!autorizouCuidadosPos) {
+            setShowDisclaimerPos(true)
+            return
+        }
         setCuidadosPos([...cuidadosPos, { procedimentoNome: '', nome: '', comoUsar: '', quemNaoPode: '' }])
     }
 
     const handleSalvarComDisclaimer = () => {
-        if (cuidadosPos.length > 0 && !autorizouCuidadosPos) {
-            setShowDisclaimerPos(true)
-        } else {
-            salvarClinica()
-        }
+        salvarClinica()
     }
 
     const confirmarDisclaimer = () => {
         setAutorizouCuidadosPos(new Date().toISOString())
         setShowDisclaimerPos(false)
-        setTimeout(() => salvarClinica(), 100)
+        setCuidadosPos([...cuidadosPos, { procedimentoNome: '', nome: '', comoUsar: '', quemNaoPode: '' }])
     }
 
     // ==================== Helpers ====================
@@ -1717,21 +1717,28 @@ export default function ConfiguracoesTool() {
                     <div className="w-full max-w-md rounded-2xl p-6 space-y-4" style={{ backgroundColor: 'var(--bg-card)' }}>
                         <div className="flex items-center gap-2">
                             <ShieldCheck size={20} className="text-amber-500" />
-                            <h3 className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>Autorização Necessária</h3>
+                            <h3 className="text-[14px] font-bold" style={{ color: 'var(--text-primary)' }}>Termo de Responsabilidade</h3>
                         </div>
                         <div className="p-3 rounded-lg bg-amber-500/10">
-                            <p className="text-[11px] leading-relaxed text-amber-700">
-                                Ao salvar as orientações pós-procedimento, você declara que:
+                            <p className="text-[11px] leading-relaxed text-amber-700 font-semibold mb-2">
+                                ⚠️ Atenção: Leia com cuidado antes de prosseguir.
                             </p>
-                            <ul className="text-[10px] mt-2 space-y-1 text-amber-700 list-disc pl-4">
-                                <li>As informações cadastradas são de sua total responsabilidade.</li>
-                                <li>A IARA é apenas um meio de transmissão e <strong>não se responsabiliza</strong> pelo conteúdo das orientações médicas.</li>
-                                <li>Você autoriza a IARA a compartilhar essas orientações com suas clientes quando apropriado.</li>
+                            <p className="text-[10px] leading-relaxed text-amber-700 mb-2">
+                                A IARA é uma inteligência artificial e <strong>não recomenda procedimentos, tratamentos nem prescreve nenhum tipo de orientação médica</strong>. Ela apenas transmite as informações que você, profissional, cadastrar.
+                            </p>
+                            <p className="text-[11px] leading-relaxed text-amber-700 font-medium">
+                                Ao cadastrar orientações pós-procedimento, você declara que:
+                            </p>
+                            <ul className="text-[10px] mt-2 space-y-1.5 text-amber-700 list-disc pl-4">
+                                <li><strong>Todas as orientações são de sua total e exclusiva responsabilidade</strong>, incluindo produtos, dosagens e restrições.</li>
+                                <li>A IARA atua <strong>apenas como meio de transmissão</strong> e não se responsabiliza pelo conteúdo cadastrado.</li>
+                                <li>Você autoriza a IARA a compartilhar essas orientações com suas clientes após os procedimentos.</li>
+                                <li>Esta autorização ficará <strong>registrada com data e hora</strong> no cadastro da sua clínica para fins de comprovação.</li>
                             </ul>
                         </div>
                         <div className="flex gap-2">
                             <button onClick={() => setShowDisclaimerPos(false)} className="flex-1 py-2 rounded-lg text-[11px] font-medium" style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>Cancelar</button>
-                            <button onClick={confirmarDisclaimer} className="flex-1 py-2 rounded-lg text-[11px] font-medium bg-[#0F4C61] text-white">Autorizo e Salvar</button>
+                            <button onClick={confirmarDisclaimer} className="flex-1 py-2 rounded-lg text-[11px] font-medium bg-[#0F4C61] text-white">Li e Autorizo</button>
                         </div>
                     </div>
                 </div>
