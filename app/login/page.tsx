@@ -254,6 +254,11 @@ function LoginContent() {
                         Fale com o suporte
                     </a>
                 </p>
+                <p className="text-center text-[10px] text-gray-700 mt-3">
+                    <a href="/privacidade" className="hover:text-gray-500 transition-colors">Política de Privacidade</a>
+                    {' · '}
+                    <a href="/termos" className="hover:text-gray-500 transition-colors">Termos de Serviço</a>
+                </p>
             </div>
         </div>
     )
