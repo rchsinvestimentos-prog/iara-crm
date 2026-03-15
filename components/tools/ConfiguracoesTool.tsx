@@ -331,7 +331,6 @@ export default function ConfiguracoesTool() {
                     tratamentoDoutora: tratamentoDoutora || 'Pelo nome',
                     endereco: endereco || null,
                     linkMaps: linkMaps || null,
-                    linkGoogleReview: linkGoogleReview || null,
                 }
             } else if (bloco === 'diferenciais') {
                 payload = {
@@ -411,7 +410,6 @@ export default function ConfiguracoesTool() {
                     antecedenciaMinima: antecedenciaMinima || null,
                     daCursos,
                     linkMaps: linkMaps || null,
-                    linkGoogleReview: linkGoogleReview || null,
                     cuidadosPos: JSON.stringify(cuidadosPos),
                     autorizouCuidadosPos: autorizouCuidadosPos || null,
                     politicaCancelamento: politicaCancelamento || null,
@@ -652,7 +650,7 @@ export default function ConfiguracoesTool() {
                                     <option value="39">🇮🇹+39</option>
                                     <option value="44">🇬🇧+44</option>
                                 </select>
-                                <input className={`${inputClass} flex-1`} style={inputStyle} value={whatsappClinica} onChange={(e) => setWhatsappClinica(e.target.value)} placeholder="5541999999999" />
+                                <input className={`${inputClass} flex-1`} style={inputStyle} value={whatsappClinica} onChange={(e) => setWhatsappClinica(e.target.value)} placeholder="41999999999" />
                             </div>
                         </div>
                         <div>
@@ -674,7 +672,7 @@ export default function ConfiguracoesTool() {
                                     <option value="39">🇮🇹+39</option>
                                     <option value="44">🇬🇧+44</option>
                                 </select>
-                                <input className={`${inputClass} flex-1`} style={inputStyle} value={whatsappPessoal} onChange={(e) => setWhatsappPessoal(e.target.value)} placeholder="5541988888888" />
+                                <input className={`${inputClass} flex-1`} style={inputStyle} value={whatsappPessoal} onChange={(e) => setWhatsappPessoal(e.target.value)} placeholder="41988888888" />
                             </div>
                         </div>
                     </div>
