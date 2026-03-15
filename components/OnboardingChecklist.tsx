@@ -24,7 +24,7 @@ const CHECKLIST_ITEMS: ChecklistItem[] = [
         id: 'secretaria',
         titulo: 'Etapa 2 — Configure a sua Secretária',
         descricao: 'Humor, tom de voz e personalidade',
-        link: '/ia',
+        link: '/cofre',
         linkLabel: 'Configurar IA',
     },
     {
