@@ -75,6 +75,7 @@ export default function Dashboard() {
     const [agendamentos, setAgendamentos] = useState<AgendamentoReal[]>([])
     const [loading, setLoading] = useState(true)
     const [whatsappConectado, setWhatsappConectado] = useState<boolean | null>(null)
+    const [onboardingDone, setOnboardingDone] = useState(false)
 
     useEffect(() => {
         async function fetchData() {
@@ -105,6 +106,15 @@ export default function Dashboard() {
                         }
                     }
                 } catch { setWhatsappConectado(null) }
+
+                // Checar onboarding
+                try {
+                    const obRes = await fetch('/api/onboarding')
+                    if (obRes.ok) {
+                        const obData = await obRes.json()
+                        setOnboardingDone(obData.dados && obData.secretaria && obData.conexoes)
+                    }
+                } catch { /* ignore */ }
             } catch (err) {
                 console.error('Erro ao carregar dashboard:', err)
             } finally {
@@ -180,8 +190,8 @@ export default function Dashboard() {
             {/* Upsell — aparece quando créditos atingem 80% */}
             <UpsellBanner />
 
-            {/* Empty State — clínica nova sem atividade */}
-            {!loading && stats && stats.mensagensHoje === 0 && stats.totalConversas === 0 && stats.agendamentosHoje === 0 && (
+            {/* Empty State — clínica nova sem atividade (só mostra se onboarding completo) */}
+            {!loading && onboardingDone && stats && stats.mensagensHoje === 0 && stats.totalConversas === 0 && stats.agendamentosHoje === 0 && (
                 <div className="rounded-2xl p-6 text-center animate-fade-in" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                     <p className="text-4xl mb-3">🚀</p>
                     <h3 className="text-[16px] font-bold mb-1" style={{ color: 'var(--text-primary)' }}>

@@ -41,6 +41,7 @@ export async function GET() {
                 proximaRenovacao: true,
                 autorizouCuidadosPos: true,
                 cuidadosPos: true,
+                aceiteTermos: true,
                 personalidadeVoz: true,
                 tomAtendimento: true,
                 humor: true,
@@ -110,6 +111,7 @@ export async function GET() {
             criado_em: c.createdAt,
             autorizou_cuidados_pos: c.autorizouCuidadosPos,
             cuidados_pos: c.cuidadosPos,
+            aceite_termos: c.aceiteTermos,
             onboarding: (() => {
                 const whatsConnected = statusMap.get(c.id) === 'conectado'
                 const temProcs = (procedimentosCounts.get(c.id) ?? 0) > 0

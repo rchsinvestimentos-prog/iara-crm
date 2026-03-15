@@ -27,6 +27,7 @@ interface Clinica {
         done: number
         total: number
     }
+    aceite_termos: string | null
 }
 
 const planoNomes: Record<number, string> = { 1: 'Essencial', 2: 'Premium' }
@@ -204,7 +205,7 @@ export default function AdminClinicas() {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.04))' }}>
-                                    {['Clínica', 'Plano', 'Status', 'Créditos', 'WhatsApp', 'Setup', 'Pós-Proc', 'Expira em', 'Desde', ''].map((h, i) => (
+                                    {['Clínica', 'Plano', 'Status', 'Créditos', 'WhatsApp', 'Setup', 'Aceites', 'Expira em', 'Desde', ''].map((h, i) => (
                                         <th key={i} className="text-left px-5 py-3 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{h}</th>
                                     ))}
                                 </tr>
@@ -248,11 +249,14 @@ export default function AdminClinicas() {
                                             </span>
                                         </td>
                                         <td className="px-5 py-3.5">
-                                            {c.autorizou_cuidados_pos ? (
-                                                <span className="text-[10px] text-green-400" title={`Autorizado em ${new Date(c.autorizou_cuidados_pos).toLocaleString('pt-BR')}`}>✅ {new Date(c.autorizou_cuidados_pos).toLocaleDateString('pt-BR')}</span>
-                                            ) : (
-                                                <span className="text-[10px] text-gray-500">—</span>
-                                            )}
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className={`text-[10px] ${c.aceite_termos ? 'text-green-400' : 'text-gray-500'}`} title={c.aceite_termos ? `Cadastro: ${new Date(c.aceite_termos).toLocaleString('pt-BR')}` : 'Cadastro inicial pendente'}>
+                                                    {c.aceite_termos ? '✅' : '❌'} Cadastro
+                                                </span>
+                                                <span className={`text-[10px] ${c.autorizou_cuidados_pos ? 'text-green-400' : 'text-gray-500'}`} title={c.autorizou_cuidados_pos ? `Pós-proc: ${new Date(c.autorizou_cuidados_pos).toLocaleString('pt-BR')}` : 'Pós-procedimento pendente'}>
+                                                    {c.autorizou_cuidados_pos ? '✅' : '❌'} Pós-proc
+                                                </span>
+                                            </div>
                                         </td>
                                         <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--text-muted)' }}>
                                             {c.proxima_renovacao ? new Date(c.proxima_renovacao).toLocaleDateString('pt-BR') : '∞'}

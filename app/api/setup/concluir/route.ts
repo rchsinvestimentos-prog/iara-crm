@@ -20,10 +20,11 @@ export async function POST(request: Request) {
             where: { id: clinicaId },
             data: {
                 nomeClinica: nomeClinica || null,
-                nome: nomeDra || undefined, // Atualizar o nome da Dra se preenchido
-                diferenciais: especialidade || null, // Especialidade salva nos diferenciais
+                nome: nomeDra || undefined,
+                diferenciais: especialidade || null,
                 whatsappClinica: whatsapp || null,
                 horarioSemana: `${horaInicio || '08:00'} às ${horaFim || '18:00'}`,
+                aceiteTermos: new Date(),
             },
         })
 
