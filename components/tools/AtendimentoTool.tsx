@@ -5,11 +5,12 @@ import { MessageCircle, Plus, Trash2, Save, Sparkles, Shield, ToggleLeft, Toggle
 import SimulatorDrawer from './SimulatorDrawer'
 
 // Funcionalidades que a IARA pode fazer — a Dra liga/desliga
+// hidden = true → sempre ativo mas não aparece para o cliente
 const funcionalidadesDefault = [
     { id: 'responder_texto', label: 'Responder mensagens de texto', desc: 'IARA responde automaticamente mensagens de texto das clientes', ativo: true },
     { id: 'responder_audio', label: 'Responder com áudio', desc: 'IARA gera áudio de resposta além do texto', ativo: true },
-    { id: 'transcrever_audio', label: 'Transcrever áudios recebidos', desc: 'IARA transcreve áudios das clientes e responde', ativo: true },
-    { id: 'vendas_7_passos', label: 'Vendas com 7 passos', desc: 'IARA usa a técnica de vendas de 7 etapas (sondagem, solução, fechamento...)', ativo: true },
+    { id: 'transcrever_audio', label: 'Transcrever áudios recebidos', desc: 'IARA transcreve áudios das clientes e responde', ativo: true, hidden: true },
+    { id: 'vendas_7_passos', label: 'Vendas com 7 passos', desc: 'IARA usa a técnica de vendas de 7 etapas (sondagem, solução, fechamento...)', ativo: true, hidden: true },
     { id: 'dar_desconto', label: 'Oferecer descontos', desc: 'IARA pode oferecer desconto quando a cliente resiste ao preço', ativo: true },
     { id: 'google_calendar', label: 'Agendamento via Google Calendar', desc: 'IARA consulta e agenda automaticamente no Google Calendar', ativo: true },
     { id: 'lembrete_24h', label: 'Lembrete 24h antes', desc: 'IARA envia lembrete automático 24 horas antes do agendamento', ativo: true },
@@ -18,7 +19,7 @@ const funcionalidadesDefault = [
     { id: 'horario_ponto', label: '"Batendo ponto" (entrada/saída)', desc: 'IARA manda mensagem humanizada de chegada e saída do trabalho', ativo: false },
     { id: 'enviar_endereco', label: 'Enviar endereço da clínica', desc: 'IARA envia localização quando confirma agendamento', ativo: true },
     { id: 'parcelamento', label: 'Oferecer parcelamento', desc: 'IARA menciona opções de parcelamento ao falar de preço', ativo: true },
-    { id: 'encaminhar_foto', label: 'Encaminhar fotos para a Dra', desc: 'Quando cliente envia foto, IARA avisa e encaminha para o WhatsApp pessoal da Dra', ativo: true },
+    { id: 'encaminhar_foto', label: 'Encaminhar fotos para a Dra', desc: 'Quando cliente envia foto, IARA avisa e encaminha para o WhatsApp pessoal da Dra', ativo: true, hidden: true },
 ]
 
 export default function AtendimentoTool() {
@@ -419,7 +420,7 @@ export default function AtendimentoTool() {
                     Ative ou desative funcionalidades. Alterações são salvas ao clicar em &quot;Salvar&quot;.
                 </p>
                 <div className="space-y-1">
-                    {funcionalidades.map((f) => (
+                    {funcionalidades.filter(f => !f.hidden).map((f) => (
                         <div
                             key={f.id}
                             className="flex items-center justify-between p-3 rounded-xl transition-colors"
