@@ -1,13 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import {
     LayoutDashboard, MessageCircle, Calendar, UserCheck, Mic, BarChart3,
     Instagram, Camera, Palette, Award, Edit3, Search, CalendarDays, Mic2,
     Layers, Globe, Video, Bot, TestTube2, Shield, Zap, Smartphone,
     Settings, FileText, History, Gift, Lock, Kanban, Target, Megaphone,
-    Eye, EyeOff, ExternalLink, CheckCircle2, XCircle,
+    ExternalLink, CheckCircle2, XCircle,
 } from 'lucide-react'
 
 // ============================================================
@@ -61,7 +60,7 @@ const FEATURES: Feature[] = [
     { id: 'features',         label: 'Features (Beta flags)',   route: '/features',                    icon: Zap,             categoria: 'Conta',        planoMinimo: 1,  descricao: 'Flags de funcionalidades experimentais por clínica' },
     { id: 'agenda',           label: 'Agenda',                  route: '/agenda',                      icon: CalendarDays,    categoria: 'Conta',        planoMinimo: 1 },
     { id: 'templates',        label: 'Templates',               route: '/templates',                   icon: FileText,        categoria: 'Conta',        planoMinimo: 1 },
-    { id: 'historico',        label: 'Histórico Créditos',      route: '/historico-creditos',          icon: History,         categoria: 'Conta',        planoMinimo: 1 },
+    { id: 'historico',        label: 'Histórico Créditos',      route: '/historico-creditos',           icon: History,         categoria: 'Conta',        planoMinimo: 1 },
     { id: 'indicacoes',       label: 'Indicações',              route: '/indicacoes',                  icon: Gift,            categoria: 'Conta',        planoMinimo: 1 },
     { id: 'plano',            label: 'Plano & Faturamento',     route: '/plano',                       icon: Lock,            categoria: 'Conta',        planoMinimo: 1 },
     // ── Admin-only ──────────────────────────────────────────────────
@@ -83,10 +82,28 @@ const PLANO_LABELS: Record<number, string> = { 1: 'P1', 2: 'P2', 3: 'P3', 4: 'P4
 
 const STORAGE_KEY = 'iara_admin_features_enabled'
 
+/** Detecta o domínio do painel do cliente (ex: https://app.iara.click) */
+function getClientDomain(): string {
+    if (typeof window === 'undefined') return ''
+    const host = window.location.hostname
+    // Se estamos em adm.iara.click ou admin.iara.click, o cliente está em app.iara.click
+    if (host === 'adm.iara.click' || host === 'admin.iara.click') {
+        return 'https://app.iara.click'
+    }
+    // Localhost dev → mesma origin
+    return window.location.origin
+}
+
 export default function AdminLinksPage() {
     const [enabled, setEnabled] = useState<Record<string, boolean>>({})
     const [filter, setFilter] = useState('')
     const [categoriaAtiva, setCategoriaAtiva] = useState<string | null>(null)
+    const [clientDomain, setClientDomain] = useState('')
+
+    // Detectar domínio do cliente
+    useEffect(() => {
+        setClientDomain(getClientDomain())
+    }, [])
 
     // Carregar estado do localStorage
     useEffect(() => {
@@ -95,7 +112,6 @@ export default function AdminLinksPage() {
             if (stored) {
                 setEnabled(JSON.parse(stored))
             } else {
-                // Por padrão, tudo habilitado
                 const defaults: Record<string, boolean> = {}
                 FEATURES.forEach(f => { defaults[f.id] = true })
                 setEnabled(defaults)
@@ -110,7 +126,7 @@ export default function AdminLinksPage() {
     const toggleFeature = (id: string) => {
         setEnabled(prev => {
             const next = { ...prev, [id]: !prev[id] }
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { }
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { /* */ }
             return next
         })
     }
@@ -119,7 +135,7 @@ export default function AdminLinksPage() {
         setEnabled(prev => {
             const next = { ...prev }
             ids.forEach(id => { next[id] = value })
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { }
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { /* */ }
             return next
         })
     }
@@ -139,11 +155,14 @@ export default function AdminLinksPage() {
     const total = FEATURES.length
     const ativas = Object.values(enabled).filter(Boolean).length
 
+    /** Gera a URL completa para a rota da feature (domínio do cliente) */
+    const featureUrl = (route: string) => `${clientDomain}${route}`
+
     return (
         <div className="min-h-screen bg-gray-950 text-gray-100 p-6">
             {/* Header */}
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-white mb-1">🗺️ Mapa de Features & Rotas</h1>
+                <h1 className="text-2xl font-bold text-white mb-1">🗺️ Mapa de Features &amp; Rotas</h1>
                 <p className="text-gray-400 text-sm">Todas as rotas construídas. Ative ou desative features para controlar a visibilidade no painel.</p>
 
                 {/* Stats */}
@@ -258,13 +277,15 @@ export default function AdminLinksPage() {
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <code className="text-[11px] text-gray-500 font-mono truncate">{feat.route}</code>
-                                                        <Link
-                                                            href={feat.route}
+                                                        <a
+                                                            href={featureUrl(feat.route)}
                                                             target="_blank"
+                                                            rel="noopener noreferrer"
                                                             className="flex-shrink-0 text-gray-600 hover:text-blue-400 transition-colors"
+                                                            onClick={e => e.stopPropagation()}
                                                         >
                                                             <ExternalLink size={11} />
-                                                        </Link>
+                                                        </a>
                                                     </div>
                                                     {feat.descricao && (
                                                         <p className="text-[11px] text-gray-500 mt-1 leading-tight">{feat.descricao}</p>
@@ -284,7 +305,7 @@ export default function AdminLinksPage() {
             <div className="mt-10 pt-6 border-t border-gray-800 text-center">
                 <p className="text-xs text-gray-600">
                     Os toggles são salvos localmente (localStorage) e visíveis apenas para você como admin.
-                    Para desativar features por clínica, use a página <Link href="/features" className="text-blue-400 hover:underline">/features</Link>.
+                    Links abrem no painel do cliente ({clientDomain || '...'}).
                 </p>
             </div>
         </div>
