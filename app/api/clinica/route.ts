@@ -42,6 +42,12 @@ const UpdateClinicaSchema = z.object({
     fraseDespedida: z.string().max(200).optional().nullable(),
     funcionalidades: z.string().max(5000).optional().nullable(),
     feedbacks: z.string().max(5000).optional().nullable(),
+    modoIA: z.string().max(30).optional().nullable(),
+    sempreLigada: z.boolean().optional().nullable(),
+    blacklist: z.string().max(5000).optional().nullable(),
+    mensagemAniversario: z.string().max(2000).optional().nullable(),
+    mensagemForaHorario: z.string().max(2000).optional().nullable(),
+    diasAtendimento: z.string().max(200).optional().nullable(),
     // VIP Personalization
     faqPersonalizado: z.any().optional().nullable(),
     cuidadosPos: z.string().max(5000).optional().nullable(),

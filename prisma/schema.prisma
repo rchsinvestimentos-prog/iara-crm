@@ -86,6 +86,12 @@ model Clinica {
   fraseDespedida       String?   @map("fraseDespedida") @db.VarChar(200)
   funcionalidades      String?
   feedbacks            String?
+  modoIA               String?   @default("secretaria") @map("modo_ia") @db.VarChar(30)
+  sempreLigada         Boolean?  @default(true) @map("sempre_ligada")
+  blacklist            String?   @map("blacklist")
+  mensagemAniversario  String?   @map("mensagem_aniversario")
+  mensagemForaHorario  String?   @map("mensagem_fora_horario")
+  diasAtendimento      String?   @map("dias_atendimento")
 
   
   // Internacionalização
