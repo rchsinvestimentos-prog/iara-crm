@@ -131,6 +131,7 @@ const ROUTE_TO_FEATURE: Record<string, string> = {
   '/habilidades/app-config': 'app-config',
   '/instancias': 'instancias',
   '/configuracoes': 'configuracoes',
+  '/equipe': 'equipe',
   '/cofre': 'cofre',
   '/features': 'features',
   '/agenda': 'agenda',
@@ -476,6 +477,10 @@ export default function Sidebar() {
             <Settings size={17} strokeWidth={1.8} />
             <span>Configurações</span>
           </Link>}
+          <Link href="/equipe" className={linkClass('/equipe')}>
+            <Users size={17} strokeWidth={1.8} />
+            <span>Equipe</span>
+          </Link>
           {/* WA Fake e Simulador removidos — só no admin (adm.iara.click) */}
           {isRouteVisible('/cofre') && <Link href="/cofre" className={linkClass('/cofre')}>
             <Shield size={17} strokeWidth={1.8} />
