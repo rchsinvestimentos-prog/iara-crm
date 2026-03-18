@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
-import { getGraficoMensagens } from '@/lib/n8n-queries'
+import { getGraficoMensagens } from '@/lib/queries'
 
 // GET /api/stats/grafico?dias=30 — Dados para Recharts
 export async function GET(request: Request) {

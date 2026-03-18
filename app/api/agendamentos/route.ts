@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
-import { getAgendamentosReais } from '@/lib/n8n-queries'
+import { getAgendamentosReais } from '@/lib/queries'
 
 // GET /api/agendamentos — Próximos agendamentos reais
 export async function GET() {
