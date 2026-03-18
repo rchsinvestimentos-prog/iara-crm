@@ -108,11 +108,21 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     }
 
     // ================================================
-    // 4. TRIAGEM DE MÍDIA — Foto/Vídeo = Ack + Alerta Dra (SEM pausa)
+    // 4. TRIAGEM DE MÍDIA — Foto/Vídeo/Documento = Ack + Alerta Dra (SEM pausa)
     // ================================================
-    if (msg.tipoMensagem === 'image' || msg.tipoMensagem === 'video') {
+    if (msg.tipoMensagem === 'image' || msg.tipoMensagem === 'video' || msg.tipoMensagem === 'document') {
         await handleMediaTriage(clinica, msg)
         return // Não processa com IA — espera decisão da Dra
+    }
+
+    // ================================================
+    // 4.5 EMOJI-ONLY — Só emojis? Responde com 😊 e pronto
+    // ================================================
+    if (msg.tipoMensagem === 'text' && msg.mensagem && isEmojiOnly(msg.mensagem)) {
+        const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
+        await sender.sendText(sendOpts, '😊')
+        console.log(`[Pipeline] 😊 Emoji-only de ${msg.telefone} → respondeu com 😊`)
+        return
     }
 
     // ================================================
@@ -322,6 +332,33 @@ function isBlacklisted(clinica: DadosClinica, telefone: string, canal: string): 
 }
 
 // ============================================
+// EMOJI-ONLY DETECTION
+// ============================================
+
+function isEmojiOnly(text: string): boolean {
+    // Remove todos os emojis, variações de skin tone, ZWJ sequences, e espaços
+    const semEmoji = text
+        .replace(/[\u{1F600}-\u{1F64F}]/gu, '')  // Emoticons
+        .replace(/[\u{1F300}-\u{1F5FF}]/gu, '')  // Misc Symbols & Pictographs
+        .replace(/[\u{1F680}-\u{1F6FF}]/gu, '')  // Transport & Map
+        .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '')  // Flags
+        .replace(/[\u{2600}-\u{26FF}]/gu, '')    // Misc Symbols
+        .replace(/[\u{2700}-\u{27BF}]/gu, '')    // Dingbats
+        .replace(/[\u{FE00}-\u{FE0F}]/gu, '')    // Variation Selectors
+        .replace(/[\u{1F900}-\u{1F9FF}]/gu, '')  // Supplemental Symbols
+        .replace(/[\u{1FA00}-\u{1FA6F}]/gu, '')  // Chess Symbols
+        .replace(/[\u{1FA70}-\u{1FAFF}]/gu, '')  // Symbols Extended-A
+        .replace(/[\u{200D}]/gu, '')              // Zero Width Joiner
+        .replace(/[\u{20E3}]/gu, '')              // Combining Enclosing Keycap
+        .replace(/[\u{E0020}-\u{E007F}]/gu, '')  // Tags
+        .replace(/[\u{FE0F}]/gu, '')              // Variation Selector-16
+        .replace(/[0-9#*]/g, '')                  // Keycap base chars
+        .trim()
+
+    return semEmoji.length === 0 && text.trim().length > 0
+}
+
+// ============================================
 // PAUSA (dona tá falando / mídia)
 // ============================================
 
@@ -363,12 +400,19 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
     const nomeIA = clinica.nomeAssistente || 'Iara'
     const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
 
+    // Label amigável por tipo
+    const tipoLabel = msg.tipoMensagem === 'image' ? 'foto'
+        : msg.tipoMensagem === 'video' ? 'vídeo'
+        : 'documento'
+
+    const tipoEmoji = msg.tipoMensagem === 'document' ? '📄' : '📸'
+
     // 1. Avisa a cliente que recebeu (SEM pausar)
-    await sender.sendText(sendOpts, `Recebi sua ${msg.tipoMensagem === 'image' ? 'foto' : 'vídeo'}! ✨ Já encaminhei agora mesmo pra Doutora analisar com carinho. Assim que ela ver, já te damos um retorno, tá? 😊`)
+    await sender.sendText(sendOpts, `Recebi ${msg.tipoMensagem === 'document' ? 'seu documento' : 'sua ' + tipoLabel}! ✨ Já encaminhei agora mesmo pra Doutora dar uma olhada. Assim que ela ver, já te damos um retorno, tá? 😊`)
 
     // 2. Alerta a Dra no WhatsApp pessoal (com 3 opções)
     if (clinica.whatsappDoutora) {
-        const alertaDra = `📸 *${nomeCliente}* mandou uma ${msg.tipoMensagem === 'image' ? 'foto' : 'vídeo'}\n📱 ${msg.telefone}\n\nDra, abra o WhatsApp da clínica pra ver a imagem.\n\n*O que eu faço?*\n\n1️⃣ *Me mande a resposta* — escreva ou mande áudio com o que devo dizer. Eu adapto e te mostro antes de enviar.\n\n2️⃣ *"Eu assumo"* — responda direto à cliente que eu pauso 3h.\n\n3️⃣ *"${nomeIA} lembre em X min"* — aviso a cliente que a Dra tá analisando e volto depois.`
+        const alertaDra = `${tipoEmoji} *${nomeCliente}* mandou ${msg.tipoMensagem === 'document' ? 'um documento' : (msg.tipoMensagem === 'image' ? 'uma foto' : 'um vídeo')}${msg.tipoMensagem === 'document' && msg.mensagem ? ' (' + msg.mensagem + ')' : ''}\n📱 ${msg.telefone}\n\nDra, abra o WhatsApp da clínica pra ver.\n\n*O que eu faço?*\n\n1️⃣ *Me mande a resposta* — escreva ou mande áudio com o que devo dizer. Eu adapto e te mostro antes de enviar.\n\n2️⃣ *"Eu assumo"* — responda direto à cliente que eu pauso 3h.\n\n3️⃣ *"${nomeIA} lembre em X min"* — aviso a cliente que a Dra tá analisando e volto depois.`
 
         await sender.sendText(
             { instancia: msg.instancia, telefone: clinica.whatsappDoutora, apikey: clinica.evolutionApikey || undefined },
@@ -386,7 +430,7 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
         pushName: msg.pushName,
     })
 
-    console.log(`[Pipeline] 📸 Mídia de ${nomeCliente} → Dra alertada (sem pausa automática)`)
+    console.log(`[Pipeline] ${tipoEmoji} Mídia (${tipoLabel}) de ${nomeCliente} → Dra alertada (sem pausa automática)`)
 }
 
 // ============================================
