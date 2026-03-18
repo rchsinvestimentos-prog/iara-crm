@@ -190,6 +190,16 @@ export async function DELETE(req: Request) {
 
   if (!id) return NextResponse.json({ error: 'ID obrigatório' }, { status: 400 });
 
+  // ID -1 = instância legada (na tabela users, não em instancias_clinica)
+  if (Number(id) === -1) {
+    await prisma.$queryRaw`
+      UPDATE users 
+      SET evolution_instance = NULL, whatsapp_clinica = NULL, evolution_apikey = NULL
+      WHERE id = ${user.id}
+    `;
+    return NextResponse.json({ success: true, legado: true });
+  }
+
   await prisma.$queryRaw`
     DELETE FROM instancias_clinica 
     WHERE id = ${Number(id)} AND user_id = ${user.id}

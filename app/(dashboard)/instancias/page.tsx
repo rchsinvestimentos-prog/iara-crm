@@ -112,8 +112,18 @@ export default function ConexoesPage() {
 
     async function desconectar(id: number) {
         if (!confirm('Deseja desconectar este canal? A IARA vai parar de atender nele.')) return;
-        await fetch(`/api/instancias?id=${id}`, { method: 'DELETE' });
-        fetchInstancias();
+        try {
+            const res = await fetch(`/api/instancias?id=${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.error || 'Erro ao desconectar');
+                return;
+            }
+            await fetchInstancias();
+        } catch (e) {
+            console.error(e);
+            alert('Erro ao desconectar. Tente novamente.');
+        }
     }
 
     async function buscarQR(instId: number) {
@@ -164,11 +174,23 @@ export default function ConexoesPage() {
     const getNomeAmigavel = (inst: Instancia) => {
         if (inst.canal === 'instagram' && inst.ig_username) return `@${inst.ig_username}`;
         if (inst.numero_whatsapp && inst.numero_whatsapp.length > 5) {
-            const num = inst.numero_whatsapp.replace(/\D/g, '');
-            if (num.length >= 10) {
-                const ddd = num.slice(-10, -8);
-                const parte1 = num.slice(-8, -4);
-                const parte2 = num.slice(-4);
+            let num = inst.numero_whatsapp.replace(/\D/g, '');
+            // Remove código do país 55 se presente
+            if (num.startsWith('55') && num.length >= 12) {
+                num = num.slice(2);
+            }
+            if (num.length === 11) {
+                // Formato: DDD + 9 + 8 dígitos (ex: 41995207443)
+                const ddd = num.slice(0, 2);
+                const parte1 = num.slice(2, 7);
+                const parte2 = num.slice(7);
+                return `(${ddd}) ${parte1}-${parte2}`;
+            }
+            if (num.length === 10) {
+                // Formato: DDD + 8 dígitos (ex: 4195207443)
+                const ddd = num.slice(0, 2);
+                const parte1 = num.slice(2, 6);
+                const parte2 = num.slice(6);
                 return `(${ddd}) ${parte1}-${parte2}`;
             }
             return inst.numero_whatsapp;

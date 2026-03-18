@@ -39,8 +39,8 @@ export async function getStatsReais(userId: number) {
         const r = await prisma.$queryRaw<{ count: bigint }[]>`
             SELECT COUNT(*)::bigint as count 
             FROM agendamentos 
-            WHERE user_id = ${userId} 
-              AND data_agendamento >= ${hojeISO}::timestamp
+            WHERE "clinicaId" = ${String(userId)} 
+              AND "data" >= ${hojeISO}::timestamp
               AND status != 'cancelado'
         `
         agendamentosHoje = Number(r[0]?.count ?? 0)
@@ -82,7 +82,7 @@ export async function getGraficoMensagens(userId: number, dias: number = 30) {
 /** Próximos agendamentos reais */
 export async function getAgendamentosReais(userId: number, limite: number = 10) {
     return prisma.$queryRaw<{
-        id: number
+        id: string
         nome_paciente: string
         telefone: string
         procedimento: string
@@ -92,17 +92,17 @@ export async function getAgendamentosReais(userId: number, limite: number = 10) 
     }[]>`
         SELECT 
             id,
-            COALESCE(nome_paciente, 'Paciente') as nome_paciente,
-            COALESCE(telefone_paciente, '') as telefone,
+            COALESCE("nomePaciente", 'Paciente') as nome_paciente,
+            COALESCE(telefone, '') as telefone,
             COALESCE(procedimento, 'Consulta') as procedimento,
-            data_agendamento,
-            COALESCE(horario, TO_CHAR(data_agendamento, 'HH24:MI')) as horario,
+            "data" as data_agendamento,
+            COALESCE(horario, TO_CHAR("data", 'HH24:MI')) as horario,
             COALESCE(status, 'pendente') as status
         FROM agendamentos
-        WHERE user_id = ${userId}
-          AND data_agendamento >= NOW()
+        WHERE "clinicaId" = ${String(userId)}
+          AND "data" >= NOW()
           AND status != 'cancelado'
-        ORDER BY data_agendamento ASC
+        ORDER BY "data" ASC
         LIMIT ${limite}
     `
 }

@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
             const r = await prisma.$executeRaw`
                 DELETE FROM agendamentos 
                 WHERE status = 'cancelado' 
-                  AND created_at < ${limite60dias}::timestamp
+                  AND "createdAt" < ${limite60dias}::timestamp
             `
             resultados.agendamentosCancelados = r
         } catch { resultados.agendamentosCancelados = 'tabela não encontrada' }
