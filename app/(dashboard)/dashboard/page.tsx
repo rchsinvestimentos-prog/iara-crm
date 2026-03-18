@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { MessageSquare, Users, Calendar, TrendingUp, ArrowUpRight, Sparkles, Loader2, Clock, DollarSign, UserPlus, Target, WifiOff, Wifi } from 'lucide-react'
+import { MessageSquare, Users, Calendar, TrendingUp, ArrowUpRight, Sparkles, Loader2, Clock, DollarSign, UserPlus, Target, WifiOff, Wifi, UserX, Star } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 
@@ -31,6 +31,9 @@ interface Stats {
     conversasRecentes: { telefone: string; nome: string; ultimaMensagem: string; ultimaData: string }[]
     fonte: string
     roi?: ROI
+    clientesSumidos?: number
+    npsMedio?: number
+    totalAvaliacoes?: number
 }
 
 interface AgendamentoReal {
@@ -214,6 +217,50 @@ export default function Dashboard() {
                     </div>
                 </div>
             )}
+
+            {/* Alertas: Sumidos + NPS */}
+            {!loading && stats && ((stats.clientesSumidos ?? 0) > 0 || (stats.totalAvaliacoes ?? 0) > 0) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in">
+                    {/* Card Clientes Sumidos */}
+                    {(stats.clientesSumidos ?? 0) > 0 && (
+                        <Link href="/contatos" className="group flex items-center gap-4 rounded-2xl p-4 transition-all hover:-translate-y-0.5"
+                            style={{ backgroundColor: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(245,158,11,0.15)' }}>
+                                <UserX size={20} className="text-amber-400" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                    {stats.clientesSumidos} clientes sumiram
+                                </p>
+                                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                                    Sem contato há mais de 30 dias • Clique para reengajar
+                                </p>
+                            </div>
+                            <ArrowUpRight size={16} className="text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </Link>
+                    )}
+
+                    {/* Card NPS */}
+                    {(stats.totalAvaliacoes ?? 0) > 0 && (
+                        <Link href="/satisfacao" className="group flex items-center gap-4 rounded-2xl p-4 transition-all hover:-translate-y-0.5"
+                            style={{ backgroundColor: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(245,158,11,0.15)' }}>
+                                <Star size={20} className="text-yellow-400" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                    NPS: {stats.npsMedio} / 5
+                                </p>
+                                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                                    {stats.totalAvaliacoes} avaliações • Ver pesquisa de satisfação
+                                </p>
+                            </div>
+                            <ArrowUpRight size={16} className="text-yellow-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </Link>
+                    )}
+                </div>
+            )}
+
 
             {/* ROI Hero Section */}
             {stats?.roi && !loading && (stats.roi.contatosMes > 0 || stats.roi.mensagensMes > 0) && (

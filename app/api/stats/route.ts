@@ -85,6 +85,32 @@ export async function GET() {
             `
         } catch { /* sem conversas ainda */ }
 
+        // ========== Clientes Sumidos (30+ dias sem contato) ==========
+        let clientesSumidos = 0
+        try {
+            const r = await prisma.$queryRaw<{ count: bigint }[]>`
+                SELECT COUNT(*)::bigint as count 
+                FROM contatos 
+                WHERE clinica_id = ${clinicaId} 
+                  AND ultimo_contato IS NOT NULL
+                  AND ultimo_contato < NOW() - INTERVAL '30 days'
+            `
+            clientesSumidos = Number(r[0]?.count ?? 0)
+        } catch { /* sem dados */ }
+
+        // ========== NPS Médio ==========
+        let npsMedio = 0
+        let totalAvaliacoes = 0
+        try {
+            const r = await prisma.$queryRaw<{ avg: number; count: bigint }[]>`
+                SELECT COALESCE(AVG(nota), 0)::float as avg, COUNT(*)::bigint as count
+                FROM avaliacoes 
+                WHERE clinica_id = ${clinicaId}
+            `
+            npsMedio = Math.round((r[0]?.avg ?? 0) * 10) / 10
+            totalAvaliacoes = Number(r[0]?.count ?? 0)
+        } catch { /* tabela pode não existir */ }
+
         // ========== ROI Metrics ==========
         let contatosMes = 0
         let mensagensMes = 0
@@ -146,6 +172,9 @@ export async function GET() {
             nomeIA: clinica.nomeAssistente || 'IARA',
             conversasRecentes,
             fonte: 'unificado',
+            clientesSumidos,
+            npsMedio,
+            totalAvaliacoes,
             // ROI
             roi: {
                 tempoEconomizadoHoras,

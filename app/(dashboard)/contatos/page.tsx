@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
     Users, Plus, Search, Pencil, Trash2, X, Cake, Brain, Phone, Mail,
     FileText, Save, Loader2, ToggleLeft, ToggleRight, Percent, Gift,
-    Calendar, Bell, Clock, ChevronDown, ChevronUp, Import, Crown
+    Calendar, Bell, Clock, ChevronDown, ChevronUp, Import, Crown, UserX, Send
 } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
 
@@ -116,6 +116,20 @@ export default function ContatosPage() {
     // Google import
     const [googleLoading, setGoogleLoading] = useState(false)
 
+    // Sumidos
+    const [sumidosOpen, setSumidosOpen] = useState(false)
+    const [sumidosCount, setSumidosCount] = useState(0)
+    const [sumidosList, setSumidosList] = useState<any[]>([])
+    const [sumidosLoading, setSumidosLoading] = useState(false)
+    const [sumidosDias, setSumidosDias] = useState(30)
+    const [reengajando, setReengajando] = useState(false)
+    const [sumidosConfig, setSumidosConfig] = useState({
+        sumidosAtivo: true,
+        sumidosDias: 30,
+        mensagemSumidos: 'Oi {nome}! \ud83d\ude0a Faz tempo que n\u00e3o nos vemos por aqui na {clinica}! Sentimos sua falta! \ud83d\udc9c\n\nQue tal agendar uma visita? Temos novidades te esperando! \u2728',
+    })
+    const [sumidosToast, setSumidosToast] = useState('')
+
     const cardBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.7)'
     const cardBorder = isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(15,76,97,0.08)'
     const inputStyle = {
@@ -145,9 +159,31 @@ export default function ContatosPage() {
                     const data = await res.json()
                     const saved = data.aniversarioConfig
                     if (saved) setAnivConfig({ ...DEFAULT_ANIV, ...saved })
+                    // Sumidos config
+                    const sc = data.configuracoes || {}
+                    setSumidosConfig(prev => ({
+                        ...prev,
+                        sumidosAtivo: sc.sumidosAtivo !== false,
+                        sumidosDias: sc.sumidosDias || 30,
+                        mensagemSumidos: sc.mensagemSumidos || prev.mensagemSumidos,
+                    }))
+                    setSumidosDias(sc.sumidosDias || 30)
                 }
             } catch { }
             setAnivLoaded(true)
+        })()
+    }, [])
+
+    // Fetch sumidos count from stats
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await fetch('/api/stats')
+                if (res.ok) {
+                    const data = await res.json()
+                    setSumidosCount(data.clientesSumidos || 0)
+                }
+            } catch { }
         })()
     }, [])
 
@@ -285,6 +321,113 @@ export default function ContatosPage() {
                             </span>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* ──────── Clientes Sumidos ──────── */}
+            {sumidosCount > 0 && (
+                <div className="rounded-2xl overflow-hidden" style={{ background: isDark ? 'rgba(245,158,11,0.06)' : 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                    <button
+                        onClick={() => setSumidosOpen(!sumidosOpen)}
+                        className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    >
+                        <div className="flex items-center gap-2">
+                            <UserX size={16} className="text-amber-400" />
+                            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                {sumidosCount} clientes sumiram
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400">
+                                +{sumidosDias} dias sem contato
+                            </span>
+                        </div>
+                        {sumidosOpen ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
+                    </button>
+
+                    {sumidosOpen && (
+                        <div className="px-4 pb-4 space-y-3 animate-fade-in" style={{ borderTop: '1px solid rgba(245,158,11,0.1)' }}>
+                            <p className="text-[11px] pt-3" style={{ color: 'var(--text-muted)' }}>
+                                Clientes que não interagem há mais de {sumidosDias} dias. Reengaje para que eles voltem!
+                            </p>
+
+                            {/* Config: toggle + dias */}
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>Considerar sumido após:</span>
+                                    {[30, 60, 90].map(d => (
+                                        <button
+                                            key={d}
+                                            onClick={() => {
+                                                setSumidosDias(d)
+                                                setSumidosConfig(c => ({ ...c, sumidosDias: d }))
+                                            }}
+                                            className="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all"
+                                            style={{
+                                                backgroundColor: sumidosDias === d ? '#F59E0B' : 'var(--bg-surface)',
+                                                color: sumidosDias === d ? 'white' : 'var(--text-secondary)',
+                                                border: `1px solid ${sumidosDias === d ? '#F59E0B' : 'var(--border-default)'}`,
+                                            }}
+                                        >
+                                            {d} dias
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={async () => {
+                                        setReengajando(true)
+                                        try {
+                                            // Salvar config dos sumidos
+                                            await fetch('/api/configuracoes', {
+                                                method: 'PATCH',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    configuracoes: {
+                                                        sumidosAtivo: sumidosConfig.sumidosAtivo,
+                                                        sumidosDias: sumidosDias,
+                                                        mensagemSumidos: sumidosConfig.mensagemSumidos,
+                                                    }
+                                                }),
+                                            })
+                                            setSumidosToast('Configurações salvas! ✅')
+                                            setTimeout(() => setSumidosToast(''), 3000)
+                                        } catch {
+                                            setSumidosToast('Erro ao salvar')
+                                            setTimeout(() => setSumidosToast(''), 3000)
+                                        } finally {
+                                            setReengajando(false)
+                                        }
+                                    }}
+                                    disabled={reengajando}
+                                    className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-white disabled:opacity-50 transition-all"
+                                    style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)' }}
+                                >
+                                    {reengajando ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                                    Salvar
+                                </button>
+                            </div>
+
+                            {/* Mensagem customizável */}
+                            <div>
+                                <label className="text-[11px] font-medium block mb-1" style={{ color: 'var(--text-secondary)' }}>
+                                    Mensagem de reengajamento
+                                </label>
+                                <textarea
+                                    value={sumidosConfig.mensagemSumidos}
+                                    onChange={e => setSumidosConfig(c => ({ ...c, mensagemSumidos: e.target.value }))}
+                                    rows={3}
+                                    className="text-[12px] px-3 py-2 rounded-xl outline-none w-full resize-none"
+                                    style={inputStyle}
+                                />
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                                    Use {'{nome}'} para o nome e {'{clinica}'} para o nome da clínica
+                                </p>
+                            </div>
+
+                            {sumidosToast && (
+                                <span className="text-[12px] font-medium text-green-400">{sumidosToast}</span>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
 

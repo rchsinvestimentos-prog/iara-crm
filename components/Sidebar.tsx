@@ -44,6 +44,7 @@ import {
   Megaphone,
   Users,
   TestTube2,
+  Star,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTheme } from './ThemeProvider'
@@ -132,6 +133,7 @@ const ROUTE_TO_FEATURE: Record<string, string> = {
   '/instancias': 'instancias',
   '/configuracoes': 'configuracoes',
   '/equipe': 'equipe',
+  '/satisfacao': 'satisfacao',
   '/cofre': 'cofre',
   '/features': 'features',
   '/agenda': 'agenda',
@@ -480,6 +482,10 @@ export default function Sidebar() {
           <Link href="/equipe" className={linkClass('/equipe')}>
             <Users size={17} strokeWidth={1.8} />
             <span>Equipe</span>
+          </Link>
+          <Link href="/satisfacao" className={linkClass('/satisfacao')}>
+            <Star size={17} strokeWidth={1.8} />
+            <span>Satisfação</span>
           </Link>
           {/* WA Fake e Simulador removidos — só no admin (adm.iara.click) */}
           {isRouteVisible('/cofre') && <Link href="/cofre" className={linkClass('/cofre')}>

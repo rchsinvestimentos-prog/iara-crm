@@ -145,6 +145,7 @@ model Clinica {
   campanhas            Campanha[]
   usoFeatures          UsoFeature[]
   profissionais        Profissional[]
+  avaliacoes           Avaliacao[]
   
   @@map("users")
 }
@@ -441,4 +442,21 @@ model FeatureFlag {
   updatedAt  DateTime @default(now()) @map("updated_at")
 
   @@map("feature_flags")
+}
+
+model Avaliacao {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId           Int      @map("clinica_id")
+  contatoId           Int?     @map("contato_id")
+  telefone            String   @db.VarChar(50)
+  nome                String?  @db.VarChar(200)
+  nota                Int      // 1-5
+  comentario          String?  @db.Text
+  googleReviewEnviado Boolean  @default(false) @map("google_review_enviado")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  clinica Clinica @relation(fields: [clinicaId], references: [id])
+
+  @@index([clinicaId])
+  @@map("avaliacoes")
 }
