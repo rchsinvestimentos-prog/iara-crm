@@ -144,8 +144,54 @@ model Clinica {
   crmColunas           CrmColuna[]
   campanhas            Campanha[]
   usoFeatures          UsoFeature[]
+  profissionais        Profissional[]
   
   @@map("users")
+}
+
+// ============================================
+// Profissionais (equipe da clínica)
+// ============================================
+
+model Profissional {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId            Int       @map("clinica_id")
+  nome                 String    @db.VarChar(200)
+  bio                  String?   @db.Text
+  especialidade        String?   @db.VarChar(200)
+  whatsapp             String?   @db.VarChar(30)
+
+  // Horários (herda da clínica se null)
+  horarioSemana        String?   @map("horario_semana") @db.VarChar(50)
+  almocoSemana         String?   @map("almoco_semana") @db.VarChar(50)
+  atendeSabado         Boolean?  @map("atende_sabado")
+  horarioSabado        String?   @map("horario_sabado") @db.VarChar(50)
+  almocoSabado         String?   @map("almoco_sabado") @db.VarChar(50)
+  atendeDomingo        Boolean?  @map("atende_domingo")
+  horarioDomingo       String?   @map("horario_domingo") @db.VarChar(50)
+  almocoDomingo        String?   @map("almoco_domingo") @db.VarChar(50)
+  intervaloAtendimento Int?      @map("intervalo_atendimento")
+
+  // Google Calendar
+  googleCalendarToken        String?   @map("google_calendar_token")
+  googleCalendarRefreshToken String?   @map("google_calendar_refresh_token")
+  googleCalendarId           String?   @default("primary") @map("google_calendar_id") @db.VarChar(200)
+  googleTokenExpires         DateTime? @map("google_token_expires")
+
+  // Férias/Folgas — [{inicio, fim, motivo}]
+  ausencias            Json?     @default("[]") @db.JsonB
+
+  // Controle
+  isDono               Boolean   @default(false) @map("is_dono")
+  ativo                Boolean   @default(true)
+  ordem                Int       @default(0)
+  createdAt            DateTime  @default(now()) @map("created_at")
+
+  clinica              Clinica   @relation(fields: [clinicaId], references: [id])
+  procedimentos        Procedimento[]
+
+  @@index([clinicaId])
+  @@map("profissionais")
 }
 
 // ============================================
@@ -176,18 +222,22 @@ model Curso {
 // ============================================
 
 model Procedimento {
-  id          Int       @id @default(autoincrement())
-  clinicaId   Int?      @map("user_id")
-  nome        String    @db.VarChar(255)
-  valor       Decimal   @default(0) @map("preco_normal") @db.Decimal
-  desconto    Decimal   @default(0) @map("preco_minimo") @db.Decimal
-  parcelas    Int?      @map("parcelamento_padrao")
-  duracao     Int?      @map("duracao_minutos")
-  descricao   String?   @db.Text
-  ativo       Boolean?  @default(true)
-  createdAt   DateTime? @default(now()) @map("created_at")
+  id              Int            @id @default(autoincrement())
+  clinicaId       Int?           @map("user_id")
+  profissionalId  String?        @map("profissional_id")
+  nome            String         @db.VarChar(255)
+  valor           Decimal        @default(0) @map("preco_normal") @db.Decimal
+  desconto        Decimal        @default(0) @map("preco_minimo") @db.Decimal
+  parcelas        Int?           @map("parcelamento_padrao")
+  duracao         Int?           @map("duracao_minutos")
+  descricao       String?        @db.Text
+  ativo           Boolean?       @default(true)
+  createdAt       DateTime?      @default(now()) @map("created_at")
+
+  profissional    Profissional?  @relation(fields: [profissionalId], references: [id])
 
   @@index([clinicaId])
+  @@index([profissionalId])
   @@map("procedimentos")
 }
 

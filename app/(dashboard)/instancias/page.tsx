@@ -32,18 +32,28 @@ export default function ConexoesPage() {
     const [calendarId, setCalendarId] = useState('');
     const [showQR, setShowQR] = useState<number | null>(null);
     const [conectando, setConectando] = useState(false);
+    const [qrData, setQrData] = useState<string | null>(null);
+    const [buscandoQR, setBuscandoQR] = useState(false);
+    const [totalContatos, setTotalContatos] = useState(0);
 
     useEffect(() => { fetchInstancias(); }, []);
 
     async function fetchInstancias() {
         try {
-            const res = await fetch('/api/instancias');
-            const data = await res.json();
+            const [instRes, contatosRes] = await Promise.all([
+                fetch('/api/instancias'),
+                fetch('/api/contatos?count=true').catch(() => null)
+            ]);
+            const data = await instRes.json();
             setInstancias(data.instancias || []);
             setLimites(data.limites || { max_instancias_whatsapp: 1, max_instancias_instagram: 0 });
             setPlano(data.plano || 1);
             setCalendarConnected(!!data.calendarConnected);
             setCalendarId(data.calendarId || '');
+            if (contatosRes?.ok) {
+                const cData = await contatosRes.json();
+                setTotalContatos(cData.total || cData.contatos?.length || 0);
+            }
         } catch (e) { console.error(e); }
         setLoading(false);
     }
@@ -103,6 +113,36 @@ export default function ConexoesPage() {
     async function desconectar(id: number) {
         if (!confirm('Deseja desconectar este canal? A IARA vai parar de atender nele.')) return;
         await fetch(`/api/instancias?id=${id}`, { method: 'DELETE' });
+        fetchInstancias();
+    }
+
+    async function buscarQR(instId: number) {
+        setShowQR(instId);
+        setBuscandoQR(true);
+        setQrData(null);
+        try {
+            const res = await fetch('/api/whatsapp/connect', { method: 'POST' });
+            const data = await res.json();
+            if (data.qrcode) {
+                setQrData(data.qrcode);
+            } else if (data.connected || data.status === 'open') {
+                alert('✅ WhatsApp já está conectado!');
+                setShowQR(null);
+                fetchInstancias();
+            } else {
+                alert(data.error || 'Não foi possível gerar o QR Code. Tente novamente.');
+                setShowQR(null);
+            }
+        } catch {
+            alert('Erro ao buscar QR Code. Verifique sua conexão.');
+            setShowQR(null);
+        }
+        setBuscandoQR(false);
+    }
+
+    function fecharQR() {
+        setShowQR(null);
+        setQrData(null);
         fetchInstancias();
     }
 
@@ -218,7 +258,7 @@ export default function ConexoesPage() {
                             <div style={{ display: 'flex', gap: 8 }}>
                                 {inst.status_conexao !== 'conectado' && (
                                     <button
-                                        onClick={() => setShowQR(inst.id)}
+                                        onClick={() => buscarQR(inst.id)}
                                         style={{
                                             background: '#25D366', color: '#fff', border: 'none',
                                             borderRadius: 10, padding: '8px 16px', cursor: 'pointer',
@@ -252,6 +292,57 @@ export default function ConexoesPage() {
                             cursor: 'pointer', marginTop: 4
                         }}
                     >+ Adicionar outro número</button>
+                )}
+
+                {/* Modal QR Code */}
+                {showQR && (
+                    <div style={{
+                        marginTop: 16, padding: 24, borderRadius: 16,
+                        background: '#f8fafc', border: '2px solid #25D366',
+                        textAlign: 'center'
+                    }}>
+                        <h3 style={{ margin: '0 0 8px', fontSize: 16, color: '#1e293b' }}>
+                            📱 Escaneie o QR Code
+                        </h3>
+                        <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748b' }}>
+                            Abra o WhatsApp no celular → Menu (⋮) → Aparelhos conectados → Conectar
+                        </p>
+                        {buscandoQR ? (
+                            <div style={{ padding: 40 }}>
+                                <div style={{ fontSize: 32, marginBottom: 8 }}>⏳</div>
+                                <p style={{ color: '#64748b', fontSize: 14 }}>Gerando QR Code...</p>
+                            </div>
+                        ) : qrData ? (
+                            <img
+                                src={qrData.startsWith('data:') ? qrData : `data:image/png;base64,${qrData}`}
+                                alt="QR Code WhatsApp"
+                                style={{
+                                    width: 280, height: 280, borderRadius: 12,
+                                    border: '1px solid #e2e8f0'
+                                }}
+                            />
+                        ) : (
+                            <p style={{ color: '#dc2626', fontSize: 14 }}>Erro ao gerar QR Code</p>
+                        )}
+                        <div style={{ marginTop: 16, display: 'flex', gap: 10, justifyContent: 'center' }}>
+                            <button
+                                onClick={() => showQR && buscarQR(showQR)}
+                                style={{
+                                    background: '#25D366', color: '#fff', border: 'none',
+                                    borderRadius: 10, padding: '8px 20px', cursor: 'pointer',
+                                    fontWeight: 600, fontSize: 13
+                                }}
+                            >🔄 Gerar novo QR</button>
+                            <button
+                                onClick={fecharQR}
+                                style={{
+                                    background: 'none', border: '1px solid #e2e8f0',
+                                    borderRadius: 10, padding: '8px 20px', cursor: 'pointer',
+                                    fontSize: 13, color: '#64748b'
+                                }}
+                            >Fechar</button>
+                        </div>
+                    </div>
                 )}
             </div>
 
@@ -386,6 +477,42 @@ export default function ConexoesPage() {
                         }}
                     >
                         {calendarConnected ? '🔄 Reconectar' : '+ Conectar'}
+                    </button>
+                </div>
+            </div>
+
+            {/* ==================== Google Contatos ==================== */}
+            <div style={{
+                background: '#fff', borderRadius: 20, padding: '24px 28px',
+                border: '1px solid #e2e8f0', marginBottom: 16,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                        width: 44, height: 44, borderRadius: 12,
+                        background: 'linear-gradient(135deg, #4285F4, #EA4335)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 22, flexShrink: 0
+                    }}>👥</div>
+                    <div style={{ flex: 1 }}>
+                        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>Google Contatos</h2>
+                        <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
+                            {totalContatos > 0
+                                ? `${totalContatos} contatos no CRM — importe mais do Google`
+                                : 'Importe seus contatos do Google para o CRM'
+                            }
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => window.open('/api/auth/google-contacts', '_self')}
+                        style={{
+                            background: 'linear-gradient(135deg, #4285F4, #EA4335)',
+                            color: '#fff', border: 'none', borderRadius: 12,
+                            padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                            whiteSpace: 'nowrap'
+                        }}
+                    >
+                        📥 Importar
                     </button>
                 </div>
             </div>
