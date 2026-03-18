@@ -5,7 +5,7 @@
 // Fornece: contexto de agenda, verificação de disponibilidade, criação de eventos.
 
 import { getCalendarEvents, createCalendarEvent, getCalendarTokens } from '@/lib/google-calendar'
-import type { DadosClinica } from './types'
+import type { DadosClinica, ProfissionalAtivo } from './types'
 
 // ============================================
 // BUSCAR CONTEXTO DA AGENDA
@@ -17,11 +17,13 @@ import type { DadosClinica } from './types'
  */
 export async function getAgendaContext(
     clinicaId: number,
-    clinica: DadosClinica
+    clinica: DadosClinica,
+    profissionais?: ProfissionalAtivo[]
 ): Promise<string | null> {
-    // Verificar se tem calendário conectado
-    const tokens = await getCalendarTokens(clinicaId)
-    if (!tokens) return null
+    // Verificar se tem calendário conectado (da clínica ou de pelo menos 1 profissional)
+    const tokensClinica = await getCalendarTokens(clinicaId)
+    const multiProf = profissionais && profissionais.length > 1
+    if (!tokensClinica && !multiProf) return null
 
     const tz = clinica.timezone || 'America/Sao_Paulo'
     const now = new Date()
@@ -31,9 +33,6 @@ export async function getAgendaContext(
     const timeMax = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString()
 
     try {
-        const eventos = await getCalendarEvents(clinicaId, timeMin, timeMax)
-        console.log(`[Calendar] 📅 ${eventos.length} eventos encontrados nas próximas 48h`)
-
         // Montar horários da clínica
         const horarios = montarHorarios(clinica)
         const intervalo = clinica.intervaloAtendimento ?? 15
@@ -45,29 +44,78 @@ export async function getAgendaContext(
         texto += `Antecedência mínima para agendar: ${antecedencia}\n`
         texto += `Data/Hora atual: ${formatDateBR(now, tz)}\n\n`
 
-        if (eventos.length === 0) {
-            texto += `Próximas 48h: NENHUM compromisso. Agenda livre!\n`
-        } else {
-            texto += `Compromissos nas próximas 48h:\n`
-            for (const ev of eventos) {
-                const start = ev.start?.dateTime || ev.start?.date
-                const end = ev.end?.dateTime || ev.end?.date
-                if (start) {
-                    const startDate = new Date(start)
-                    const endDate = end ? new Date(end) : null
-                    const durMin = endDate ? Math.round((endDate.getTime() - startDate.getTime()) / 60000) : null
-                    texto += `• ${formatDateBR(startDate, tz)}`
-                    if (durMin) texto += ` (${durMin}min)`
-                    if (ev.summary) texto += ` — ${ev.summary}`
+        if (multiProf) {
+            // MULTI-PROFISSIONAL: buscar agenda de cada um
+            for (const prof of profissionais!) {
+                // Verificar ausências/férias
+                const ausencias = prof.ausencias || []
+                const emFerias = ausencias.some(a => {
+                    const ini = new Date(a.inicio)
+                    const fim = new Date(a.fim)
+                    return now >= ini && now <= fim
+                })
+
+                if (emFerias) {
+                    texto += `📅 Agenda de ${prof.nome}: ❌ DE FÉRIAS (não ofereça este profissional)\n\n`
+                    continue
+                }
+
+                // Buscar eventos do profissional (usa calendar da clínica se não tem próprio)
+                const eventos = await getCalendarEvents(clinicaId, timeMin, timeMax)
+                texto += `📅 Agenda de ${prof.nome} (ID: ${prof.id}):\n`
+                if (eventos.length === 0) {
+                    texto += `  Próximas 48h: NENHUM compromisso. Agenda livre!\n\n`
+                } else {
+                    for (const ev of eventos) {
+                        const start = ev.start?.dateTime || ev.start?.date
+                        const end = ev.end?.dateTime || ev.end?.date
+                        if (start) {
+                            const startDate = new Date(start)
+                            const endDate = end ? new Date(end) : null
+                            const durMin = endDate ? Math.round((endDate.getTime() - startDate.getTime()) / 60000) : null
+                            texto += `  • ${formatDateBR(startDate, tz)}`
+                            if (durMin) texto += ` (${durMin}min)`
+                            if (ev.summary) texto += ` — ${ev.summary}`
+                            texto += `\n`
+                        }
+                    }
                     texto += `\n`
+                }
+            }
+        } else {
+            // SINGLE: comportamento original
+            const eventos = await getCalendarEvents(clinicaId, timeMin, timeMax)
+            console.log(`[Calendar] 📅 ${eventos.length} eventos encontrados nas próximas 48h`)
+
+            if (eventos.length === 0) {
+                texto += `Próximas 48h: NENHUM compromisso. Agenda livre!\n`
+            } else {
+                texto += `Compromissos nas próximas 48h:\n`
+                for (const ev of eventos) {
+                    const start = ev.start?.dateTime || ev.start?.date
+                    const end = ev.end?.dateTime || ev.end?.date
+                    if (start) {
+                        const startDate = new Date(start)
+                        const endDate = end ? new Date(end) : null
+                        const durMin = endDate ? Math.round((endDate.getTime() - startDate.getTime()) / 60000) : null
+                        texto += `• ${formatDateBR(startDate, tz)}`
+                        if (durMin) texto += ` (${durMin}min)`
+                        if (ev.summary) texto += ` — ${ev.summary}`
+                        texto += `\n`
+                    }
                 }
             }
         }
 
         texto += `\n⚙️ REGRAS DE AGENDAMENTO:\n`
         texto += `- Ao confirmar agendamento, use EXATAMENTE este formato na sua resposta:\n`
-        texto += `  [AGENDAR:NomeProcedimento|YYYY-MM-DD|HH:MM|DuracaoMinutos]\n`
-        texto += `  Exemplo: [AGENDAR:Micropigmentação|2026-03-10|11:00|120]\n`
+        if (multiProf) {
+            texto += `  [AGENDAR:NomeProcedimento|YYYY-MM-DD|HH:MM|DuracaoMinutos|ProfissionalId]\n`
+            texto += `  Exemplo: [AGENDAR:Micropigmentação|2026-03-10|11:00|120|abc123]\n`
+        } else {
+            texto += `  [AGENDAR:NomeProcedimento|YYYY-MM-DD|HH:MM|DuracaoMinutos]\n`
+            texto += `  Exemplo: [AGENDAR:Micropigmentação|2026-03-10|11:00|120]\n`
+        }
         texto += `- O marcador [AGENDAR:...] será processado internamente — a cliente NÃO verá este marcador\n`
         texto += `- ANTES de agendar, SEMPRE mostre um resumo para a cliente confirmar (procedimento, data, hora, valor)\n`
         texto += `- DEPOIS que a cliente confirmar, inclua o marcador [AGENDAR:...] e envie resumo final com endereço: ${clinica.endereco || '(endereço não cadastrado)'}\n`
@@ -91,6 +139,7 @@ interface AgendamentoDetectado {
     data: string      // YYYY-MM-DD
     hora: string      // HH:MM
     duracao: number    // minutos
+    profissionalId: string | null
 }
 
 /**
@@ -103,7 +152,7 @@ export async function processarAgendamentos(
     clinica: DadosClinica,
     nomeCliente: string
 ): Promise<string> {
-    const regex = /\[AGENDAR:([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|(\d+)\]/g
+    const regex = /\[AGENDAR:([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|(\d+)(?:\|([^\]]+))?\]/g
     const matches = [...respostaIA.matchAll(regex)]
 
     if (matches.length === 0) return respostaIA
@@ -117,6 +166,7 @@ export async function processarAgendamentos(
             data: match[2],
             hora: match[3],
             duracao: parseInt(match[4]) || 60,
+            profissionalId: match[5]?.trim() || null,
         }
 
         console.log(`[Calendar] 📝 Agendamento detectado: ${agendamento.procedimento} em ${agendamento.data} às ${agendamento.hora} (${agendamento.duracao}min)`)

@@ -14,7 +14,7 @@
 // → Ou mude via painel: clinica.configuracoes.cofre_iara
 
 import { getCofreParaClinica, getLabels } from './cofre'
-import type { DadosClinica, Procedimento, FeedbackDra, MemoriaCliente, RespostaIA } from './types'
+import type { DadosClinica, Procedimento, FeedbackDra, MemoriaCliente, RespostaIA, ProfissionalAtivo } from './types'
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ''
@@ -33,6 +33,7 @@ interface PromptContext {
     feedbacks: FeedbackDra[]
     memoria: MemoriaCliente | null
     agendaContext?: string | null
+    profissionais?: ProfissionalAtivo[]
 }
 
 /**
@@ -43,7 +44,7 @@ interface PromptContext {
  * Obs: Histórico agora é passado diretamente na array de mensagens da API.
  */
 export function buildSystemPrompt(ctx: PromptContext): string {
-    const { clinica, mensagem, pushName, tipoEntrada, procedimentos, feedbacks, memoria, agendaContext } = ctx
+    const { clinica, mensagem, pushName, tipoEntrada, procedimentos, feedbacks, memoria, agendaContext, profissionais } = ctx
 
     const nivel = clinica.nivel || 1
 
@@ -88,18 +89,45 @@ export function buildSystemPrompt(ctx: PromptContext): string {
         ? labels.voceE(nomeAssistente, nomeClinica)
         : `Você é ${nomeAssistente}, secretária da ${nomeClinica}.`
 
-    // --- Catálogo de Procedimentos ---
-    let catalogoTexto = `\n💅 ${labels.procedimentosPrecos}:\n`
-    if (procedimentos.length > 0) {
-        procedimentos.slice(0, 10).forEach((proc) => {
-            catalogoTexto += `• ${proc.nome}`
-            if (proc.valor) catalogoTexto += ` — ${moeda} ${proc.valor}`
-            if (proc.duracao) catalogoTexto += ` (${proc.duracao})`
+    // --- Catálogo de Procedimentos (multi-profissional vs single) ---
+    let catalogoTexto = ''
+    const multiProf = profissionais && profissionais.length > 1
+
+    if (multiProf) {
+        catalogoTexto = `\n👩‍⚕️ PROFISSIONAIS DA CLÍNICA (${profissionais!.length}):\n`
+        for (const prof of profissionais!) {
+            catalogoTexto += `\n• **${prof.nome}**`
+            if (prof.especialidade) catalogoTexto += ` — ${prof.especialidade}`
+            if (prof.bio) catalogoTexto += `\n  Bio: ${prof.bio}`
             catalogoTexto += '\n'
-            if (proc.descricao) catalogoTexto += `  ℹ️ ${proc.descricao}\n`
-        })
+            if (prof.procedimentos.length > 0) {
+                catalogoTexto += `  Procedimentos:\n`
+                for (const proc of prof.procedimentos.slice(0, 10)) {
+                    catalogoTexto += `    - ${proc.nome}`
+                    if (proc.valor) catalogoTexto += ` — ${moeda} ${proc.valor}`
+                    if (proc.duracao) catalogoTexto += ` (${proc.duracao})`
+                    catalogoTexto += '\n'
+                }
+            }
+        }
+        catalogoTexto += `\n⚠️ REGRA MULTI-PROFISSIONAL:`
+        catalogoTexto += `\n- Se a cliente pedir um procedimento que MAIS DE UM profissional faz, PERGUNTE com qual profissional ela prefere.`
+        catalogoTexto += `\n- Se SÓ UM profissional faz aquele procedimento, direcione direto sem perguntar.`
+        catalogoTexto += `\n- Ao agendar, use o formato: [AGENDAR:Procedimento|YYYY-MM-DD|HH:MM|Duracao|ProfissionalId]`
+        catalogoTexto += `\n`
     } else {
-        catalogoTexto += `${labels.semCatalogo}\n`
+        catalogoTexto = `\n💅 ${labels.procedimentosPrecos}:\n`
+        if (procedimentos.length > 0) {
+            procedimentos.slice(0, 10).forEach((proc) => {
+                catalogoTexto += `• ${proc.nome}`
+                if (proc.valor) catalogoTexto += ` — ${moeda} ${proc.valor}`
+                if (proc.duracao) catalogoTexto += ` (${proc.duracao})`
+                catalogoTexto += '\n'
+                if (proc.descricao) catalogoTexto += `  ℹ️ ${proc.descricao}\n`
+            })
+        } else {
+            catalogoTexto += `${labels.semCatalogo}\n`
+        }
     }
 
     // --- Feedbacks da Dra ---

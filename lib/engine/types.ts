@@ -117,6 +117,30 @@ export interface CofreIARA {
     roteiroVendas: string
 }
 
+/** Profissional ativo da clínica (multi-profissional) */
+export interface ProfissionalAtivo {
+    id: string
+    nome: string
+    bio: string | null
+    especialidade: string | null
+    whatsapp: string | null
+    isDono: boolean
+    procedimentos: Procedimento[]
+    // Horários (parseados, com fallback para clínica)
+    horarioSemana: string | null
+    horarioSabado: string | null
+    atendeSabado: boolean | null
+    horarioDomingo: string | null
+    atendeDomingo: boolean | null
+    intervaloAtendimento: number | null
+    ausencias: { inicio: string; fim: string; motivo?: string }[]
+    // Google Calendar por profissional
+    googleCalendarToken: string | null
+    googleCalendarRefreshToken: string | null
+    googleCalendarId: string | null
+    googleTokenExpires: Date | null
+}
+
 /** Procedimento da clínica */
 export interface Procedimento {
     id: string
@@ -126,6 +150,7 @@ export interface Procedimento {
     parcelas: string | null
     duracao: string | null
     descricao: string | null
+    profissionalId?: string | null
 }
 
 /** Feedback da Dra */

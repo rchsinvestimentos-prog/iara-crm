@@ -12,6 +12,7 @@ const CreateProcSchema = z.object({
     parcelas: z.number().int().min(0).max(999).optional().nullable(),
     duracao: z.number().int().min(0).max(1440).optional().default(0),
     descricao: z.string().max(5000).optional().nullable(),
+    profissionalId: z.string().optional().nullable(),
 })
 
 const UpdateProcSchema = CreateProcSchema.extend({
@@ -39,6 +40,7 @@ export async function GET() {
             ...p,
             valor: Number(p.valor),
             desconto: Number(p.desconto),
+            profissionalId: (p as any).profissionalId || null,
         }))
 
         return NextResponse.json(result)
@@ -70,6 +72,7 @@ export async function POST(request: NextRequest) {
                 parcelas: validated.parcelas ?? null,
                 duracao: validated.duracao ?? null,
                 descricao: validated.descricao ?? null,
+                ...(validated.profissionalId ? { profissionalId: validated.profissionalId } : {}),
             },
         })
 

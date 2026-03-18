@@ -27,7 +27,7 @@ import * as calendar from './calendar'
 import * as aiEngine from './ai-engine'
 import * as sender from './sender'
 import * as logger from './logger'
-import type { MensagemRecebida, DadosClinica } from './types'
+import type { MensagemRecebida, DadosClinica, ProfissionalAtivo } from './types'
 import { prisma } from '@/lib/prisma'
 import { createHash } from 'crypto'
 
@@ -201,13 +201,16 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // ================================================
     // 9. BUSCAR CONTEXTO
     // ================================================
-    const [historico, procedimentosRaw, feedbacks, memoriaCliente, agendaContext] = await Promise.all([
+    const [historico, procedimentosRaw, feedbacks, memoriaCliente, profissionaisRaw] = await Promise.all([
         memory.getConversationHistory(clinica.id, msg.telefone),
         buscarProcedimentos(clinica.id),
         memory.getDraFeedbacks(clinica.id),
         memory.getClientMemory(clinica.id, msg.telefone),
-        calendar.getAgendaContext(clinica.id, clinica),
+        buscarProfissionais(clinica.id),
     ])
+
+    // Buscar agenda (com profissionais se multi-prof)
+    const agendaContext = await calendar.getAgendaContext(clinica.id, clinica, profissionaisRaw.length > 1 ? profissionaisRaw : undefined)
 
     // ================================================
     // 10. MONTAR PROMPT + CHAMAR IA
@@ -222,6 +225,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         feedbacks,
         memoria: memoriaCliente,
         agendaContext,
+        profissionais: profissionaisRaw.length > 1 ? profissionaisRaw : undefined,
     })
 
     const resposta = await aiEngine.callAI(
@@ -410,13 +414,28 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
     // 1. Avisa a cliente que recebeu (SEM pausar)
     await sender.sendText(sendOpts, `Recebi ${msg.tipoMensagem === 'document' ? 'seu documento' : 'sua ' + tipoLabel}! ✨ Já encaminhei agora mesmo pra Doutora dar uma olhada. Assim que ela ver, já te damos um retorno, tá? 😊`)
 
-    // 2. Alerta a Dra no WhatsApp pessoal (com 3 opções)
-    if (clinica.whatsappDoutora) {
-        const alertaDra = `${tipoEmoji} *${nomeCliente}* mandou ${msg.tipoMensagem === 'document' ? 'um documento' : (msg.tipoMensagem === 'image' ? 'uma foto' : 'um vídeo')}${msg.tipoMensagem === 'document' && msg.mensagem ? ' (' + msg.mensagem + ')' : ''}\n📱 ${msg.telefone}\n\nDra, abra o WhatsApp da clínica pra ver.\n\n*O que eu faço?*\n\n1️⃣ *Me mande a resposta* — escreva ou mande áudio com o que devo dizer. Eu adapto e te mostro antes de enviar.\n\n2️⃣ *"Eu assumo"* — responda direto à cliente que eu pauso 3h.\n\n3️⃣ *"${nomeIA} lembre em X min"* — aviso a cliente que a Dra tá analisando e volto depois.`
+    // 2. Alerta a Dra E profissionais no WhatsApp pessoal
+    const alertaMensagem = `${tipoEmoji} *${nomeCliente}* mandou ${msg.tipoMensagem === 'document' ? 'um documento' : (msg.tipoMensagem === 'image' ? 'uma foto' : 'um vídeo')}${msg.tipoMensagem === 'document' && msg.mensagem ? ' (' + msg.mensagem + ')' : ''}\n📱 ${msg.telefone}\n\nDra, abra o WhatsApp da clínica pra ver.\n\n*O que eu faço?*\n\n1️⃣ *Me mande a resposta* — escreva ou mande áudio com o que devo dizer. Eu adapto e te mostro antes de enviar.\n\n2️⃣ *"Eu assumo"* — responda direto à cliente que eu pauso 3h.\n\n3️⃣ *"${nomeIA} lembre em X min"* — aviso a cliente que a Dra tá analisando e volto depois.`
 
+    // Tentar alertar profissionais primeiro, fallback para whatsappDoutora
+    const profissionais = await buscarProfissionais(clinica.id)
+    const whatsAppsAlertados = new Set<string>()
+
+    for (const prof of profissionais) {
+        if (prof.whatsapp && !whatsAppsAlertados.has(prof.whatsapp)) {
+            await sender.sendText(
+                { instancia: msg.instancia, telefone: prof.whatsapp, apikey: clinica.evolutionApikey || undefined },
+                alertaMensagem
+            )
+            whatsAppsAlertados.add(prof.whatsapp)
+        }
+    }
+
+    // Fallback: se nenhum profissional tem WhatsApp, alerta a dona
+    if (whatsAppsAlertados.size === 0 && clinica.whatsappDoutora) {
         await sender.sendText(
             { instancia: msg.instancia, telefone: clinica.whatsappDoutora, apikey: clinica.evolutionApikey || undefined },
-            alertaDra
+            alertaMensagem
         )
     }
 
@@ -430,7 +449,7 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
         pushName: msg.pushName,
     })
 
-    console.log(`[Pipeline] ${tipoEmoji} Mídia (${tipoLabel}) de ${nomeCliente} → Dra alertada (sem pausa automática)`)
+    console.log(`[Pipeline] ${tipoEmoji} Mídia (${tipoLabel}) de ${nomeCliente} → Profissionais alertados (sem pausa automática)`)
 }
 
 // ============================================
@@ -601,15 +620,62 @@ async function buscarProcedimentos(clinicaId: number) {
             desconto: number
             parcelas: string | null
             duracao: string | null
+            descricao: string | null
+            profissional_id: string | null
         }[]>`
-      SELECT id, nome, valor, desconto, parcelas, duracao
+      SELECT id, nome, valor, desconto, parcelas, duracao, descricao, "profissional_id"
       FROM procedimentos
       WHERE "clinicaId" = ${String(clinicaId)}
         AND COALESCE(ativo, true) = true
       ORDER BY nome ASC
     `
-        return result || []
+        return (result || []).map(r => ({
+            ...r,
+            profissionalId: r.profissional_id || null,
+        }))
     } catch {
+        return []
+    }
+}
+
+/** Busca profissionais ativos da clínica com procedimentos */
+async function buscarProfissionais(clinicaId: number): Promise<ProfissionalAtivo[]> {
+    try {
+        const profs = await prisma.$queryRaw<any[]>`
+          SELECT id, nome, bio, especialidade, whatsapp, is_dono as "isDono",
+                 "horarioSemana", "horarioSabado", "atendeSabado",
+                 "horarioDomingo", "atendeDomingo", "intervaloAtendimento",
+                 ausencias,
+                 "googleCalendarToken", "googleCalendarRefreshToken",
+                 "googleCalendarId", "googleTokenExpires"
+          FROM profissionais
+          WHERE "clinica_id" = ${clinicaId}
+            AND ativo = true
+          ORDER BY ordem ASC
+        `
+
+        if (!profs || profs.length === 0) return []
+
+        // Buscar procedimentos de cada profissional
+        for (const prof of profs) {
+            const procs = await prisma.$queryRaw<any[]>`
+              SELECT id, nome, valor, desconto, parcelas, duracao, descricao
+              FROM procedimentos
+              WHERE "profissional_id" = ${prof.id}
+                AND COALESCE(ativo, true) = true
+              ORDER BY nome ASC
+            `
+            prof.procedimentos = (procs || []).map((p: any) => ({
+                ...p,
+                valor: Number(p.valor),
+                desconto: Number(p.desconto),
+            }))
+            prof.ausencias = prof.ausencias || []
+        }
+
+        return profs as ProfissionalAtivo[]
+    } catch (err) {
+        console.error('[Pipeline] Erro ao buscar profissionais:', err)
         return []
     }
 }
