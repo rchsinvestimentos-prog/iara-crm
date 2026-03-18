@@ -146,6 +146,7 @@ model Clinica {
   usoFeatures          UsoFeature[]
   profissionais        Profissional[]
   avaliacoes           Avaliacao[]
+  agendamentos         Agendamento[]
   
   @@map("users")
 }
@@ -182,6 +183,12 @@ model Profissional {
   // Férias/Folgas — [{inicio, fim, motivo}]
   ausencias            Json?     @default("[]") @db.JsonB
 
+  // Link público de agendamento
+  linkAgendamento      String?   @unique @map("link_agendamento") @db.VarChar(100)
+  fotoUrl              String?   @map("foto_url") @db.VarChar(500)
+  chavePix             String?   @map("chave_pix") @db.VarChar(200)
+  linkPagamento        String?   @map("link_pagamento") @db.VarChar(500)
+
   // Controle
   isDono               Boolean   @default(false) @map("is_dono")
   ativo                Boolean   @default(true)
@@ -190,6 +197,7 @@ model Profissional {
 
   clinica              Clinica   @relation(fields: [clinicaId], references: [id])
   procedimentos        Procedimento[]
+  agendamentos         Agendamento[]
 
   @@index([clinicaId])
   @@map("profissionais")
@@ -459,4 +467,52 @@ model Avaliacao {
 
   @@index([clinicaId])
   @@map("avaliacoes")
+}
+
+// ============================================
+// Agendamentos (Calendário interno = master)
+// ============================================
+
+model Agendamento {
+  id              String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId       Int       @map("clinica_id")
+  profissionalId  String    @map("profissional_id")
+
+  // Paciente
+  nomePaciente    String    @map("nome_paciente") @db.VarChar(200)
+  telefone        String    @db.VarChar(30)
+  contatoId       Int?      @map("contato_id")  // Link com CRM
+
+  // Agendamento
+  procedimento    String    @db.VarChar(255)
+  data            DateTime
+  horario         String    @db.VarChar(10)  // "09:30"
+  duracao         Int       @default(30)     // minutos
+  valor           Decimal?  @db.Decimal
+
+  // Status: pendente | confirmado | realizado | cancelado | reagendado | noshow
+  status          String    @default("pendente") @db.VarChar(20)
+  observacao      String?   @db.Text
+
+  // Origens: painel | link_publico | whatsapp | google
+  origem          String    @default("painel") @db.VarChar(20)
+
+  // Google Calendar sync
+  googleEventId   String?   @map("google_event_id") @db.VarChar(200)
+
+  // PIX
+  pixPago         Boolean   @default(false) @map("pix_pago")
+
+  // Controle
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  clinica         Clinica       @relation(fields: [clinicaId], references: [id])
+  profissional    Profissional  @relation(fields: [profissionalId], references: [id])
+
+  @@index([clinicaId])
+  @@index([profissionalId])
+  @@index([data])
+  @@index([status])
+  @@map("agendamentos_v2")
 }
