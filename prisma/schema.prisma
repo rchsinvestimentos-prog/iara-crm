@@ -379,3 +379,16 @@ model UsoFeature {
   @@index([clinicaId])
   @@map("uso_features")
 }
+
+// ============================================
+// Feature Flags — visibilidade de features
+// ============================================
+
+model FeatureFlag {
+  id         String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  featureId  String   @unique @map("feature_id") @db.VarChar(50)
+  habilitado Boolean  @default(true)
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  @@map("feature_flags")
+}

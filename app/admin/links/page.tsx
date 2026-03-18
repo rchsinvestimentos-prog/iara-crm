@@ -80,7 +80,6 @@ const PLANO_CORES: Record<number, string> = {
 }
 const PLANO_LABELS: Record<number, string> = { 1: 'P1', 2: 'P2', 3: 'P3', 4: 'P4' }
 
-const STORAGE_KEY = 'iara_admin_features_enabled'
 
 /** Detecta o domínio do painel do cliente (ex: https://app.iara.click) */
 function getClientDomain(): string {
@@ -99,45 +98,65 @@ export default function AdminLinksPage() {
     const [filter, setFilter] = useState('')
     const [categoriaAtiva, setCategoriaAtiva] = useState<string | null>(null)
     const [clientDomain, setClientDomain] = useState('')
+    const [saving, setSaving] = useState(false)
 
     // Detectar domínio do cliente
     useEffect(() => {
         setClientDomain(getClientDomain())
     }, [])
 
-    // Carregar estado do localStorage
+    // Carregar estado do banco via API
     useEffect(() => {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY)
-            if (stored) {
-                setEnabled(JSON.parse(stored))
-            } else {
+        fetch('/api/admin/feature-flags')
+            .then(r => r.json())
+            .then(data => {
+                if (data.flags) {
+                    // Merge: features sem flag no banco ficam ativas por padrão
+                    const merged: Record<string, boolean> = {}
+                    FEATURES.forEach(f => { merged[f.id] = data.flags[f.id] ?? true })
+                    setEnabled(merged)
+                } else {
+                    const defaults: Record<string, boolean> = {}
+                    FEATURES.forEach(f => { defaults[f.id] = true })
+                    setEnabled(defaults)
+                }
+            })
+            .catch(() => {
                 const defaults: Record<string, boolean> = {}
                 FEATURES.forEach(f => { defaults[f.id] = true })
                 setEnabled(defaults)
-            }
-        } catch {
-            const defaults: Record<string, boolean> = {}
-            FEATURES.forEach(f => { defaults[f.id] = true })
-            setEnabled(defaults)
-        }
+            })
     }, [])
 
-    const toggleFeature = (id: string) => {
-        setEnabled(prev => {
-            const next = { ...prev, [id]: !prev[id] }
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { /* */ }
-            return next
-        })
+    const toggleFeature = async (id: string) => {
+        const newValue = !enabled[id]
+        setEnabled(prev => ({ ...prev, [id]: newValue }))
+        setSaving(true)
+        try {
+            await fetch('/api/admin/feature-flags', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ featureId: id, habilitado: newValue }),
+            })
+        } catch { /* rollback silencioso */ }
+        finally { setSaving(false) }
     }
 
-    const toggleAll = (ids: string[], value: boolean) => {
+    const toggleAll = async (ids: string[], value: boolean) => {
         setEnabled(prev => {
             const next = { ...prev }
             ids.forEach(id => { next[id] = value })
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { /* */ }
             return next
         })
+        setSaving(true)
+        try {
+            await fetch('/api/admin/feature-flags', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ features: ids.map(id => ({ featureId: id, habilitado: value })) }),
+            })
+        } catch { /* */ }
+        finally { setSaving(false) }
     }
 
     const featuresFiltradas = FEATURES.filter(f => {
@@ -162,8 +181,11 @@ export default function AdminLinksPage() {
         <div className="min-h-screen bg-gray-950 text-gray-100 p-6">
             {/* Header */}
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-white mb-1">🗺️ Mapa de Features &amp; Rotas</h1>
-                <p className="text-gray-400 text-sm">Todas as rotas construídas. Ative ou desative features para controlar a visibilidade no painel.</p>
+                <div className="flex items-center gap-3 mb-1">
+                    <h1 className="text-2xl font-bold text-white">🗺️ Mapa de Features &amp; Rotas</h1>
+                    {saving && <span className="text-xs text-violet-400 animate-pulse">💾 Salvando...</span>}
+                </div>
+                <p className="text-gray-400 text-sm">Ative ou desative features — mudanças afetam o sidebar dos clientes <strong>em tempo real</strong>.</p>
 
                 {/* Stats */}
                 <div className="flex items-center gap-4 mt-4">
@@ -304,7 +326,7 @@ export default function AdminLinksPage() {
             {/* Footer */}
             <div className="mt-10 pt-6 border-t border-gray-800 text-center">
                 <p className="text-xs text-gray-600">
-                    Os toggles são salvos localmente (localStorage) e visíveis apenas para você como admin.
+                    Os toggles são salvos no banco de dados. Features desligadas ficam <strong>ocultas no sidebar</strong> dos clientes.
                     Links abrem no painel do cliente ({clientDomain || '...'}).
                 </p>
             </div>

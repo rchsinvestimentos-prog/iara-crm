@@ -102,6 +102,45 @@ const habilidadesMenu: { titulo: string; nivel: number; emoji: string; skills: S
   },
 ]
 
+// Mapa rota → featureId (deve bater com admin/links FEATURES)
+const ROUTE_TO_FEATURE: Record<string, string> = {
+  '/dashboard': 'dashboard',
+  '/conversas': 'conversas',
+  '/crm': 'crm',
+  '/contatos': 'crm',
+  '/campanhas': 'campanhas',
+  '/habilidades/atendimento': 'atendimento',
+  '/habilidades/agendamento': 'agendamento',
+  '/habilidades/follow-up': 'follow-up',
+  '/habilidades/voz': 'voz',
+  '/habilidades/instagram': 'instagram',
+  '/habilidades/marketing': 'marketing',
+  '/habilidades/roteiros': 'roteiros',
+  '/habilidades/avatar': 'fotos-ia',
+  '/habilidades/posts': 'posts',
+  '/habilidades/colagem': 'colagem',
+  '/habilidades/marca': 'marca',
+  '/habilidades/editor': 'editor',
+  '/habilidades/raiox': 'raiox',
+  '/habilidades/calendario': 'calendario',
+  '/habilidades/voz-clonada': 'voz-clonada',
+  '/habilidades/crm': 'midia',
+  '/habilidades/leads': 'lancamentos',
+  '/habilidades/multi-clinica': 'midia',
+  '/habilidades/videos': 'reels',
+  '/habilidades/app-config': 'app-config',
+  '/instancias': 'instancias',
+  '/configuracoes': 'configuracoes',
+  '/cofre': 'cofre',
+  '/features': 'features',
+  '/agenda': 'agenda',
+  '/templates': 'templates',
+  '/indicacoes': 'indicacoes',
+  '/historico-creditos': 'historico',
+  '/melhorar-iara': 'melhorar-iara',
+  '/plano': 'plano',
+}
+
 export default function Sidebar() {
   const pathname = usePathname()
   const { theme, toggleTheme } = useTheme()
@@ -115,6 +154,7 @@ export default function Sidebar() {
   const [clinicas, setClinicas] = useState<ClinicaItem[]>([])
   const [clinicaAtiva, setClinicaAtiva] = useState<number | null>(null)
   const [showClinicaDropdown, setShowClinicaDropdown] = useState(false)
+  const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
   const isDark = theme === 'dark'
 
   // Buscar plano da clínica
@@ -140,6 +180,26 @@ export default function Sidebar() {
       })
       .catch(() => { })
   }, [])
+
+  // Buscar feature flags (visibilidade de features)
+  useEffect(() => {
+    if (isAdmin) return // Admin vê tudo
+    fetch('/api/admin/feature-flags')
+      .then(r => r.json())
+      .then(data => {
+        if (data.flags) setFeatureFlags(data.flags)
+      })
+      .catch(() => { })
+  }, [isAdmin])
+
+  // Verifica se uma rota está visível (feature flag ativa)
+  const isRouteVisible = (href: string): boolean => {
+    if (isAdmin) return true // Admin vê tudo
+    const featureId = ROUTE_TO_FEATURE[href]
+    if (!featureId) return true // Rota sem flag = sempre visível
+    if (featureFlags[featureId] === undefined) return true // Sem flag no banco = visível
+    return featureFlags[featureId]
+  }
 
   // Trocar clínica ativa
   const switchClinica = async (id: number) => {
@@ -358,7 +418,7 @@ export default function Sidebar() {
 
                   {isExpanded && (
                     <div className="ml-3 pl-3 space-y-0.5 py-0.5" style={{ borderLeft: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)'}` }}>
-                      {grupo.skills.map((skill) => {
+                      {grupo.skills.filter(skill => isRouteVisible(skill.href)).map((skill) => {
                         const active = pathname === skill.href
                         const habilitada = true // Limites de uso em vez de bloqueio de acesso
                         return (
@@ -393,47 +453,47 @@ export default function Sidebar() {
             <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
           </div>
 
-          <Link href="/instancias" className={linkClass('/instancias')}>
+          {isRouteVisible('/instancias') && <Link href="/instancias" className={linkClass('/instancias')}>
             <Smartphone size={17} strokeWidth={1.8} />
             <span>Instâncias & Canais</span>
-          </Link>
-          <Link href="/configuracoes" className={linkClass('/configuracoes')}>
+          </Link>}
+          {isRouteVisible('/configuracoes') && <Link href="/configuracoes" className={linkClass('/configuracoes')}>
             <Settings size={17} strokeWidth={1.8} />
             <span>Configurações</span>
-          </Link>
+          </Link>}
           {/* WA Fake e Simulador removidos — só no admin (adm.iara.click) */}
-          <Link href="/cofre" className={linkClass('/cofre')}>
+          {isRouteVisible('/cofre') && <Link href="/cofre" className={linkClass('/cofre')}>
             <Shield size={17} strokeWidth={1.8} />
             <span>Personalizar IA</span>
-          </Link>
-          <Link href="/features" className={linkClass('/features')}>
+          </Link>}
+          {isRouteVisible('/features') && <Link href="/features" className={linkClass('/features')}>
             <Zap size={17} strokeWidth={1.8} />
             <span>Features</span>
-          </Link>
-          <Link href="/agenda" className={linkClass('/agenda')}>
+          </Link>}
+          {isRouteVisible('/agenda') && <Link href="/agenda" className={linkClass('/agenda')}>
             <CalendarDays size={17} strokeWidth={1.8} />
             <span>Agenda</span>
-          </Link>
-          <Link href="/templates" className={linkClass('/templates')}>
+          </Link>}
+          {isRouteVisible('/templates') && <Link href="/templates" className={linkClass('/templates')}>
             <FileText size={17} strokeWidth={1.8} />
             <span>Templates</span>
-          </Link>
-          <Link href="/indicacoes" className={linkClass('/indicacoes')}>
+          </Link>}
+          {isRouteVisible('/indicacoes') && <Link href="/indicacoes" className={linkClass('/indicacoes')}>
             <Gift size={17} strokeWidth={1.8} />
             <span>Indicações</span>
-          </Link>
-          <Link href="/historico-creditos" className={linkClass('/historico-creditos')}>
+          </Link>}
+          {isRouteVisible('/historico-creditos') && <Link href="/historico-creditos" className={linkClass('/historico-creditos')}>
             <History size={17} strokeWidth={1.8} />
             <span>Créditos Usados</span>
-          </Link>
-          <Link href="/melhorar-iara" className={linkClass('/melhorar-iara')}>
+          </Link>}
+          {isRouteVisible('/melhorar-iara') && <Link href="/melhorar-iara" className={linkClass('/melhorar-iara')}>
             <Sparkles size={17} strokeWidth={1.8} />
             <span>Melhorar a IARA</span>
-          </Link>
-          <Link href="/plano" className={linkClass('/plano')}>
+          </Link>}
+          {isRouteVisible('/plano') && <Link href="/plano" className={linkClass('/plano')}>
             <CreditCard size={17} strokeWidth={1.8} />
             <span>Plano & Créditos</span>
-          </Link>
+          </Link>}
         </nav>
 
         {/* Footer */}
