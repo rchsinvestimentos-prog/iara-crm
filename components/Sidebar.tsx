@@ -328,7 +328,14 @@ export default function Sidebar() {
               </div>
               <div>
                 <h1 className="text-[15px] font-bold tracking-tight" style={{ color: isDark ? '#FFFFFF' : '#0F4C61' }}>IARA</h1>
-                <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: isDark ? '#4B5563' : '#94A3B8' }}>Painel</p>
+                <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: isDark ? '#4B5563' : '#94A3B8' }}>
+                  {isAdmin ? (
+                    <span className="flex items-center gap-1">
+                      <span>👑</span>
+                      <span style={{ color: '#D99773' }}>Boss Manager</span>
+                    </span>
+                  ) : 'Painel'}
+                </p>
               </div>
             </div>
 
@@ -398,27 +405,35 @@ export default function Sidebar() {
             {habilidadesMenu.map((grupo) => {
               const desbloqueado = true // Todas as habilidades são acessíveis — limites controlam uso
               const isExpanded = expandedGroups.includes(grupo.nivel)
+              const visibleSkills = grupo.skills.filter(skill => isRouteVisible(skill.href))
+              const allHidden = !isAdmin && visibleSkills.length === 0
 
               return (
                 <div key={grupo.nivel}>
                   <button
-                    onClick={() => toggleGroup(grupo.nivel)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all cursor-pointer"
+                    onClick={() => !allHidden && toggleGroup(grupo.nivel)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all ${allHidden ? 'cursor-default opacity-60' : 'cursor-pointer'}`}
                     style={{ color: isDark ? (desbloqueado ? '#9CA3AF' : '#374151') : (desbloqueado ? '#6B7280' : '#CBD5E1') }}
                   >
                     <span className="text-sm">{grupo.emoji}</span>
                     <span className="flex-1 text-left">{grupo.titulo}</span>
-                    {!desbloqueado && <Lock size={11} style={{ color: isDark ? '#374151' : '#CBD5E1' }} />}
-                    <ChevronDown
-                      size={13}
-                      className={`transition-transform duration-300 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
-                      style={{ color: isDark ? '#374151' : '#CBD5E1' }}
-                    />
+                    {allHidden ? (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}>EM BREVE</span>
+                    ) : (
+                      <>
+                        {!desbloqueado && <Lock size={11} style={{ color: isDark ? '#374151' : '#CBD5E1' }} />}
+                        <ChevronDown
+                          size={13}
+                          className={`transition-transform duration-300 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
+                          style={{ color: isDark ? '#374151' : '#CBD5E1' }}
+                        />
+                      </>
+                    )}
                   </button>
 
-                  {isExpanded && (
+                  {isExpanded && !allHidden && (
                     <div className="ml-3 pl-3 space-y-0.5 py-0.5" style={{ borderLeft: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)'}` }}>
-                      {grupo.skills.filter(skill => isRouteVisible(skill.href)).map((skill) => {
+                      {visibleSkills.map((skill) => {
                         const active = pathname === skill.href
                         const habilitada = true // Limites de uso em vez de bloqueio de acesso
                         return (
@@ -470,10 +485,7 @@ export default function Sidebar() {
             <Zap size={17} strokeWidth={1.8} />
             <span>Features</span>
           </Link>}
-          {isRouteVisible('/agenda') && <Link href="/agenda" className={linkClass('/agenda')}>
-            <CalendarDays size={17} strokeWidth={1.8} />
-            <span>Agenda</span>
-          </Link>}
+          {/* Agenda movida para Habilidades > Secretária */}
           {isRouteVisible('/templates') && <Link href="/templates" className={linkClass('/templates')}>
             <FileText size={17} strokeWidth={1.8} />
             <span>Templates</span>

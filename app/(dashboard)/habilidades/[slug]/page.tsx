@@ -5,6 +5,7 @@ import { Lock, Play, ArrowUpRight, ArrowLeft, Check } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { ReactNode, useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 
 // Tool components (lazy loaded)
 const PostsTool = dynamic(() => import('@/components/tools/PostsTool'))
@@ -247,6 +248,8 @@ export default function HabilidadePage() {
     const slug = params.slug as string
     const skill = skillsData[slug]
     const [planoAtual, setPlanoAtual] = useState(1)
+    const { data: session } = useSession()
+    const isAdmin = (session?.user as any)?.userType === 'admin'
 
     useEffect(() => {
         fetch('/api/clinica')
@@ -268,7 +271,7 @@ export default function HabilidadePage() {
         )
     }
 
-    const desbloqueada = planoAtual >= skill.nivel && !skill.emBreve
+    const desbloqueada = isAdmin || (planoAtual >= skill.nivel && !skill.emBreve)
     const sales = salesData[slug]
 
     return (

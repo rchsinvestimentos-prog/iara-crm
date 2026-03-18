@@ -30,9 +30,8 @@ const UpdateClinicaSchema = z.object({
     intervaloAtendimento: z.number().min(0).max(120).optional().nullable(),
     antecedenciaMinima: z.string().max(200).optional().nullable(),
     daCursos: z.boolean().optional().nullable(),
-    horarioInicio: z.string().max(10).optional().nullable(),
-    horarioFim: z.string().max(10).optional().nullable(),
-    diasFuncionamento: z.string().max(100).optional().nullable(),
+    // horarioInicio / horarioFim / diasFuncionamento NÃO existem no Prisma
+    // São ignorados no filtro abaixo
     // Perfil da profissional
     nomeDoutora: z.string().max(200).optional().nullable(),
     tratamentoDoutora: z.string().max(50).optional().nullable(),
@@ -102,11 +101,38 @@ export async function PUT(request: Request) {
             where: { id: clinicaId },
         })
 
-        // Filtrar campos que o Prisma realmente aceita
-        // (ignora campos que não existem na tabela)
+        // Campos aceitos pelo Prisma (model Clinica)
+        const PRISMA_FIELDS = new Set([
+            'nome', 'email', 'telefone', 'role', 'parentId', 'aceiteTermos',
+            'plano', 'nivel', 'status', 'creditosMensais', 'creditosDisponiveis',
+            'totalAtendimentos', 'tokenAtivacao', 'proximaRenovacao',
+            'nomeClinica', 'endereco',
+            'nomeAssistente', 'personalidadeVoz', 'vozAssistente', 'tomAtendimento',
+            'horarioSemana', 'almocoSemana', 'atendeSabado', 'horarioSabado', 'almocoSabado',
+            'atendeDomingo', 'horarioDomingo', 'almocoDomingo',
+            'atendeFeriado', 'horarioFeriado', 'almocoFeriado',
+            'intervaloAtendimento', 'antecedenciaMinima',
+            'aceitaDescontos', 'descontoMaximo',
+            'evolutionInstance', 'whatsappClinica', 'whatsappDoutora',
+            'nomeDoutora', 'tratamentoDoutora', 'evolutionApikey',
+            'aprendizadoContinuo', 'diferenciais', 'daCursos',
+            'humor', 'emojis', 'fraseDespedida', 'funcionalidades', 'feedbacks',
+            'modoIA', 'sempreLigada', 'blacklist',
+            'mensagemAniversario', 'mensagemForaHorario', 'diasAtendimento',
+            'idioma', 'pais', 'moeda', 'timezone', 'canalPrincipal',
+            'telefoneTwilio', 'twilioSid',
+            'maxInstanciasWhatsapp', 'maxInstanciasInstagram',
+            'googleCalendarToken', 'googleCalendarRefreshToken', 'googleCalendarId', 'googleTokenExpires',
+            'avatarFotos', 'avatarVideo', 'paletaCores', 'vozClonada',
+            'faqPersonalizado', 'cuidadosPos', 'autorizouCuidadosPos',
+            'politicaCancelamento', 'formasPagamento', 'linkMaps', 'redesSociais',
+            'mensagemBoasVindas', 'configuracoes', 'integracoes',
+        ])
+
+        // Filtrar: só campos válidos do Prisma e com valor definido
         const dataToUpdate: Record<string, unknown> = {}
         for (const [key, value] of Object.entries(validated)) {
-            if (value !== undefined) {
+            if (value !== undefined && PRISMA_FIELDS.has(key)) {
                 dataToUpdate[key] = value
             }
         }

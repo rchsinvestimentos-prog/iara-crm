@@ -43,3 +43,6 @@ next-env.d.ts
 /app/generated/prisma
 *.DS_Store
 ._*
+
+# Sentry Config File
+.env.sentry-build-plugin
