@@ -6,7 +6,7 @@ test.describe('Cofre (Secretária)', () => {
         await loginAsCliente(page);
     });
 
-    test('deve acessar o cofre, trocar de abas e salvar as leis imutaveis', async ({ page }) => {
+    test('deve acessar o cofre e verificar abas sem alterar dados', async ({ page }) => {
         // Acessar a página de cofre
         await page.goto('/cofre');
         await expect(page.getByRole('heading', { name: 'Personalizar IARA' })).toBeVisible();
@@ -16,18 +16,26 @@ test.describe('Cofre (Secretária)', () => {
         await expect(page.getByRole('button', { name: /Arsenal de Objeções/i })).toBeVisible();
         await expect(page.getByRole('button', { name: /Roteiro de Vendas/i })).toBeVisible();
 
-        // Escrever algo na aba atual (Leis)
+        // Verificar que o editor/textarea está presente
         const textbox = page.locator('textarea');
         await expect(textbox).toBeVisible();
-        
-        // Clica no text box e escreve text
-        await textbox.fill('Teste de leis imutáveis gerado pelo Playwright - ' + Date.now());
 
-        // Clicar em Salvar
-        const btnSalvar = page.getByRole('button', { name: /Salvar Alterações/i });
-        await btnSalvar.click();
+        // Verificar que o conteúdo NÃO está vazio (regras devem existir)
+        const conteudo = await textbox.inputValue();
+        expect(conteudo.length).toBeGreaterThan(0);
 
-        // Verificar botão mudando para Salvo
-        await expect(page.getByRole('button', { name: /Salvo!/i })).toBeVisible();
+        // Navegar entre abas sem alterar dados
+        await page.getByRole('button', { name: /Arsenal de Objeções/i }).click();
+        await expect(textbox).toBeVisible();
+
+        await page.getByRole('button', { name: /Roteiro de Vendas/i }).click();
+        await expect(textbox).toBeVisible();
+
+        // Voltar para Regras
+        await page.getByRole('button', { name: /Regras da IARA/i }).click();
+        await expect(textbox).toBeVisible();
+
+        // Verificar que botão Salvar existe
+        await expect(page.getByRole('button', { name: /Salvar Alterações/i })).toBeVisible();
     });
 });
