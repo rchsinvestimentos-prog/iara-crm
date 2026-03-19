@@ -3,11 +3,23 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Loader2, ChevronLeft, ChevronRight, Clock, Phone, Settings, CalendarDays, Link2, ExternalLink, CheckCircle2, XCircle, Plus, User, X, Filter } from 'lucide-react'
 
+interface ProcedimentoProf {
+    id: number
+    nome: string
+    valor: number
+    desconto: number
+    parcelas: number
+    duracao: number
+    descricao: string
+    posProcedimento: string
+}
+
 interface Profissional {
     id: string
     nome: string
     especialidade: string | null
     fotoUrl: string | null
+    procedimentos?: ProcedimentoProf[]
 }
 
 interface Agendamento {
@@ -92,9 +104,9 @@ export default function AgendaPage() {
     })
     const [savingConfig, setSavingConfig] = useState(false)
 
-    // Fetch profissionais
+    // Fetch profissionais (rota correta com procedimentos inclusos)
     useEffect(() => {
-        fetch('/api/profissionais')
+        fetch('/api/clinica/profissionais')
             .then(r => r.json())
             .then(data => setProfissionais(data.profissionais || data || []))
             .catch(() => {})
@@ -732,11 +744,27 @@ function NovoAgendamentoModal({ profissionais, diaSelecionado, onClose, onCriado
                             className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle} placeholder="Ex: 41 99520-7443" />
                     </div>
 
-                    {/* Procedimento */}
+                    {/* Procedimento — select dinâmico com procedimentos do profissional */}
                     <div>
                         <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Procedimento *</label>
-                        <input type="text" value={form.procedimento} onChange={e => setForm(p => ({ ...p, procedimento: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle} placeholder="Ex: Botox" />
+                        {(() => {
+                            const profSel = profissionais.find(p => String(p.id) === String(form.profissionalId))
+                            const procs = profSel?.procedimentos || []
+                            return procs.length > 0 ? (
+                                <select value={form.procedimento} onChange={e => {
+                                    const nome = e.target.value
+                                    const proc = procs.find(pp => pp.nome === nome)
+                                    setForm(p => ({ ...p, procedimento: nome, duracao: proc?.duracao || p.duracao }))
+                                }}
+                                    className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle}>
+                                    <option value="">Selecione...</option>
+                                    {procs.map(pp => <option key={pp.id} value={pp.nome}>{pp.nome} — R$ {Number(pp.valor).toFixed(0)}</option>)}
+                                </select>
+                            ) : (
+                                <input type="text" value={form.procedimento} onChange={e => setForm(p => ({ ...p, procedimento: e.target.value }))}
+                                    className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle} placeholder="Ex: Botox" />
+                            )
+                        })()}
                     </div>
 
                     {/* Data + Horário */}
