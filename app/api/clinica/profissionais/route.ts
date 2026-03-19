@@ -33,7 +33,16 @@ export async function GET() {
         const profissionais = await prisma.$queryRawUnsafe<any[]>(`
             SELECT p.*, 
                 COALESCE(
-                    (SELECT json_agg(proc.*) FROM procedimentos proc WHERE proc.profissional_id = p.id AND proc.ativo = true),
+                    (SELECT json_agg(json_build_object(
+                        'id', proc.id,
+                        'nome', proc.nome,
+                        'valor', proc.preco_normal,
+                        'desconto', proc.preco_minimo,
+                        'parcelas', proc.parcelamento_padrao,
+                        'duracao', proc.duracao_minutos,
+                        'descricao', proc.descricao,
+                        'posProcedimento', proc.pos_procedimento
+                    )) FROM procedimentos proc WHERE proc.profissional_id = p.id AND proc.ativo = true),
                     '[]'::json
                 ) as procedimentos
             FROM profissionais p 
@@ -71,7 +80,11 @@ export async function GET() {
             ativo: p.ativo,
             ordem: p.ordem,
             createdAt: p.created_at,
-            procedimentos: p.procedimentos || [],
+            procedimentos: (p.procedimentos || []).map((proc: any) => ({
+                ...proc,
+                valor: Number(proc.valor) || 0,
+                desconto: Number(proc.desconto) || 0,
+            })),
         }))
 
         return NextResponse.json({
