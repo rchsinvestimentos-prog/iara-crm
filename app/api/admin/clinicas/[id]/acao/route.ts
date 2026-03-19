@@ -221,12 +221,16 @@ export async function POST(
             if (![1, 2].includes(novoNivel)) {
                 return NextResponse.json({ error: 'Nível inválido (1=Essencial, 2=Premium)' }, { status: 400 })
             }
-            await prisma.clinica.update({
-                where: { id: clinicaId },
-                data: { nivel: novoNivel }
-            })
+            // Atualiza nível + limites de instâncias
+            const maxIg = novoNivel >= 2 ? 1 : 0
+            await prisma.$executeRaw`
+                UPDATE users 
+                SET nivel = ${novoNivel},
+                    max_instancias_instagram = ${maxIg}
+                WHERE id = ${clinicaId}
+            `
             const nomePlano = novoNivel === 1 ? 'Essencial' : 'Premium'
-            return NextResponse.json({ message: `✅ Plano alterado para ${nomePlano}!` })
+            return NextResponse.json({ message: `✅ Plano alterado para ${nomePlano}! Instagram: ${maxIg > 0 ? 'liberado' : 'bloqueado'}` })
         }
 
         return NextResponse.json({ error: 'Ação inválida' }, { status: 400 })
