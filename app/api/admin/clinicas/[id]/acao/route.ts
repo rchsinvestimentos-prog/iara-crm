@@ -199,6 +199,36 @@ export async function POST(
             return NextResponse.json({ message: `Clínica "${clinica.nome || clinica.nomeClinica}" excluída com sucesso!` })
         }
 
+        if (acao === 'creditos') {
+            const { quantidade } = body
+            const qtd = parseInt(quantidade)
+            if (!qtd || qtd <= 0) {
+                return NextResponse.json({ error: 'Quantidade de créditos inválida' }, { status: 400 })
+            }
+            // Soma créditos ao saldo existente
+            await prisma.$executeRaw`
+                UPDATE clinicas 
+                SET creditos_restantes = COALESCE(creditos_restantes, 0) + ${qtd},
+                    creditos_total = COALESCE(creditos_total, 0) + ${qtd}
+                WHERE id = ${clinicaId}
+            `
+            return NextResponse.json({ message: `✅ ${qtd} créditos liberados para "${clinica.nome || clinica.nomeClinica}"!` })
+        }
+
+        if (acao === 'plano') {
+            const { nivel } = body
+            const novoNivel = parseInt(nivel)
+            if (![1, 2].includes(novoNivel)) {
+                return NextResponse.json({ error: 'Nível inválido (1=Essencial, 2=Premium)' }, { status: 400 })
+            }
+            await prisma.clinica.update({
+                where: { id: clinicaId },
+                data: { nivel: novoNivel }
+            })
+            const nomePlano = novoNivel === 1 ? 'Essencial' : 'Premium'
+            return NextResponse.json({ message: `✅ Plano alterado para ${nomePlano}!` })
+        }
+
         return NextResponse.json({ error: 'Ação inválida' }, { status: 400 })
 
     } catch (err) {

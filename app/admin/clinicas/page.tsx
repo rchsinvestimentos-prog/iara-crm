@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail, MoreHorizontal, KeyRound, Ban, Settings, Trash2, LogIn } from 'lucide-react'
+import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail, MoreHorizontal, KeyRound, Ban, Settings, Trash2, LogIn, CreditCard, ArrowUpDown } from 'lucide-react'
 
 interface Clinica {
     id: number
@@ -111,6 +111,13 @@ export default function AdminClinicas() {
 
     const [menuAberto, setMenuAberto] = useState<number | null>(null)
 
+    // Modais de créditos e plano
+    const [modalCreditos, setModalCreditos] = useState<{ id: number; nome: string } | null>(null)
+    const [creditosQtd, setCreditosQtd] = useState('500')
+    const [modalPlano, setModalPlano] = useState<{ id: number; nome: string; nivelAtual: number } | null>(null)
+    const [planoNovo, setPlanoNovo] = useState(1)
+    const [savingModal, setSavingModal] = useState(false)
+
     // Fechar menu ao clicar fora (simples)
     useEffect(() => {
         const handleClick = () => setMenuAberto(null)
@@ -144,6 +151,40 @@ export default function AdminClinicas() {
         } catch (e) {
             alert('Erro de comunicação com o servidor')
         }
+    }
+
+    async function liberarCreditos() {
+        if (!modalCreditos) return
+        const qtd = parseInt(creditosQtd)
+        if (!qtd || qtd <= 0) { alert('Quantidade inválida'); return }
+        setSavingModal(true)
+        try {
+            const r = await fetch(`/api/admin/clinicas/${modalCreditos.id}/acao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ acao: 'creditos', quantidade: qtd })
+            })
+            const data = await r.json()
+            alert(data.message || data.error)
+            if (r.ok) { setModalCreditos(null); setCreditosQtd('500'); load() }
+        } catch { alert('Erro de rede') }
+        setSavingModal(false)
+    }
+
+    async function mudarPlano() {
+        if (!modalPlano) return
+        setSavingModal(true)
+        try {
+            const r = await fetch(`/api/admin/clinicas/${modalPlano.id}/acao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ acao: 'plano', nivel: planoNovo })
+            })
+            const data = await r.json()
+            alert(data.message || data.error)
+            if (r.ok) { setModalPlano(null); load() }
+        } catch { alert('Erro de rede') }
+        setSavingModal(false)
     }
 
     const filtradas = clinicas.filter(c =>
@@ -277,6 +318,9 @@ export default function AdminClinicas() {
                                                     onClick={(e) => e.stopPropagation()}
                                                 >
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'impersonar') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><LogIn size={14} className="text-green-400" /> Acessar Painel</button>
+                                                    <button onClick={() => { setMenuAberto(null); setModalCreditos({ id: c.id, nome: c.nome_clinica }); setCreditosQtd('500') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><CreditCard size={14} className="text-emerald-400" /> Liberar Créditos</button>
+                                                    <button onClick={() => { setMenuAberto(null); setModalPlano({ id: c.id, nome: c.nome_clinica, nivelAtual: c.nivel }); setPlanoNovo(c.nivel) }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><ArrowUpDown size={14} className="text-purple-400" /> Mudar Plano</button>
+                                                    <div className="h-px bg-white/5 my-1" />
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'reenviar') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><KeyRound size={14} className="text-[#D99773]" /> Reenviar Acesso</button>
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'bloquear') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><Ban size={14} className="text-yellow-400" /> Bloquear/Desbloquear</button>
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'testes') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><Settings size={14} className="text-blue-400" /> Rodar Testes API</button>
@@ -416,6 +460,72 @@ export default function AdminClinicas() {
                                 </button>
                             </>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Liberar Créditos */}
+            {modalCreditos && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setModalCreditos(null)}>
+                    <div className="rounded-2xl p-6 w-full max-w-sm space-y-4" style={{ backgroundColor: '#111827', border: '1px solid rgba(255,255,255,0.08)' }} onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                <CreditCard size={18} className="text-emerald-400" /> Liberar Créditos
+                            </h2>
+                            <button onClick={() => setModalCreditos(null)} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
+                        </div>
+                        <p className="text-xs text-gray-400">Para: <span className="text-white font-medium">{modalCreditos.nome}</span></p>
+                        <div>
+                            <label className="text-xs text-gray-400 mb-1 block">Quantidade de créditos</label>
+                            <input type="number" value={creditosQtd} onChange={e => setCreditosQtd(e.target.value)} min="1"
+                                className="w-full text-sm px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-emerald-500/50" />
+                        </div>
+                        <div className="flex gap-2">
+                            {[100, 500, 1000, 3000].map(v => (
+                                <button key={v} onClick={() => setCreditosQtd(String(v))}
+                                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${creditosQtd === String(v) ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10'}`}>
+                                    {v}
+                                </button>
+                            ))}
+                        </div>
+                        <button onClick={liberarCreditos} disabled={savingModal}
+                            className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50"
+                            style={{ background: 'linear-gradient(135deg, #06D6A0, #059669)' }}>
+                            {savingModal ? <Loader2 size={16} className="animate-spin mx-auto" /> : `Liberar ${creditosQtd} créditos`}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Mudar Plano */}
+            {modalPlano && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setModalPlano(null)}>
+                    <div className="rounded-2xl p-6 w-full max-w-sm space-y-4" style={{ backgroundColor: '#111827', border: '1px solid rgba(255,255,255,0.08)' }} onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                <ArrowUpDown size={18} className="text-purple-400" /> Mudar Plano
+                            </h2>
+                            <button onClick={() => setModalPlano(null)} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
+                        </div>
+                        <p className="text-xs text-gray-400">Para: <span className="text-white font-medium">{modalPlano.nome}</span></p>
+                        <p className="text-xs text-gray-500">Plano atual: <span className="font-semibold" style={{ color: planoCores[modalPlano.nivelAtual] }}>{planoNomes[modalPlano.nivelAtual]}</span></p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button onClick={() => setPlanoNovo(1)}
+                                className={`p-4 rounded-xl text-center transition-all border ${planoNovo === 1 ? 'bg-[#06D6A0]/10 border-[#06D6A0]/30' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                                <p className="text-sm font-bold" style={{ color: planoNovo === 1 ? '#06D6A0' : '#9CA3AF' }}>Essencial</p>
+                                <p className="text-[10px] text-gray-500 mt-1">Nível 1</p>
+                            </button>
+                            <button onClick={() => setPlanoNovo(2)}
+                                className={`p-4 rounded-xl text-center transition-all border ${planoNovo === 2 ? 'bg-[#D99773]/10 border-[#D99773]/30' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                                <p className="text-sm font-bold" style={{ color: planoNovo === 2 ? '#D99773' : '#9CA3AF' }}>Premium</p>
+                                <p className="text-[10px] text-gray-500 mt-1">Nível 2</p>
+                            </button>
+                        </div>
+                        <button onClick={mudarPlano} disabled={savingModal || planoNovo === modalPlano.nivelAtual}
+                            className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50"
+                            style={{ background: planoNovo === modalPlano.nivelAtual ? '#374151' : 'linear-gradient(135deg, #8B5CF6, #7C3AED)' }}>
+                            {savingModal ? <Loader2 size={16} className="animate-spin mx-auto" /> : planoNovo === modalPlano.nivelAtual ? 'Mesmo plano atual' : `Alterar para ${planoNomes[planoNovo]}`}
+                        </button>
                     </div>
                 </div>
             )}
