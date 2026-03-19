@@ -19,6 +19,7 @@ import {
     Stethoscope,
     Map,
     TestTube2,
+    Shield,
 } from 'lucide-react'
 import { useState } from 'react'
 import { canAccessPage, ROLE_LABELS, ROLE_COLORS } from '@/lib/permissions'
@@ -35,6 +36,7 @@ const menuItems = [
     { href: '/admin/links', label: 'Links & Features', icon: Map },
     { href: '/admin/whatsapp-fake', label: 'WA Fake 🧪', icon: TestTube2 },
     { href: '/admin/config', label: 'Config Global', icon: Settings },
+    { href: '/admin/cofre', label: 'Regras IARA', icon: Shield },
     { href: '/admin/equipe', label: 'Equipe', icon: Users },
 ]
 

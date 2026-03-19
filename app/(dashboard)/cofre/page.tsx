@@ -20,20 +20,18 @@ interface CofreData {
 
 export default function CofrePage() {
     const [data, setData] = useState<CofreData | null>(null)
-    const [leis, setLeis] = useState('')
     const [arsenal, setArsenal] = useState('')
     const [roteiro, setRoteiro] = useState('')
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
-    const [tab, setTab] = useState<'leis' | 'arsenal' | 'roteiro'>('leis')
+    const [tab, setTab] = useState<'arsenal' | 'roteiro'>('arsenal')
 
     useEffect(() => {
         fetch('/api/cofre')
             .then(r => r.json())
             .then(d => {
                 setData(d)
-                setLeis(d.merged?.leisImutaveis || '')
                 setArsenal(d.merged?.arsenalDeObjecoes || '')
                 setRoteiro(d.merged?.roteiroVendas || '')
             })
@@ -48,7 +46,6 @@ export default function CofrePage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    leisImutaveis: leis !== data?.padrao?.leisImutaveis ? leis : undefined,
                     arsenalObjecoes: arsenal !== data?.padrao?.arsenalDeObjecoes ? arsenal : undefined,
                     roteiroVendas: roteiro !== data?.padrao?.roteiroVendas ? roteiro : undefined,
                 }),
@@ -64,15 +61,13 @@ export default function CofrePage() {
         }
     }
 
-    function resetar(campo: 'leis' | 'arsenal' | 'roteiro') {
+    function resetar(campo: 'arsenal' | 'roteiro') {
         if (!data?.padrao) return
-        if (campo === 'leis') setLeis(data.padrao.leisImutaveis || '')
         if (campo === 'arsenal') setArsenal(data.padrao.arsenalDeObjecoes || '')
         if (campo === 'roteiro') setRoteiro(data.padrao.roteiroVendas || '')
     }
 
     const tabs = [
-        { key: 'leis' as const, label: 'Regras da IARA', icon: Shield, desc: 'Como ela deve se comportar' },
         { key: 'arsenal' as const, label: 'Arsenal de Objeções', icon: Swords, desc: 'Respostas pra objeções de clientes' },
         { key: 'roteiro' as const, label: 'Roteiro de Vendas', icon: Route, desc: 'Passos do processo de vendas' },
     ]
@@ -91,7 +86,7 @@ export default function CofrePage() {
                     <div>
                         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Personalizar IARA</h1>
                         <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                            Edite as regras, objeções e roteiro de vendas da sua assistente
+                            Edite as objeções e roteiro de vendas da sua assistente
                         </p>
                     </div>
                 </div>
@@ -141,9 +136,8 @@ export default function CofrePage() {
                                 </button>
                             </div>
                             <textarea
-                                value={tab === 'leis' ? leis : tab === 'arsenal' ? arsenal : roteiro}
+                                value={tab === 'arsenal' ? arsenal : roteiro}
                                 onChange={(e) => {
-                                    if (tab === 'leis') setLeis(e.target.value)
                                     if (tab === 'arsenal') setArsenal(e.target.value)
                                     if (tab === 'roteiro') setRoteiro(e.target.value)
                                 }}
