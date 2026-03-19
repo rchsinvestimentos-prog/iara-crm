@@ -11,10 +11,10 @@ test.describe('Cofre (Secretária)', () => {
         await page.goto('/cofre');
         await expect(page.getByRole('heading', { name: 'Personalizar IARA' })).toBeVisible();
 
-        // Verificar abas
-        await expect(page.getByText('Regras da IARA')).toBeVisible();
-        await expect(page.getByText('Arsenal de Objeções')).toBeVisible();
-        await expect(page.getByText('Roteiro de Vendas')).toBeVisible();
+        // Verificar abas — usar getByRole('button') para evitar ambiguidade com o heading h3
+        await expect(page.getByRole('button', { name: /Regras da IARA/i })).toBeVisible();
+        await expect(page.getByRole('button', { name: /Arsenal de Objeções/i })).toBeVisible();
+        await expect(page.getByRole('button', { name: /Roteiro de Vendas/i })).toBeVisible();
 
         // Escrever algo na aba atual (Leis)
         const textbox = page.locator('textarea');
