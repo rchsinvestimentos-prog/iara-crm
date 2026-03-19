@@ -476,23 +476,8 @@ export default function SatisfacaoPage() {
                             </button>
                         </div>
 
-                        {config.googleReviewAtivo && (
-                            <div>
-                                <label className="text-[12px] font-medium block mb-2" style={{ color: 'var(--text-secondary)' }}>
-                                    Link do Google Reviews
-                                </label>
-                                <input
-                                    placeholder="https://g.page/r/seu-negocio/review"
-                                    value={config.linkGoogleReview}
-                                    onChange={e => setConfig(c => ({ ...c, linkGoogleReview: e.target.value }))}
-                                    className="text-[12px] px-3 py-2.5 rounded-xl outline-none w-full"
-                                    style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                                />
-                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                                    Cole o link de avaliação do seu Google Meu Negócio
-                                </p>
-                            </div>
-                        )}
+
+
 
                         {/* Botão salvar */}
                         <button
