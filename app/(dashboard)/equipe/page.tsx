@@ -139,7 +139,7 @@ export default function ProfissionaisPage() {
         setShowForm(true)
     }
 
-    async function salvarDados() {
+    async function salvarDados(closeAfter = false) {
         if (!nome.trim()) { alert('Nome é obrigatório'); return }
         setSaving(true)
         try {
@@ -155,7 +155,20 @@ export default function ProfissionaisPage() {
                 method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
             })
             if (!res.ok) { const err = await res.json(); alert(err.error || 'Erro'); setSaving(false); return }
-            setShowForm(false); resetForm(); fetchEquipe()
+            
+            // Se era novo, agora virou edição (manter form aberto)
+            const result = await res.clone().json().catch(() => null)
+            if (!editId && result?.id) {
+                setEditId(result.id)
+            }
+            
+            if (closeAfter) {
+                setShowForm(false); resetForm()
+            } else {
+                // Feedback visual rápido
+                alert('✅ Salvo com sucesso!')
+            }
+            fetchEquipe()
         } catch { alert('Erro de conexão') }
         setSaving(false)
     }
@@ -278,7 +291,7 @@ export default function ProfissionaisPage() {
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                             <button onClick={() => setExpandedId(expandedId === prof.id ? null : prof.id)} style={btnOutlineSmall}>{expandedId === prof.id ? '▲' : '▼'}</button>
-                            <button onClick={() => abrirForm(prof)} style={btnOutlineSmall}>✏️</button>
+                            <button onClick={(e) => { e.stopPropagation(); abrirForm(prof) }} style={{ ...btnOutlineSmall, border: '1px solid rgba(15,76,97,0.15)', padding: '8px 14px' }} title="Editar profissional">✏️</button>
                         </div>
                     </div>
 
@@ -328,7 +341,7 @@ export default function ProfissionaisPage() {
                     </div>
 
                     {/* ===== 1. DADOS BÁSICOS ===== */}
-                    <Section title="👤 Dados Básicos" onSave={salvarDados} saving={saving}>
+                    <Section title="👤 Dados Básicos" onSave={() => salvarDados(false)} saving={saving}>
                         <div style={{ display: 'grid', gap: 14 }}>
                             <div><label style={labelStyle}>Nome completo *</label><input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Maria Silva" style={inputStyle} /></div>
                             <div><label style={labelStyle}>Como gostaria de ser chamada?</label><select value={tratamento} onChange={e => setTratamento(e.target.value)} style={inputStyle}>{TRATAMENTOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select><span style={hintStyle}>A IARA usará este tratamento ao se referir ao profissional</span></div>
@@ -338,7 +351,7 @@ export default function ProfissionaisPage() {
                     </Section>
 
                     {/* ===== 2. PERFIL ===== */}
-                    <Section title="📝 Perfil & Diferenciais" onSave={salvarDados} saving={saving}>
+                    <Section title="📝 Perfil & Diferenciais" onSave={() => salvarDados(false)} saving={saving}>
                         <div style={{ display: 'grid', gap: 14 }}>
                             <div><label style={labelStyle}>Bio</label><textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Fale sobre experiência e formação..." rows={3} style={{ ...inputStyle, resize: 'vertical' }} /></div>
                             <div><label style={labelStyle}>Diferenciais</label><textarea value={diferenciais} onChange={e => setDiferenciais(e.target.value)} placeholder="Técnicas exclusivas, certificações especiais..." rows={3} style={{ ...inputStyle, resize: 'vertical' }} /></div>
@@ -446,7 +459,7 @@ export default function ProfissionaisPage() {
                     </Section>
 
                     {/* ===== 5. HORÁRIOS ===== */}
-                    <Section title="⏰ Horários de Atendimento" onSave={salvarDados} saving={saving}>
+                    <Section title="⏰ Horários de Atendimento" onSave={() => salvarDados(false)} saving={saving}>
                         <span style={hintStyle}>Se não preencher, usará os horários da clínica</span>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
                             <div><label style={labelStyle}>Semana</label><input value={horarioSemana} onChange={e => setHorarioSemana(e.target.value)} placeholder="08:00 às 18:00" style={inputStyle} /></div>
@@ -464,7 +477,7 @@ export default function ProfissionaisPage() {
                     </Section>
 
                     {/* ===== 6. PAGAMENTO ===== */}
-                    <Section title="💰 Pagamento" onSave={salvarDados} saving={saving}>
+                    <Section title="💰 Pagamento" onSave={() => salvarDados(false)} saving={saving}>
                         <div style={{ display: 'grid', gap: 14 }}>
                             <div><label style={labelStyle}>Chave PIX</label><input value={chavePix} onChange={e => setChavePix(e.target.value)} placeholder="CPF, e-mail, telefone ou chave aleatória" style={inputStyle} /><span style={hintStyle}>Exibida para clientes ao agendar com taxa de confirmação</span></div>
                             <div><label style={labelStyle}>Link de pagamento</label><input value={linkPagamento} onChange={e => setLinkPagamento(e.target.value)} placeholder="https://pay.mercadopago.com/..." style={inputStyle} /><span style={hintStyle}>Link externo (Mercado Pago, PagSeguro, etc.)</span></div>
@@ -472,7 +485,7 @@ export default function ProfissionaisPage() {
                     </Section>
 
                     {/* ===== 7. LINKS & REDES ===== */}
-                    <Section title="🔗 Links & Redes Sociais" onSave={salvarDados} saving={saving}>
+                    <Section title="🔗 Links & Redes Sociais" onSave={() => salvarDados(false)} saving={saving}>
                         <div style={{ display: 'grid', gap: 14 }}>
                             <div><label style={labelStyle}>Slug do link de agendamento</label>
                                 <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -495,7 +508,7 @@ export default function ProfissionaisPage() {
 
                     {/* Botão global salvar */}
                     <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                        <button onClick={salvarDados} disabled={saving} style={{ ...btnPrimary, flex: 1, padding: '14px', fontSize: 16, opacity: saving ? 0.6 : 1 }}>{saving ? '⏳ Salvando...' : editId ? '💾 Salvar todas alterações' : '✅ Adicionar profissional'}</button>
+                        <button onClick={() => salvarDados(true)} disabled={saving} style={{ ...btnPrimary, flex: 1, padding: '14px', fontSize: 16, opacity: saving ? 0.6 : 1 }}>{saving ? '⏳ Salvando...' : editId ? '💾 Salvar e fechar' : '✅ Adicionar profissional'}</button>
                         <button onClick={() => { setShowForm(false); resetForm() }} style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 12, padding: '14px 20px', cursor: 'pointer', fontSize: 14, color: '#64748b' }}>Cancelar</button>
                     </div>
                 </div>
