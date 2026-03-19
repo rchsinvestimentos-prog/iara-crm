@@ -159,9 +159,15 @@ model Profissional {
   id                   String    @id @default(dbgenerated("gen_random_uuid()::text"))
   clinicaId            Int       @map("clinica_id")
   nome                 String    @db.VarChar(200)
+  tratamento           String?   @db.VarChar(50)  // Dra., Dr., Nutri, pelo nome, outro
   bio                  String?   @db.Text
   especialidade        String?   @db.VarChar(200)
+  diferenciais         String?   @db.Text
   whatsapp             String?   @db.VarChar(30)
+
+  // Cursos e redes
+  cursos               Json?     @default("[]") @db.JsonB    // [{nome, instituicao, ano}]
+  redesSociais         Json?     @default("{}") @map("redes_sociais_prof") @db.JsonB  // {instagram, tiktok, youtube, linkedin}
 
   // Horários (herda da clínica se null)
   horarioSemana        String?   @map("horario_semana") @db.VarChar(50)
@@ -240,6 +246,7 @@ model Procedimento {
   parcelas        Int?           @map("parcelamento_padrao")
   duracao         Int?           @map("duracao_minutos")
   descricao       String?        @db.Text
+  posProcedimento String?        @map("pos_procedimento") @db.Text  // Cuidados pós-procedimento
   ativo           Boolean?       @default(true)
   createdAt       DateTime?      @default(now()) @map("created_at")
 
