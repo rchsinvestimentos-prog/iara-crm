@@ -132,7 +132,7 @@ const ROUTE_TO_FEATURE: Record<string, string> = {
   '/habilidades/app-config': 'app-config',
   '/instancias': 'instancias',
   '/configuracoes': 'configuracoes',
-  '/equipe': 'equipe',
+  '/equipe': 'profissionais',
   '/satisfacao': 'satisfacao',
   '/cofre': 'cofre',
   '/features': 'features',
@@ -481,7 +481,7 @@ export default function Sidebar() {
           </Link>}
           <Link href="/equipe" className={linkClass('/equipe')}>
             <Users size={17} strokeWidth={1.8} />
-            <span>Equipe</span>
+            <span>Profissionais</span>
           </Link>
           <Link href="/satisfacao" className={linkClass('/satisfacao')}>
             <Star size={17} strokeWidth={1.8} />
