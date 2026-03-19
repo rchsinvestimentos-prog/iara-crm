@@ -1,67 +1,75 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// Fix FK + teste INSERT - versão simplificada
+// Diagnóstico definitivo: encontrar onde está a clinica id=9
 export async function GET() {
   const results: string[] = []
 
   try {
-    // 1. Dropar TODAS as FK constraints de clinica_id
-    const constraints = await prisma.$queryRawUnsafe<any[]>(`
-      SELECT conname, pg_get_constraintdef(c.oid) as def
-      FROM pg_constraint c
-      WHERE conrelid = 'profissionais'::regclass
+    // 1. Qual clinica o Prisma retorna?
+    const clinicaPrisma = await prisma.clinica.findFirst({
+      select: { id: true, email: true }
+    })
+    results.push(`Prisma clinica.findFirst: ${JSON.stringify(clinicaPrisma)}`)
+
+    // 2. Listar TODAS as tabelas que contêm "clinica"
+    const tables = await prisma.$queryRawUnsafe<any[]>(`
+      SELECT table_name FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name ILIKE '%clinic%'
     `)
-    
-    for (const c of constraints) {
-      if (c.conname?.includes('clinica_id')) {
-        await prisma.$executeRawUnsafe(`ALTER TABLE profissionais DROP CONSTRAINT IF EXISTS "${c.conname}"`)
-        results.push(`Dropada: ${c.conname}`)
+    results.push(`Tabelas com "clinic": ${JSON.stringify(tables.map((t: any) => t.table_name))}`)
+
+    // 3. Para cada tabela, buscar id=9
+    for (const t of tables) {
+      try {
+        const rows = await prisma.$queryRawUnsafe<any[]>(
+          `SELECT id FROM "${t.table_name}" WHERE id = 9 LIMIT 1`
+        )
+        results.push(`${t.table_name} id=9: ${rows.length > 0 ? 'EXISTE' : 'NÃO EXISTE'}`)
+      } catch (e: any) {
+        results.push(`${t.table_name} id=9: ERRO - ${e.message?.substring(0, 100)}`)
       }
     }
 
-    // 2. Verificar se clinica id=9 existe
-    const clinica = await prisma.$queryRawUnsafe<any[]>(`SELECT id FROM clinicas WHERE id = 9`)
-    results.push(`Clinica 9 existe: ${clinica.length > 0 ? 'SIM' : 'NÃO'}`)
-
-    // 3. Testar INSERT direto (sem FK)
-    const inserted = await prisma.$queryRawUnsafe<any[]>(`
-      INSERT INTO profissionais (id, clinica_id, nome, is_dono, ativo, ordem, created_at)
-      VALUES (gen_random_uuid()::text, 9, 'TESTE DIRETO', false, true, 0, NOW())
-      RETURNING id
+    // 4. Listar TODAS tabelas com a coluna "id"
+    const tablesWithId = await prisma.$queryRawUnsafe<any[]>(`
+      SELECT DISTINCT table_name FROM information_schema.columns 
+      WHERE table_schema = 'public' AND column_name = 'id' 
+      AND table_name ILIKE '%clinic%'
     `)
-    results.push(`✅ INSERT funcionou! ID: ${inserted[0]?.id}`)
+    results.push(`Tabelas com coluna id: ${JSON.stringify(tablesWithId.map((t: any) => t.table_name))}`)
 
-    // 4. Limpar teste
-    await prisma.$executeRawUnsafe(`DELETE FROM profissionais WHERE nome = 'TESTE DIRETO'`)
-    results.push('✅ Teste limpo')
+    // 5. Qual é a tabela real? Verificar case-sensitive
+    const allTables = await prisma.$queryRawUnsafe<any[]>(`
+      SELECT table_name FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND (table_name = 'Clinica' OR table_name = 'clinica' OR table_name = 'clinicas')
+    `)
+    results.push(`Tabelas exatas: ${JSON.stringify(allTables.map((t: any) => t.table_name))}`)
 
-    // 5. Recriar FK (os tipos batem: ambos int4)
-    try {
-      await prisma.$executeRawUnsafe(`
-        ALTER TABLE profissionais 
-        ADD CONSTRAINT profissionais_clinica_id_fkey 
-        FOREIGN KEY (clinica_id) REFERENCES clinicas(id) 
-        ON DELETE RESTRICT ON UPDATE CASCADE
-      `)
-      results.push('✅ FK recriada')
-    } catch (fkErr: any) {
-      results.push(`⚠️ FK não recriada: ${fkErr.message}`)
+    // 6. Contar registros em cada tabela clinica
+    for (const t of allTables) {
+      try {
+        const count = await prisma.$queryRawUnsafe<any[]>(
+          `SELECT COUNT(*)::int as total FROM "${t.table_name}"`
+        )
+        results.push(`${t.table_name} total: ${count[0]?.total}`)
+        
+        // Listar IDs
+        const ids = await prisma.$queryRawUnsafe<any[]>(
+          `SELECT id FROM "${t.table_name}" ORDER BY id LIMIT 5`
+        )
+        results.push(`${t.table_name} IDs: ${JSON.stringify(ids.map((r: any) => r.id))}`)
+      } catch (e: any) {
+        results.push(`${t.table_name}: ERRO - ${e.message?.substring(0, 100)}`)
+      }
     }
 
-    // 6. Testar INSERT COM FK
-    try {
-      const inserted2 = await prisma.$queryRawUnsafe<any[]>(`
-        INSERT INTO profissionais (id, clinica_id, nome, is_dono, ativo, ordem, created_at)
-        VALUES (gen_random_uuid()::text, 9, 'TESTE COM FK', false, true, 0, NOW())
-        RETURNING id
-      `)
-      results.push(`✅ INSERT com FK funcionou! ID: ${inserted2[0]?.id}`)
-      await prisma.$executeRawUnsafe(`DELETE FROM profissionais WHERE nome = 'TESTE COM FK'`)
-      results.push('✅ Teste com FK limpo')
-    } catch (fkInsertErr: any) {
-      results.push(`❌ INSERT com FK falhou: ${fkInsertErr.message}`)
-    }
+    // 7. Dropar FK de profissionais (para permitir cadastro)
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE profissionais DROP CONSTRAINT IF EXISTS profissionais_clinica_id_fkey
+    `)
+    results.push('FK dropada para permitir cadastro')
 
     return NextResponse.json({ success: true, results })
   } catch (error: any) {
