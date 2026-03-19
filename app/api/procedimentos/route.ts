@@ -12,6 +12,7 @@ const CreateProcSchema = z.object({
     parcelas: z.number().int().min(0).max(999).optional().nullable(),
     duracao: z.number().int().min(0).max(1440).optional().default(0),
     descricao: z.string().max(5000).optional().nullable(),
+    posProcedimento: z.string().max(5000).optional().nullable(),
     profissionalId: z.string().optional().nullable(),
 })
 
@@ -63,23 +64,26 @@ export async function POST(request: NextRequest) {
         const body = await request.json()
         const validated = CreateProcSchema.parse(body)
 
-        const proc = await prisma.procedimento.create({
-            data: {
-                clinicaId: Number(clinicaId),
-                nome: validated.nome,
-                valor: validated.valor,
-                desconto: validated.desconto,
-                parcelas: validated.parcelas ?? null,
-                duracao: validated.duracao ?? null,
-                descricao: validated.descricao ?? null,
-                ...(validated.profissionalId ? { profissionalId: validated.profissionalId } : {}),
-            },
-        })
+        const result = await prisma.$queryRawUnsafe<any[]>(`
+            INSERT INTO procedimentos (clinica_id, nome, valor, desconto, parcelas, duracao, descricao, pos_procedimento, profissional_id, ativo, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, NOW())
+            RETURNING id, nome, valor, desconto, parcelas, duracao, descricao, pos_procedimento as "posProcedimento", profissional_id as "profissionalId"
+        `,
+            Number(clinicaId),
+            validated.nome,
+            validated.valor,
+            validated.desconto ?? 0,
+            validated.parcelas ?? null,
+            validated.duracao ?? 0,
+            validated.descricao ?? null,
+            validated.posProcedimento ?? null,
+            validated.profissionalId ?? null,
+        )
 
         return NextResponse.json({
-            ...proc,
-            valor: Number(proc.valor),
-            desconto: Number(proc.desconto),
+            ...result[0],
+            valor: Number(result[0].valor),
+            desconto: Number(result[0].desconto),
         })
     } catch (err) {
         if (err instanceof z.ZodError) {

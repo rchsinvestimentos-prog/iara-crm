@@ -194,6 +194,7 @@ export default function ProfissionaisPage() {
                 duracao: formProc.duracao ? Number(formProc.duracao) : 0,
                 descricao: formProc.descricao || null,
                 posProcedimento: formProc.posProcedimento || null,
+                profissionalId: editId || undefined,
             }
             const res = await fetch('/api/procedimentos', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
             if (res.ok) { setEditandoProc(null); setNovoProc(false); setFormProc(emptyProc); fetchEquipe() }
@@ -355,7 +356,28 @@ export default function ProfissionaisPage() {
                         <div style={{ display: 'grid', gap: 14 }}>
                             <div><label style={labelStyle}>Bio</label><textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Fale sobre experiência e formação..." rows={3} style={{ ...inputStyle, resize: 'vertical' }} /></div>
                             <div><label style={labelStyle}>Diferenciais</label><textarea value={diferenciais} onChange={e => setDiferenciais(e.target.value)} placeholder="Técnicas exclusivas, certificações especiais..." rows={3} style={{ ...inputStyle, resize: 'vertical' }} /></div>
-                            <div><label style={labelStyle}>URL da foto</label><input value={fotoUrl} onChange={e => setFotoUrl(e.target.value)} placeholder="https://..." style={inputStyle} /></div>
+                            <div>
+                                <label style={labelStyle}>📸 Foto do profissional</label>
+                                {fotoUrl && <div style={{ marginBottom: 10 }}><img src={fotoUrl} alt="Foto" style={{ width: 80, height: 80, borderRadius: 14, objectFit: 'cover', border: '2px solid #e2e8f0' }} /></div>}
+                                <input type="file" accept="image/*" onChange={async (e) => {
+                                    const file = e.target.files?.[0]
+                                    if (!file) return
+                                    const fd = new FormData()
+                                    fd.append('file', file)
+                                    fd.append('tipo', 'foto')
+                                    try {
+                                        const res = await fetch('/api/midia/upload', { method: 'POST', body: fd })
+                                        const data = await res.json()
+                                        if (data.url) {
+                                            setFotoUrl(data.url)
+                                            alert('✅ Foto enviada!')
+                                        } else {
+                                            alert(data.error || 'Erro no upload')
+                                        }
+                                    } catch { alert('Erro ao enviar foto') }
+                                }} style={{ fontSize: 13, color: '#475569' }} />
+                                <span style={hintStyle}>Formatos: JPG, PNG, WebP. Máx: 10MB</span>
+                            </div>
                         </div>
                     </Section>
 
@@ -373,7 +395,18 @@ export default function ProfissionaisPage() {
                                     <div><label style={labelStyle}>Desconto máx. (%)</label><select style={inputStyle} value={formProc.desconto} onChange={e => setFormProc({ ...formProc, desconto: Number(e.target.value) })}><option value={0}>Sem desconto</option><option value={10}>10%</option><option value={20}>20%</option><option value={30}>30%</option></select></div>
                                     <div><label style={labelStyle}>Parcelas</label><input type="number" style={inputStyle} value={formProc.parcelas || ''} onChange={e => setFormProc({ ...formProc, parcelas: e.target.value ? Number(e.target.value) : null })} placeholder="12" /></div>
                                     <div style={{ gridColumn: 'span 2' }}><label style={labelStyle}>📋 Mais informações <span style={{ fontSize: 10, color: '#94a3b8' }}>(ajuda a IARA)</span></label><textarea style={{ ...inputStyle, resize: 'none', height: 60 }} value={formProc.descricao || ''} onChange={e => setFormProc({ ...formProc, descricao: e.target.value })} placeholder="Detalhes do procedimento..." /></div>
-                                    <div style={{ gridColumn: 'span 2' }}><label style={labelStyle}>🩹 Pós-procedimento <span style={{ fontSize: 10, color: '#94a3b8' }}>(cuidados após)</span></label><textarea style={{ ...inputStyle, resize: 'none', height: 60 }} value={formProc.posProcedimento || ''} onChange={e => setFormProc({ ...formProc, posProcedimento: e.target.value })} placeholder="Evitar sol, não molhar por 24h..." /></div>
+                                    <div style={{ gridColumn: 'span 2' }}>
+                                        <label style={labelStyle}>🩹 Pós-procedimento <span style={{ fontSize: 10, color: '#94a3b8' }}>(cuidados após)</span></label>
+                                        <textarea style={{ ...inputStyle, resize: 'none', height: 60 }} value={formProc.posProcedimento || ''} onChange={e => setFormProc({ ...formProc, posProcedimento: e.target.value })} placeholder="Evitar sol, não molhar por 24h..." />
+                                        {formProc.posProcedimento && (
+                                            <div style={{ background: 'rgba(217,151,115,0.08)', border: '1px solid rgba(217,151,115,0.25)', borderRadius: 10, padding: '10px 14px', marginTop: 8 }}>
+                                                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontSize: 12, color: '#64748b' }}>
+                                                    <input type="checkbox" defaultChecked style={{ marginTop: 2, accentColor: '#0F4C61' }} />
+                                                    <span>⚠️ <strong>Aviso de responsabilidade:</strong> A IARA irá enviar estas orientações automaticamente após o agendamento ser confirmado. A profissional é responsável por manter estas informações atualizadas e corretas para cada procedimento.</span>
+                                                </label>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                                     <button onClick={salvarProc} disabled={savingProc} style={{ ...btnPrimary, fontSize: 13, padding: '8px 20px', opacity: savingProc ? 0.6 : 1 }}>{savingProc ? '⏳' : '💾'} Salvar</button>
