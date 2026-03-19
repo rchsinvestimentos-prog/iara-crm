@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
         const bytes = await file.arrayBuffer()
         await writeFile(filepath, Buffer.from(bytes))
 
-        // URL relativa para acessar
-        const url = `/uploads/${clinicaId}/${tipo}/${filename}`
+        // URL acessível via API route /api/uploads/[...path]
+        const url = `/api/uploads/${clinicaId}/${tipo}/${filename}`
 
         return NextResponse.json({
             ok: true,

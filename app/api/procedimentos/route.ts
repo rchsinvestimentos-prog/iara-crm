@@ -65,9 +65,9 @@ export async function POST(request: NextRequest) {
         const validated = CreateProcSchema.parse(body)
 
         const result = await prisma.$queryRawUnsafe<any[]>(`
-            INSERT INTO procedimentos (clinica_id, nome, valor, desconto, parcelas, duracao, descricao, pos_procedimento, profissional_id, ativo, created_at)
+            INSERT INTO procedimentos (user_id, nome, preco_normal, preco_minimo, parcelamento_padrao, duracao_minutos, descricao, pos_procedimento, profissional_id, ativo, created_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, NOW())
-            RETURNING id, nome, valor, desconto, parcelas, duracao, descricao, pos_procedimento as "posProcedimento", profissional_id as "profissionalId"
+            RETURNING id, nome, preco_normal as "valor", preco_minimo as "desconto", parcelamento_padrao as "parcelas", duracao_minutos as "duracao", descricao, pos_procedimento as "posProcedimento", profissional_id as "profissionalId"
         `,
             Number(clinicaId),
             validated.nome,
