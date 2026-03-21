@@ -21,7 +21,7 @@ interface RedesSociais { instagram?: string; tiktok?: string; youtube?: string; 
 interface Profissional {
     id: string; nome: string; tratamento: string | null
     bio: string | null; especialidade: string | null; diferenciais: string | null
-    whatsapp: string | null; cursos: any; redesSociais: RedesSociais | null
+    email: string | null; whatsapp: string | null; cursos: any; redesSociais: RedesSociais | null
     horarioSemana: string | null; almocoSemana: string | null
     atendeSabado: boolean | null; horarioSabado: string | null
     atendeDomingo: boolean | null; horarioDomingo: string | null
@@ -61,6 +61,7 @@ export default function ProfissionaisPage() {
     const [nome, setNome] = useState('')
     const [tratamento, setTratamento] = useState('')
     const [especialidade, setEspecialidade] = useState('')
+    const [email, setEmail] = useState('')
     const [whatsapp, setWhatsapp] = useState('')
     const [bio, setBio] = useState('')
     const [diferenciais, setDiferenciais] = useState('')
@@ -107,7 +108,7 @@ export default function ProfissionaisPage() {
     }
 
     function resetForm() {
-        setNome(''); setTratamento(''); setEspecialidade(''); setWhatsapp('')
+        setNome(''); setTratamento(''); setEspecialidade(''); setEmail(''); setWhatsapp('')
         setBio(''); setDiferenciais(''); setFotoUrl(''); setRedesSociais({})
         setHorarioSemana(''); setAlmocoSemana('')
         setAtendeSabado(false); setHorarioSabado('')
@@ -121,7 +122,7 @@ export default function ProfissionaisPage() {
         if (prof) {
             setEditId(prof.id)
             setNome(prof.nome); setTratamento(prof.tratamento || '')
-            setEspecialidade(prof.especialidade || ''); setWhatsapp(prof.whatsapp || '')
+            setEspecialidade(prof.especialidade || ''); setEmail(prof.email || ''); setWhatsapp(prof.whatsapp || '')
             setBio(prof.bio || ''); setDiferenciais(prof.diferenciais || '')
             setFotoUrl(prof.fotoUrl || '')
             setRedesSociais(prof.redesSociais && typeof prof.redesSociais === 'object' ? prof.redesSociais : {})
@@ -148,7 +149,7 @@ export default function ProfissionaisPage() {
             const method = editId ? 'PUT' : 'POST'
             const body = {
                 ...(editId ? { id: editId } : {}),
-                nome, tratamento, especialidade, whatsapp, bio, diferenciais, fotoUrl,
+                nome, tratamento, especialidade, email, whatsapp, bio, diferenciais, fotoUrl,
                 redesSociais, horarioSemana, almocoSemana, atendeSabado, horarioSabado,
                 atendeDomingo, horarioDomingo, intervaloAtendimento,
                 linkAgendamento, chavePix, linkPagamento, cursos: [],
@@ -425,6 +426,7 @@ export default function ProfissionaisPage() {
                             <div><label style={labelStyle}>Nome completo *</label><input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Maria Silva" style={inputStyle} /></div>
                             <div><label style={labelStyle}>Como gostaria de ser chamada?</label><select value={tratamento} onChange={e => setTratamento(e.target.value)} style={inputStyle}>{TRATAMENTOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select><span style={hintStyle}>A IARA usará este tratamento ao se referir ao profissional</span></div>
                             <div><label style={labelStyle}>Especialidade</label><input value={especialidade} onChange={e => setEspecialidade(e.target.value)} placeholder="Ex: Harmonização Facial" style={inputStyle} /></div>
+                            <div><label style={labelStyle}>Email *</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@clinica.com" style={inputStyle} /><span style={hintStyle}>A profissional receberá o link de acesso ao painel por email</span></div>
                             <div><label style={labelStyle}>WhatsApp pessoal</label><input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="(11) 99999-9999" style={inputStyle} /><span style={hintStyle}>Para receber notificações de agendamentos</span></div>
                         </div>
                     </Section>
