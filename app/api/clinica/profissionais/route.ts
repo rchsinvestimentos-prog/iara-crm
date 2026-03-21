@@ -232,7 +232,7 @@ export async function POST(req: NextRequest) {
             if (body.whatsapp) {
                 try {
                     const instanceName = await prisma.$queryRawUnsafe<any[]>(
-                        `SELECT evolution_instance FROM clinica WHERE id = $1`, clinica.id
+                        `SELECT evolution_instance FROM users WHERE id = $1`, clinica.id
                     )
                     const instance = instanceName[0]?.evolution_instance
                     if (instance && process.env.EVOLUTION_API_URL) {

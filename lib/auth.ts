@@ -47,7 +47,7 @@ export const authOptions: NextAuthOptions = {
                         const profRows = await prisma.$queryRawUnsafe<any[]>(`
                             SELECT p.id, p.nome, p.email, p.clinica_id, c.nivel
                             FROM profissionais p
-                            LEFT JOIN clinica c ON c.id = p.clinica_id
+                            LEFT JOIN users c ON c.id = p.clinica_id
                             WHERE p.magic_token = $1
                               AND p.magic_token_expires >= NOW()
                               AND p.ativo = true
@@ -126,7 +126,7 @@ export const authOptions: NextAuthOptions = {
                     const profRows2 = await prisma.$queryRawUnsafe<any[]>(`
                         SELECT p.id, p.nome, p.email, p.senha_hash, p.clinica_id, c.nivel
                         FROM profissionais p
-                        LEFT JOIN clinica c ON c.id = p.clinica_id
+                        LEFT JOIN users c ON c.id = p.clinica_id
                         WHERE p.email = $1 AND p.ativo = true AND p.senha_hash IS NOT NULL
                         LIMIT 1
                     `, credentials.email)
