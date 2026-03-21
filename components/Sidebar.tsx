@@ -446,7 +446,7 @@ export default function Sidebar() {
                 <Palmtree size={17} strokeWidth={1.8} />
                 <span>Modo Férias</span>
               </Link>
-              <Link href="/configuracoes" className={linkClass('/configuracoes')}>
+              <Link href="/meu-perfil" className={linkClass('/meu-perfil')}>
                 <Settings size={17} strokeWidth={1.8} />
                 <span>Configurações</span>
               </Link>

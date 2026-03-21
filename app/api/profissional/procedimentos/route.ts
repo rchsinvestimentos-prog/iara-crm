@@ -49,7 +49,16 @@ export async function POST(request: NextRequest) {
         }
 
         const profId = getProfissionalId(session)
-        const clinicaId = await getClinicaId(session)
+        let clinicaId = await getClinicaId(session)
+
+        // Fallback: buscar clinica_id do profissional no banco
+        if (!clinicaId && profId) {
+            const prof = await prisma.$queryRawUnsafe<any[]>(
+                `SELECT clinica_id FROM profissionais WHERE id = $1`, profId
+            )
+            if (prof[0]?.clinica_id) clinicaId = Number(prof[0].clinica_id)
+        }
+
         if (!profId || !clinicaId) return NextResponse.json({ error: 'IDs não encontrados' }, { status: 404 })
 
         const body = await request.json()
