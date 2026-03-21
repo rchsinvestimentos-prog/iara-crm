@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -34,6 +34,14 @@ interface ProfissionalData {
 }
 
 export default function MeuPerfilPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="w-8 h-8 animate-spin text-[#D99773]" /></div>}>
+            <MeuPerfilContent />
+        </Suspense>
+    )
+}
+
+function MeuPerfilContent() {
     const { data: session } = useSession()
     const searchParams = useSearchParams()
     const trocarSenha = searchParams?.get('trocarSenha') === '1'
