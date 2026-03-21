@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import {
     Link2, Copy, ExternalLink, Share2, Palette, Type,
     Image as ImageIcon, Save, Loader2, CheckCircle2, Home,
-    Calendar, Plus, MoreHorizontal, MapPin
+    Calendar, Plus, MoreHorizontal, MapPin, Instagram, Youtube
 } from 'lucide-react'
 
 interface LinkConfig {
@@ -17,6 +17,9 @@ interface LinkConfig {
     logotipoUrl: string
     endereco: string
     slug: string
+    instagram: string
+    tiktok: string
+    youtube: string
 }
 
 const DEFAULT_CONFIG: LinkConfig = {
@@ -28,6 +31,9 @@ const DEFAULT_CONFIG: LinkConfig = {
     logotipoUrl: '',
     endereco: '',
     slug: '',
+    instagram: '',
+    tiktok: '',
+    youtube: '',
 }
 
 export default function LinkAgendamentoPage() {
@@ -289,6 +295,45 @@ export default function LinkAgendamentoPage() {
                                 </label>
                             </div>
                             <p className="text-xs text-gray-600 mt-1">O tamanho para a imagem é de 412px por 200px</p>
+                        </div>
+                    </div>
+
+                    {/* Redes Sociais */}
+                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6 space-y-5">
+                        <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                            <Instagram size={14} /> Redes Sociais (aparecerão no seu perfil público)
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="text-xs text-gray-500 mb-1 block flex items-center gap-1"><Instagram size={10} /> Instagram</label>
+                                <input
+                                    type="text"
+                                    value={config.instagram}
+                                    onChange={e => update('instagram', e.target.value)}
+                                    placeholder="@seuuser"
+                                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500 mb-1 block">TikTok</label>
+                                <input
+                                    type="text"
+                                    value={config.tiktok}
+                                    onChange={e => update('tiktok', e.target.value)}
+                                    placeholder="@seuuser"
+                                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500 mb-1 block flex items-center gap-1"><Youtube size={10} /> YouTube</label>
+                                <input
+                                    type="text"
+                                    value={config.youtube}
+                                    onChange={e => update('youtube', e.target.value)}
+                                    placeholder="https://youtube.com/@canal"
+                                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none text-sm"
+                                />
+                            </div>
                         </div>
                     </div>
 

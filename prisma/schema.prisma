@@ -226,9 +226,10 @@ model Profissional {
 // ============================================
 
 model Curso {
-  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId   String
-  nome        String
+  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId       String
+  profissionalId  String?  @map("profissional_id")
+  nome            String
   modalidade  String   @default("presencial") @db.VarChar(20)
   valor       Float    @default(0)
   duracao     String?  @db.VarChar(50)
@@ -274,9 +275,10 @@ model Procedimento {
 // ============================================
 
 model Promocao {
-  id             String   @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId      String
-  nome           String
+  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId       String
+  profissionalId  String?  @map("profissional_id")
+  nome            String
   descricao      String?
   instrucaoIara  String?
   tipoDesconto   String   @default("percentual") @db.VarChar(20)
@@ -309,9 +311,10 @@ model PromocaoProcedimento {
 // ============================================
 
 model Combo {
-  id             String   @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId      String
-  nome           String
+  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId       String
+  profissionalId  String?  @map("profissional_id")
+  nome            String
   descricao      String?
   valorOriginal  Float    @default(0)
   valorCombo     Float    @default(0)

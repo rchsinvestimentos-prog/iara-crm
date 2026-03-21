@@ -48,6 +48,10 @@ import {
   Link2,
   User,
   Palmtree,
+  Stethoscope,
+  BookOpen,
+  Package,
+  Tag,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTheme } from './ThemeProvider'
@@ -409,6 +413,28 @@ export default function Sidebar() {
               <Link href="/link-agendamento" className={linkClass('/link-agendamento')}>
                 <Link2 size={17} strokeWidth={1.8} />
                 <span>Link de Agendamento</span>
+              </Link>
+
+              <div className="flex items-center gap-2 px-3 mb-2 mt-4">
+                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>Serviços</span>
+                <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
+              </div>
+
+              <Link href="/meus-procedimentos" className={linkClass('/meus-procedimentos')}>
+                <Stethoscope size={17} strokeWidth={1.8} />
+                <span>Procedimentos</span>
+              </Link>
+              <Link href="/meus-cursos" className={linkClass('/meus-cursos')}>
+                <BookOpen size={17} strokeWidth={1.8} />
+                <span>Cursos</span>
+              </Link>
+              <Link href="/meus-combos" className={linkClass('/meus-combos')}>
+                <Package size={17} strokeWidth={1.8} />
+                <span>Combos</span>
+              </Link>
+              <Link href="/minhas-promocoes" className={linkClass('/minhas-promocoes')}>
+                <Tag size={17} strokeWidth={1.8} />
+                <span>Promoções</span>
               </Link>
 
               <div className="flex items-center gap-2 px-3 mb-2 mt-4">
