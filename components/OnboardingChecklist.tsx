@@ -41,13 +41,6 @@ const CHECKLIST_ITEMS: ChecklistItem[] = [
         link: '/contatos',
         linkLabel: 'Importar contatos',
     },
-    {
-        id: 'aproveitar',
-        titulo: 'Etapa 5 — Aproveite tudo! 🎉',
-        descricao: 'Veja sua IARA trabalhando 24/7',
-        link: '#video-funcionalidades',
-        linkLabel: 'Assistir vídeo',
-    },
 ]
 
 interface OnboardingStatus {
@@ -55,7 +48,6 @@ interface OnboardingStatus {
     secretaria: boolean
     conexoes: boolean
     contatos: boolean
-    aproveitar: boolean
 }
 
 export default function OnboardingChecklist() {
@@ -92,20 +84,8 @@ export default function OnboardingChecklist() {
     const pct = Math.round((done / total) * 100)
     const isAllDone = done === total
 
-    if (isAllDone) {
-        return (
-            <div className="backdrop-blur-xl rounded-2xl p-5 animate-fade-in flex items-center gap-4" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid rgba(6,214,160,0.3)' }}>
-                <div className="w-10 h-10 rounded-full bg-green-500/15 flex items-center justify-center flex-shrink-0">
-                    <CheckCircle2 size={20} className="text-green-500" />
-                </div>
-                <div className="flex-1">
-                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>🎉 Setup completo! Sua IARA está pronta.</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Sua clínica está configurada e atendendo automaticamente.</p>
-                </div>
-                <Sparkles size={20} className="text-[#D99773] flex-shrink-0" />
-            </div>
-        )
-    }
+    // Quando todas as etapas estão concluídas, oculta o checklist
+    if (isAllDone) return null
 
     return (
         <div className="backdrop-blur-xl rounded-2xl overflow-hidden animate-fade-in" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>

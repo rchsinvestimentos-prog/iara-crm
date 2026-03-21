@@ -93,15 +93,11 @@ export async function GET() {
             // tabela pode não existir
         }
 
-        // Etapa 5: Tudo concluído (todas as anteriores OK)
-        const etapa5 = etapa1 && etapa2 && etapa3 && etapa4contatos
-
         return NextResponse.json({
             dados: etapa1,
             secretaria: etapa2,
             conexoes: etapa3,
             contatos: etapa4contatos,
-            aproveitar: etapa5,
         })
     } catch (err) {
         console.error('Erro em /api/onboarding:', err)
