@@ -18,7 +18,7 @@ export default async function PublicBookingPage({ params }: PageProps) {
             p.link_config,
             c.nome_clinica, c.nome as nome_doutora
         FROM profissionais p
-        LEFT JOIN clinica c ON c.id = p.clinica_id
+        LEFT JOIN users c ON c.id = p.clinica_id
         WHERE p.ativo = true
           AND p.link_config->>'slug' = $1
         LIMIT 1

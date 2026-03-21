@@ -30,7 +30,7 @@ export async function GET() {
                 p.link_config, p.senha_hash IS NOT NULL AS tem_senha,
                 c.nome_clinica, c.nome as nome_doutora, c.nivel
             FROM profissionais p
-            LEFT JOIN clinica c ON c.id = p.clinica_id
+            LEFT JOIN users c ON c.id = p.clinica_id
             WHERE p.id = $1
         `, profId)
 
