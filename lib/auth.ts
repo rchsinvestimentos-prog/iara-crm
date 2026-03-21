@@ -193,7 +193,14 @@ export const authOptions: NextAuthOptions = {
 
 export async function getClinicaId(session: any): Promise<number | null> {
     if (!session?.user?.id) return null
+
+    // Profissional: usar clinicaIdReal (id é "prof_123", não numérico)
+    if (session.user.userType === 'profissional') {
+        return session.user.clinicaIdReal ? Number(session.user.clinicaIdReal) : null
+    }
+
     const userId = Number(session.user.id)
+    if (isNaN(userId)) return null
 
     // Verificar cookie de clínica ativa (multi-clínica)
     try {
