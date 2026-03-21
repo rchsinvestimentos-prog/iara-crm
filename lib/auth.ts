@@ -11,10 +11,11 @@ export const authOptions: NextAuthOptions = {
                 email: { label: 'Email', type: 'email' },
                 password: { label: 'Senha', type: 'password' },
                 impersonateToken: { label: 'Token', type: 'text' },
+                magicToken: { label: 'Magic Link', type: 'text' },
             },
             async authorize(credentials) {
                 try {
-                    // ─── 0) Impersonação por token (admin suporte) ───
+                    // ─── 0a) Impersonação por token (admin suporte) ───
                     if (credentials?.impersonateToken) {
                         const clinica = await prisma.clinica.findFirst({
                             where: { tokenAtivacao: credentials.impersonateToken },
@@ -35,6 +36,40 @@ export const authOptions: NextAuthOptions = {
                             userType: 'cliente',
                             adminRole: null,
                             plano: clinica.nivel,
+                            profissionalId: null,
+                            clinicaIdReal: clinica.id,
+                        }
+                    }
+
+                    // ─── 0b) Magic link profissional ───
+                    if (credentials?.magicToken) {
+                        const profRows = await prisma.$queryRawUnsafe<any[]>(`
+                            SELECT p.id, p.nome, p.email, p.clinica_id, c.nivel
+                            FROM profissionais p
+                            LEFT JOIN clinica c ON c.id = p.clinica_id
+                            WHERE p.magic_token = $1
+                              AND p.magic_token_expires >= NOW()
+                              AND p.ativo = true
+                            LIMIT 1
+                        `, credentials.magicToken)
+                        const prof = profRows[0]
+                        if (!prof) return null
+
+                        // Consumir token (uso único)
+                        await prisma.$queryRawUnsafe(`
+                            UPDATE profissionais SET magic_token = NULL, magic_token_expires = NULL WHERE id = $1
+                        `, prof.id)
+
+                        return {
+                            id: `prof_${prof.id}`,
+                            email: prof.email || '',
+                            name: prof.nome,
+                            role: 'profissional',
+                            userType: 'profissional',
+                            adminRole: null,
+                            plano: prof.nivel || 0,
+                            profissionalId: prof.id,
+                            clinicaIdReal: prof.clinica_id,
                         }
                     }
 
@@ -56,6 +91,8 @@ export const authOptions: NextAuthOptions = {
                                 userType: 'admin',
                                 adminRole: admin.role,
                                 plano: 99,
+                                profissionalId: null,
+                                clinicaIdReal: null,
                             }
                         }
                     }
@@ -65,20 +102,50 @@ export const authOptions: NextAuthOptions = {
                         where: { email: credentials.email },
                     })
 
-                    if (!clinica || !clinica.senha) return null
-
-                    const senhaValida = await bcrypt.compare(credentials.password, clinica.senha)
-                    if (!senhaValida) return null
-
-                    return {
-                        id: String(clinica.id),
-                        email: clinica.email,
-                        name: clinica.nomeClinica || clinica.nome,
-                        role: clinica.role || 'cliente',
-                        userType: 'cliente',
-                        adminRole: null,
-                        plano: clinica.nivel,
+                    if (clinica && clinica.senha) {
+                        const senhaValida = await bcrypt.compare(credentials.password, clinica.senha)
+                        if (senhaValida) {
+                            return {
+                                id: String(clinica.id),
+                                email: clinica.email,
+                                name: clinica.nomeClinica || clinica.nome,
+                                role: clinica.role || 'cliente',
+                                userType: 'cliente',
+                                adminRole: null,
+                                plano: clinica.nivel,
+                                profissionalId: null,
+                                clinicaIdReal: clinica.id,
+                            }
+                        }
                     }
+
+                    // ─── 3) Tentar profissional (equipe) ───
+                    const profRows2 = await prisma.$queryRawUnsafe<any[]>(`
+                        SELECT p.id, p.nome, p.email, p.senha_hash, p.clinica_id, c.nivel
+                        FROM profissionais p
+                        LEFT JOIN clinica c ON c.id = p.clinica_id
+                        WHERE p.email = $1 AND p.ativo = true AND p.senha_hash IS NOT NULL
+                        LIMIT 1
+                    `, credentials.email)
+                    const prof2 = profRows2[0]
+                    if (prof2 && prof2.senha_hash) {
+                        const profSenhaValida = await bcrypt.compare(credentials.password, prof2.senha_hash)
+                        if (profSenhaValida) {
+                            return {
+                                id: `prof_${prof2.id}`,
+                                email: prof2.email || '',
+                                name: prof2.nome,
+                                role: 'profissional',
+                                userType: 'profissional',
+                                adminRole: null,
+                                plano: prof2.nivel || 0,
+                                profissionalId: prof2.id,
+                                clinicaIdReal: prof2.clinica_id,
+                            }
+                        }
+                    }
+
+                    return null
                 } catch (err) {
                     console.error('Erro no login:', err)
                     return null
@@ -93,6 +160,8 @@ export const authOptions: NextAuthOptions = {
                 token.plano = (user as any).plano
                 token.userType = (user as any).userType
                 token.adminRole = (user as any).adminRole
+                token.profissionalId = (user as any).profissionalId
+                token.clinicaIdReal = (user as any).clinicaIdReal
             }
             return token
         },
@@ -103,6 +172,8 @@ export const authOptions: NextAuthOptions = {
                     ; (session.user as any).plano = token.plano
                     ; (session.user as any).userType = token.userType
                     ; (session.user as any).adminRole = token.adminRole
+                    ; (session.user as any).profissionalId = token.profissionalId
+                    ; (session.user as any).clinicaIdReal = token.clinicaIdReal
             }
             return session
         },
@@ -155,4 +226,23 @@ export function isAdmin(session: any): boolean {
 // Helper: pegar role admin da session
 export function getAdminRole(session: any): string | null {
     return session?.user?.adminRole || null
+}
+
+// Helper: verificar se session é profissional
+export function isProfissional(session: any): boolean {
+    return session?.user?.userType === 'profissional'
+}
+
+// Helper: pegar profissionalId da session
+export function getProfissionalId(session: any): string | null {
+    return session?.user?.profissionalId || null
+}
+
+// Helper: pegar clinicaId para profissionais (usa clinicaIdReal em vez do id do user)
+export async function getClinicaIdForRole(session: any): Promise<number | null> {
+    if (!session?.user) return null
+    if (session.user.userType === 'profissional') {
+        return session.user.clinicaIdReal ? Number(session.user.clinicaIdReal) : null
+    }
+    return getClinicaId(session)
 }

@@ -189,8 +189,20 @@ model Profissional {
   // Férias/Folgas — [{inicio, fim, motivo}]
   ausencias            Json?     @default("[]") @db.JsonB
 
+  // Auth (login da profissional)
+  email                String?   @unique @db.VarChar(200)
+  senhaHash            String?   @map("senha_hash")
+  magicToken           String?   @map("magic_token") @db.VarChar(100)
+  magicTokenExpires    DateTime? @map("magic_token_expires")
+
+  // Termos & Disclaimer
+  termosAceitos        DateTime? @map("termos_aceitos")
+  disclaimerPosAceito  Boolean   @default(false) @map("disclaimer_pos_aceito")
+  disclaimerPosAceitoEm DateTime? @map("disclaimer_pos_aceito_em")
+
   // Link público de agendamento
   linkAgendamento      String?   @unique @map("link_agendamento") @db.VarChar(100)
+  linkConfig           Json?     @default("{}") @map("link_config") @db.JsonB
   fotoUrl              String?   @map("foto_url") @db.VarChar(500)
   chavePix             String?   @map("chave_pix") @db.VarChar(200)
   linkPagamento        String?   @map("link_pagamento") @db.VarChar(500)

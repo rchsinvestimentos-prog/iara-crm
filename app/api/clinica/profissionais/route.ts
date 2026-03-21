@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import crypto from 'crypto'
 
 // Limites por plano
 function getMaxProfissionais(plano: string | null | undefined, nivel: number): number {
@@ -143,6 +144,10 @@ export async function POST(req: NextRequest) {
 
         const body = await req.json()
 
+        // Gerar magic token se email fornecido
+        const magicToken = body.email ? crypto.randomUUID() : null
+        const magicTokenExpires = body.email ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null // 24h
+
         // Usar SQL raw para criar, evitando problema Prisma Client desatualizado
         const result = await prisma.$queryRawUnsafe<any[]>(`
             INSERT INTO profissionais (
@@ -150,13 +155,15 @@ export async function POST(req: NextRequest) {
                 whatsapp, cursos, redes_sociais_prof, horario_semana, almoco_semana,
                 atende_sabado, horario_sabado, atende_domingo, horario_domingo,
                 intervalo_atendimento, ausencias, link_agendamento, foto_url,
-                chave_pix, link_pagamento, is_dono, ativo, ordem, created_at
+                chave_pix, link_pagamento, is_dono, ativo, ordem, created_at,
+                email, magic_token, magic_token_expires
             ) VALUES (
                 gen_random_uuid()::text, $1, $2, $3, $4, $5, $6,
                 $7, $8::jsonb, $9::jsonb, $10, $11,
                 $12, $13, $14, $15,
                 $16, '[]'::jsonb, $17, $18,
-                $19, $20, $21, true, $22, NOW()
+                $19, $20, $21, true, $22, NOW(),
+                $23, $24, $25
             ) RETURNING *
         `,
             clinica.id,
@@ -181,7 +188,72 @@ export async function POST(req: NextRequest) {
             body.linkPagamento || null,
             body.isDono || false,
             body.ordem ?? count,
+            body.email || null,
+            magicToken,
+            magicTokenExpires,
         )
+
+        // Enviar magic link se email fornecido
+        if (body.email && magicToken) {
+            const baseUrl = process.env.NEXTAUTH_URL || 'https://app.iara.click'
+            const magicUrl = `${baseUrl}/login?magicToken=${magicToken}`
+            const nomeClinica = clinica.nomeDoutora || clinica.nome || 'sua clínica'
+
+            // Enviar por email (Resend)
+            try {
+                await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        from: 'IARA <noreply@iara.click>',
+                        to: body.email,
+                        subject: `🔑 Acesse seu painel na IARA - ${nomeClinica}`,
+                        html: `
+                            <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; background: #0B0F19; border-radius: 16px;">
+                                <img src="https://app.iara.click/iara-avatar.png" width="60" height="60" style="border-radius: 12px; margin-bottom: 16px;" />
+                                <h2 style="color: #fff; margin: 0 0 8px;">Olá, ${body.nome}! 👋</h2>
+                                <p style="color: #9CA3AF; font-size: 14px;">Você foi adicionada como profissional em <strong style="color: #D99773;">${nomeClinica}</strong>.</p>
+                                <p style="color: #9CA3AF; font-size: 14px;">Clique no botão abaixo para acessar e criar sua senha:</p>
+                                <a href="${magicUrl}" style="display: inline-block; background: linear-gradient(135deg, #D99773, #C07A55); color: #fff; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; margin-top: 16px;">Acessar Painel ✨</a>
+                                <p style="color: #6B7280; font-size: 12px; margin-top: 24px;">Este link expira em 24 horas. Se não foi você, ignore este email.</p>
+                            </div>
+                        `,
+                    }),
+                })
+            } catch (emailErr) {
+                console.error('Erro ao enviar magic link por email:', emailErr)
+            }
+
+            // Enviar por WhatsApp (Evolution API) se tiver número
+            if (body.whatsapp) {
+                try {
+                    const instanceName = await prisma.$queryRawUnsafe<any[]>(
+                        `SELECT nome_instancia FROM clinica WHERE id = $1`, clinica.id
+                    )
+                    const instance = instanceName[0]?.nome_instancia
+                    if (instance && process.env.EVOLUTION_API_URL) {
+                        const phone = body.whatsapp.replace(/\D/g, '')
+                        const whatsNumber = phone.startsWith('55') ? phone : `55${phone}`
+                        await fetch(`${process.env.EVOLUTION_API_URL}/message/sendText/${instance}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'apikey': process.env.EVOLUTION_API_KEY || '',
+                            },
+                            body: JSON.stringify({
+                                number: whatsNumber,
+                                text: `🔑 *IARA - Acesso ao Painel*\n\nOlá ${body.nome}! Você foi adicionada como profissional em *${nomeClinica}*.\n\nAcesse o link abaixo para entrar e criar sua senha:\n${magicUrl}\n\n⏰ Este link expira em 24 horas.`,
+                            }),
+                        })
+                    }
+                } catch (whatsErr) {
+                    console.error('Erro ao enviar magic link por WhatsApp:', whatsErr)
+                }
+            }
+        }
 
         return NextResponse.json(result[0] || { ok: true }, { status: 201 })
     } catch (error: any) {

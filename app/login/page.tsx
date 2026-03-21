@@ -23,24 +23,24 @@ function LoginContent() {
     const [resetLoading, setResetLoading] = useState(false)
     const searchParams = useSearchParams()
 
-    // Auto-login por token (impersonação ou magic link de reset)
+    // Auto-login por token (impersonação ou magic link de reset/profissional)
     useEffect(() => {
         const impersonateToken = searchParams.get('impersonateToken')
         const magicToken = searchParams.get('magicToken')
-        const token = impersonateToken || magicToken
-        if (!token) return
+        if (!impersonateToken && !magicToken) return
 
         setLoading(true)
         // Primeiro faz logout da sessão atual, depois loga com o token
         signOut({ redirect: false }).then(() => {
             signIn('credentials', {
-                impersonateToken: token,
+                ...(impersonateToken ? { impersonateToken } : {}),
+                ...(magicToken ? { magicToken } : {}),
                 redirect: false,
             }).then((result) => {
                 if (result?.ok) {
                     // Magic link → pede nova senha após login
                     const dest = isAdminDomain() ? '/admin' : '/dashboard'
-                    window.location.href = magicToken
+                    window.location.href = (magicToken || impersonateToken)
                         ? `${dest}?trocarSenha=1`
                         : dest
                 } else {

@@ -45,6 +45,9 @@ import {
   Users,
   TestTube2,
   Star,
+  Link2,
+  User,
+  Palmtree,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTheme } from './ThemeProvider'
@@ -149,6 +152,8 @@ export default function Sidebar() {
   const { theme, toggleTheme } = useTheme()
   const { data: session } = useSession()
   const isAdmin = (session?.user as any)?.userType === 'admin'
+  const isProfissional = (session?.user as any)?.userType === 'profissional'
+  const profissionalNome = isProfissional ? (session?.user as any)?.name || 'Profissional' : ''
   const [expandedGroups, setExpandedGroups] = useState<number[]>([1])
   const [mobileOpen, setMobileOpen] = useState(false)
   const [planoAtual, setPlanoAtual] = useState(1)
@@ -337,6 +342,11 @@ export default function Sidebar() {
                       <span>👑</span>
                       <span style={{ color: '#D99773' }}>Boss Manager</span>
                     </span>
+                  ) : isProfissional ? (
+                    <span className="flex items-center gap-1">
+                      <span>👩‍⚕️</span>
+                      <span style={{ color: '#D99773' }}>{profissionalNome}</span>
+                    </span>
                   ) : 'Painel'}
                 </p>
               </div>
@@ -372,159 +382,207 @@ export default function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 overflow-y-auto">
-          <div className="mb-1">
-            <Link href="/dashboard" className={linkClass('/dashboard')}>
-              <LayoutDashboard size={17} strokeWidth={1.8} />
-              <span>Dashboard</span>
-            </Link>
-          </div>
-          <div className="mb-4">
-            <Link href="/conversas" className={linkClass('/conversas')}>
-              <MessageCircle size={17} strokeWidth={1.8} />
-              <span>Conversas</span>
-            </Link>
-            <Link href="/crm" className={linkClass('/crm')}>
-              <Users size={17} strokeWidth={1.8} />
-              <span>CRM</span>
-            </Link>
-            <Link href="/contatos" className={linkClass('/contatos')}>
-              <UserCheck size={17} strokeWidth={1.8} />
-              <span>Contatos</span>
-            </Link>
-            <Link href="/campanhas" className={linkClass('/campanhas')}>
-              <Megaphone size={17} strokeWidth={1.8} />
-              <span>Campanhas</span>
-            </Link>
-          </div>
 
-          {/* Separator */}
-          <div className="flex items-center gap-2 px-3 mb-2">
-            <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>Habilidades</span>
-            <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
-          </div>
+          {/* ─── PROFISSIONAL: sidebar simplificada ─── */}
+          {isProfissional ? (
+            <>
+              <div className="mb-1">
+                <Link href="/dashboard" className={linkClass('/dashboard')}>
+                  <LayoutDashboard size={17} strokeWidth={1.8} />
+                  <span>Dashboard</span>
+                </Link>
+              </div>
 
-          {/* Skills Groups */}
-          <div className="space-y-0.5 mb-4">
-            {habilidadesMenu.map((grupo) => {
-              const desbloqueado = true // Todas as habilidades são acessíveis — limites controlam uso
-              const isExpanded = expandedGroups.includes(grupo.nivel)
-              const visibleSkills = grupo.skills.filter(skill => isRouteVisible(skill.href))
-              const allHidden = !isAdmin && visibleSkills.length === 0
+              <div className="flex items-center gap-2 px-3 mb-2 mt-4">
+                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>Meu Painel</span>
+                <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
+              </div>
 
-              return (
-                <div key={grupo.nivel}>
-                  <button
-                    onClick={() => !allHidden && toggleGroup(grupo.nivel)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all ${allHidden ? 'cursor-default opacity-60' : 'cursor-pointer'}`}
-                    style={{ color: isDark ? (desbloqueado ? '#9CA3AF' : '#374151') : (desbloqueado ? '#6B7280' : '#CBD5E1') }}
-                  >
-                    <span className="text-sm">{grupo.emoji}</span>
-                    <span className="flex-1 text-left">{grupo.titulo}</span>
-                    {allHidden ? (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}>EM BREVE</span>
-                    ) : (
-                      <>
-                        {!desbloqueado && <Lock size={11} style={{ color: isDark ? '#374151' : '#CBD5E1' }} />}
-                        <ChevronDown
-                          size={13}
-                          className={`transition-transform duration-300 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
-                          style={{ color: isDark ? '#374151' : '#CBD5E1' }}
-                        />
-                      </>
-                    )}
-                  </button>
+              <Link href="/habilidades/agendamento" className={linkClass('/habilidades/agendamento')}>
+                <Calendar size={17} strokeWidth={1.8} />
+                <span>Minha Agenda</span>
+              </Link>
+              <Link href="/meu-perfil" className={linkClass('/meu-perfil')}>
+                <User size={17} strokeWidth={1.8} />
+                <span>Meu Perfil</span>
+              </Link>
+              <Link href="/link-agendamento" className={linkClass('/link-agendamento')}>
+                <Link2 size={17} strokeWidth={1.8} />
+                <span>Link de Agendamento</span>
+              </Link>
 
-                  {isExpanded && !allHidden && (
-                    <div className="ml-3 pl-3 space-y-0.5 py-0.5" style={{ borderLeft: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)'}` }}>
-                      {visibleSkills.map((skill) => {
-                        const active = pathname === skill.href
-                        const habilitada = true // Limites de uso em vez de bloqueio de acesso
-                        return (
-                          <Link
-                            key={skill.href}
-                            href={skill.href}
-                            className={`flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[12.5px] transition-all duration-300 ${active
-                              ? 'bg-[#D99773]/10 text-[#D99773] font-semibold'
-                              : habilitada
-                                ? isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]' : 'text-gray-500 hover:text-[#0F4C61] hover:bg-gray-100/50'
-                                : isDark ? 'text-gray-700 hover:bg-white/[0.02]' : 'text-gray-300 hover:bg-gray-50'
-                              }`}
-                          >
-                            {habilitada ? <skill.icon size={14} /> : <Lock size={12} strokeWidth={1.5} />}
-                            <span>{skill.label}</span>
-                            {planoAtual < skill.nivel && (
-                              <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#D99773]/10 text-[#D99773]">TRIAL</span>
-                            )}
-                          </Link>
-                        )
-                      })}
+              <div className="flex items-center gap-2 px-3 mb-2 mt-4">
+                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>Status</span>
+                <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
+              </div>
+
+              <Link href="/ferias" className={linkClass('/ferias')}>
+                <Palmtree size={17} strokeWidth={1.8} />
+                <span>Modo Férias</span>
+              </Link>
+              <Link href="/configuracoes" className={linkClass('/configuracoes')}>
+                <Settings size={17} strokeWidth={1.8} />
+                <span>Configurações</span>
+              </Link>
+            </>
+          ) : (
+            /* ─── CLÍNICA / ADMIN: sidebar completa ─── */
+            <>
+              <div className="mb-1">
+                <Link href="/dashboard" className={linkClass('/dashboard')}>
+                  <LayoutDashboard size={17} strokeWidth={1.8} />
+                  <span>Dashboard</span>
+                </Link>
+              </div>
+              <div className="mb-4">
+                <Link href="/conversas" className={linkClass('/conversas')}>
+                  <MessageCircle size={17} strokeWidth={1.8} />
+                  <span>Conversas</span>
+                </Link>
+                <Link href="/crm" className={linkClass('/crm')}>
+                  <Users size={17} strokeWidth={1.8} />
+                  <span>CRM</span>
+                </Link>
+                <Link href="/contatos" className={linkClass('/contatos')}>
+                  <UserCheck size={17} strokeWidth={1.8} />
+                  <span>Contatos</span>
+                </Link>
+                <Link href="/campanhas" className={linkClass('/campanhas')}>
+                  <Megaphone size={17} strokeWidth={1.8} />
+                  <span>Campanhas</span>
+                </Link>
+              </div>
+
+              {/* Separator */}
+              <div className="flex items-center gap-2 px-3 mb-2">
+                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>Habilidades</span>
+                <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
+              </div>
+
+              {/* Skills Groups */}
+              <div className="space-y-0.5 mb-4">
+                {habilidadesMenu.map((grupo) => {
+                  const desbloqueado = true // Todas as habilidades são acessíveis — limites controlam uso
+                  const isExpanded = expandedGroups.includes(grupo.nivel)
+                  const visibleSkills = grupo.skills.filter(skill => isRouteVisible(skill.href))
+                  const allHidden = !isAdmin && visibleSkills.length === 0
+
+                  return (
+                    <div key={grupo.nivel}>
+                      <button
+                        onClick={() => !allHidden && toggleGroup(grupo.nivel)}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all ${allHidden ? 'cursor-default opacity-60' : 'cursor-pointer'}`}
+                        style={{ color: isDark ? (desbloqueado ? '#9CA3AF' : '#374151') : (desbloqueado ? '#6B7280' : '#CBD5E1') }}
+                      >
+                        <span className="text-sm">{grupo.emoji}</span>
+                        <span className="flex-1 text-left">{grupo.titulo}</span>
+                        {allHidden ? (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}>EM BREVE</span>
+                        ) : (
+                          <>
+                            {!desbloqueado && <Lock size={11} style={{ color: isDark ? '#374151' : '#CBD5E1' }} />}
+                            <ChevronDown
+                              size={13}
+                              className={`transition-transform duration-300 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
+                              style={{ color: isDark ? '#374151' : '#CBD5E1' }}
+                            />
+                          </>
+                        )}
+                      </button>
+
+                      {isExpanded && !allHidden && (
+                        <div className="ml-3 pl-3 space-y-0.5 py-0.5" style={{ borderLeft: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)'}` }}>
+                          {visibleSkills.map((skill) => {
+                            const active = pathname === skill.href
+                            const habilitada = true // Limites de uso em vez de bloqueio de acesso
+                            return (
+                              <Link
+                                key={skill.href}
+                                href={skill.href}
+                                className={`flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[12.5px] transition-all duration-300 ${active
+                                  ? 'bg-[#D99773]/10 text-[#D99773] font-semibold'
+                                  : habilitada
+                                    ? isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]' : 'text-gray-500 hover:text-[#0F4C61] hover:bg-gray-100/50'
+                                    : isDark ? 'text-gray-700 hover:bg-white/[0.02]' : 'text-gray-300 hover:bg-gray-50'
+                                  }`}
+                              >
+                                {habilitada ? <skill.icon size={14} /> : <Lock size={12} strokeWidth={1.5} />}
+                                <span>{skill.label}</span>
+                                {planoAtual < skill.nivel && (
+                                  <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#D99773]/10 text-[#D99773]">TRIAL</span>
+                                )}
+                              </Link>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                  )
+                })}
+              </div>
 
-          {/* Separator */}
-          <div className="flex items-center gap-2 px-3 mb-2">
-            <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>Conta</span>
-            <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
-          </div>
+              {/* Separator */}
+              <div className="flex items-center gap-2 px-3 mb-2">
+                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>Conta</span>
+                <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
+              </div>
 
-          {isRouteVisible('/instancias') && <Link href="/instancias" className={linkClass('/instancias')}>
-            <Smartphone size={17} strokeWidth={1.8} />
-            <span>Instâncias & Canais</span>
-          </Link>}
-          {isRouteVisible('/configuracoes') && <Link href="/configuracoes" className={linkClass('/configuracoes')}>
-            <Settings size={17} strokeWidth={1.8} />
-            <span>Configurações</span>
-          </Link>}
-          <Link href="/equipe" className={linkClass('/equipe')}>
-            <Users size={17} strokeWidth={1.8} />
-            <span>Profissionais</span>
-          </Link>
-          <Link href="/satisfacao" className={linkClass('/satisfacao')}>
-            <Star size={17} strokeWidth={1.8} />
-            <span>Satisfação</span>
-          </Link>
-          {/* WA Fake e Simulador removidos — só no admin (adm.iara.click) */}
-          {isRouteVisible('/cofre') && <Link href="/cofre" className={linkClass('/cofre')}>
-            <Shield size={17} strokeWidth={1.8} />
-            <span>Personalizar IA</span>
-          </Link>}
-          {isRouteVisible('/features') && <Link href="/features" className={linkClass('/features')}>
-            <Zap size={17} strokeWidth={1.8} />
-            <span>Features</span>
-          </Link>}
-          {/* Agenda movida para Habilidades > Secretária */}
-          {isRouteVisible('/templates') && <Link href="/templates" className={linkClass('/templates')}>
-            <FileText size={17} strokeWidth={1.8} />
-            <span>Templates</span>
-          </Link>}
-          {isRouteVisible('/indicacoes') && <Link href="/indicacoes" className={linkClass('/indicacoes')}>
-            <Gift size={17} strokeWidth={1.8} />
-            <span>Indicações</span>
-          </Link>}
-          {isRouteVisible('/historico-creditos') && <Link href="/historico-creditos" className={linkClass('/historico-creditos')}>
-            <History size={17} strokeWidth={1.8} />
-            <span>Créditos Usados</span>
-          </Link>}
-          {isRouteVisible('/melhorar-iara') && <Link href="/melhorar-iara" className={linkClass('/melhorar-iara')}>
-            <Sparkles size={17} strokeWidth={1.8} />
-            <span>Melhorar a IARA</span>
-          </Link>}
-          {isRouteVisible('/plano') && <Link href="/plano" className={linkClass('/plano')}>
-            <CreditCard size={17} strokeWidth={1.8} />
-            <span>Plano & Créditos</span>
-          </Link>}
+              {isRouteVisible('/instancias') && <Link href="/instancias" className={linkClass('/instancias')}>
+                <Smartphone size={17} strokeWidth={1.8} />
+                <span>Instâncias & Canais</span>
+              </Link>}
+              {isRouteVisible('/configuracoes') && <Link href="/configuracoes" className={linkClass('/configuracoes')}>
+                <Settings size={17} strokeWidth={1.8} />
+                <span>Configurações</span>
+              </Link>}
+              <Link href="/equipe" className={linkClass('/equipe')}>
+                <Users size={17} strokeWidth={1.8} />
+                <span>Profissionais</span>
+              </Link>
+              <Link href="/satisfacao" className={linkClass('/satisfacao')}>
+                <Star size={17} strokeWidth={1.8} />
+                <span>Satisfação</span>
+              </Link>
+              {/* WA Fake e Simulador removidos — só no admin (adm.iara.click) */}
+              {isRouteVisible('/cofre') && <Link href="/cofre" className={linkClass('/cofre')}>
+                <Shield size={17} strokeWidth={1.8} />
+                <span>Personalizar IA</span>
+              </Link>}
+              {isRouteVisible('/features') && <Link href="/features" className={linkClass('/features')}>
+                <Zap size={17} strokeWidth={1.8} />
+                <span>Features</span>
+              </Link>}
+              {/* Agenda movida para Habilidades > Secretária */}
+              {isRouteVisible('/templates') && <Link href="/templates" className={linkClass('/templates')}>
+                <FileText size={17} strokeWidth={1.8} />
+                <span>Templates</span>
+              </Link>}
+              {isRouteVisible('/indicacoes') && <Link href="/indicacoes" className={linkClass('/indicacoes')}>
+                <Gift size={17} strokeWidth={1.8} />
+                <span>Indicações</span>
+              </Link>}
+              {isRouteVisible('/historico-creditos') && <Link href="/historico-creditos" className={linkClass('/historico-creditos')}>
+                <History size={17} strokeWidth={1.8} />
+                <span>Créditos Usados</span>
+              </Link>}
+              {isRouteVisible('/melhorar-iara') && <Link href="/melhorar-iara" className={linkClass('/melhorar-iara')}>
+                <Sparkles size={17} strokeWidth={1.8} />
+                <span>Melhorar a IARA</span>
+              </Link>}
+              {isRouteVisible('/plano') && <Link href="/plano" className={linkClass('/plano')}>
+                <CreditCard size={17} strokeWidth={1.8} />
+                <span>Plano & Créditos</span>
+              </Link>}
+            </>
+          )}
         </nav>
 
         {/* Footer */}
         <div className="px-3 pb-4 pt-2" style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.06)'}` }}>
           <SeletorIdioma />
 
-          {/* Clinic Selector */}
-          <div className="relative">
+          {/* Clinic Selector — não mostrar para profissional */}
+          {!isProfissional && <div className="relative">
             <button
               onClick={() => clinicas.length > 1 && setShowClinicaDropdown(!showClinicaDropdown)}
               className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-2 transition-all ${clinicas.length > 1 ? 'cursor-pointer hover:opacity-80' : ''}`}
@@ -569,7 +627,7 @@ export default function Sidebar() {
                 ))}
               </div>
             )}
-          </div>
+          </div>}
 
           <button onClick={() => signOut({ callbackUrl: '/login' })} className="flex items-center gap-3 px-3 py-2 rounded-xl text-[12px] w-full transition-all text-gray-400 hover:text-red-400 hover:bg-red-500/5">
             <LogOut size={15} strokeWidth={1.8} />
