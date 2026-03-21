@@ -43,6 +43,7 @@ export const authOptions: NextAuthOptions = {
 
                     // ─── 0b) Magic link profissional ───
                     if (credentials?.magicToken) {
+                        console.log('[AUTH] magicToken recebido:', credentials.magicToken?.substring(0, 8) + '...')
                         const profRows = await prisma.$queryRawUnsafe<any[]>(`
                             SELECT p.id, p.nome, p.email, p.clinica_id, c.nivel
                             FROM profissionais p
@@ -52,13 +53,15 @@ export const authOptions: NextAuthOptions = {
                               AND p.ativo = true
                             LIMIT 1
                         `, credentials.magicToken)
+                        console.log('[AUTH] profRows encontrado:', profRows.length, profRows[0]?.nome || 'nenhum')
                         const prof = profRows[0]
                         if (!prof) return null
 
                         // Consumir token (uso único)
-                        await prisma.$queryRawUnsafe(`
-                            UPDATE profissionais SET magic_token = NULL, magic_token_expires = NULL WHERE id = $1
-                        `, prof.id)
+                        await prisma.$executeRawUnsafe(
+                            `UPDATE profissionais SET magic_token = NULL, magic_token_expires = NULL WHERE id = $1`,
+                            prof.id
+                        )
 
                         return {
                             id: `prof_${prof.id}`,
