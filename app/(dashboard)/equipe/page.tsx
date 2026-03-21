@@ -398,6 +398,38 @@ export default function ProfissionaisPage() {
                                 </div>
                             </div>
 
+                            {/* Reenviar Link de Acesso */}
+                            {!prof.isDono && prof.email && (
+                                <div style={{ background: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 12, border: '1px solid #e2e8f0' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        <span style={{ fontSize: 20 }}>🔑</span>
+                                        <div style={{ flex: 1 }}>
+                                            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#1e293b' }}>Link de Acesso ao Painel</p>
+                                            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>{prof.email}</p>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await fetch('/api/clinica/profissionais/reenviar-link', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ profissionalId: prof.id }),
+                                                    })
+                                                    const data = await res.json()
+                                                    if (data.ok) {
+                                                        const copied = await navigator.clipboard.writeText(data.magicUrl).then(() => true).catch(() => false)
+                                                        alert(`✅ Link enviado por email${prof.whatsapp ? ' e WhatsApp' : ''}!\n\n${copied ? '📋 Link copiado para a área de transferência!' : '🔗 Link: ' + data.magicUrl}`)
+                                                    } else {
+                                                        alert(data.error || 'Erro ao reenviar')
+                                                    }
+                                                } catch { alert('Erro de conexão') }
+                                            }}
+                                            style={{ fontSize: 12, fontWeight: 600, padding: '8px 16px', background: 'linear-gradient(135deg, #D99773, #C07A55)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+                                        >📩 Reenviar Link</button>
+                                    </div>
+                                </div>
+                            )}
+
                             {!prof.isDono && <button onClick={() => remover(prof.id)} style={{ background: 'none', border: '1px solid rgba(220,50,50,0.2)', borderRadius: 10, padding: '6px 16px', cursor: 'pointer', fontSize: 12, color: '#dc2626', marginTop: 8 }}>🗑 Remover</button>}
                         </div>
                     )}

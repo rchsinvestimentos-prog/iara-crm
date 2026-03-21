@@ -62,6 +62,7 @@ export async function GET() {
             bio: p.bio,
             especialidade: p.especialidade,
             diferenciais: p.diferenciais,
+            email: p.email,
             whatsapp: p.whatsapp,
             cursos: p.cursos,
             redesSociais: p.redes_sociais_prof,
