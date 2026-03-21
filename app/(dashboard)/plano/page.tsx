@@ -17,7 +17,7 @@ const planos = [
         icon: Sparkles,
         cor: '#D99773',
         popular: false,
-        creditos: 500,
+        creditos: 1000,
         precos: { USD: 27, EUR: 27, BRL: 97 },
         features: [
             'Atendimento WhatsApp 24/7',
@@ -26,6 +26,7 @@ const planos = [
             'Follow-up de pacientes',
             'Voz IA (OpenAI TTS)',
             'Promoções e Combos',
+            'CRM (Kanban + Contatos)',
             'Dashboard de métricas',
         ],
     },
@@ -35,11 +36,12 @@ const planos = [
         icon: Star,
         cor: '#8B5CF6',
         popular: true,
-        creditos: 2000,
+        creditos: 3000,
         precos: { USD: 47, EUR: 47, BRL: 197 },
         features: [
             'Tudo da Secretária +',
             '📷 Instagram DM conectado',
+            '📱 App da Clínica (PWA)',
             '4 idiomas (PT-BR, PT-PT, EN, ES)',
             'Fotos IA (Astria)',
             'Roteiros + Marketing',
@@ -59,7 +61,6 @@ const planos = [
         features: [
             'Tudo da Estrategista +',
             '🎙️ Voz Clonada (ElevenLabs)',
-            'CRM Mini (Kanban)',
             'Lead Scoring',
             'Multi-clínica',
             '2 WhatsApps conectados',
@@ -76,7 +77,6 @@ const planos = [
         features: [
             'Tudo do Designer +',
             '🎬 Avatar Vídeo IA (10min/mês)',
-            '📱 App da Clínica (PWA)',
             'White-label',
             'API access',
             '3 WhatsApps conectados',

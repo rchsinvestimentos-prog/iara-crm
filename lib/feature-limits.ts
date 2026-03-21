@@ -3,36 +3,45 @@ import { prisma } from '@/lib/prisma'
 // ==========================================
 // Limites de features por nível de plano
 // -1 = ilimitado
+//
+// LÓGICA:
+// - Features do SEU plano = generoso (nunca atinge no uso normal)
+// - Features de plano SUPERIOR = degustação (3-5) → motiva upgrade
+// - Features de plano INFERIOR = incluso (tem tudo do anterior + mais)
 // ==========================================
 
 export const FEATURE_LIMITS: Record<number, Record<string, number>> = {
+    // P1 Secretária: features P2 = degustação (3)
     1: {
-        roteiros: 3,         // degustação (Carrossel, Reels, Stories) → bloqueia pra upgrade
-        posts: 3,            // degustação → bloqueia 
-        raioX: 1,            // degustação → bloqueia
-        fotosIA: 3,          // degustação → bloqueia
-        marca: 1,            // degustação → bloqueia
-        antesDepois: 3,      // degustação → bloqueia
-        campanhaContatos: 10,
+        roteiros: 3,         // degustação P2 → motiva upgrade
+        posts: 3,            // degustação P2
+        raioX: 1,            // degustação P2
+        fotosIA: 3,          // degustação P2
+        marca: 1,            // degustação P2
+        antesDepois: 3,      // degustação P2
+        campanhaContatos: 30,
     },
+    // P2 Estrategista: features P2 = generoso
     2: {
-        roteiros: 20,
-        posts: 10,
-        raioX: 3,
-        fotosIA: 10,
-        marca: 3,
-        antesDepois: 15,
-        campanhaContatos: 50,
+        roteiros: 30,
+        posts: 15,
+        raioX: 5,
+        fotosIA: 15,
+        marca: 5,
+        antesDepois: 20,
+        campanhaContatos: 100,
     },
+    // P3 Designer: features P2+P3 = generoso+
     3: {
         roteiros: 60,
         posts: 30,
         raioX: 10,
-        fotosIA: 20,
+        fotosIA: 30,
         marca: 10,
-        antesDepois: 30,
-        campanhaContatos: 200,
+        antesDepois: 40,
+        campanhaContatos: 300,
     },
+    // P4 Audiovisual: tudo ilimitado
     4: {
         roteiros: -1,
         posts: -1,

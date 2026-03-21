@@ -1,10 +1,13 @@
 // ============================================
 // PLANOS IARA — 4 Níveis
 // ============================================
-// P1 Secretária:    R$97  / $27 / €27   — 500 créditos
-// P2 Estrategista:  R$197 / $47 / €47   — 2000 créditos
+// P1 Secretária:    R$97  / $27 / €27   — 1000 créditos
+// P2 Estrategista:  R$197 / $47 / €47   — 3000 créditos
 // P3 Designer:      R$297 / $67 / €67   — 5000 créditos
 // P4 Audiovisual:   R$497 / $97 / €97   — 10000 créditos
+//
+// Limites de features: lib/feature-limits.ts
+// Features P1 = generoso, features P2+ = degustação (3-5)
 //
 // PARA MUDAR ALGO: Edite aqui e tudo atualiza automaticamente
 // (sidebar, página de planos, webhook Hotmart, catraca, etc.)
@@ -19,7 +22,7 @@ export const PLANOS = {
         instagrams: 0,
         idiomas: ['pt-BR'],
         vozClonada: false,
-        crmMini: false,
+        crmMini: true,
         avatarVideo: false,
         appClinica: false,
         precos: { brl: 97, usd: 27, eur: 27 },
@@ -29,14 +32,14 @@ export const PLANOS = {
         nivel: 2,
         nome: 'Estrategista',
         hotmart: 'Estrategista',
-        creditos: 5000,
+        creditos: 3000,
         whatsapps: 1,
         instagrams: 1,
         idiomas: ['pt-BR', 'pt-PT', 'en-US', 'es'],
         vozClonada: false,
-        crmMini: false,
+        crmMini: true,
         avatarVideo: false,
-        appClinica: false,
+        appClinica: true,
         precos: { brl: 197, usd: 47, eur: 47 },
         precosAnuais: { brl: 157, usd: 37, eur: 37 },   // ~20% off
     },
@@ -51,7 +54,7 @@ export const PLANOS = {
         vozClonada: true,
         crmMini: true,
         avatarVideo: false,
-        appClinica: false,
+        appClinica: true,
         precos: { brl: 297, usd: 67, eur: 67 },
         precosAnuais: { brl: 237, usd: 54, eur: 54 },   // ~20% off
     },
@@ -131,16 +134,18 @@ export function precoInstanciaExtra(nivel: number): { usd: number; eur: number; 
 export function getFeaturesPorNivel(nivel: number): string[] {
     const features: string[] = []
 
-    // P1
+    // P1 — Todos os planos
     features.push('WhatsApp IA (atendimento + agendamento)')
     features.push('Follow-up automático')
     features.push('Voz IA (OpenAI TTS)')
     features.push('Promoções e combos')
-    features.push(`${nivelToPlano(nivel).creditos} créditos/mês`)
+    features.push('CRM (Kanban + Contatos)')
+    features.push(`${nivelToPlano(nivel).creditos.toLocaleString()} créditos/mês`)
 
     // P2+
     if (nivel >= 2) {
         features.push('Instagram DM IA')
+        features.push('App da Clínica (PWA)')
         features.push('4 idiomas (PT-BR, PT-PT, EN, ES)')
         features.push('Fotos IA (Astria)')
         features.push('Gerador de posts')
@@ -151,7 +156,6 @@ export function getFeaturesPorNivel(nivel: number): string[] {
     // P3+
     if (nivel >= 3) {
         features.push('Voz Clonada (ElevenLabs)')
-        features.push('CRM Mini (Kanban)')
         features.push('Lead Scoring')
         features.push('Multi-clínica')
         features.push(`${nivelToPlano(nivel).whatsapps} WhatsApps`)
@@ -160,7 +164,6 @@ export function getFeaturesPorNivel(nivel: number): string[] {
     // P4
     if (nivel >= 4) {
         features.push('Avatar Vídeo IA (10min/mês)')
-        features.push('App da Clínica (PWA)')
         features.push('White-label')
         features.push('API access')
         features.push(`${nivelToPlano(nivel).whatsapps} WhatsApps`)

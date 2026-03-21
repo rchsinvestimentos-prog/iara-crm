@@ -68,6 +68,7 @@ const habilidadesMenu: { titulo: string; nivel: number; emoji: string; skills: S
       { href: '/habilidades/agendamento', label: 'Agenda', icon: Calendar, nivel: 1 },
       { href: '/habilidades/follow-up', label: 'Follow-up', icon: UserCheck, nivel: 1 },
       { href: '/habilidades/voz', label: 'Voz', icon: Mic, nivel: 1 },
+      { href: '/habilidades/crm', label: 'CRM Mini', icon: Kanban, nivel: 1 },
     ],
   },
   {
@@ -83,13 +84,13 @@ const habilidadesMenu: { titulo: string; nivel: number; emoji: string; skills: S
       { href: '/habilidades/editor', label: 'Editor', icon: Edit3, nivel: 2 },
       { href: '/habilidades/raiox', label: 'Raio-X Instagram', icon: Search, nivel: 2 },
       { href: '/habilidades/calendario', label: 'Calendário Conteúdo', icon: CalendarDays, nivel: 2 },
+      { href: '/habilidades/app-config', label: 'App da Clínica', icon: Globe, nivel: 2 },
     ],
   },
   {
     titulo: 'Designer', nivel: 3, emoji: '💎',
     skills: [
       { href: '/habilidades/voz-clonada', label: 'Voz Clonada', icon: Mic, nivel: 3 },
-      { href: '/habilidades/crm', label: 'CRM Mini', icon: Kanban, nivel: 3 },
       { href: '/habilidades/leads', label: 'Lead Scoring', icon: Target, nivel: 3 },
       { href: '/habilidades/multi-clinica', label: 'Multi-clínica', icon: Building2, nivel: 3 },
     ],
@@ -98,7 +99,6 @@ const habilidadesMenu: { titulo: string; nivel: number; emoji: string; skills: S
     titulo: 'Audiovisual', nivel: 4, emoji: '🎬',
     skills: [
       { href: '/habilidades/videos', label: 'Avatar Vídeo', icon: Video, nivel: 4 },
-      { href: '/habilidades/app-config', label: 'App da Clínica', icon: Globe, nivel: 4 },
     ],
   },
 ]

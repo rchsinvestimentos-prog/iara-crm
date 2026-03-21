@@ -10,12 +10,12 @@ const HOTMART_HOTTOK = process.env.HOTMART_HOTTOK || ''
 // Os nomes devem bater com os produtos/planos configurados na Hotmart
 const PLANOS_HOTMART: Record<string, { nivel: number; plano: string; creditos: number; whatsapps: number }> = {
     'secretaria': { nivel: 1, plano: 'secretaria', creditos: 1000, whatsapps: 1 },
-    'estrategista': { nivel: 2, plano: 'estrategista', creditos: 5000, whatsapps: 1 },
+    'estrategista': { nivel: 2, plano: 'estrategista', creditos: 3000, whatsapps: 1 },
     'designer': { nivel: 3, plano: 'designer', creditos: 5000, whatsapps: 2 },
     'audiovisual': { nivel: 4, plano: 'audiovisual', creditos: 10000, whatsapps: 3 },
     // Aliases antigos (pra não quebrar quem já comprou)
     'essencial': { nivel: 1, plano: 'secretaria', creditos: 1000, whatsapps: 1 },
-    'premium': { nivel: 2, plano: 'estrategista', creditos: 5000, whatsapps: 1 },
+    'premium': { nivel: 2, plano: 'estrategista', creditos: 3000, whatsapps: 1 },
     'master': { nivel: 3, plano: 'designer', creditos: 5000, whatsapps: 2 },
     'black': { nivel: 4, plano: 'audiovisual', creditos: 10000, whatsapps: 3 },
 }

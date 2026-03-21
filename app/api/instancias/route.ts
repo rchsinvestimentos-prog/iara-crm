@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
+import { nivelToPlano } from '@/lib/planos';
 
 // GET — Lista instâncias do usuário
 export async function GET(req: Request) {
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
 
   const user = await prisma.clinica.findUnique({
     where: { email: session.user.email },
-    select: { id: true, plano: true }
+    select: { id: true, plano: true, nivel: true }
   });
 
   if (!user) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
@@ -75,15 +76,16 @@ export async function GET(req: Request) {
     calendarId = cal?.google_calendar_id || '';
   } catch { }
 
-  const limites = await prisma.$queryRaw`
-    SELECT 
-      max_instancias_whatsapp, max_instancias_instagram
-    FROM users WHERE id = ${user.id}
-  `;
+  // Limites derivados do nível do plano (fonte da verdade: PLANOS)
+  const planoConfig = nivelToPlano(user.nivel || 1);
+  const limites = {
+    max_instancias_whatsapp: planoConfig.whatsapps,
+    max_instancias_instagram: planoConfig.instagrams,
+  };
 
   return NextResponse.json({
     instancias,
-    limites: (limites as any[])[0] || { max_instancias_whatsapp: 1, max_instancias_instagram: 0 },
+    limites,
     plano: user.plano,
     calendarConnected,
     calendarId,
@@ -99,7 +101,7 @@ export async function POST(req: Request) {
 
   const user = await prisma.clinica.findUnique({
     where: { email: session.user.email },
-    select: { id: true, plano: true }
+    select: { id: true, plano: true, nivel: true }
   });
 
   if (!user) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
@@ -120,13 +122,14 @@ export async function POST(req: Request) {
     WHERE user_id = ${user.id}
   ` as any[];
 
-  const limites = await prisma.$queryRaw`
-    SELECT max_instancias_whatsapp, max_instancias_instagram 
-    FROM users WHERE id = ${user.id}
-  ` as any[];
+  // Limites derivados do nível do plano (fonte da verdade: PLANOS)
+  const planoConfig = nivelToPlano(user.nivel || 1);
+  const limite = {
+    max_instancias_whatsapp: planoConfig.whatsapps,
+    max_instancias_instagram: planoConfig.instagrams,
+  };
 
   const atual = contagem[0] || { whatsapps: 0, instagrams: 0 };
-  const limite = limites[0] || { max_instancias_whatsapp: 1, max_instancias_instagram: 0 };
 
   if (canal === 'whatsapp' && Number(atual.whatsapps) >= Number(limite.max_instancias_whatsapp)) {
     return NextResponse.json({
