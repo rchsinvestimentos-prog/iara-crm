@@ -232,9 +232,9 @@ export async function POST(req: NextRequest) {
             if (body.whatsapp) {
                 try {
                     const instanceName = await prisma.$queryRawUnsafe<any[]>(
-                        `SELECT nome_instancia FROM clinica WHERE id = $1`, clinica.id
+                        `SELECT evolution_instance FROM clinica WHERE id = $1`, clinica.id
                     )
-                    const instance = instanceName[0]?.nome_instancia
+                    const instance = instanceName[0]?.evolution_instance
                     if (instance && process.env.EVOLUTION_API_URL) {
                         const phone = body.whatsapp.replace(/\D/g, '')
                         const whatsNumber = phone.startsWith('55') ? phone : `55${phone}`
