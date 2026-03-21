@@ -30,6 +30,8 @@ interface Profissional {
     chavePix: string | null; linkPagamento: string | null
     isDono: boolean; ativo: boolean; ordem: number
     procedimentos: Procedimento[]
+    googleCalendarToken: string | null
+    googleCalendarId: string | null
 }
 
 const TRATAMENTOS = [
@@ -179,6 +181,34 @@ export default function ProfissionaisPage() {
         fetchEquipe()
     }
 
+    // ===== Vacation mode toggle =====
+    function isOnVacation(prof: Profissional): boolean {
+        if (!prof.ausencias || !Array.isArray(prof.ausencias)) return false
+        return prof.ausencias.some((a: any) => !a.fim || a.fim === '')
+    }
+
+    async function toggleVacation(prof: Profissional) {
+        const onVacation = isOnVacation(prof)
+        let newAusencias: any[]
+        if (onVacation) {
+            // Remove open-ended ausencias (end vacation)
+            newAusencias = (prof.ausencias || []).filter((a: any) => a.fim && a.fim !== '')
+        } else {
+            // Add open-ended ausencia (start vacation)
+            const hoje = new Date().toISOString().split('T')[0]
+            newAusencias = [...(prof.ausencias || []), { inicio: hoje, fim: '', motivo: 'Férias' }]
+        }
+        try {
+            const res = await fetch('/api/clinica/profissionais', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: prof.id, ausencias: newAusencias }),
+            })
+            if (res.ok) fetchEquipe()
+            else alert('Erro ao atualizar modo férias')
+        } catch { alert('Erro de conexão') }
+    }
+
     // ===== Procedimento CRUD =====
     async function salvarProc() {
         if (!formProc.nome.trim()) return
@@ -288,6 +318,8 @@ export default function ProfissionaisPage() {
                             <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
                                 {prof.procedimentos?.length > 0 && <span style={badgeStyle}>📋 {prof.procedimentos.length} proc.</span>}
                                 {prof.linkAgendamento && <span style={badgeStyle}>🔗 Link ativo</span>}
+                                {prof.googleCalendarToken ? <span style={{ ...badgeStyle, background: 'rgba(6,214,160,0.1)', color: '#059669' }}>📅 Google Calendar</span> : null}
+                                {isOnVacation(prof) ? <span style={{ ...badgeStyle, background: 'rgba(245,158,11,0.1)', color: '#d97706' }}>🏖️ Férias</span> : null}
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -319,6 +351,52 @@ export default function ProfissionaisPage() {
                                     {prof.redesSociais.tiktok && <span style={badgeStyle}>🎵 @{prof.redesSociais.tiktok}</span>}
                                 </div>
                             )}
+
+                            {/* Google Calendar Connection */}
+                            <div style={{ background: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 12, border: '1px solid #e2e8f0' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: prof.googleCalendarToken ? 'rgba(6,214,160,0.1)' : 'rgba(239,68,68,0.1)' }}>
+                                        <span style={{ fontSize: 16 }}>📅</span>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#1e293b' }}>Google Calendar</p>
+                                        <p style={{ margin: '2px 0 0', fontSize: 11, color: prof.googleCalendarToken ? '#059669' : '#94a3b8' }}>
+                                            {prof.googleCalendarToken ? `✅ Conectado — ${prof.googleCalendarId || 'primary'}` : '❌ Não conectado'}
+                                        </p>
+                                    </div>
+                                    {prof.googleCalendarToken ? (
+                                        <a href={`/api/auth/google-calendar?profissionalId=${prof.id}`} style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textDecoration: 'none', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff' }}>Reconectar</a>
+                                    ) : (
+                                        <a href={`/api/auth/google-calendar?profissionalId=${prof.id}`} style={{ fontSize: 11, fontWeight: 600, color: '#fff', textDecoration: 'none', padding: '6px 14px', borderRadius: 8, background: 'linear-gradient(135deg, #D99773, #C07A55)' }}>Conectar</a>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Vacation Mode Toggle */}
+                            <div style={{ background: isOnVacation(prof) ? 'rgba(245,158,11,0.06)' : '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 12, border: `1px solid ${isOnVacation(prof) ? 'rgba(245,158,11,0.2)' : '#e2e8f0'}` }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <span style={{ fontSize: 20 }}>{isOnVacation(prof) ? '🏖️' : '☀️'}</span>
+                                    <div style={{ flex: 1 }}>
+                                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#1e293b' }}>Modo Férias</p>
+                                        <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>
+                                            {isOnVacation(prof) ? 'Ativado — IARA não agenda para esta profissional' : 'Desativado — disponível para agendamentos'}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => toggleVacation(prof)}
+                                        style={{
+                                            width: 46, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative' as const, transition: 'background 0.2s',
+                                            background: isOnVacation(prof) ? '#f59e0b' : '#d1d5db',
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute' as const, top: 3,
+                                            left: isOnVacation(prof) ? 25 : 3, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                                        }} />
+                                    </button>
+                                </div>
+                            </div>
+
                             {!prof.isDono && <button onClick={() => remover(prof.id)} style={{ background: 'none', border: '1px solid rgba(220,50,50,0.2)', borderRadius: 10, padding: '6px 16px', cursor: 'pointer', fontSize: 12, color: '#dc2626', marginTop: 8 }}>🗑 Remover</button>}
                         </div>
                     )}

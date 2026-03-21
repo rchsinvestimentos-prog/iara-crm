@@ -80,6 +80,9 @@ export async function GET() {
             ativo: p.ativo,
             ordem: p.ordem,
             createdAt: p.created_at,
+            // Google Calendar status
+            googleCalendarToken: p.google_calendar_token || null,
+            googleCalendarId: p.google_calendar_id || null,
             procedimentos: (p.procedimentos || []).map((proc: any) => ({
                 ...proc,
                 valor: Number(proc.valor) || 0,
@@ -240,7 +243,8 @@ export async function PUT(req: NextRequest) {
                 link_agendamento = $17,
                 foto_url = $18,
                 chave_pix = $19,
-                link_pagamento = $20
+                link_pagamento = $20,
+                ausencias = COALESCE($21::jsonb, ausencias)
             WHERE id = $1
         `,
             body.id,
@@ -263,6 +267,7 @@ export async function PUT(req: NextRequest) {
             body.fotoUrl ?? null,
             body.chavePix ?? null,
             body.linkPagamento ?? null,
+            body.ausencias ? JSON.stringify(body.ausencias) : null,
         )
 
         return NextResponse.json({ ok: true, id: body.id })

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 
@@ -8,7 +8,7 @@ import { authOptions, getClinicaId } from '@/lib/auth'
  * Inicia o fluxo OAuth2 do Google Calendar.
  * Redireciona o usuário para a tela de consentimento do Google.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions)
     const clinicaId = await getClinicaId(session)
 
@@ -31,8 +31,9 @@ export async function GET() {
         'https://www.googleapis.com/auth/calendar.events',
     ].join(' ')
 
-    // State contém o clinicaId para verificação no callback
-    const state = Buffer.from(JSON.stringify({ clinicaId })).toString('base64')
+    // State contém clinicaId e opcionalmente profissionalId
+    const profissionalId = new URL(req.url).searchParams.get('profissionalId') || undefined
+    const state = Buffer.from(JSON.stringify({ clinicaId, profissionalId })).toString('base64')
 
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
     authUrl.searchParams.set('client_id', clientId)
