@@ -67,7 +67,7 @@ export default function LinkAgendamentoPage() {
             .finally(() => setLoading(false))
     }, [])
 
-    const baseUrl = 'https://app.iara.click/a'
+    const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/a` : 'https://app.iara.click/a'
     const fullLink = `${baseUrl}/${config.slug}`
 
     const handleCopy = useCallback(() => {
