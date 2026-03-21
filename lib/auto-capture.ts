@@ -37,6 +37,14 @@ export async function autoCaptureCRM(opts: {
             },
         })
 
+        // Auto-mover: 'novo' ou 'importado' → 'em-conversa' (conversa iniciada)
+        if (contato.etapa === 'novo' || contato.etapa === 'importado') {
+            await prisma.contato.update({
+                where: { id: contato.id },
+                data: { etapa: 'em_conversa' },
+            }).catch(() => {})
+        }
+
         return contato
     } catch (err) {
         console.error('[AutoCapture] Erro ao criar/atualizar contato:', err)

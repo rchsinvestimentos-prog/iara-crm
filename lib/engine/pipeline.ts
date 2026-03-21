@@ -248,7 +248,8 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         clinica.id,
         resposta.texto,
         clinica,
-        msg.pushName || 'Cliente'
+        msg.pushName || 'Cliente',
+        msg.telefone
     )
 
     // ================================================

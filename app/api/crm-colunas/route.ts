@@ -5,13 +5,14 @@ import { prisma } from '@/lib/prisma'
 
 const DEFAULT_COLUMNS = [
     { nome: 'Novo', slug: 'novo', cor: '#6B7280', ordem: 0 },
-    { nome: 'Em conversa', slug: 'em_conversa', cor: '#3B82F6', ordem: 1 },
-    { nome: 'Interessada', slug: 'interessada', cor: '#F59E0B', ordem: 2 },
-    { nome: 'Agendada', slug: 'agendada', cor: '#8B5CF6', ordem: 3 },
-    { nome: 'Atendida', slug: 'atendida', cor: '#10B981', ordem: 4 },
-    { nome: 'Retorno', slug: 'retorno', cor: '#EC4899', ordem: 5 },
-    { nome: 'Stand By', slug: 'stand_by', cor: '#9CA3AF', ordem: 6 },
-    { nome: 'Fidelizada', slug: 'fidelizada', cor: '#D99773', ordem: 7 },
+    { nome: 'Importado', slug: 'importado', cor: '#94A3B8', ordem: 1 },
+    { nome: 'Em conversa', slug: 'em_conversa', cor: '#3B82F6', ordem: 2 },
+    { nome: 'Interessada', slug: 'interessada', cor: '#F59E0B', ordem: 3 },
+    { nome: 'Agendada', slug: 'agendada', cor: '#8B5CF6', ordem: 4 },
+    { nome: 'Atendida', slug: 'atendida', cor: '#10B981', ordem: 5 },
+    { nome: 'Retorno', slug: 'retorno', cor: '#EC4899', ordem: 6 },
+    { nome: 'Stand By', slug: 'stand_by', cor: '#9CA3AF', ordem: 7 },
+    { nome: 'Fidelizada', slug: 'fidelizada', cor: '#D99773', ordem: 8 },
 ]
 
 // GET /api/crm-colunas — Lista colunas (cria defaults se não existir)

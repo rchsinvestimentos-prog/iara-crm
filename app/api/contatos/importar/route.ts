@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
                 await prisma.contato.upsert({
                     where: { clinicaId_telefone: { clinicaId, telefone: tel } },
                     update: { nome: c.nome || tel, updatedAt: new Date() },
-                    create: { clinicaId, nome: c.nome || tel, telefone: tel, origem: 'csv' },
+                    create: { clinicaId, nome: c.nome || tel, telefone: tel, origem: 'csv', etapa: 'importado' },
                 })
                 importados++
             } catch {

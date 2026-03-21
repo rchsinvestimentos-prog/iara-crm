@@ -6,6 +6,7 @@
 
 import { getCalendarEvents, createCalendarEvent, getCalendarTokens } from '@/lib/google-calendar'
 import type { DadosClinica, ProfissionalAtivo } from './types'
+import { prisma } from '@/lib/prisma'
 
 // ============================================
 // BUSCAR CONTEXTO DA AGENDA
@@ -150,7 +151,8 @@ export async function processarAgendamentos(
     clinicaId: number,
     respostaIA: string,
     clinica: DadosClinica,
-    nomeCliente: string
+    nomeCliente: string,
+    telefoneCliente?: string
 ): Promise<string> {
     const regex = /\[AGENDAR:([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|(\d+)(?:\|([^\]]+))?\]/g
     const matches = [...respostaIA.matchAll(regex)]
@@ -188,6 +190,19 @@ export async function processarAgendamentos(
 
             if (evento) {
                 console.log(`[Calendar] ✅ Evento criado: ${evento.id || 'ok'}`)
+
+                // Auto-mover contato no CRM para 'agendada'
+                if (telefoneCliente) {
+                    try {
+                        await prisma.contato.updateMany({
+                            where: { clinicaId, telefone: telefoneCliente },
+                            data: { etapa: 'agendada', updatedAt: new Date() },
+                        })
+                        console.log(`[Calendar] 📋 CRM: contato ${telefoneCliente} → agendada`)
+                    } catch (e) {
+                        console.error('[Calendar] Erro ao mover contato no CRM:', e)
+                    }
+                }
             } else {
                 console.error(`[Calendar] ❌ Falha ao criar evento`)
             }
