@@ -3,8 +3,16 @@
 // ============================================
 // Conecta o google-calendar.ts ao pipeline da IARA.
 // Fornece: contexto de agenda, verificação de disponibilidade, criação de eventos.
+// DUAL-WRITE: cria tanto no Agendamento interno quanto no Google Calendar.
 
-import { getCalendarEvents, createCalendarEvent, getCalendarTokens } from '@/lib/google-calendar'
+import {
+    getCalendarEvents,
+    getCalendarEventsForProfissional,
+    getCalendarTokens,
+    getCalendarTokensForProfissional,
+    createCalendarEventForProfissional,
+    createCalendarEvent,
+} from '@/lib/google-calendar'
 import type { DadosClinica, ProfissionalAtivo } from './types'
 import { prisma } from '@/lib/prisma'
 
@@ -14,7 +22,7 @@ import { prisma } from '@/lib/prisma'
 
 /**
  * Busca compromissos das próximas 48h e formata para injetar no prompt.
- * Retorna string formatada OU null se calendário não está conectado.
+ * Consulta AMBAS as fontes: tabela interna + Google Calendar (desduplicando por googleEventId).
  */
 export async function getAgendaContext(
     clinicaId: number,
@@ -24,22 +32,35 @@ export async function getAgendaContext(
     // Verificar se tem calendário conectado (da clínica ou de pelo menos 1 profissional)
     const tokensClinica = await getCalendarTokens(clinicaId)
     const multiProf = profissionais && profissionais.length > 1
-    if (!tokensClinica && !multiProf) return null
 
-    const tz = clinica.timezone || 'America/Sao_Paulo'
+    // Se não tem Google Calendar E não tem multi-prof, verificar se tem agendamentos internos pelo menos
     const now = new Date()
-
-    // Buscar eventos das próximas 48h
     const timeMin = now.toISOString()
     const timeMax = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString()
 
+    // Buscar agendamentos internos (sempre disponível)
+    const agendamentosInternos = await prisma.agendamento.findMany({
+        where: {
+            clinicaId,
+            data: { gte: now, lte: new Date(now.getTime() + 48 * 60 * 60 * 1000) },
+            status: { notIn: ['cancelado', 'reagendado'] },
+        },
+        include: {
+            profissional: { select: { id: true, nome: true } },
+        },
+        orderBy: [{ data: 'asc' }, { horario: 'asc' }],
+    })
+
+    if (!tokensClinica && !multiProf && agendamentosInternos.length === 0) return null
+
+    const tz = clinica.timezone || 'America/Sao_Paulo'
+
     try {
-        // Montar horários da clínica
         const horarios = montarHorarios(clinica)
         const intervalo = clinica.intervaloAtendimento ?? 15
         const antecedencia = clinica.antecedenciaMinima || 'Sem restrição'
 
-        let texto = `📅 AGENDA REAL (Google Calendar conectado)\n`
+        let texto = `📅 AGENDA REAL (sincronizada)\n`
         texto += `Horário de atendimento: ${horarios}\n`
         texto += `Intervalo entre procedimentos: ${intervalo} minutos\n`
         texto += `Antecedência mínima para agendar: ${antecedencia}\n`
@@ -52,7 +73,7 @@ export async function getAgendaContext(
                 const ausencias = prof.ausencias || []
                 const emFerias = ausencias.some(a => {
                     const ini = new Date(a.inicio)
-                    const fim = new Date(a.fim)
+                    const fim = a.fim ? new Date(a.fim) : new Date('2099-12-31')
                     return now >= ini && now <= fim
                 })
 
@@ -61,49 +82,44 @@ export async function getAgendaContext(
                     continue
                 }
 
-                // Buscar eventos do profissional (usa calendar da clínica se não tem próprio)
-                const eventos = await getCalendarEvents(clinicaId, timeMin, timeMax)
+                // Montar lista unificada de compromissos
+                const compromissos = await getCompromissosUnificados(
+                    clinicaId, prof.id, timeMin, timeMax, agendamentosInternos
+                )
+
+                // Horários individuais do profissional (se configurados)
+                const horarioProf = montarHorariosProfissional(prof)
+
                 texto += `📅 Agenda de ${prof.nome} (ID: ${prof.id}):\n`
-                if (eventos.length === 0) {
+                if (horarioProf) texto += `  Horários: ${horarioProf}\n`
+
+                if (compromissos.length === 0) {
                     texto += `  Próximas 48h: NENHUM compromisso. Agenda livre!\n\n`
                 } else {
-                    for (const ev of eventos) {
-                        const start = ev.start?.dateTime || ev.start?.date
-                        const end = ev.end?.dateTime || ev.end?.date
-                        if (start) {
-                            const startDate = new Date(start)
-                            const endDate = end ? new Date(end) : null
-                            const durMin = endDate ? Math.round((endDate.getTime() - startDate.getTime()) / 60000) : null
-                            texto += `  • ${formatDateBR(startDate, tz)}`
-                            if (durMin) texto += ` (${durMin}min)`
-                            if (ev.summary) texto += ` — ${ev.summary}`
-                            texto += `\n`
-                        }
+                    for (const c of compromissos) {
+                        texto += `  • ${formatDateBR(c.start, tz)}`
+                        if (c.duracao) texto += ` (${c.duracao}min)`
+                        texto += ` — ${c.titulo}\n`
                     }
                     texto += `\n`
                 }
             }
         } else {
-            // SINGLE: comportamento original
-            const eventos = await getCalendarEvents(clinicaId, timeMin, timeMax)
-            console.log(`[Calendar] 📅 ${eventos.length} eventos encontrados nas próximas 48h`)
+            // SINGLE: combinar fontes
+            const compromissos = await getCompromissosSingle(
+                clinicaId, timeMin, timeMax, agendamentosInternos
+            )
 
-            if (eventos.length === 0) {
+            console.log(`[Calendar] 📅 ${compromissos.length} compromissos unificados nas próximas 48h`)
+
+            if (compromissos.length === 0) {
                 texto += `Próximas 48h: NENHUM compromisso. Agenda livre!\n`
             } else {
                 texto += `Compromissos nas próximas 48h:\n`
-                for (const ev of eventos) {
-                    const start = ev.start?.dateTime || ev.start?.date
-                    const end = ev.end?.dateTime || ev.end?.date
-                    if (start) {
-                        const startDate = new Date(start)
-                        const endDate = end ? new Date(end) : null
-                        const durMin = endDate ? Math.round((endDate.getTime() - startDate.getTime()) / 60000) : null
-                        texto += `• ${formatDateBR(startDate, tz)}`
-                        if (durMin) texto += ` (${durMin}min)`
-                        if (ev.summary) texto += ` — ${ev.summary}`
-                        texto += `\n`
-                    }
+                for (const c of compromissos) {
+                    texto += `• ${formatDateBR(c.start, tz)}`
+                    if (c.duracao) texto += ` (${c.duracao}min)`
+                    texto += ` — ${c.titulo}\n`
                 }
             }
         }
@@ -132,7 +148,131 @@ export async function getAgendaContext(
 }
 
 // ============================================
-// PROCESSAR AGENDAMENTO PÓS-IA
+// UNIFICAR COMPROMISSOS (Interno + Google)
+// ============================================
+
+interface CompromissoUnificado {
+    start: Date
+    duracao: number | null
+    titulo: string
+    googleEventId?: string
+}
+
+/**
+ * Combina agendamentos internos + Google Calendar de um profissional,
+ * desduplicando por googleEventId.
+ */
+async function getCompromissosUnificados(
+    clinicaId: number,
+    profissionalId: string,
+    timeMin: string,
+    timeMax: string,
+    agendamentosInternos: any[]
+): Promise<CompromissoUnificado[]> {
+    const compromissos: CompromissoUnificado[] = []
+    const googleEventIdsUsados = new Set<string>()
+
+    // 1. Agendamentos internos deste profissional
+    const internosDoProfissional = agendamentosInternos.filter(
+        a => a.profissionalId === profissionalId
+    )
+
+    for (const ag of internosDoProfissional) {
+        const startDate = new Date(`${ag.data.toISOString().split('T')[0]}T${ag.horario}:00`)
+        compromissos.push({
+            start: startDate,
+            duracao: ag.duracao || null,
+            titulo: `${ag.procedimento} — ${ag.nomePaciente}`,
+            googleEventId: ag.googleEventId || undefined,
+        })
+        if (ag.googleEventId) googleEventIdsUsados.add(ag.googleEventId)
+    }
+
+    // 2. Eventos do Google Calendar (que não estão no interno)
+    try {
+        const eventosGoogle = await getCalendarEventsForProfissional(profissionalId, timeMin, timeMax)
+        for (const ev of eventosGoogle) {
+            if (ev.id && googleEventIdsUsados.has(ev.id)) continue // já contado
+
+            const start = ev.start?.dateTime || ev.start?.date
+            if (!start) continue
+
+            const startDate = new Date(start)
+            const end = ev.end?.dateTime || ev.end?.date
+            const endDate = end ? new Date(end) : null
+            const durMin = endDate ? Math.round((endDate.getTime() - startDate.getTime()) / 60000) : null
+
+            compromissos.push({
+                start: startDate,
+                duracao: durMin,
+                titulo: ev.summary || 'Compromisso',
+                googleEventId: ev.id,
+            })
+        }
+    } catch (err) {
+        console.error(`[Calendar] Erro ao buscar Google Calendar do profissional ${profissionalId}:`, err)
+    }
+
+    // Ordenar por data
+    compromissos.sort((a, b) => a.start.getTime() - b.start.getTime())
+    return compromissos
+}
+
+/**
+ * Para clínica single-prof: combina interno + Google Calendar desduplicado.
+ */
+async function getCompromissosSingle(
+    clinicaId: number,
+    timeMin: string,
+    timeMax: string,
+    agendamentosInternos: any[]
+): Promise<CompromissoUnificado[]> {
+    const compromissos: CompromissoUnificado[] = []
+    const googleEventIdsUsados = new Set<string>()
+
+    // 1. Agendamentos internos
+    for (const ag of agendamentosInternos) {
+        const startDate = new Date(`${ag.data.toISOString().split('T')[0]}T${ag.horario}:00`)
+        compromissos.push({
+            start: startDate,
+            duracao: ag.duracao || null,
+            titulo: `${ag.procedimento} — ${ag.nomePaciente}`,
+            googleEventId: ag.googleEventId || undefined,
+        })
+        if (ag.googleEventId) googleEventIdsUsados.add(ag.googleEventId)
+    }
+
+    // 2. Google Calendar (desduplicado)
+    try {
+        const eventosGoogle = await getCalendarEvents(clinicaId, timeMin, timeMax)
+        for (const ev of eventosGoogle) {
+            if (ev.id && googleEventIdsUsados.has(ev.id)) continue
+
+            const start = ev.start?.dateTime || ev.start?.date
+            if (!start) continue
+
+            const startDate = new Date(start)
+            const end = ev.end?.dateTime || ev.end?.date
+            const endDate = end ? new Date(end) : null
+            const durMin = endDate ? Math.round((endDate.getTime() - startDate.getTime()) / 60000) : null
+
+            compromissos.push({
+                start: startDate,
+                duracao: durMin,
+                titulo: ev.summary || 'Compromisso',
+                googleEventId: ev.id,
+            })
+        }
+    } catch (err) {
+        console.error('[Calendar] Erro ao buscar Google Calendar:', err)
+    }
+
+    compromissos.sort((a, b) => a.start.getTime() - b.start.getTime())
+    return compromissos
+}
+
+// ============================================
+// PROCESSAR AGENDAMENTO PÓS-IA (DUAL-WRITE)
 // ============================================
 
 interface AgendamentoDetectado {
@@ -145,7 +285,8 @@ interface AgendamentoDetectado {
 
 /**
  * Detecta e processa marcadores [AGENDAR:...] na resposta da IA.
- * Retorna a resposta limpa (sem marcadores) e cria eventos no Google Calendar.
+ * DUAL-WRITE: cria registro na tabela agendamentos_v2 E evento no Google Calendar.
+ * Retorna a resposta limpa (sem marcadores).
  */
 export async function processarAgendamentos(
     clinicaId: number,
@@ -173,41 +314,98 @@ export async function processarAgendamentos(
 
         console.log(`[Calendar] 📝 Agendamento detectado: ${agendamento.procedimento} em ${agendamento.data} às ${agendamento.hora} (${agendamento.duracao}min)`)
 
-        // Criar evento no Google Calendar
+        // Determinar profissionalId (se single-prof, pegar o primeiro ativo)
+        let profissionalId = agendamento.profissionalId
+        if (!profissionalId) {
+            const primeiroProfissional = await prisma.profissional.findFirst({
+                where: { clinicaId, ativo: true },
+                orderBy: { ordem: 'asc' },
+                select: { id: true },
+            })
+            profissionalId = primeiroProfissional?.id || null
+        }
+
+        if (!profissionalId) {
+            console.error('[Calendar] ❌ Nenhum profissional encontrado para agendar')
+            respostaLimpa = respostaLimpa.replace(match[0], '')
+            continue
+        }
+
+        // Buscar contatoId pelo telefone
+        let contatoId: number | null = null
+        if (telefoneCliente) {
+            const contato = await prisma.contato.findFirst({
+                where: { clinicaId, telefone: telefoneCliente },
+                select: { id: true },
+            })
+            contatoId = contato?.id || null
+        }
+
+        // Preparar datas
         const startDateTime = `${agendamento.data}T${agendamento.hora}:00`
         const endDate = new Date(`${agendamento.data}T${agendamento.hora}:00`)
         endDate.setMinutes(endDate.getMinutes() + agendamento.duracao)
         const endDateTime = endDate.toISOString().split('.')[0]
 
         try {
-            const evento = await createCalendarEvent(clinicaId, {
+            // =========================================
+            // WRITE 1: Google Calendar
+            // =========================================
+            let googleEventId: string | null = null
+
+            const evento = await createCalendarEventForProfissional(profissionalId, {
                 summary: `${agendamento.procedimento} — ${nomeCliente}`,
-                description: `Agendado pela IARA via WhatsApp.\nCliente: ${nomeCliente}\nProcedimento: ${agendamento.procedimento}\nDuração: ${agendamento.duracao}min`,
+                description: `Agendado pela IARA via WhatsApp.\nCliente: ${nomeCliente}\nTelefone: ${telefoneCliente || ''}\nProcedimento: ${agendamento.procedimento}\nDuração: ${agendamento.duracao}min`,
                 startDateTime,
                 endDateTime,
                 timeZone: tz,
             })
 
             if (evento) {
-                console.log(`[Calendar] ✅ Evento criado: ${evento.id || 'ok'}`)
-
-                // Auto-mover contato no CRM para 'agendada'
-                if (telefoneCliente) {
-                    try {
-                        await prisma.contato.updateMany({
-                            where: { clinicaId, telefone: telefoneCliente },
-                            data: { etapa: 'agendada', updatedAt: new Date() },
-                        })
-                        console.log(`[Calendar] 📋 CRM: contato ${telefoneCliente} → agendada`)
-                    } catch (e) {
-                        console.error('[Calendar] Erro ao mover contato no CRM:', e)
-                    }
-                }
+                googleEventId = evento.id || null
+                console.log(`[Calendar] ✅ Google Calendar: evento criado (${googleEventId})`)
             } else {
-                console.error(`[Calendar] ❌ Falha ao criar evento`)
+                console.warn(`[Calendar] ⚠️ Google Calendar: falha ao criar (sem token?). Continuando com agendamento interno.`)
             }
+
+            // =========================================
+            // WRITE 2: Agendamento interno (tabela)
+            // =========================================
+            const agendamentoInterno = await prisma.agendamento.create({
+                data: {
+                    clinicaId,
+                    profissionalId,
+                    nomePaciente: nomeCliente,
+                    telefone: telefoneCliente || '',
+                    procedimento: agendamento.procedimento,
+                    data: new Date(agendamento.data),
+                    horario: agendamento.hora,
+                    duracao: agendamento.duracao,
+                    origem: 'whatsapp',
+                    status: 'confirmado',
+                    googleEventId,
+                    contatoId,
+                },
+            })
+            console.log(`[Calendar] ✅ Agendamento interno criado: ${agendamentoInterno.id}`)
+
+            // =========================================
+            // CRM: mover contato para 'agendada'
+            // =========================================
+            if (telefoneCliente) {
+                try {
+                    await prisma.contato.updateMany({
+                        where: { clinicaId, telefone: telefoneCliente },
+                        data: { etapa: 'agendada', updatedAt: new Date() },
+                    })
+                    console.log(`[Calendar] 📋 CRM: contato ${telefoneCliente} → agendada`)
+                } catch (e) {
+                    console.error('[Calendar] Erro ao mover contato no CRM:', e)
+                }
+            }
+
         } catch (err) {
-            console.error('[Calendar] Erro ao criar evento:', err)
+            console.error('[Calendar] Erro ao processar agendamento:', err)
         }
 
         // Remover marcador da mensagem
@@ -240,6 +438,14 @@ function montarHorarios(clinica: DadosClinica): string {
     }
 
     return parts.join(' | ') || 'Não configurado'
+}
+
+function montarHorariosProfissional(prof: ProfissionalAtivo): string | null {
+    if (!prof.horarioSemana) return null
+    const parts: string[] = [`Seg-Sex: ${prof.horarioSemana}`]
+    if (prof.atendeSabado && prof.horarioSabado) parts.push(`Sáb: ${prof.horarioSabado}`)
+    if (prof.atendeDomingo && prof.horarioDomingo) parts.push(`Dom: ${prof.horarioDomingo}`)
+    return parts.join(' | ')
 }
 
 function formatDateBR(date: Date, tz: string): string {
