@@ -12,7 +12,7 @@ export default async function PublicBookingPage({ params }: PageProps) {
     // Buscar profissional pelo slug
     const profs = await prisma.$queryRawUnsafe<any[]>(`
         SELECT 
-            p.id, p.nome, p.tratamento, p.especialidade, p.bio, p.foto_url,
+            p.id, p.clinica_id, p.nome, p.tratamento, p.especialidade, p.bio, p.foto_url,
             p.horario_semana, p.almoco_semana, p.atende_sabado, p.horario_sabado,
             p.atende_domingo, p.horario_domingo, p.intervalo_atendimento,
             p.link_config, p.whatsapp,
