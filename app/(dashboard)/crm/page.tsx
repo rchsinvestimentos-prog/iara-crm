@@ -35,6 +35,7 @@ export default function CrmPage() {
     const [newColNome, setNewColNome] = useState('')
     const [newColCor, setNewColCor] = useState('#D99773')
     const [saving, setSaving] = useState(false)
+    const [formError, setFormError] = useState('')
 
     const fetchData = useCallback(async () => {
         try {
@@ -54,33 +55,46 @@ export default function CrmPage() {
     useEffect(() => { fetchData() }, [fetchData])
 
     const addContact = async () => {
-        if (!formNome || !formTel) return
+        if (!formNome || !formTel) { setFormError('Nome e Telefone são obrigatórios.'); return }
+        setFormError('')
         setSaving(true)
         try {
-            await fetch('/api/contatos', {
+            const res = await fetch('/api/contatos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nome: formNome, telefone: formTel.replace(/\D/g, ''), email: formEmail, notas: formNotas, tags: formTags ? formTags.split(',').map(t => t.trim()) : [] }),
             })
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}))
+                setFormError(data.error || `Erro ao salvar contato (${res.status})`)
+                return
+            }
             setShowAddModal(false)
-            setFormNome(''); setFormTel(''); setFormEmail(''); setFormNotas(''); setFormTags('')
+            setFormNome(''); setFormTel(''); setFormEmail(''); setFormNotas(''); setFormTags(''); setFormError('')
             fetchData()
-        } catch { /* */ }
+        } catch { setFormError('Erro de conexão. Tente novamente.') }
         finally { setSaving(false) }
     }
 
     const editContact = async () => {
         if (!showEditModal) return
+        setFormError('')
         setSaving(true)
         try {
-            await fetch(`/api/contatos/${showEditModal.id}`, {
+            const res = await fetch(`/api/contatos/${showEditModal.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nome: formNome, telefone: formTel, email: formEmail, notas: formNotas, tags: formTags ? formTags.split(',').map(t => t.trim()) : [] }),
             })
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}))
+                setFormError(data.error || `Erro ao editar contato (${res.status})`)
+                return
+            }
             setShowEditModal(null)
+            setFormError('')
             fetchData()
-        } catch { /* */ }
+        } catch { setFormError('Erro de conexão. Tente novamente.') }
         finally { setSaving(false) }
     }
 
@@ -327,6 +341,7 @@ export default function CrmPage() {
                     <Input label="Email" value={formEmail} onChange={setFormEmail} />
                     <Input label="Notas" value={formNotas} onChange={setFormNotas} textarea />
                     <Input label="Tags (separadas por vírgula)" value={formTags} onChange={setFormTags} placeholder="vip, retorno" />
+                    {formError && <p className="text-[11px] text-red-400 mb-2">{formError}</p>}
                     <Btn onClick={addContact} loading={saving}>Salvar Contato</Btn>
                 </Modal>
             )}
@@ -339,6 +354,7 @@ export default function CrmPage() {
                     <Input label="Email" value={formEmail} onChange={setFormEmail} />
                     <Input label="Notas" value={formNotas} onChange={setFormNotas} textarea />
                     <Input label="Tags" value={formTags} onChange={setFormTags} />
+                    {formError && <p className="text-[11px] text-red-400 mb-2">{formError}</p>}
                     <Btn onClick={editContact} loading={saving}>Salvar Alterações</Btn>
                 </Modal>
             )}

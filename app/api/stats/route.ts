@@ -63,9 +63,9 @@ export async function GET() {
         try {
             const r = await prisma.$queryRaw<{ count: bigint }[]>`
                 SELECT COUNT(*)::bigint as count 
-                FROM agendamentos 
-                WHERE "clinicaId" = ${String(clinicaId)}
-                  AND "data" >= ${hojeISO}::timestamp
+                FROM agendamentos_v2 
+                WHERE clinica_id = ${clinicaId}
+                  AND data >= ${hojeISO}::timestamp
                   AND status != 'cancelado'
             `
             agendamentosHoje = Number(r[0]?.count ?? 0)
@@ -142,9 +142,9 @@ export async function GET() {
         try {
             const r = await prisma.$queryRaw<{ count: bigint }[]>`
                 SELECT COUNT(*)::bigint as count 
-                FROM agendamentos 
-                WHERE "clinicaId" = ${String(clinicaId)} 
-                  AND "createdAt" >= ${inicioMesISO}::timestamp
+                FROM agendamentos_v2 
+                WHERE clinica_id = ${clinicaId} 
+                  AND created_at >= ${inicioMesISO}::timestamp
                   AND status != 'cancelado'
             `
             agendamentosMes = Number(r[0]?.count ?? 0)

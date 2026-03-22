@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Paintbrush, Wand2, Download, ChevronLeft, ChevronRight, Plus, Image } from 'lucide-react'
+import { Paintbrush, Wand2, Copy, Plus, Image } from 'lucide-react'
 import { useFeatureLimit } from '@/hooks/useFeatureLimit'
 import FeatureLimitBanner from '@/components/FeatureLimitBanner'
 
@@ -111,52 +111,28 @@ export default function PostsTool() {
                 </div>
             </div>
 
-            {/* Post gerado - Simulação de carrossel */}
-            {postGerado && (
+            {/* Post gerado */}
+            {postGerado && conteudoPost && (
                 <div className="glass-card p-6 animate-fade-in">
                     <h3 className="font-semibold text-petroleo mb-4">🎨 Post Pronto!</h3>
-                    <div className="relative">
-                        {/* Simulação de slide */}
-                        <div className="w-full aspect-square rounded-2xl bg-gradient-to-br from-terracota/10 via-petroleo/5 to-terracota/5 flex flex-col items-center justify-center p-8">
-                            <div className="glass-card p-6 text-center max-w-sm">
-                                <h4 className="title-serif text-lg mb-2">Micropigmentação</h4>
-                                <h4 className="title-serif text-lg text-terracota">Fio a Fio</h4>
-                                <p className="text-sm text-acinzentado mt-3">Resultado natural que dura 1-2 anos</p>
-                                <div className="flex justify-center gap-1.5 mt-4">
-                                    {[0, 1, 2, 3, 4].map((dot) => (
-                                        <div
-                                            key={dot}
-                                            className={`w-2 h-2 rounded-full ${dot === 0 ? 'bg-terracota' : 'bg-terracota/30'}`}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                        {/* Nav */}
-                        <button className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 flex items-center justify-center shadow-md">
-                            <ChevronLeft size={20} className="text-petroleo" />
-                        </button>
-                        <button className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 flex items-center justify-center shadow-md">
-                            <ChevronRight size={20} className="text-petroleo" />
-                        </button>
+
+                    {/* Conteúdo gerado pela IA */}
+                    <div className="p-5 bg-glacial rounded-2xl whitespace-pre-wrap text-sm text-petroleo leading-relaxed max-h-[500px] overflow-y-auto">
+                        {conteudoPost}
                     </div>
 
-                    {/* Legenda */}
-                    <div className="mt-4 p-4 bg-glacial rounded-2xl">
-                        <p className="text-sm text-petroleo font-medium mb-1">Legenda sugerida:</p>
-                        <p className="text-sm text-acinzentado">
-                            ✨ Sobrancelhas perfeitas SEM ESFORÇO! 🙌 A micropigmentação fio a fio é ideal para quem quer acordar pronta todos os dias...
-                        </p>
-                    </div>
-
+                    {/* Ações */}
                     <div className="flex gap-3 mt-4">
-                        <button className="btn-primary flex items-center gap-2">
-                            <Download size={16} /> Baixar Imagens
+                        <button
+                            onClick={() => { navigator.clipboard.writeText(conteudoPost); alert('Conteúdo copiado!') }}
+                            className="btn-primary flex items-center gap-2"
+                        >
+                            <Copy size={16} /> Copiar Conteúdo
                         </button>
-                        <button className="btn-secondary">
-                            Editar
-                        </button>
-                        <button className="btn-secondary">
+                        <button
+                            onClick={() => { setPostGerado(false); setConteudoPost(''); setTema('') }}
+                            className="btn-secondary"
+                        >
                             Gerar outro
                         </button>
                     </div>
