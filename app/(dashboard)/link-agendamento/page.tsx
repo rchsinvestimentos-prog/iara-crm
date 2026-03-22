@@ -110,8 +110,8 @@ export default function LinkAgendamentoPage() {
                     <Link2 className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Link de Agendamento</h1>
-                    <p className="text-sm text-gray-400">Personalize e compartilhe seu link</p>
+                    <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Link de Agendamento</h1>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Personalize e compartilhe seu link</p>
                 </div>
             </div>
 
@@ -119,12 +119,13 @@ export default function LinkAgendamentoPage() {
                 {/* ─── LEFT: Settings ─── */}
                 <div className="space-y-6">
                     {/* Link Display */}
-                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6 space-y-4">
-                        <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                    <div className="glass-card p-6 space-y-4">
+                        <label className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                             <Link2 size={14} /> Link de agendamento:
                         </label>
                         <div className="flex items-center gap-2">
-                            <div className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white/80 truncate font-mono">
+                            <div className="flex-1 px-4 py-3 rounded-xl text-sm truncate font-mono"
+                                style={{ background: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}>
                                 {fullLink}
                             </div>
                         </div>
@@ -132,20 +133,22 @@ export default function LinkAgendamentoPage() {
                             <a
                                 href={fullLink}
                                 target="_blank"
-                                className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white hover:bg-white/10 transition-all flex items-center gap-2"
+                                className="px-4 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2"
+                                style={{ background: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                             >
                                 <ExternalLink size={14} /> Acessar
                             </a>
                             <button
                                 onClick={handleCopy}
-                                className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white hover:bg-white/10 transition-all flex items-center gap-2"
+                                className="px-4 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2"
+                                style={{ background: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                             >
                                 {copied ? <CheckCircle2 size={14} className="text-green-400" /> : <Copy size={14} />}
                                 {copied ? 'Copiado!' : 'Copiar link'}
                             </button>
                             <button
                                 onClick={() => navigator.share?.({ url: fullLink, title: `Agendar com ${config.nomeApp}` })}
-                                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#D99773] to-[#C07A55] text-sm text-white hover:scale-[1.02] transition-all flex items-center gap-2"
+                                className="btn-primary px-4 py-2.5 rounded-xl text-sm flex items-center gap-2"
                             >
                                 <Share2 size={14} /> Divulgar
                             </button>
@@ -153,37 +156,37 @@ export default function LinkAgendamentoPage() {
                     </div>
 
                     {/* Slug */}
-                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6 space-y-4">
-                        <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                    <div className="glass-card p-6 space-y-4">
+                        <h3 className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                             <Type size={14} /> Alterar o link
                         </h3>
                         <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-500">app.iara.click/a/</span>
+                            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>app.iara.click/a/</span>
                             <input
                                 type="text"
                                 value={config.slug}
                                 onChange={e => update('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                                className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none text-sm font-mono"
+                                className="input-field flex-1 font-mono"
                             />
                         </div>
                     </div>
 
                     {/* Visual Config */}
-                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6 space-y-5">
-                        <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                    <div className="glass-card p-6 space-y-5">
+                        <h3 className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                             <Palette size={14} /> Mude o visual:
                         </h3>
 
                         <div className="grid grid-cols-2 gap-4">
                             {/* Cor 1 */}
                             <div>
-                                <label className="text-xs text-gray-500 mb-1 block">Cor 1:</label>
+                                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Cor 1:</label>
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="text"
                                         value={config.cor1}
                                         onChange={e => update('cor1', e.target.value)}
-                                        className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-mono focus:border-[#D99773]/40 focus:outline-none"
+                                        className="input-field font-mono text-sm"
                                     />
                                     <input
                                         type="color"
@@ -196,13 +199,13 @@ export default function LinkAgendamentoPage() {
 
                             {/* Cor Texto 1 */}
                             <div>
-                                <label className="text-xs text-gray-500 mb-1 block">Cor do Texto 1:</label>
+                                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Cor do Texto 1:</label>
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="text"
                                         value={config.corTexto1}
                                         onChange={e => update('corTexto1', e.target.value)}
-                                        className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-mono focus:border-[#D99773]/40 focus:outline-none"
+                                        className="input-field font-mono text-sm"
                                     />
                                     <input
                                         type="color"
@@ -215,13 +218,13 @@ export default function LinkAgendamentoPage() {
 
                             {/* Cor 2 */}
                             <div>
-                                <label className="text-xs text-gray-500 mb-1 block">Cor 2:</label>
+                                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Cor 2:</label>
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="text"
                                         value={config.cor2}
                                         onChange={e => update('cor2', e.target.value)}
-                                        className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-mono focus:border-[#D99773]/40 focus:outline-none"
+                                        className="input-field font-mono text-sm"
                                     />
                                     <input
                                         type="color"
@@ -234,13 +237,13 @@ export default function LinkAgendamentoPage() {
 
                             {/* Cor Texto 2 */}
                             <div>
-                                <label className="text-xs text-gray-500 mb-1 block">Cor do Texto 2:</label>
+                                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Cor do Texto 2:</label>
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="text"
                                         value={config.corTexto2}
                                         onChange={e => update('corTexto2', e.target.value)}
-                                        className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-mono focus:border-[#D99773]/40 focus:outline-none"
+                                        className="input-field font-mono text-sm"
                                     />
                                     <input
                                         type="color"
@@ -254,36 +257,37 @@ export default function LinkAgendamentoPage() {
 
                         {/* Nome do App */}
                         <div>
-                            <label className="text-xs text-gray-500 mb-1 block">Nome do App:</label>
+                            <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Nome do App:</label>
                             <input
                                 type="text"
                                 value={config.nomeApp}
                                 onChange={e => update('nomeApp', e.target.value)}
                                 placeholder="Ex: Joana Silva"
-                                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none"
+                                className="input-field"
                             />
                         </div>
 
                         {/* Endereço */}
                         <div>
-                            <label className="text-xs text-gray-500 mb-1 block">Endereço:</label>
+                            <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Endereço:</label>
                             <input
                                 type="text"
                                 value={config.endereco}
                                 onChange={e => update('endereco', e.target.value)}
                                 placeholder="Rua exemplo, 123 - Cidade"
-                                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none"
+                                className="input-field"
                             />
                         </div>
 
                         {/* Logotipo */}
                         <div>
-                            <label className="text-xs text-gray-500 mb-1 block">Logotipo:</label>
+                            <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Logotipo:</label>
                             <div className="flex items-center gap-3">
                                 {config.logotipoUrl && (
-                                    <img src={config.logotipoUrl} alt="Logo" className="w-12 h-12 rounded-xl object-cover border border-white/10" />
+                                    <img src={config.logotipoUrl} alt="Logo" className="w-12 h-12 rounded-xl object-cover" style={{ border: '1px solid var(--border-default)' }} />
                                 )}
-                                <label className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-gray-300 hover:bg-white/10 transition-all cursor-pointer flex items-center gap-2">
+                                <label className="px-4 py-2.5 rounded-xl text-sm transition-all cursor-pointer flex items-center gap-2"
+                                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>
                                     <ImageIcon size={14} /> Escolher arquivo
                                     <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                                         const file = e.target.files?.[0]
@@ -294,44 +298,44 @@ export default function LinkAgendamentoPage() {
                                     }} />
                                 </label>
                             </div>
-                            <p className="text-xs text-gray-600 mt-1">O tamanho para a imagem é de 412px por 200px</p>
+                            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>O tamanho para a imagem é de 412px por 200px</p>
                         </div>
                     </div>
 
                     {/* Redes Sociais */}
-                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6 space-y-5">
-                        <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                    <div className="glass-card p-6 space-y-5">
+                        <h3 className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                             <Instagram size={14} /> Redes Sociais (aparecerão no seu perfil público)
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
-                                <label className="text-xs text-gray-500 mb-1 block flex items-center gap-1"><Instagram size={10} /> Instagram</label>
+                                <label className="text-xs mb-1 block flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Instagram size={10} /> Instagram</label>
                                 <input
                                     type="text"
                                     value={config.instagram}
                                     onChange={e => update('instagram', e.target.value)}
                                     placeholder="@seuuser"
-                                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none text-sm"
+                                    className="input-field text-sm"
                                 />
                             </div>
                             <div>
-                                <label className="text-xs text-gray-500 mb-1 block">TikTok</label>
+                                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>TikTok</label>
                                 <input
                                     type="text"
                                     value={config.tiktok}
                                     onChange={e => update('tiktok', e.target.value)}
                                     placeholder="@seuuser"
-                                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none text-sm"
+                                    className="input-field text-sm"
                                 />
                             </div>
                             <div>
-                                <label className="text-xs text-gray-500 mb-1 block flex items-center gap-1"><Youtube size={10} /> YouTube</label>
+                                <label className="text-xs mb-1 block flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Youtube size={10} /> YouTube</label>
                                 <input
                                     type="text"
                                     value={config.youtube}
                                     onChange={e => update('youtube', e.target.value)}
                                     placeholder="https://youtube.com/@canal"
-                                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none text-sm"
+                                    className="input-field text-sm"
                                 />
                             </div>
                         </div>
@@ -342,12 +346,12 @@ export default function LinkAgendamentoPage() {
                         <button
                             onClick={handleSave}
                             disabled={saving}
-                            className="px-8 py-3 rounded-xl bg-gradient-to-r from-[#D99773] to-[#C07A55] text-white font-semibold text-sm shadow-lg shadow-[#D99773]/20 hover:scale-[1.02] transition-all disabled:opacity-40 flex items-center gap-2"
+                            className="btn-primary flex items-center gap-2"
                         >
                             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={16} />}
                             Salvar Configurações
                         </button>
-                        {msg && <span className="text-sm text-green-400 font-medium">{msg}</span>}
+                        {msg && <span className="text-sm text-green-500 font-medium">{msg}</span>}
                     </div>
                 </div>
 
@@ -425,16 +429,16 @@ export default function LinkAgendamentoPage() {
                         </div>
 
                         {/* Labels pointing to preview */}
-                        <div className="absolute top-[170px] -left-16 text-xs font-medium text-gray-500 flex items-center gap-1">
-                            <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10">Logotipo</span>
-                            <span className="text-gray-700">→</span>
+                        <div className="absolute top-[170px] -left-16 text-xs font-medium flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                            <span className="px-2 py-0.5 rounded" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>Logotipo</span>
+                            <span style={{ color: 'var(--text-muted)' }}>→</span>
                         </div>
                         <div className="absolute top-[255px] -left-10 text-xs font-medium flex items-center gap-1">
                             <span className="px-2 py-0.5 rounded text-white" style={{ backgroundColor: config.cor1 }}>Cor 1</span>
-                            <span className="text-gray-700">→</span>
+                            <span style={{ color: 'var(--text-muted)' }}>→</span>
                         </div>
                         <div className="absolute top-[255px] -right-10 text-xs font-medium flex items-center gap-1">
-                            <span className="text-gray-700">←</span>
+                            <span style={{ color: 'var(--text-muted)' }}>←</span>
                             <span className="px-2 py-0.5 rounded text-white" style={{ backgroundColor: config.cor2 }}>Cor 2</span>
                         </div>
                     </div>

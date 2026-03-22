@@ -87,7 +87,7 @@ export default function FeriasPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin" size={24} />
+                <Loader2 className="animate-spin text-[#D99773]" size={24} />
             </div>
         )
     }
@@ -97,8 +97,8 @@ export default function FeriasPage() {
             <div className="flex items-center gap-3 mb-6">
                 <Palmtree size={28} className="text-amber-500" />
                 <div>
-                    <h1 className="text-2xl font-bold">Modo Férias</h1>
-                    <p className="text-sm opacity-60">Gerencie seus períodos de ausência e folgas</p>
+                    <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Modo Férias</h1>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Gerencie seus períodos de ausência e folgas</p>
                 </div>
             </div>
 
@@ -109,56 +109,52 @@ export default function FeriasPage() {
                         <CalendarOff size={20} className="text-amber-500" />
                         <span className="font-medium text-amber-400">Você está em período de férias agora</span>
                     </div>
-                    <p className="text-sm opacity-60 mt-1">
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
                         A IARA não agendará pacientes para você durante este período.
                     </p>
                 </div>
             )}
 
             {/* Adicionar nova ausência */}
-            <div className="rounded-xl p-5 mb-6" style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <h2 className="font-semibold mb-4 flex items-center gap-2">
+            <div className="glass-card p-5 mb-6">
+                <h2 className="font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                     <Plus size={18} />
                     Adicionar período de ausência
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                     <div>
-                        <label className="text-xs opacity-60 mb-1 block">Data início</label>
+                        <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Data início</label>
                         <input
                             type="date"
                             value={novaInicio}
                             onChange={e => setNovaInicio(e.target.value)}
-                            className="w-full px-3 py-2.5 rounded-lg text-sm"
-                            style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                            className="input-field"
                         />
                     </div>
                     <div>
-                        <label className="text-xs opacity-60 mb-1 block">Data fim</label>
+                        <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Data fim</label>
                         <input
                             type="date"
                             value={novaFim}
                             onChange={e => setNovaFim(e.target.value)}
-                            className="w-full px-3 py-2.5 rounded-lg text-sm"
-                            style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                            className="input-field"
                         />
                     </div>
                 </div>
                 <div className="mb-3">
-                    <label className="text-xs opacity-60 mb-1 block">Motivo (opcional)</label>
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Motivo (opcional)</label>
                     <input
                         type="text"
                         value={novaMotivo}
                         onChange={e => setNovaMotivo(e.target.value)}
                         placeholder="Férias, congresso, folga..."
-                        className="w-full px-3 py-2.5 rounded-lg text-sm"
-                        style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                        className="input-field"
                     />
                 </div>
                 <button
                     onClick={adicionarAusencia}
                     disabled={saving}
-                    className="px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2"
-                    style={{ backgroundColor: '#d4a853', color: '#1a1a2e' }}
+                    className="btn-primary flex items-center gap-2 text-sm"
                 >
                     {saving ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
                     Adicionar
@@ -168,7 +164,7 @@ export default function FeriasPage() {
             {/* Ausências futuras / ativas */}
             {ausenciasFuturas.length > 0 && (
                 <div className="mb-6">
-                    <h3 className="text-sm font-semibold opacity-60 uppercase tracking-wider mb-3">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
                         Próximas ausências
                     </h3>
                     <div className="space-y-2">
@@ -178,17 +174,17 @@ export default function FeriasPage() {
                             return (
                                 <div
                                     key={i}
-                                    className="flex items-center justify-between p-3 rounded-lg"
-                                    style={{
-                                        backgroundColor: ativa ? 'rgba(212,168,83,0.1)' : 'rgba(255,255,255,0.03)',
-                                        border: `1px solid ${ativa ? 'rgba(212,168,83,0.3)' : 'rgba(255,255,255,0.06)'}`
-                                    }}
+                                    className={`flex items-center justify-between p-3 rounded-lg ${ativa ? '' : 'glass-card'}`}
+                                    style={ativa ? {
+                                        backgroundColor: 'rgba(212,168,83,0.1)',
+                                        border: '1px solid rgba(212,168,83,0.3)'
+                                    } : {}}
                                 >
                                     <div>
-                                        <span className="text-sm font-medium">
+                                        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                                             {new Date(a.inicio + 'T12:00:00').toLocaleDateString('pt-BR')} → {new Date(a.fim + 'T12:00:00').toLocaleDateString('pt-BR')}
                                         </span>
-                                        {a.motivo && <span className="text-xs opacity-50 ml-2">({a.motivo})</span>}
+                                        {a.motivo && <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>({a.motivo})</span>}
                                         {ativa && <span className="text-xs text-amber-400 ml-2 font-medium">• ATIVA</span>}
                                     </div>
                                     <button
@@ -207,7 +203,7 @@ export default function FeriasPage() {
             {/* Ausências passadas */}
             {ausenciasPassadas.length > 0 && (
                 <div className="opacity-40">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider mb-3">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
                         Ausências passadas
                     </h3>
                     <div className="space-y-2">
@@ -216,14 +212,13 @@ export default function FeriasPage() {
                             return (
                                 <div
                                     key={i}
-                                    className="flex items-center justify-between p-3 rounded-lg"
-                                    style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}
+                                    className="glass-card flex items-center justify-between p-3 rounded-lg"
                                 >
                                     <div>
-                                        <span className="text-sm">
+                                        <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
                                             {new Date(a.inicio + 'T12:00:00').toLocaleDateString('pt-BR')} → {new Date(a.fim + 'T12:00:00').toLocaleDateString('pt-BR')}
                                         </span>
-                                        {a.motivo && <span className="text-xs opacity-50 ml-2">({a.motivo})</span>}
+                                        {a.motivo && <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>({a.motivo})</span>}
                                     </div>
                                     <button
                                         onClick={() => removerAusencia(originalIndex)}
@@ -239,7 +234,7 @@ export default function FeriasPage() {
             )}
 
             {ausencias.length === 0 && (
-                <div className="text-center py-12 opacity-40">
+                <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
                     <Palmtree size={48} className="mx-auto mb-3" />
                     <p>Nenhuma ausência cadastrada</p>
                     <p className="text-sm mt-1">Adicione períodos de férias ou folgas acima</p>

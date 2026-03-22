@@ -185,7 +185,7 @@ function MeuPerfilContent() {
     )
 
     if (!prof) return (
-        <div className="flex items-center justify-center h-screen text-gray-400">
+        <div className="flex items-center justify-center h-screen" style={{ color: 'var(--text-muted)' }}>
             Profissional não encontrado
         </div>
     )
@@ -198,8 +198,8 @@ function MeuPerfilContent() {
                     <User className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Meu Perfil</h1>
-                    <p className="text-sm text-gray-400">{prof.nomeClinica}</p>
+                    <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Meu Perfil</h1>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{prof.nomeClinica}</p>
                 </div>
             </div>
 
@@ -219,12 +219,12 @@ function MeuPerfilContent() {
                 <div className="rounded-2xl border border-[#D99773]/20 bg-[#D99773]/5 p-6 space-y-4">
                     <div className="flex items-center gap-3">
                         <Key className="w-5 h-5 text-[#D99773]" />
-                        <h2 className="text-lg font-semibold text-white">
+                        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
                             {prof.temSenha ? 'Alterar Senha' : '🔑 Crie sua Senha'}
                         </h2>
                     </div>
                     {!prof.temSenha && (
-                        <p className="text-sm text-gray-400">Bem-vinda! Crie uma senha para acessar seu painel.</p>
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Bem-vinda! Crie uma senha para acessar seu painel.</p>
                     )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -233,21 +233,21 @@ function MeuPerfilContent() {
                             placeholder="Nova senha (min. 6 caracteres)"
                             value={novaSenha}
                             onChange={e => setNovaSenha(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none"
+                            className="input-field"
                         />
                         <input
                             type="password"
                             placeholder="Confirmar senha"
                             value={confirmarSenha}
                             onChange={e => setConfirmarSenha(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none"
+                            className="input-field"
                         />
                     </div>
 
                     <button
                         onClick={handleSalvarSenha}
                         disabled={saving || novaSenha.length < 6}
-                        className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#D99773] to-[#C07A55] text-white font-medium text-sm disabled:opacity-40 hover:scale-[1.02] transition-all"
+                        className="btn-primary"
                     >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin inline mr-2" /> : null}
                         Salvar Senha
@@ -255,11 +255,11 @@ function MeuPerfilContent() {
 
                     {/* Aceitar termos */}
                     {!prof.termosAceitos && (
-                        <div className="pt-4 border-t border-white/10 space-y-3">
+                        <div className="pt-4 space-y-3" style={{ borderTop: '1px solid var(--border-default)' }}>
                             <div className="flex items-start gap-3">
                                 <FileText className="w-5 h-5 text-[#D99773] mt-0.5" />
-                                <div className="text-sm text-gray-300 space-y-2">
-                                    <p className="font-medium text-white">Termos de Uso</p>
+                                <div className="text-sm space-y-2" style={{ color: 'var(--text-secondary)' }}>
+                                    <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Termos de Uso</p>
                                     <p>Ao utilizar o painel, você concorda com os nossos termos de uso e política de privacidade.
                                         Seus dados são protegidos e utilizados exclusivamente para operação do sistema da clínica.</p>
                                 </div>
@@ -267,7 +267,7 @@ function MeuPerfilContent() {
                             <button
                                 onClick={handleAceitarTermos}
                                 disabled={aceitandoTermos}
-                                className="px-6 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white font-medium text-sm hover:bg-white/15 transition-all"
+                                className="btn-secondary"
                             >
                                 {aceitandoTermos ? <Loader2 className="w-4 h-4 animate-spin inline mr-2" /> : null}
                                 ✅ Li e aceito os termos
@@ -278,11 +278,11 @@ function MeuPerfilContent() {
             )}
 
             {/* ─── 2. Disclaimer Pós-Procedimento ─── */}
-            <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6 space-y-4">
+            <div className="glass-card p-6 space-y-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Shield className="w-5 h-5 text-[#D99773]" />
-                        <h2 className="text-lg font-semibold text-white">Pós-Procedimento</h2>
+                        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Pós-Procedimento</h2>
                     </div>
                     {prof.disclaimerPosAceito ? (
                         <span className="text-xs font-medium px-3 py-1 rounded-full bg-green-500/10 text-green-400">
@@ -295,7 +295,7 @@ function MeuPerfilContent() {
                     )}
                 </div>
 
-                <p className="text-sm text-gray-400">
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                     Para cadastrar orientações de pós-procedimento, é necessário aceitar o disclaimer de responsabilidade técnica.
                     Isso garante que as orientações fornecidas pela IARA aos seus pacientes são de sua responsabilidade.
                 </p>
@@ -328,14 +328,14 @@ function MeuPerfilContent() {
                                 placeholder="Nome completo"
                                 value={disclaimerNome}
                                 onChange={e => setDisclaimerNome(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-amber-500/40 focus:outline-none"
+                                className="input-field"
                             />
                             <input
                                 type="text"
                                 placeholder="Registro profissional (CRM, CREFITO...)"
                                 value={disclaimerReg}
                                 onChange={e => setDisclaimerReg(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-amber-500/40 focus:outline-none"
+                                className="input-field"
                             />
                         </div>
 
@@ -350,7 +350,7 @@ function MeuPerfilContent() {
                             </button>
                             <button
                                 onClick={() => setShowDisclaimer(false)}
-                                className="px-6 py-2.5 rounded-xl bg-white/5 text-gray-400 font-medium text-sm hover:bg-white/10 transition-all"
+                                className="btn-secondary"
                             >
                                 Cancelar
                             </button>
@@ -360,106 +360,106 @@ function MeuPerfilContent() {
             </div>
 
             {/* ─── 3. Dados do Perfil ─── */}
-            <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6 space-y-5">
+            <div className="glass-card p-6 space-y-5">
                 <div className="flex items-center gap-3 mb-2">
                     <Stethoscope className="w-5 h-5 text-[#D99773]" />
-                    <h2 className="text-lg font-semibold text-white">Informações Pessoais</h2>
+                    <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Informações Pessoais</h2>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="text-xs text-gray-400 mb-1 block">Nome</label>
+                        <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Nome</label>
                         <input
                             type="text"
                             value={editData.nome || ''}
                             onChange={e => setEditData(d => ({ ...d, nome: e.target.value }))}
-                            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none"
+                            className="input-field"
                         />
                     </div>
                     <div>
-                        <label className="text-xs text-gray-400 mb-1 block">Tratamento</label>
+                        <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Tratamento</label>
                         <input
                             type="text"
                             placeholder="Dra., Dr., Fisio..."
                             value={editData.tratamento || ''}
                             onChange={e => setEditData(d => ({ ...d, tratamento: e.target.value }))}
-                            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none"
+                            className="input-field"
                         />
                     </div>
                     <div>
-                        <label className="text-xs text-gray-400 mb-1 block flex items-center gap-1"><Mail size={12} /> Email</label>
+                        <label className="text-xs mb-1 block flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Mail size={12} /> Email</label>
                         <input
                             type="email"
                             value={prof.email}
                             disabled
-                            className="w-full px-4 py-3 rounded-xl bg-white/3 border border-white/5 text-gray-500 cursor-not-allowed"
+                            className="input-field opacity-50 cursor-not-allowed"
                         />
                     </div>
                     <div>
-                        <label className="text-xs text-gray-400 mb-1 block flex items-center gap-1"><Phone size={12} /> WhatsApp</label>
+                        <label className="text-xs mb-1 block flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Phone size={12} /> WhatsApp</label>
                         <input
                             type="text"
                             value={editData.whatsapp || ''}
                             onChange={e => setEditData(d => ({ ...d, whatsapp: e.target.value }))}
-                            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none"
+                            className="input-field"
                         />
                     </div>
                     <div className="md:col-span-2">
-                        <label className="text-xs text-gray-400 mb-1 block">Especialidade</label>
+                        <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Especialidade</label>
                         <input
                             type="text"
                             value={editData.especialidade || ''}
                             onChange={e => setEditData(d => ({ ...d, especialidade: e.target.value }))}
-                            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none"
+                            className="input-field"
                         />
                     </div>
                     <div className="md:col-span-2">
-                        <label className="text-xs text-gray-400 mb-1 block">Bio</label>
+                        <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Bio</label>
                         <textarea
                             rows={3}
                             value={editData.bio || ''}
                             onChange={e => setEditData(d => ({ ...d, bio: e.target.value }))}
-                            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none resize-none"
+                            className="input-field resize-none"
                         />
                     </div>
                 </div>
             </div>
 
             {/* ─── 4. Horários ─── */}
-            <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6 space-y-5">
+            <div className="glass-card p-6 space-y-5">
                 <div className="flex items-center gap-3 mb-2">
                     <Clock className="w-5 h-5 text-[#D99773]" />
-                    <h2 className="text-lg font-semibold text-white">Horários</h2>
+                    <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Horários</h2>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="text-xs text-gray-400 mb-1 block">Horário Semana</label>
+                        <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Horário Semana</label>
                         <input
                             type="text"
                             placeholder="08:00 - 18:00"
                             value={editData.horarioSemana || ''}
                             onChange={e => setEditData(d => ({ ...d, horarioSemana: e.target.value }))}
-                            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none"
+                            className="input-field"
                         />
                     </div>
                     <div>
-                        <label className="text-xs text-gray-400 mb-1 block">Almoço Semana</label>
+                        <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Almoço Semana</label>
                         <input
                             type="text"
                             placeholder="12:00 - 13:00"
                             value={editData.almocoSemana || ''}
                             onChange={e => setEditData(d => ({ ...d, almocoSemana: e.target.value }))}
-                            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none"
+                            className="input-field"
                         />
                     </div>
                     <div>
-                        <label className="text-xs text-gray-400 mb-1 block">Intervalo Atendimento (min)</label>
+                        <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Intervalo Atendimento (min)</label>
                         <input
                             type="number"
                             value={editData.intervaloAtendimento || 30}
                             onChange={e => setEditData(d => ({ ...d, intervaloAtendimento: Number(e.target.value) }))}
-                            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 focus:border-[#D99773]/40 focus:outline-none"
+                            className="input-field"
                         />
                     </div>
                 </div>
@@ -470,7 +470,7 @@ function MeuPerfilContent() {
                 <button
                     onClick={handleSalvarPerfil}
                     disabled={saving}
-                    className="px-8 py-3 rounded-xl bg-gradient-to-r from-[#D99773] to-[#C07A55] text-white font-semibold text-sm shadow-lg shadow-[#D99773]/20 hover:scale-[1.02] transition-all disabled:opacity-40 flex items-center gap-2"
+                    className="btn-primary flex items-center gap-2"
                 >
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={16} />}
                     Salvar Perfil
