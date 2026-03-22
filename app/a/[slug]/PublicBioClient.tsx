@@ -32,6 +32,7 @@ type ActiveTab = 'inicio' | 'reservas' | 'agendar' | 'mais'
 interface Props {
     profissionalId: string
     clinicaId: number
+    plano?: string
     nome: string
     tratamento: string | null
     especialidade: string | null
@@ -51,7 +52,7 @@ interface Props {
 }
 
 export default function PublicBioClient({
-    profissionalId, clinicaId,
+    profissionalId, clinicaId, plano = '1',
     nome, tratamento, especialidade, bio, fotoUrl, whatsapp,
     linkConfig, nomeClinica, procedimentos, cursos, combos, promocoes
 }: Props) {
@@ -126,8 +127,10 @@ export default function PublicBioClient({
         } catch (e) { setBookingStatus('error') }
     }
 
+    const hasAccessToBooking = Number(plano || 1) >= 2;
+
     const openBookingFlow = () => {
-        if (procedimentos.length > 0) {
+        if (hasAccessToBooking && procedimentos.length > 0) {
             setActiveTab('agendar')
         } else if (whatsappLink) {
             window.open(whatsappLink, '_blank')
@@ -163,8 +166,8 @@ export default function PublicBioClient({
                     className="flex-1 py-3.5 rounded-xl flex flex-col items-center gap-1 text-sm font-bold shadow-sm transition-all active:scale-95"
                     style={{ backgroundColor: cor1, color: corTexto1 }}
                 >
-                    <Plus size={20} />
-                    AGENDAR
+                    {hasAccessToBooking ? <Plus size={20} /> : <MessageCircle size={20} />}
+                    {hasAccessToBooking ? 'AGENDAR' : 'WHATSAPP'}
                 </button>
                 <button
                     onClick={() => setActiveTab('reservas')}
@@ -493,8 +496,8 @@ export default function PublicBioClient({
                     <span className="text-[10px] font-medium">RESERVAS</span>
                 </button>
                 <button onClick={() => openBookingFlow()} className="flex flex-col items-center gap-0.5" style={{ color: cor1 }}>
-                    <Plus size={20} />
-                    <span className="text-[10px] font-bold">AGENDAR</span>
+                    {hasAccessToBooking ? <Plus size={20} /> : <MessageCircle size={20} />}
+                    <span className="text-[10px] font-bold">{hasAccessToBooking ? 'AGENDAR' : 'WHATSAPP'}</span>
                 </button>
                 <button onClick={() => setActiveTab('mais')} className={`flex flex-col items-center gap-0.5 transition-colors ${activeTab === 'mais' ? 'text-gray-900' : 'text-gray-400'}`}>
                     <MoreHorizontal size={20} />

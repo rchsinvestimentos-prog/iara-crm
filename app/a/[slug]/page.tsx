@@ -16,7 +16,7 @@ export default async function PublicBookingPage({ params }: PageProps) {
             p.horario_semana, p.almoco_semana, p.atende_sabado, p.horario_sabado,
             p.atende_domingo, p.horario_domingo, p.intervalo_atendimento,
             p.link_config, p.whatsapp,
-            c.nome_clinica, c.nome as nome_doutora
+            c.nome_clinica, c.nome as nome_doutora, c.plano
         FROM profissionais p
         LEFT JOIN users c ON c.id = p.clinica_id
         WHERE p.ativo = true
@@ -89,6 +89,7 @@ export default async function PublicBookingPage({ params }: PageProps) {
         <PublicBioClient
             profissionalId={prof.id}
             clinicaId={prof.clinica_id || 0}
+            plano={prof.plano}
             nome={prof.nome}
             tratamento={prof.tratamento}
             especialidade={prof.especialidade}
