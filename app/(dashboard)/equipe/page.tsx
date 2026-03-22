@@ -2,6 +2,20 @@
 
 import { useState, useEffect } from 'react'
 
+// ==================== Helpers de Horário ====================
+function splitTime(value: string): [string, string] {
+    if (!value) return ['', '']
+    const m = value.match(/(\d{2}:\d{2})\s*(?:às|até|ate|as|-|a)\s*(\d{2}:\d{2})/i)
+    if (m) return [m[1], m[2]]
+    const single = value.match(/(\d{2}:\d{2})/)
+    if (single) return [single[1], '']
+    return ['', '']
+}
+function joinTime(start: string, end: string): string {
+    if (!start && !end) return ''
+    return `${start} às ${end}`
+}
+
 // ========== Types ==========
 
 interface Procedimento {
@@ -607,16 +621,30 @@ export default function ProfissionaisPage() {
                     <Section title="⏰ Horários de Atendimento" onSave={() => salvarDados(false)} saving={saving}>
                         <span style={hintStyle}>Se não preencher, usará os horários da clínica</span>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
-                            <div><label style={labelStyle}>Semana</label><input value={horarioSemana} onChange={e => setHorarioSemana(e.target.value)} placeholder="08:00 às 18:00" style={inputStyle} /></div>
-                            <div><label style={labelStyle}>Almoço</label><input value={almocoSemana} onChange={e => setAlmocoSemana(e.target.value)} placeholder="12:00 às 13:00" style={inputStyle} /></div>
+                            <div>
+                                <label style={labelStyle}>Semana</label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <input type="time" value={splitTime(horarioSemana)[0]} onChange={e => setHorarioSemana(joinTime(e.target.value, splitTime(horarioSemana)[1]))} style={{ ...inputStyle, flex: 1 }} />
+                                    <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>às</span>
+                                    <input type="time" value={splitTime(horarioSemana)[1]} onChange={e => setHorarioSemana(joinTime(splitTime(horarioSemana)[0], e.target.value))} style={{ ...inputStyle, flex: 1 }} />
+                                </div>
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Almoço</label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <input type="time" value={splitTime(almocoSemana)[0]} onChange={e => setAlmocoSemana(joinTime(e.target.value, splitTime(almocoSemana)[1]))} style={{ ...inputStyle, flex: 1 }} />
+                                    <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>às</span>
+                                    <input type="time" value={splitTime(almocoSemana)[1]} onChange={e => setAlmocoSemana(joinTime(splitTime(almocoSemana)[0], e.target.value))} style={{ ...inputStyle, flex: 1 }} />
+                                </div>
+                            </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12 }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#475569', cursor: 'pointer' }}><input type="checkbox" checked={atendeSabado} onChange={e => setAtendeSabado(e.target.checked)} /> Sábado</label>
-                            {atendeSabado && <input value={horarioSabado} onChange={e => setHorarioSabado(e.target.value)} placeholder="08:00 às 12:00" style={{ ...inputStyle, width: 160 }} />}
+                            {atendeSabado && <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><input type="time" value={splitTime(horarioSabado)[0]} onChange={e => setHorarioSabado(joinTime(e.target.value, splitTime(horarioSabado)[1]))} style={{ ...inputStyle, width: 110 }} /><span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>às</span><input type="time" value={splitTime(horarioSabado)[1]} onChange={e => setHorarioSabado(joinTime(splitTime(horarioSabado)[0], e.target.value))} style={{ ...inputStyle, width: 110 }} /></div>}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 8 }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#475569', cursor: 'pointer' }}><input type="checkbox" checked={atendeDomingo} onChange={e => setAtendeDomingo(e.target.checked)} /> Domingo</label>
-                            {atendeDomingo && <input value={horarioDomingo} onChange={e => setHorarioDomingo(e.target.value)} placeholder="08:00 às 12:00" style={{ ...inputStyle, width: 160 }} />}
+                            {atendeDomingo && <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><input type="time" value={splitTime(horarioDomingo)[0]} onChange={e => setHorarioDomingo(joinTime(e.target.value, splitTime(horarioDomingo)[1]))} style={{ ...inputStyle, width: 110 }} /><span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>às</span><input type="time" value={splitTime(horarioDomingo)[1]} onChange={e => setHorarioDomingo(joinTime(splitTime(horarioDomingo)[0], e.target.value))} style={{ ...inputStyle, width: 110 }} /></div>}
                         </div>
                         <div style={{ marginTop: 12 }}><label style={labelStyle}>Intervalo entre consultas (min)</label><input type="number" value={intervaloAtendimento} onChange={e => setIntervaloAtendimento(Number(e.target.value))} min={5} max={120} style={{ ...inputStyle, width: 100 }} /></div>
                     </Section>

@@ -113,6 +113,21 @@ interface ClinicaData {
     mensagemBoasVindas: string | null
 }
 
+// ==================== Helpers de Horário ====================
+function splitTime(value: string): [string, string] {
+    if (!value) return ['', '']
+    const m = value.match(/(\d{2}:\d{2})\s*(?:às|até|ate|as|-|a)\s*(\d{2}:\d{2})/i)
+    if (m) return [m[1], m[2]]
+    // fallback: se só tem um horário, coloca no início
+    const single = value.match(/(\d{2}:\d{2})/)
+    if (single) return [single[1], '']
+    return ['', '']
+}
+function joinTime(start: string, end: string): string {
+    if (!start && !end) return ''
+    return `${start} às ${end}`
+}
+
 // ==================== Componente ====================
 
 export default function ConfiguracoesTool() {
@@ -1247,11 +1262,19 @@ export default function ConfiguracoesTool() {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="text-[10px] block mb-1" style={{ color: 'var(--text-muted)' }}>Horário</label>
-                                <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={horarioSemana} onChange={(e) => setHorarioSemana(e.target.value)} placeholder="08:00 às 18:00" />
+                                <div className="flex items-center gap-1.5">
+                                    <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(horarioSemana)[0]} onChange={(e) => setHorarioSemana(joinTime(e.target.value, splitTime(horarioSemana)[1]))} />
+                                    <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>às</span>
+                                    <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(horarioSemana)[1]} onChange={(e) => setHorarioSemana(joinTime(splitTime(horarioSemana)[0], e.target.value))} />
+                                </div>
                             </div>
                             <div>
                                 <label className="text-[10px] block mb-1" style={{ color: 'var(--text-muted)' }}>Almoço</label>
-                                <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={almocoSemana} onChange={(e) => setAlmocoSemana(e.target.value)} placeholder="12:00 às 13:00" />
+                                <div className="flex items-center gap-1.5">
+                                    <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(almocoSemana)[0]} onChange={(e) => setAlmocoSemana(joinTime(e.target.value, splitTime(almocoSemana)[1]))} />
+                                    <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>às</span>
+                                    <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(almocoSemana)[1]} onChange={(e) => setAlmocoSemana(joinTime(splitTime(almocoSemana)[0], e.target.value))} />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1268,11 +1291,19 @@ export default function ConfiguracoesTool() {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="text-[10px] block mb-1" style={{ color: 'var(--text-muted)' }}>Horário</label>
-                                    <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={horarioSabado} onChange={(e) => setHorarioSabado(e.target.value)} placeholder="08:00 às 12:00" />
+                                    <div className="flex items-center gap-1.5">
+                                        <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(horarioSabado)[0]} onChange={(e) => setHorarioSabado(joinTime(e.target.value, splitTime(horarioSabado)[1]))} />
+                                        <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>às</span>
+                                        <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(horarioSabado)[1]} onChange={(e) => setHorarioSabado(joinTime(splitTime(horarioSabado)[0], e.target.value))} />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="text-[10px] block mb-1" style={{ color: 'var(--text-muted)' }}>Almoço</label>
-                                    <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={almocoSabado} onChange={(e) => setAlmocoSabado(e.target.value)} placeholder="Sem almoço" />
+                                    <div className="flex items-center gap-1.5">
+                                        <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(almocoSabado)[0]} onChange={(e) => setAlmocoSabado(joinTime(e.target.value, splitTime(almocoSabado)[1]))} />
+                                        <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>às</span>
+                                        <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(almocoSabado)[1]} onChange={(e) => setAlmocoSabado(joinTime(splitTime(almocoSabado)[0], e.target.value))} />
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -1290,11 +1321,19 @@ export default function ConfiguracoesTool() {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="text-[10px] block mb-1" style={{ color: 'var(--text-muted)' }}>Horário</label>
-                                    <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={horarioDomingo} onChange={(e) => setHorarioDomingo(e.target.value)} placeholder="08:00 às 12:00" />
+                                    <div className="flex items-center gap-1.5">
+                                        <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(horarioDomingo)[0]} onChange={(e) => setHorarioDomingo(joinTime(e.target.value, splitTime(horarioDomingo)[1]))} />
+                                        <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>às</span>
+                                        <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(horarioDomingo)[1]} onChange={(e) => setHorarioDomingo(joinTime(splitTime(horarioDomingo)[0], e.target.value))} />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="text-[10px] block mb-1" style={{ color: 'var(--text-muted)' }}>Almoço</label>
-                                    <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={almocoDomingo} onChange={(e) => setAlmocoDomingo(e.target.value)} placeholder="Sem almoço" />
+                                    <div className="flex items-center gap-1.5">
+                                        <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(almocoDomingo)[0]} onChange={(e) => setAlmocoDomingo(joinTime(e.target.value, splitTime(almocoDomingo)[1]))} />
+                                        <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>às</span>
+                                        <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(almocoDomingo)[1]} onChange={(e) => setAlmocoDomingo(joinTime(splitTime(almocoDomingo)[0], e.target.value))} />
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -1312,11 +1351,19 @@ export default function ConfiguracoesTool() {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="text-[10px] block mb-1" style={{ color: 'var(--text-muted)' }}>Horário</label>
-                                    <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={horarioFeriado} onChange={(e) => setHorarioFeriado(e.target.value)} placeholder="08:00 às 12:00" />
+                                    <div className="flex items-center gap-1.5">
+                                        <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(horarioFeriado)[0]} onChange={(e) => setHorarioFeriado(joinTime(e.target.value, splitTime(horarioFeriado)[1]))} />
+                                        <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>às</span>
+                                        <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(horarioFeriado)[1]} onChange={(e) => setHorarioFeriado(joinTime(splitTime(horarioFeriado)[0], e.target.value))} />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="text-[10px] block mb-1" style={{ color: 'var(--text-muted)' }}>Almoço</label>
-                                    <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={almocoFeriado} onChange={(e) => setAlmocoFeriado(e.target.value)} placeholder="Sem almoço" />
+                                    <div className="flex items-center gap-1.5">
+                                        <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(almocoFeriado)[0]} onChange={(e) => setAlmocoFeriado(joinTime(e.target.value, splitTime(almocoFeriado)[1]))} />
+                                        <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>às</span>
+                                        <input type="time" className="flex-1 px-2 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={splitTime(almocoFeriado)[1]} onChange={(e) => setAlmocoFeriado(joinTime(splitTime(almocoFeriado)[0], e.target.value))} />
+                                    </div>
                                 </div>
                             </div>
                         )}

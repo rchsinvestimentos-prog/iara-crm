@@ -3,6 +3,20 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
+
+// ==================== Helpers de Horário ====================
+function splitTime(value: string): [string, string] {
+    if (!value) return ['', '']
+    const m = value.match(/(\d{2}:\d{2})\s*(?:às|até|ate|as|-|a)\s*(\d{2}:\d{2})/i)
+    if (m) return [m[1], m[2]]
+    const single = value.match(/(\d{2}:\d{2})/)
+    if (single) return [single[1], '']
+    return ['', '']
+}
+function joinTime(start: string, end: string): string {
+    if (!start && !end) return ''
+    return `${start} às ${end}`
+}
 import {
     User, Mail, Phone, Stethoscope, Clock, Key, FileText,
     Save, AlertTriangle, CheckCircle2, Loader2, Shield
@@ -435,23 +449,39 @@ function MeuPerfilContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Horário Semana</label>
-                        <input
-                            type="text"
-                            placeholder="08:00 - 18:00"
-                            value={editData.horarioSemana || ''}
-                            onChange={e => setEditData(d => ({ ...d, horarioSemana: e.target.value }))}
-                            className="input-field"
-                        />
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="time"
+                                value={splitTime(editData.horarioSemana || '')[0]}
+                                onChange={e => setEditData(d => ({ ...d, horarioSemana: joinTime(e.target.value, splitTime(d.horarioSemana || '')[1]) }))}
+                                className="input-field flex-1"
+                            />
+                            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>às</span>
+                            <input
+                                type="time"
+                                value={splitTime(editData.horarioSemana || '')[1]}
+                                onChange={e => setEditData(d => ({ ...d, horarioSemana: joinTime(splitTime(d.horarioSemana || '')[0], e.target.value) }))}
+                                className="input-field flex-1"
+                            />
+                        </div>
                     </div>
                     <div>
                         <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Almoço Semana</label>
-                        <input
-                            type="text"
-                            placeholder="12:00 - 13:00"
-                            value={editData.almocoSemana || ''}
-                            onChange={e => setEditData(d => ({ ...d, almocoSemana: e.target.value }))}
-                            className="input-field"
-                        />
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="time"
+                                value={splitTime(editData.almocoSemana || '')[0]}
+                                onChange={e => setEditData(d => ({ ...d, almocoSemana: joinTime(e.target.value, splitTime(d.almocoSemana || '')[1]) }))}
+                                className="input-field flex-1"
+                            />
+                            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>às</span>
+                            <input
+                                type="time"
+                                value={splitTime(editData.almocoSemana || '')[1]}
+                                onChange={e => setEditData(d => ({ ...d, almocoSemana: joinTime(splitTime(d.almocoSemana || '')[0], e.target.value) }))}
+                                className="input-field flex-1"
+                            />
+                        </div>
                     </div>
                     <div>
                         <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Intervalo Atendimento (min)</label>
