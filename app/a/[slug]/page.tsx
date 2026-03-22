@@ -3,11 +3,11 @@ import { notFound } from 'next/navigation'
 import PublicBioClient from './PublicBioClient'
 
 interface PageProps {
-    params: { slug: string }
+    params: Promise<{ slug: string }>
 }
 
 export default async function PublicBookingPage({ params }: PageProps) {
-    const { slug } = params
+    const { slug } = await params
 
     // Buscar profissional pelo slug
     const profs = await prisma.$queryRawUnsafe<any[]>(`
