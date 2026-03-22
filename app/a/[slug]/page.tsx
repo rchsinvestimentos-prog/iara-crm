@@ -87,6 +87,8 @@ export default async function PublicBookingPage({ params }: PageProps) {
 
     return (
         <PublicBioClient
+            profissionalId={prof.id}
+            clinicaId={prof.clinica_id || 0}
             nome={prof.nome}
             tratamento={prof.tratamento}
             especialidade={prof.especialidade}
