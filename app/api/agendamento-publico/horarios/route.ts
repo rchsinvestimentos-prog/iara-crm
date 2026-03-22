@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 // Helper para converter "08:00 às 18:00" em { inicioHora, inicioMinuto, fimHora, fimMinuto }
 export function parseHorariosString(texto: string | null) {
   if (!texto) return null
-  const match = texto.match(/(\d{2}):(\d{2})\s*(?:às|-|a)\s*(\d{2}):(\d{2})/i)
+  const match = texto.match(/(\d{2}):(\d{2})\s*(?:às|até|ate|as|-|a)\s*(\d{2}):(\d{2})/i)
   if (!match) return null
 
   return {
