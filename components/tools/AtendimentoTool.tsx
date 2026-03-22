@@ -32,6 +32,9 @@ export default function AtendimentoTool() {
     // UI states
     const [simOpen, setSimOpen] = useState(false)
 
+    // Tipo de usuário (clinica ou profissional)
+    const [userType, setUserType] = useState<'clinica' | 'profissional'>('clinica')
+
     // Personalidade
     const [nomeIA, setNomeIA] = useState('')
     const [humor, setHumor] = useState('amigavel')
@@ -70,6 +73,7 @@ export default function AtendimentoTool() {
             if (res.ok) {
                 const data = await res.json()
                 setNomeIA(data.nomeAssistente || data.nomeIA || 'IARA')
+                if (data.userType) setUserType(data.userType)
                 setHumor(data.humor || 'amigavel')
                 setTom(data.tomAtendimento || 'informal')
                 setEmojis(data.emojis || 'moderado')
@@ -290,6 +294,8 @@ export default function AtendimentoTool() {
             </div>
 
             {/* ============ HORÁRIO DE OPERAÇÃO DA IARA ============ */}
+            {/* Somente a dona da clínica pode ativar/desativar a IARA */}
+            {userType !== 'profissional' && (
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
                     <Clock size={15} className="text-[#D99773]" />
@@ -383,6 +389,7 @@ export default function AtendimentoTool() {
                 )}
                 <BotaoSalvarBloco blocoId="horario" dados={{ sempreLigada, horarioInicio, horarioFim, diasAtendimento: JSON.stringify(diasAtendimento), mensagemForaHorario }} label="Salvar Horário" />
             </div>
+            )}
 
             {/* ============ PERSONALIDADE ============ */}
             {modoIA === 'secretaria' && (

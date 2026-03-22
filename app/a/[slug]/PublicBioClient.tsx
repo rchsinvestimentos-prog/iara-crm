@@ -127,7 +127,10 @@ export default function PublicBioClient({
         } catch (e) { setBookingStatus('error') }
     }
 
-    const hasAccessToBooking = Number(plano || 1) >= 2;
+    // plano null/undefined = libera acesso (trial/teste)
+    // plano '1' = plano básico, sem agendamento online
+    // plano >= 2 = tem acesso
+    const hasAccessToBooking = !plano || Number(plano) >= 2;
 
     const openBookingFlow = () => {
         if (hasAccessToBooking && procedimentos.length > 0) {

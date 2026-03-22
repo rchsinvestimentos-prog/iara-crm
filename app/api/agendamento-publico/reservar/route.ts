@@ -61,6 +61,7 @@ export async function POST(req: Request) {
       horario,
       data,
       duracaoMin,
+      agendamentoId: novo.id,
     }).catch(err => console.error('[Reservar] Erro nas automações:', err))
 
     return NextResponse.json({ success: true, agendamento: novo })
@@ -85,12 +86,13 @@ interface AutomacaoParams {
   horario: string
   data: string // YYYY-MM-DD
   duracaoMin: number
+  agendamentoId: string
 }
 
 async function dispararAutomacoesAsync(params: AutomacaoParams) {
   const {
     clinicaId, profissionalId, nomePaciente, telefone,
-    procedimento, dataBR, horario, data, duracaoMin
+    procedimento, dataBR, horario, data, duracaoMin, agendamentoId
   } = params
 
   // Buscar dados da clínica
@@ -109,18 +111,14 @@ async function dispararAutomacoesAsync(params: AutomacaoParams) {
   // Buscar dados da profissional
   const profissional = await prisma.profissional.findUnique({
     where: { id: profissionalId },
-    select: {
-      nome: true,
-      whatsapp: true,
-      tratamento: true,
-    }
-  })
+  }) as any
 
   const instanceName = clinica?.evolutionInstance
   const nomeProfissional = profissional
     ? (profissional.tratamento ? `${profissional.tratamento} ${profissional.nome}` : profissional.nome)
     : 'Profissional'
   const tz = clinica?.timezone || 'America/Sao_Paulo'
+  const profSlug = (profissional?.linkConfig as any)?.slug || null
 
   // ─── A) Notificação WhatsApp para a CLÍNICA ───
   if (instanceName && clinica?.whatsappClinica) {
@@ -132,6 +130,8 @@ async function dispararAutomacoesAsync(params: AutomacaoParams) {
       `💉 *Procedimento:* ${procedimento}`,
       `🗓 *Data:* ${dataBR} às ${horario}`,
       `👩‍⚕️ *Profissional:* ${nomeProfissional}`,
+      ``,
+      profSlug ? `🔗 *Link de gerenciamento:* https://iara.click/a/${profSlug}/agendamento/${agendamentoId}` : '',
       ``,
       `_Agendamento feito pelo link público da ${clinica.nomeAssistente || 'IARA'}._`,
     ].join('\n')
@@ -156,6 +156,8 @@ async function dispararAutomacoesAsync(params: AutomacaoParams) {
         `📱 *Telefone:* ${telefone}`,
         `💉 *Procedimento:* ${procedimento}`,
         `🗓 *Data:* ${dataBR} às ${horario}`,
+        ``,
+        profSlug ? `🔗 *Remarcar/Cancelar:* https://iara.click/a/${profSlug}/agendamento/${agendamentoId}` : '',
         ``,
         `_Agendamento feito pelo seu link público._`,
       ].join('\n')

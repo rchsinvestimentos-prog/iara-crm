@@ -77,7 +77,8 @@ export async function GET() {
         }
 
         const { senha, ...safe } = clinica
-        return NextResponse.json(safe)
+        const userType = (session?.user as any)?.userType || 'clinica'
+        return NextResponse.json({ ...safe, userType })
     } catch {
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
     }
