@@ -583,6 +583,30 @@ export default function ConexoesPage() {
                                     {status.label}
                                 </div>
                             </div>
+                            {inst.status_conexao !== 'conectado' && (
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            const res = await fetch('/api/instagram/auth');
+                                            const data = await res.json();
+                                            if (data.authUrl) {
+                                                window.open(data.authUrl, '_blank');
+                                            } else {
+                                                alert(data.error || 'Erro ao iniciar conexão com Instagram');
+                                            }
+                                        } catch (e) {
+                                            console.error(e);
+                                            alert('Erro ao conectar Instagram');
+                                        }
+                                    }}
+                                    style={{
+                                        background: 'linear-gradient(135deg, #E1306C, #833AB4)',
+                                        color: '#fff', border: 'none', borderRadius: 12,
+                                        padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                                        whiteSpace: 'nowrap'
+                                    }}
+                                >📲 Conectar</button>
+                            )}
                             <button
                                 onClick={() => desconectar(inst.id, true)}
                                 style={{
@@ -590,7 +614,7 @@ export default function ConexoesPage() {
                                     borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
                                     fontSize: 13, color: '#94a3b8'
                                 }}
-                                title="Desconectar"
+                                title="Remover canal"
                             >✕</button>
                         </div>
                     );
