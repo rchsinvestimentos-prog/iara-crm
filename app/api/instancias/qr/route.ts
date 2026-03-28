@@ -92,6 +92,7 @@ export async function POST(req: Request) {
 
     // Se a instância não existe, criar na Evolution API
     if (!instanceExists) {
+      const webhookUrl = process.env.EVOLUTION_WEBHOOK_URL || 'https://app.iara.click/api/webhook/evolution';
       try {
         const createRes = await fetch(`${EVOLUTION_API_URL}/instance/create`, {
           method: 'POST',
@@ -103,12 +104,37 @@ export async function POST(req: Request) {
             instanceName,
             qrcode: true,
             integration: 'WHATSAPP-BAILEYS',
+            webhook: {
+              url: webhookUrl,
+              byEvents: false,
+              base64: true,
+              events: ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'CONNECTION_UPDATE', 'QRCODE_UPDATED'],
+            },
           }),
           signal: AbortSignal.timeout(10000),
         });
 
         if (createRes.ok) {
           const createData = await createRes.json();
+
+          // Configurar webhook por endpoint separado (garantia extra)
+          try {
+            await fetch(`${EVOLUTION_API_URL}/webhook/set/${instanceName}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
+              body: JSON.stringify({
+                webhook: {
+                  enabled: true,
+                  url: webhookUrl,
+                  byEvents: false,
+                  base64: true,
+                  events: ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'CONNECTION_UPDATE'],
+                },
+              }),
+            });
+            console.log(`[QR] ✅ Webhook configurado para ${instanceName} → ${webhookUrl}`);
+          } catch { console.warn(`[QR] ⚠️ webhook/set fallback falhou`) }
+
           // Se já veio QR na criação
           if (createData?.qrcode?.base64) {
             return NextResponse.json({
