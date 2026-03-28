@@ -43,6 +43,25 @@ export async function POST(request: NextRequest) {
         const webhookEvent = body.event || ''
         const webhookInstance = body.instance || body.instanceName || ''
 
+        // LOG PERSISTENTE — registrar CADA webhook que chega
+        try {
+            const logPayload = JSON.stringify({
+                event: webhookEvent,
+                instance: webhookInstance,
+                remoteJid: body.data?.key?.remoteJid || null,
+                fromMe: body.data?.key?.fromMe || false,
+                msgId: body.data?.key?.id || null,
+                messageType: body.data?.messageType || null,
+                hasMessage: !!body.data?.message,
+                state: body.data?.state || body.data?.instance?.state || null,
+                ts: new Date().toISOString(),
+            })
+            await prisma.$executeRawUnsafe(`
+                INSERT INTO webhook_debug_log (payload, created_at)
+                VALUES ($1, NOW())
+            `, logPayload)
+        } catch { /* tabela pode não existir */ }
+
         // Validar secret (se configurado)
         if (WEBHOOK_SECRET) {
             const secret = request.nextUrl.searchParams.get('secret')
