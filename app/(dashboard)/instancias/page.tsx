@@ -355,6 +355,7 @@ export default function ConexoesPage() {
 
     const whatsapps = instancias.filter(i => i.canal === 'whatsapp');
     const instagrams = instancias.filter(i => i.canal === 'instagram');
+    const whatsappsConectados = whatsapps.filter(i => i.status_conexao === 'conectado');
     const temWhatsApp = whatsapps.length > 0;
     const temInstagram = instagrams.length > 0;
     const podeAddWhatsApp = whatsapps.length < limites.max_instancias_whatsapp;
@@ -420,9 +421,9 @@ export default function ConexoesPage() {
                     <div style={{ flex: 1 }}>
                         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>WhatsApp</h2>
                         <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
-                            {temWhatsApp
-                                ? `${whatsapps.length} número${whatsapps.length > 1 ? 's' : ''} conectado${whatsapps.length > 1 ? 's' : ''}`
-                                : 'Conecte seu número para a IARA atender'
+                            {whatsappsConectados.length > 0
+                                ? `${whatsappsConectados.length} número${whatsappsConectados.length > 1 ? 's' : ''} conectado${whatsappsConectados.length > 1 ? 's' : ''}`
+                                : temWhatsApp ? 'Nenhum número conectado' : 'Conecte seu número para a IARA atender'
                             }
                         </p>
                     </div>
