@@ -499,7 +499,7 @@ export default function ConexoesPage() {
                                     </button>
                                 )}
                                 <button
-                                    onClick={() => pedirDesconectar(inst.id, true)}
+                                    onClick={() => pedirDesconectar(inst.id, false)}
                                     disabled={isDesconectando}
                                     style={{
                                         background: 'none', border: '1px solid rgba(220,50,50,0.15)',
@@ -507,8 +507,8 @@ export default function ConexoesPage() {
                                         fontSize: 13, color: '#94a3b8',
                                         opacity: isDesconectando ? 0.5 : 1,
                                     }}
-                                    title="Remover canal"
-                                >✕</button>
+                                    title="Desconectar canal"
+                                >🔌</button>
                             </div>
                         </div>
                     );
@@ -631,14 +631,14 @@ export default function ConexoesPage() {
                                 >📲 Conectar</button>
                             )}
                             <button
-                                onClick={() => pedirDesconectar(inst.id, true)}
+                                onClick={() => pedirDesconectar(inst.id, false)}
                                 style={{
                                     background: 'none', border: '1px solid rgba(220,50,50,0.15)',
                                     borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
                                     fontSize: 13, color: '#94a3b8'
                                 }}
-                                title="Remover canal"
-                            >✕</button>
+                                title="Desconectar canal"
+                            >🔌</button>
                         </div>
                     );
                 })}

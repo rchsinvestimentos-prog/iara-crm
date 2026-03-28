@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
+import { ensureWebhook } from '@/lib/engine/webhook-sync';
 
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
@@ -127,7 +128,11 @@ export async function GET(req: Request) {
             SET evolution_instance = ${evolutionInstance}
             WHERE id = ${user.id} AND (evolution_instance IS NULL OR evolution_instance = '')
           `;
-          console.log(`[Status] ✅ Sincronizado clinica.evolutionInstance = ${evolutionInstance}`);
+
+          // GARANTIR WEBHOOK ATIVO (self-healing em cada poll)
+          ensureWebhook(evolutionInstance).then(r => {
+            if (r.webhookFixed) console.log(`[Status] 🔧 Webhook auto-corrigido para ${evolutionInstance}`);
+          }).catch(() => {});
         }
       } catch (dbErr) {
         console.error('[Status] Erro ao atualizar DB:', dbErr);

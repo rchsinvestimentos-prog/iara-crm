@@ -18,6 +18,19 @@ import { prisma } from '@/lib/prisma'
 import { autoCaptureCRM } from '@/lib/auto-capture'
 import { processMessage } from '@/lib/engine'
 import type { MensagemRecebida } from '@/lib/engine'
+import { ensureWebhook } from '@/lib/engine/webhook-sync'
+
+// Deduplicação: cache de requestIds já processados (evita resposta duplicada)
+const processedMessages = new Map<string, number>()
+const DEDUP_TTL_MS = 60_000 // 60 segundos
+
+// Limpar cache de dedup periodicamente
+setInterval(() => {
+    const now = Date.now()
+    for (const [key, ts] of processedMessages) {
+        if (now - ts > DEDUP_TTL_MS) processedMessages.delete(key)
+    }
+}, 30_000)
 
 // Secret pra autenticar o webhook (opcional, mas recomendado)
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || ''
@@ -26,30 +39,9 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
 
-        // === DEBUG: Log EVERY webhook that arrives (persistent) ===
-        try {
-            await prisma.$executeRawUnsafe(`
-                CREATE TABLE IF NOT EXISTS webhook_debug_log (
-                    id SERIAL PRIMARY KEY,
-                    payload TEXT,
-                    created_at TIMESTAMP DEFAULT NOW()
-                )
-            `)
-            const debugPayload = JSON.stringify({
-                event: body.event,
-                instance: body.instance || body.instanceName,
-                key_remoteJid: body.data?.key?.remoteJid,
-                key_fromMe: body.data?.key?.fromMe,
-                messageType: body.data?.messageType,
-                pushName: body.data?.pushName,
-                has_message: !!body.data?.message,
-                timestamp: new Date().toISOString(),
-            })
-            await prisma.$executeRaw`
-                INSERT INTO webhook_debug_log (payload, created_at) VALUES (${debugPayload}::text, NOW())
-            `
-        } catch { /* tabela pode não existir */ }
-        // === END DEBUG ===
+        // Log mínimo para diagnóstico
+        const webhookEvent = body.event || ''
+        const webhookInstance = body.instance || body.instanceName || ''
 
         // Validar secret (se configurado)
         if (WEBHOOK_SECRET) {
@@ -60,19 +52,50 @@ export async function POST(request: NextRequest) {
         }
 
         // ================================================
-        // EXTRAIR DADOS DO PAYLOAD DA EVOLUTION
+        // TRATAR CONNECTION_UPDATE — Self-Healing
         // ================================================
-        // A Evolution manda vários tipos de evento. A gente só quer MESSAGES_UPSERT.
-        const event = body.event || ''
+        // Quando a Evolution reconecta, garante webhook ativo automaticamente
+        if (webhookEvent === 'connection.update') {
+            const state = body.data?.state || body.data?.instance?.state
+            console.log(`[Webhook] 🔌 CONNECTION_UPDATE: ${webhookInstance} → ${state}`)
 
-        if (event !== 'messages.upsert') {
-            return NextResponse.json({ ok: true, ignored: true })
+            if (state === 'open' && webhookInstance) {
+                // Instância reconectou — garantir webhook ativo
+                ensureWebhook(webhookInstance).then(r => {
+                    if (r.webhookFixed) console.log(`[Webhook] 🔧 Webhook auto-corrigido para ${webhookInstance}`)
+                }).catch(() => {})
+
+                // Sincronizar status no banco
+                try {
+                    await prisma.$executeRaw`
+                        UPDATE instancias_clinica SET status_conexao = 'conectado'
+                        WHERE evolution_instance = ${webhookInstance}
+                    `
+                } catch { /* silenciar */ }
+            } else if (state === 'close' && webhookInstance) {
+                // Instância desconectou
+                try {
+                    await prisma.$executeRaw`
+                        UPDATE instancias_clinica SET status_conexao = 'desconectado'
+                        WHERE evolution_instance = ${webhookInstance}
+                    `
+                } catch { /* silenciar */ }
+            }
+
+            return NextResponse.json({ ok: true, handled: 'connection_update', state })
+        }
+
+        // ================================================
+        // FILTRAR EVENTOS — Só processar MESSAGES_UPSERT
+        // ================================================
+        if (webhookEvent !== 'messages.upsert') {
+            return NextResponse.json({ ok: true, ignored: webhookEvent || 'unknown_event' })
         }
 
         const data = body.data || {}
         const key = data.key || {}
         const message = data.message || {}
-        const instance = body.instance || body.instanceName || ''
+        const instance = webhookInstance
 
         // ================================================
         // FILTRAR MENSAGENS QUE NÃO INTERESSAM
@@ -91,6 +114,16 @@ export async function POST(request: NextRequest) {
         if (key.remoteJid?.endsWith('@broadcast') || key.remoteJid?.includes('status@')) {
             return NextResponse.json({ ok: true, ignored: 'broadcast' })
         }
+
+        // ================================================
+        // DEDUPLICAÇÃO — Evitar resposta duplicada
+        // ================================================
+        const msgId = key.id || ''
+        const dedupKey = `${instance}:${key.remoteJid}:${msgId}`
+        if (msgId && processedMessages.has(dedupKey)) {
+            return NextResponse.json({ ok: true, ignored: 'duplicate' })
+        }
+        if (msgId) processedMessages.set(dedupKey, Date.now())
 
         // ================================================
         // NORMALIZAR PAYLOAD
