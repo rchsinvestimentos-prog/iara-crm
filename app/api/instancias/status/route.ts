@@ -119,6 +119,16 @@ export async function GET(req: Request) {
             WHERE id = ${Number(instanceId)} AND user_id = ${user.id}
           `;
         }
+
+        // SINCRONIZAR com tabela clinica (legado) para garantir que o pipeline funcione
+        if (connected) {
+          await prisma.$queryRaw`
+            UPDATE users
+            SET evolution_instance = ${evolutionInstance}
+            WHERE id = ${user.id} AND (evolution_instance IS NULL OR evolution_instance = '')
+          `;
+          console.log(`[Status] ✅ Sincronizado clinica.evolutionInstance = ${evolutionInstance}`);
+        }
       } catch (dbErr) {
         console.error('[Status] Erro ao atualizar DB:', dbErr);
       }
