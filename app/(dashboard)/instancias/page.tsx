@@ -57,6 +57,19 @@ export default function ConexoesPage() {
     // Disconnect state
     const [desconectando, setDesconectando] = useState<number | null>(null);
 
+    // Confirm modal for disconnect
+    const [confirmModal, setConfirmModal] = useState<{
+        open: boolean;
+        instanceId: number | null;
+        deleteCompletamente: boolean;
+        message: string;
+    }>({
+        open: false,
+        instanceId: null,
+        deleteCompletamente: false,
+        message: '',
+    });
+
     // Polling ref
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const elapsedRef = useRef<NodeJS.Timeout | null>(null);
@@ -293,22 +306,32 @@ export default function ConexoesPage() {
 
     // ==================== Desconectar ====================
 
-    async function desconectar(id: number, deleteCompletamente: boolean = false) {
+    function pedirDesconectar(id: number, deleteCompletamente: boolean = false) {
         const msg = deleteCompletamente
             ? 'Deseja REMOVER este canal completamente? A IARA vai parar de atender e a instância será deletada.'
             : 'Deseja DESCONECTAR o WhatsApp? Você precisará escanear o QR Code novamente.';
 
-        if (!confirm(msg)) return;
+        setConfirmModal({
+            open: true,
+            instanceId: id,
+            deleteCompletamente,
+            message: msg,
+        });
+    }
 
-        setDesconectando(id);
+    async function executarDesconectar() {
+        if (!confirmModal.instanceId) return;
+
+        const { instanceId, deleteCompletamente } = confirmModal;
+        setConfirmModal(prev => ({ ...prev, open: false }));
+        setDesconectando(instanceId);
 
         try {
-            // Chamar API de disconnect
             const res = await fetch('/api/instancias/disconnect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    instanceId: id,
+                    instanceId,
                     deleteInstance: deleteCompletamente,
                 }),
             });
@@ -318,7 +341,6 @@ export default function ConexoesPage() {
             if (!res.ok) {
                 alert(data.error || 'Erro ao desconectar');
             } else {
-                // Refresh
                 await fetchInstancias();
             }
         } catch (e) {
@@ -462,7 +484,7 @@ export default function ConexoesPage() {
                                 )}
                                 {inst.status_conexao === 'conectado' && (
                                     <button
-                                        onClick={() => desconectar(inst.id, false)}
+                                        onClick={() => pedirDesconectar(inst.id, false)}
                                         disabled={isDesconectando}
                                         style={{
                                             background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
@@ -476,7 +498,7 @@ export default function ConexoesPage() {
                                     </button>
                                 )}
                                 <button
-                                    onClick={() => desconectar(inst.id, true)}
+                                    onClick={() => pedirDesconectar(inst.id, true)}
                                     disabled={isDesconectando}
                                     style={{
                                         background: 'none', border: '1px solid rgba(220,50,50,0.15)',
@@ -608,7 +630,7 @@ export default function ConexoesPage() {
                                 >📲 Conectar</button>
                             )}
                             <button
-                                onClick={() => desconectar(inst.id, true)}
+                                onClick={() => pedirDesconectar(inst.id, true)}
                                 style={{
                                     background: 'none', border: '1px solid rgba(220,50,50,0.15)',
                                     borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
@@ -847,6 +869,51 @@ export default function ConexoesPage() {
                                     padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
                                 }}
                             >Fechar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ==================== Modal Confirmar Desconexão ==================== */}
+            {confirmModal.open && (
+                <div
+                    style={{
+                        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                    onClick={() => setConfirmModal(prev => ({ ...prev, open: false }))}
+                >
+                    <div
+                        style={{
+                            background: '#fff', borderRadius: 20, padding: '32px 28px',
+                            maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div style={{ fontSize: 20, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>
+                            ⚠️ Confirmar
+                        </div>
+                        <div style={{ fontSize: 14, color: '#64748b', lineHeight: 1.6, marginBottom: 24 }}>
+                            {confirmModal.message}
+                        </div>
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => setConfirmModal(prev => ({ ...prev, open: false }))}
+                                style={{
+                                    background: 'rgba(0,0,0,0.05)', color: '#64748b',
+                                    border: 'none', borderRadius: 12,
+                                    padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                                }}
+                            >Cancelar</button>
+                            <button
+                                onClick={executarDesconectar}
+                                style={{
+                                    background: '#ef4444', color: '#fff',
+                                    border: 'none', borderRadius: 12,
+                                    padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                                }}
+                            >Sim, remover</button>
                         </div>
                     </div>
                 </div>
