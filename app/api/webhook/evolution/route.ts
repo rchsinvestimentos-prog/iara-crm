@@ -26,6 +26,31 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
 
+        // === DEBUG: Log EVERY webhook that arrives (persistent) ===
+        try {
+            await prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS webhook_debug_log (
+                    id SERIAL PRIMARY KEY,
+                    payload TEXT,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            `)
+            const debugPayload = JSON.stringify({
+                event: body.event,
+                instance: body.instance || body.instanceName,
+                key_remoteJid: body.data?.key?.remoteJid,
+                key_fromMe: body.data?.key?.fromMe,
+                messageType: body.data?.messageType,
+                pushName: body.data?.pushName,
+                has_message: !!body.data?.message,
+                timestamp: new Date().toISOString(),
+            })
+            await prisma.$executeRaw`
+                INSERT INTO webhook_debug_log (payload, created_at) VALUES (${debugPayload}::text, NOW())
+            `
+        } catch { /* tabela pode não existir */ }
+        // === END DEBUG ===
+
         // Validar secret (se configurado)
         if (WEBHOOK_SECRET) {
             const secret = request.nextUrl.searchParams.get('secret')

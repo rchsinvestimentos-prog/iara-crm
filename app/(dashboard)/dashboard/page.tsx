@@ -103,7 +103,7 @@ export default function Dashboard() {
                         const wpData = await wpRes.json()
                         const instancias = wpData.instancias || wpData || []
                         if (Array.isArray(instancias) && instancias.length > 0) {
-                            setWhatsappConectado(instancias.some((i: any) => i.status === 'open' || i.connectionStatus === 'open'))
+                            setWhatsappConectado(instancias.some((i: any) => i.status_conexao === 'conectado' || i.status === 'open' || i.connectionStatus === 'open'))
                         } else {
                             setWhatsappConectado(false)
                         }
