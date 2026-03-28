@@ -138,10 +138,22 @@ export async function POST(request: NextRequest) {
         // Cria/atualiza contato no CRM quando recebe msg de cliente
         if (!isFromMe && telefone) {
             // Descobrir qual clínica é baseado na instância
-            const clinica = await prisma.clinica.findFirst({
+            // Primeiro tenta tabela clinica (legado), depois instancias_clinica (novo)
+            let clinica = await prisma.clinica.findFirst({
                 where: { evolutionInstance: instance },
                 select: { id: true }
             })
+
+            // Fallback: buscar na instancias_clinica
+            if (!clinica) {
+                const instanciaRow = await prisma.$queryRawUnsafe<any[]>(
+                    `SELECT user_id FROM instancias_clinica WHERE evolution_instance = $1 AND ativo = true LIMIT 1`,
+                    instance
+                )
+                if (instanciaRow.length > 0) {
+                    clinica = { id: instanciaRow[0].user_id }
+                }
+            }
 
             if (clinica) {
                 autoCaptureCRM({

@@ -19,9 +19,23 @@ import type { DadosClinica, ResultadoCatraca } from './types'
 export async function findClinicaByInstance(instanceName: string): Promise<DadosClinica | null> {
     if (!instanceName) return null
 
-    const clinica = await prisma.clinica.findFirst({
+    // Primeiro tenta tabela clinica (legado — campo evolution_instance direto)
+    let clinica = await prisma.clinica.findFirst({
         where: { evolutionInstance: instanceName },
     })
+
+    // Fallback: buscar na instancias_clinica (novo fluxo — instâncias criadas pela página Conexões)
+    if (!clinica) {
+        const rows = await prisma.$queryRawUnsafe<any[]>(
+            `SELECT user_id FROM instancias_clinica WHERE evolution_instance = $1 AND ativo = true LIMIT 1`,
+            instanceName
+        )
+        if (rows.length > 0) {
+            clinica = await prisma.clinica.findFirst({
+                where: { id: rows[0].user_id },
+            })
+        }
+    }
 
     return clinica as DadosClinica | null
 }
