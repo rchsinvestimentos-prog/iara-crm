@@ -147,7 +147,9 @@ export async function POST(request: NextRequest) {
         // ================================================
         // NORMALIZAR PAYLOAD
         // ================================================
-        const telefone = (key.remoteJid || '').replace('@s.whatsapp.net', '').replace('@c.us', '')
+        // WhatsApp usa vários formatos de JID: @s.whatsapp.net, @c.us, @lid (novo formato 2025+)
+        const rawJid = key.remoteJid || ''
+        const telefone = rawJid.replace(/@s\.whatsapp\.net$/, '').replace(/@c\.us$/, '').replace(/@lid$/, '').replace(/@g\.us$/, '')
         if (!telefone || telefone.length < 8) {
             return NextResponse.json({ ok: true, ignored: 'telefone_invalido' })
         }
