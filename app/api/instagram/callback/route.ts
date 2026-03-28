@@ -41,15 +41,17 @@ export async function GET(request: NextRequest) {
         // ============================================
         // 1. Trocar code → short-lived token
         // ============================================
+        console.log(`[IG Callback] 🔄 Iniciando para clínica ${clinicaId}`)
         const tokenRes = await fetch(
             `https://graph.facebook.com/v22.0/oauth/access_token?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${META_APP_SECRET}&code=${code}`
         )
         const tokenData = await tokenRes.json()
 
         if (!tokenData.access_token) {
-            console.error('[IG Callback] Token error:', tokenData)
-            return NextResponse.redirect(`${baseUrl}/instagram?error=token_failed`)
+            console.error('[IG Callback] ❌ Token error:', JSON.stringify(tokenData))
+            return NextResponse.redirect(`${baseUrl}/instancias?ig_error=token_failed&detail=${encodeURIComponent(tokenData.error?.message || 'unknown')}`)
         }
+        console.log(`[IG Callback] ✅ Got short-lived token`)
 
         // ============================================
         // 2. Trocar short-lived → long-lived token (60 dias)
@@ -60,18 +62,21 @@ export async function GET(request: NextRequest) {
         const longData = await longRes.json()
         const longToken = longData.access_token || tokenData.access_token
         const expiresIn = longData.expires_in || 5183944 // ~60 dias
+        console.log(`[IG Callback] ✅ Got long-lived token, expires in ${expiresIn}s`)
 
         // ============================================
         // 3. Buscar Pages do usuário
         // ============================================
         const pagesRes = await fetch(
-            `https://graph.facebook.com/v22.0/me/accounts?access_token=${longToken}`
+            `https://graph.facebook.com/v22.0/me/accounts?access_token=${longToken}&limit=100`
         )
         const pagesData = await pagesRes.json()
         const pages = pagesData.data || []
 
+        console.log(`[IG Callback] 📄 Found ${pages.length} pages: ${pages.map((p: any) => p.name).join(', ')}`)
+
         if (pages.length === 0) {
-            return NextResponse.redirect(`${baseUrl}/instagram?error=no_pages`)
+            return NextResponse.redirect(`${baseUrl}/instancias?ig_error=no_pages`)
         }
 
         // Pegar a primeira page (ou a que tiver IG vinculado)
@@ -88,6 +93,8 @@ export async function GET(request: NextRequest) {
             )
             const igData = await igRes.json()
 
+            console.log(`[IG Callback] 🔍 Page "${page.name}" (${page.id}) → IG: ${igData.instagram_business_account?.id || 'none'}`)
+
             if (igData.instagram_business_account?.id) {
                 igAccountId = igData.instagram_business_account.id
                 selectedPage = page
@@ -98,12 +105,14 @@ export async function GET(request: NextRequest) {
                 )
                 const usernameData = await usernameRes.json()
                 igUsername = usernameData.username || ''
+                console.log(`[IG Callback] ✅ Found IG: @${igUsername} (${igAccountId}) on page "${page.name}"`)
                 break
             }
         }
 
         if (!igAccountId) {
-            return NextResponse.redirect(`${baseUrl}/instagram?error=no_ig_account`)
+            console.error(`[IG Callback] ❌ No IG Business account found on any of ${pages.length} pages`)
+            return NextResponse.redirect(`${baseUrl}/instancias?ig_error=no_ig_account&pages=${pages.length}`)
         }
 
         // Usar o Page Access Token (mais estável que o user token)
@@ -127,8 +136,26 @@ export async function GET(request: NextRequest) {
                 updated_at = NOW()
         `, clinicaId, igAccountId, igUsername, selectedPage.id, pageToken, expiresAt)
 
+        console.log(`[IG Callback] ✅ Saved to DB for clínica ${clinicaId}`)
+
         // ============================================
-        // 6. Subscribir webhook pra essa page
+        // 6. Atualizar instancia_clinica se existir
+        // ============================================
+        try {
+            await prisma.$executeRawUnsafe(`
+                UPDATE instancias_clinica SET 
+                    status_conexao = 'conectado',
+                    ig_username = $1,
+                    numero_conectado = $2
+                WHERE user_id = $3 AND canal = 'instagram'
+            `, igUsername, igAccountId, clinicaId)
+            console.log(`[IG Callback] ✅ Updated instancias_clinica`)
+        } catch (e) {
+            console.log(`[IG Callback] ⚠️ instancias_clinica update skipped:`, e)
+        }
+
+        // ============================================
+        // 7. Subscribir webhook pra essa page
         // ============================================
         try {
             await fetch(
@@ -147,12 +174,12 @@ export async function GET(request: NextRequest) {
             console.error('[IG Callback] Erro subscribing webhook:', err)
         }
 
-        console.log(`[IG Callback] ✅ Conectado: @${igUsername} (${igAccountId}) → clínica ${clinicaId}`)
+        console.log(`[IG Callback] 🎉 Conectado: @${igUsername} (${igAccountId}) → clínica ${clinicaId}`)
 
-        return NextResponse.redirect(`${baseUrl}/instagram?connected=true&username=${igUsername}`)
+        return NextResponse.redirect(`${baseUrl}/instancias?ig_connected=true&ig_username=${igUsername}`)
 
     } catch (err: any) {
-        console.error('[IG Callback] Erro:', err)
-        return NextResponse.redirect(`${baseUrl}/instagram?error=server_error`)
+        console.error('[IG Callback] ❌ Erro:', err.message || err)
+        return NextResponse.redirect(`${baseUrl}/instancias?ig_error=server_error&detail=${encodeURIComponent(err.message || 'unknown')}`)
     }
 }
