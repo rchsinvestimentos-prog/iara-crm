@@ -119,9 +119,29 @@ export async function GET(request: NextRequest) {
         const pageToken = selectedPage.access_token || longToken
 
         // ============================================
-        // 5. Salvar no banco
+        // 5. Criar tabela config_instagram se não existir + salvar
         // ============================================
         const expiresAt = new Date(Date.now() + expiresIn * 1000)
+
+        try {
+            await prisma.$executeRawUnsafe(`
+                CREATE TABLE IF NOT EXISTS config_instagram (
+                    id SERIAL PRIMARY KEY,
+                    user_id INT NOT NULL UNIQUE,
+                    ig_account_id VARCHAR(100),
+                    ig_username VARCHAR(100),
+                    page_id VARCHAR(100),
+                    meta_access_token TEXT,
+                    meta_token_expires TIMESTAMPTZ,
+                    ativo BOOLEAN DEFAULT true,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            `)
+            console.log(`[IG Callback] ✅ config_instagram table ensured`)
+        } catch (e) {
+            console.log(`[IG Callback] ⚠️ Table creation skipped (already exists)`)
+        }
 
         await prisma.$executeRawUnsafe(`
             INSERT INTO config_instagram (user_id, ig_account_id, ig_username, page_id, meta_access_token, meta_token_expires, ativo)
@@ -136,19 +156,18 @@ export async function GET(request: NextRequest) {
                 updated_at = NOW()
         `, clinicaId, igAccountId, igUsername, selectedPage.id, pageToken, expiresAt)
 
-        console.log(`[IG Callback] ✅ Saved to DB for clínica ${clinicaId}`)
+        console.log(`[IG Callback] ✅ Saved to config_instagram for clínica ${clinicaId}`)
 
         // ============================================
-        // 6. Atualizar instancia_clinica se existir
+        // 6. Atualizar instancias_clinica (usa colunas existentes)
         // ============================================
         try {
             await prisma.$executeRawUnsafe(`
                 UPDATE instancias_clinica SET 
                     status_conexao = 'conectado',
-                    ig_username = $1,
-                    numero_conectado = $2
-                WHERE user_id = $3 AND canal = 'instagram'
-            `, igUsername, igAccountId, clinicaId)
+                    nome_instancia = $1
+                WHERE user_id = $2 AND canal = 'instagram'
+            `, igUsername ? `@${igUsername}` : 'Instagram', clinicaId)
             console.log(`[IG Callback] ✅ Updated instancias_clinica`)
         } catch (e) {
             console.log(`[IG Callback] ⚠️ instancias_clinica update skipped:`, e)
