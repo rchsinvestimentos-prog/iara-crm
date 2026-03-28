@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 
 interface Instancia {
     id: number;
@@ -16,6 +16,7 @@ interface Instancia {
     horario_fim: string;
     atender_fds: boolean;
     ativo: boolean;
+    _legado?: boolean;
 }
 
 interface Limites {
@@ -30,33 +31,83 @@ export default function ConexoesPage() {
     const [loading, setLoading] = useState(true);
     const [calendarConnected, setCalendarConnected] = useState(false);
     const [calendarId, setCalendarId] = useState('');
-    const [showQR, setShowQR] = useState<number | null>(null);
     const [conectando, setConectando] = useState(false);
-    const [qrData, setQrData] = useState<string | null>(null);
-    const [buscandoQR, setBuscandoQR] = useState(false);
-    const [totalContatos, setTotalContatos] = useState(0);
 
-    useEffect(() => { fetchInstancias(); }, []);
+    // QR Code modal
+    const [qrModal, setQrModal] = useState<{
+        open: boolean;
+        instanceId: number | null;
+        instanceName: string;
+        qrcode: string;
+        pairingCode: string;
+        loading: boolean;
+        error: string;
+        elapsed: number;
+    }>({
+        open: false,
+        instanceId: null,
+        instanceName: '',
+        qrcode: '',
+        pairingCode: '',
+        loading: false,
+        error: '',
+        elapsed: 0,
+    });
 
-    async function fetchInstancias() {
+    // Disconnect state
+    const [desconectando, setDesconectando] = useState<number | null>(null);
+
+    // Polling ref
+    const pollingRef = useRef<NodeJS.Timeout | null>(null);
+    const elapsedRef = useRef<NodeJS.Timeout | null>(null);
+
+    // ==================== Fetch Instâncias ====================
+
+    const fetchInstancias = useCallback(async () => {
         try {
-            const [instRes, contatosRes] = await Promise.all([
-                fetch('/api/instancias'),
-                fetch('/api/contatos?count=true').catch(() => null)
-            ]);
-            const data = await instRes.json();
+            const res = await fetch('/api/instancias');
+            const data = await res.json();
             setInstancias(data.instancias || []);
             setLimites(data.limites || { max_instancias_whatsapp: 1, max_instancias_instagram: 0 });
             setPlano(data.plano || 1);
             setCalendarConnected(!!data.calendarConnected);
             setCalendarId(data.calendarId || '');
-            if (contatosRes?.ok) {
-                const cData = await contatosRes.json();
-                setTotalContatos(cData.total || cData.contatos?.length || 0);
-            }
         } catch (e) { console.error(e); }
         setLoading(false);
-    }
+    }, []);
+
+    useEffect(() => { fetchInstancias(); }, [fetchInstancias]);
+
+    // ==================== Verificar status real ao carregar ====================
+
+    useEffect(() => {
+        if (instancias.length === 0) return;
+        
+        // Para cada instância WhatsApp, verificar status real
+        instancias.forEach(inst => {
+            if (inst.canal === 'whatsapp' && inst.evolution_instance) {
+                fetch(`/api/instancias/status?id=${inst.id}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.connected && inst.status_conexao !== 'conectado') {
+                            // Atualizar no state local
+                            setInstancias(prev => prev.map(i =>
+                                i.id === inst.id
+                                    ? { ...i, status_conexao: 'conectado', numero_whatsapp: data.number || i.numero_whatsapp }
+                                    : i
+                            ));
+                        } else if (!data.connected && inst.status_conexao === 'conectado') {
+                            setInstancias(prev => prev.map(i =>
+                                i.id === inst.id ? { ...i, status_conexao: 'desconectado' } : i
+                            ));
+                        }
+                    })
+                    .catch(() => { /* silencioso */ });
+            }
+        });
+    }, [instancias.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ==================== Conectar WhatsApp ====================
 
     async function conectarWhatsApp() {
         setConectando(true);
@@ -110,51 +161,175 @@ export default function ConexoesPage() {
         setConectando(false);
     }
 
-    async function desconectar(id: number) {
-        if (!confirm('Deseja desconectar este canal? A IARA vai parar de atender nele.')) return;
+    // ==================== QR Code Flow ====================
+
+    async function abrirQR(instanceId: number) {
+        setQrModal({
+            open: true,
+            instanceId,
+            instanceName: '',
+            qrcode: '',
+            pairingCode: '',
+            loading: true,
+            error: '',
+            elapsed: 0,
+        });
+
         try {
-            const res = await fetch(`/api/instancias?id=${id}`, { method: 'DELETE' });
+            const res = await fetch('/api/instancias/qr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ instanceId }),
+            });
+
             const data = await res.json();
-            if (!res.ok) {
-                alert(data.error || 'Erro ao desconectar');
+
+            if (data.connected) {
+                // Já está conectado!
+                setQrModal(prev => ({ ...prev, open: false, loading: false }));
+                await fetchInstancias();
                 return;
             }
-            await fetchInstancias();
-        } catch (e) {
-            console.error(e);
-            alert('Erro ao desconectar. Tente novamente.');
+
+            if (!res.ok || !data.qrcode) {
+                setQrModal(prev => ({
+                    ...prev,
+                    loading: false,
+                    error: data.error || 'Erro ao gerar QR Code. Tente novamente.',
+                }));
+                return;
+            }
+
+            setQrModal(prev => ({
+                ...prev,
+                loading: false,
+                qrcode: data.qrcode,
+                pairingCode: data.pairingCode || '',
+                instanceName: data.instanceName || '',
+            }));
+
+            // Iniciar polling de status
+            iniciarPolling(instanceId);
+        } catch (e: any) {
+            setQrModal(prev => ({
+                ...prev,
+                loading: false,
+                error: `Erro de rede: ${e?.message || 'tente novamente'}`,
+            }));
         }
     }
 
-    async function buscarQR(instId: number) {
-        setShowQR(instId);
-        setBuscandoQR(true);
-        setQrData(null);
-        try {
-            const res = await fetch('/api/whatsapp/connect', { method: 'POST' });
-            const data = await res.json();
-            if (data.qrcode) {
-                setQrData(data.qrcode);
-            } else if (data.connected || data.status === 'open') {
-                alert('✅ WhatsApp já está conectado!');
-                setShowQR(null);
-                fetchInstancias();
-            } else {
-                alert(data.error || 'Não foi possível gerar o QR Code. Tente novamente.');
-                setShowQR(null);
-            }
-        } catch {
-            alert('Erro ao buscar QR Code. Verifique sua conexão.');
-            setShowQR(null);
+    function iniciarPolling(instanceId: number) {
+        pararPolling();
+
+        // Polling a cada 3 segundos
+        pollingRef.current = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/instancias/status?id=${instanceId}`);
+                const data = await res.json();
+
+                if (data.connected) {
+                    onConexaoDetectada(instanceId, data.number);
+                }
+            } catch { /* silencioso */ }
+        }, 3000);
+
+        // Timer de elapsed
+        elapsedRef.current = setInterval(() => {
+            setQrModal(prev => ({ ...prev, elapsed: prev.elapsed + 1 }));
+        }, 1000);
+    }
+
+    function pararPolling() {
+        if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
         }
-        setBuscandoQR(false);
+        if (elapsedRef.current) {
+            clearInterval(elapsedRef.current);
+            elapsedRef.current = null;
+        }
+    }
+
+    function onConexaoDetectada(instanceId: number, number?: string) {
+        pararPolling();
+
+        // Atualizar instância no state
+        setInstancias(prev => prev.map(i =>
+            i.id === instanceId
+                ? { ...i, status_conexao: 'conectado', numero_whatsapp: number || i.numero_whatsapp }
+                : i
+        ));
+
+        // Fechar modal com sucesso
+        setQrModal(prev => ({
+            ...prev,
+            open: false,
+            qrcode: '',
+        }));
+
+        // Refresh completo para pegar dados atualizados
+        fetchInstancias();
     }
 
     function fecharQR() {
-        setShowQR(null);
-        setQrData(null);
-        fetchInstancias();
+        pararPolling();
+        setQrModal({
+            open: false,
+            instanceId: null,
+            instanceName: '',
+            qrcode: '',
+            pairingCode: '',
+            loading: false,
+            error: '',
+            elapsed: 0,
+        });
     }
+
+    // Cleanup polling on unmount
+    useEffect(() => {
+        return () => pararPolling();
+    }, []);
+
+    // ==================== Desconectar ====================
+
+    async function desconectar(id: number, deleteCompletamente: boolean = false) {
+        const msg = deleteCompletamente
+            ? 'Deseja REMOVER este canal completamente? A IARA vai parar de atender e a instância será deletada.'
+            : 'Deseja DESCONECTAR o WhatsApp? Você precisará escanear o QR Code novamente.';
+
+        if (!confirm(msg)) return;
+
+        setDesconectando(id);
+
+        try {
+            // Chamar API de disconnect
+            const res = await fetch('/api/instancias/disconnect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    instanceId: id,
+                    deleteInstance: deleteCompletamente,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.error || 'Erro ao desconectar');
+            } else {
+                // Refresh
+                await fetchInstancias();
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Erro ao desconectar');
+        }
+
+        setDesconectando(null);
+    }
+
+    // ==================== Helpers ====================
 
     const whatsapps = instancias.filter(i => i.canal === 'whatsapp');
     const instagrams = instancias.filter(i => i.canal === 'instagram');
@@ -174,23 +349,11 @@ export default function ConexoesPage() {
     const getNomeAmigavel = (inst: Instancia) => {
         if (inst.canal === 'instagram' && inst.ig_username) return `@${inst.ig_username}`;
         if (inst.numero_whatsapp && inst.numero_whatsapp.length > 5) {
-            let num = inst.numero_whatsapp.replace(/\D/g, '');
-            // Remove código do país 55 se presente
-            if (num.startsWith('55') && num.length >= 12) {
-                num = num.slice(2);
-            }
-            if (num.length === 11) {
-                // Formato: DDD + 9 + 8 dígitos (ex: 41995207443)
-                const ddd = num.slice(0, 2);
-                const parte1 = num.slice(2, 7);
-                const parte2 = num.slice(7);
-                return `(${ddd}) ${parte1}-${parte2}`;
-            }
-            if (num.length === 10) {
-                // Formato: DDD + 8 dígitos (ex: 4195207443)
-                const ddd = num.slice(0, 2);
-                const parte1 = num.slice(2, 6);
-                const parte2 = num.slice(6);
+            const num = inst.numero_whatsapp.replace(/\D/g, '');
+            if (num.length >= 10) {
+                const ddd = num.slice(-10, -8);
+                const parte1 = num.slice(-8, -4);
+                const parte2 = num.slice(-4);
                 return `(${ddd}) ${parte1}-${parte2}`;
             }
             return inst.numero_whatsapp;
@@ -260,6 +423,8 @@ export default function ConexoesPage() {
                 {/* Cards WhatsApp conectados */}
                 {whatsapps.map(inst => {
                     const status = getStatusInfo(inst.status_conexao);
+                    const isDesconectando = desconectando === inst.id;
+
                     return (
                         <div key={inst.id} style={{
                             display: 'flex', alignItems: 'center', gap: 14,
@@ -271,16 +436,23 @@ export default function ConexoesPage() {
                             <div style={{ flex: 1 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <span style={{ fontSize: 14 }}>{status.icon}</span>
-                                    <span style={{ fontWeight: 600, fontSize: 15, color: '#1e293b' }}>{getNomeAmigavel(inst)}</span>
+                                    <span style={{ fontWeight: 600, fontSize: 15, color: '#1e293b' }}>
+                                        {inst.status_conexao === 'conectado' ? getNomeAmigavel(inst) : inst.nome_instancia}
+                                    </span>
                                 </div>
                                 <div style={{ fontSize: 12, color: status.color, fontWeight: 500, marginTop: 3, marginLeft: 22 }}>
                                     {status.label}
+                                    {inst.status_conexao === 'conectado' && inst.numero_whatsapp && (
+                                        <span style={{ color: '#94a3b8', fontWeight: 400, marginLeft: 8 }}>
+                                            {inst.numero_whatsapp}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: 8 }}>
                                 {inst.status_conexao !== 'conectado' && (
                                     <button
-                                        onClick={() => buscarQR(inst.id)}
+                                        onClick={() => abrirQR(inst.id)}
                                         style={{
                                             background: '#25D366', color: '#fff', border: 'none',
                                             borderRadius: 10, padding: '8px 16px', cursor: 'pointer',
@@ -288,14 +460,31 @@ export default function ConexoesPage() {
                                         }}
                                     >📱 Escanear QR</button>
                                 )}
+                                {inst.status_conexao === 'conectado' && (
+                                    <button
+                                        onClick={() => desconectar(inst.id, false)}
+                                        disabled={isDesconectando}
+                                        style={{
+                                            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+                                            borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
+                                            fontSize: 12, color: '#ef4444', fontWeight: 500,
+                                            opacity: isDesconectando ? 0.5 : 1,
+                                        }}
+                                        title="Desconectar WhatsApp"
+                                    >
+                                        {isDesconectando ? '⏳' : '🔌 Desconectar'}
+                                    </button>
+                                )}
                                 <button
-                                    onClick={() => desconectar(inst.id)}
+                                    onClick={() => desconectar(inst.id, true)}
+                                    disabled={isDesconectando}
                                     style={{
                                         background: 'none', border: '1px solid rgba(220,50,50,0.15)',
                                         borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
-                                        fontSize: 13, color: '#94a3b8'
+                                        fontSize: 13, color: '#94a3b8',
+                                        opacity: isDesconectando ? 0.5 : 1,
                                     }}
-                                    title="Desconectar"
+                                    title="Remover canal"
                                 >✕</button>
                             </div>
                         </div>
@@ -314,57 +503,6 @@ export default function ConexoesPage() {
                             cursor: 'pointer', marginTop: 4
                         }}
                     >+ Adicionar outro número</button>
-                )}
-
-                {/* Modal QR Code */}
-                {showQR && (
-                    <div style={{
-                        marginTop: 16, padding: 24, borderRadius: 16,
-                        background: '#f8fafc', border: '2px solid #25D366',
-                        textAlign: 'center'
-                    }}>
-                        <h3 style={{ margin: '0 0 8px', fontSize: 16, color: '#1e293b' }}>
-                            📱 Escaneie o QR Code
-                        </h3>
-                        <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748b' }}>
-                            Abra o WhatsApp no celular → Menu (⋮) → Aparelhos conectados → Conectar
-                        </p>
-                        {buscandoQR ? (
-                            <div style={{ padding: 40 }}>
-                                <div style={{ fontSize: 32, marginBottom: 8 }}>⏳</div>
-                                <p style={{ color: '#64748b', fontSize: 14 }}>Gerando QR Code...</p>
-                            </div>
-                        ) : qrData ? (
-                            <img
-                                src={qrData.startsWith('data:') ? qrData : `data:image/png;base64,${qrData}`}
-                                alt="QR Code WhatsApp"
-                                style={{
-                                    width: 280, height: 280, borderRadius: 12,
-                                    border: '1px solid #e2e8f0'
-                                }}
-                            />
-                        ) : (
-                            <p style={{ color: '#dc2626', fontSize: 14 }}>Erro ao gerar QR Code</p>
-                        )}
-                        <div style={{ marginTop: 16, display: 'flex', gap: 10, justifyContent: 'center' }}>
-                            <button
-                                onClick={() => showQR && buscarQR(showQR)}
-                                style={{
-                                    background: '#25D366', color: '#fff', border: 'none',
-                                    borderRadius: 10, padding: '8px 20px', cursor: 'pointer',
-                                    fontWeight: 600, fontSize: 13
-                                }}
-                            >🔄 Gerar novo QR</button>
-                            <button
-                                onClick={fecharQR}
-                                style={{
-                                    background: 'none', border: '1px solid #e2e8f0',
-                                    borderRadius: 10, padding: '8px 20px', cursor: 'pointer',
-                                    fontSize: 13, color: '#64748b'
-                                }}
-                            >Fechar</button>
-                        </div>
-                    </div>
                 )}
             </div>
 
@@ -446,7 +584,7 @@ export default function ConexoesPage() {
                                 </div>
                             </div>
                             <button
-                                onClick={() => desconectar(inst.id)}
+                                onClick={() => desconectar(inst.id, true)}
                                 style={{
                                     background: 'none', border: '1px solid rgba(220,50,50,0.15)',
                                     borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
@@ -503,7 +641,7 @@ export default function ConexoesPage() {
                 </div>
             </div>
 
-            {/* ==================== Google Contatos ==================== */}
+            {/* ==================== Contatos Google ==================== */}
             <div style={{
                 background: '#fff', borderRadius: 20, padding: '24px 28px',
                 border: '1px solid #e2e8f0', marginBottom: 16,
@@ -519,23 +657,18 @@ export default function ConexoesPage() {
                     <div style={{ flex: 1 }}>
                         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>Google Contatos</h2>
                         <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
-                            {totalContatos > 0
-                                ? `${totalContatos} contatos no CRM — importe mais do Google`
-                                : 'Importe seus contatos do Google para o CRM'
-                            }
+                            Importe contatos do Google para o CRM
                         </p>
                     </div>
-                    <button
-                        onClick={() => window.open('/api/auth/google-contacts', '_self')}
+                    <a
+                        href="/contatos"
                         style={{
-                            background: 'linear-gradient(135deg, #4285F4, #EA4335)',
-                            color: '#fff', border: 'none', borderRadius: 12,
-                            padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
-                            whiteSpace: 'nowrap'
+                            background: 'rgba(0,0,0,0.05)',
+                            color: '#64748b', border: 'none', borderRadius: 12,
+                            padding: '10px 20px', fontWeight: 600, fontSize: 14,
+                            textDecoration: 'none', whiteSpace: 'nowrap'
                         }}
-                    >
-                        📥 Importar
-                    </button>
+                    >📂 Importar</a>
                 </div>
             </div>
 
@@ -552,6 +685,148 @@ export default function ConexoesPage() {
                     A IARA vai começar a atender automaticamente assim que conectar!
                 </p>
             </div>
+
+            {/* ==================== QR Code Modal ==================== */}
+            {qrModal.open && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    zIndex: 9999, backdropFilter: 'blur(4px)',
+                }}
+                    onClick={(e) => { if (e.target === e.currentTarget) fecharQR(); }}
+                >
+                    <div style={{
+                        background: '#fff', borderRadius: 24, padding: '32px',
+                        maxWidth: 440, width: '90vw',
+                        boxShadow: '0 25px 50px rgba(0,0,0,0.2)',
+                        textAlign: 'center',
+                        border: '2px solid rgba(37,211,102,0.2)',
+                    }}>
+                        {/* Header */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 20 }}>
+                            <span style={{ fontSize: 28 }}>📱</span>
+                            <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#1e293b' }}>
+                                Escaneie o QR Code
+                            </h3>
+                        </div>
+
+                        <p style={{ color: '#64748b', fontSize: 14, margin: '0 0 20px', lineHeight: 1.5 }}>
+                            Abra o WhatsApp no celular → Menu (⋮) → Aparelhos conectados → Conectar
+                        </p>
+
+                        {/* QR Code display */}
+                        {qrModal.loading && (
+                            <div style={{ padding: '40px 0' }}>
+                                <div style={{
+                                    width: 40, height: 40, border: '3px solid #e2e8f0',
+                                    borderTop: '3px solid #25D366', borderRadius: '50%',
+                                    animation: 'spin 1s linear infinite',
+                                    margin: '0 auto 12px',
+                                }} />
+                                <p style={{ color: '#94a3b8', fontSize: 14 }}>Gerando QR Code...</p>
+                                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                            </div>
+                        )}
+
+                        {qrModal.error && (
+                            <div style={{
+                                padding: '24px', background: 'rgba(239,68,68,0.06)',
+                                borderRadius: 16, marginBottom: 16,
+                                border: '1px solid rgba(239,68,68,0.15)',
+                            }}>
+                                <p style={{ color: '#ef4444', fontSize: 14, margin: 0, fontWeight: 500 }}>
+                                    ❌ {qrModal.error}
+                                </p>
+                            </div>
+                        )}
+
+                        {qrModal.qrcode && (
+                            <div style={{
+                                display: 'inline-block',
+                                padding: 16,
+                                background: '#fff',
+                                borderRadius: 16,
+                                border: '2px solid rgba(37,211,102,0.2)',
+                                marginBottom: 16,
+                            }}>
+                                <img
+                                    src={qrModal.qrcode.startsWith('data:') ? qrModal.qrcode : `data:image/png;base64,${qrModal.qrcode}`}
+                                    alt="QR Code WhatsApp"
+                                    style={{ width: 280, height: 280, display: 'block' }}
+                                />
+                            </div>
+                        )}
+
+                        {/* Pairing Code */}
+                        {qrModal.pairingCode && (
+                            <div style={{
+                                background: 'rgba(37,211,102,0.06)',
+                                borderRadius: 12, padding: '10px 16px',
+                                marginBottom: 16,
+                                border: '1px solid rgba(37,211,102,0.15)',
+                            }}>
+                                <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Código de pareamento:</p>
+                                <p style={{ margin: '4px 0 0', fontSize: 22, fontWeight: 700, color: '#1e293b', letterSpacing: 4 }}>
+                                    {qrModal.pairingCode}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Status do polling */}
+                        {qrModal.qrcode && !qrModal.error && (
+                            <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                gap: 8, marginBottom: 16,
+                            }}>
+                                <div style={{
+                                    width: 8, height: 8, borderRadius: '50%',
+                                    background: '#25D366',
+                                    animation: 'pulse 1.5s ease-in-out infinite',
+                                }} />
+                                <p style={{ margin: 0, fontSize: 13, color: '#25D366', fontWeight: 500 }}>
+                                    Aguardando leitura do QR Code... ({qrModal.elapsed}s)
+                                </p>
+                                <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
+                            </div>
+                        )}
+
+                        {/* QR expirado (2 min) */}
+                        {qrModal.elapsed > 120 && qrModal.qrcode && (
+                            <div style={{
+                                background: 'rgba(234,179,8,0.08)',
+                                borderRadius: 12, padding: '10px 16px',
+                                marginBottom: 16,
+                                border: '1px solid rgba(234,179,8,0.2)',
+                            }}>
+                                <p style={{ margin: 0, fontSize: 13, color: '#d97706', fontWeight: 500 }}>
+                                    ⚠️ QR Code pode ter expirado.
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Botões */}
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                            <button
+                                onClick={() => qrModal.instanceId && abrirQR(qrModal.instanceId)}
+                                style={{
+                                    background: 'linear-gradient(135deg, #25D366, #128C7E)',
+                                    color: '#fff', border: 'none', borderRadius: 12,
+                                    padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                                }}
+                            >🔄 Gerar novo QR</button>
+                            <button
+                                onClick={fecharQR}
+                                style={{
+                                    background: 'rgba(0,0,0,0.05)', color: '#64748b',
+                                    border: 'none', borderRadius: 12,
+                                    padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                                }}
+                            >Fechar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
