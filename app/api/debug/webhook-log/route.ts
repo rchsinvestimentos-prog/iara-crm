@@ -25,16 +25,25 @@ export async function GET() {
         ` as any[]
 
         // Contar total
-        const count = await prisma.$queryRaw`
-            SELECT COUNT(*) as total FROM webhook_debug_log
+        const countResult = await prisma.$queryRaw`
+            SELECT COUNT(*)::int as total FROM webhook_debug_log
         ` as any[]
 
+        const total = countResult[0]?.total || 0
+
+        // Serialize BigInt
+        const safeLogs = logs.map((l: any) => ({
+            id: Number(l.id),
+            payload_preview: l.payload_preview,
+            created_at: l.created_at?.toISOString?.() || String(l.created_at),
+        }))
+
         return NextResponse.json({
-            total: count[0]?.total || 0,
-            logs,
-            message: logs.length === 0 
+            total,
+            logs: safeLogs,
+            message: safeLogs.length === 0 
                 ? '⚠️ NENHUM webhook recebido desde a ativação do log. Possível problema na Evolution.'
-                : `✅ ${logs.length} webhooks recentes encontrados`
+                : `✅ ${safeLogs.length} webhooks recentes encontrados`
         })
     } catch (e: any) {
         return NextResponse.json({ error: e.message }, { status: 500 })
