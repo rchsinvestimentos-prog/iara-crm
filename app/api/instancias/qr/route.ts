@@ -71,6 +71,8 @@ export async function POST(req: Request) {
 
     // Primeiro verificar se a instância já existe na Evolution
     let instanceExists = false;
+    const webhookUrl = process.env.EVOLUTION_WEBHOOK_URL || 'https://app.iara.click/api/webhook/evolution';
+
     try {
       const checkRes = await fetch(`${EVOLUTION_API_URL}/instance/connectionState/${instanceName}`, {
         headers: { 'apikey': apiKey },
@@ -80,19 +82,47 @@ export async function POST(req: Request) {
         const checkData = await checkRes.json();
         const state = checkData?.instance?.state || checkData?.state;
         if (state === 'open') {
-          // Já está conectado!
+          // Já está conectado — mas garantir webhook
+          try {
+            await fetch(`${EVOLUTION_API_URL}/webhook/set/${instanceName}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
+              body: JSON.stringify({
+                webhook: {
+                  enabled: true, url: webhookUrl, byEvents: false, base64: true,
+                  events: ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'CONNECTION_UPDATE'],
+                },
+              }),
+            });
+            console.log(`[QR] ✅ Webhook garantido para instância conectada ${instanceName}`);
+          } catch { }
+
           return NextResponse.json({
             connected: true,
             message: 'WhatsApp já está conectado!'
           });
         }
         instanceExists = true;
+
+        // Instância existe mas não está conectada — garantir webhook
+        try {
+          await fetch(`${EVOLUTION_API_URL}/webhook/set/${instanceName}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
+            body: JSON.stringify({
+              webhook: {
+                enabled: true, url: webhookUrl, byEvents: false, base64: true,
+                events: ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'CONNECTION_UPDATE'],
+              },
+            }),
+          });
+          console.log(`[QR] ✅ Webhook configurado para instância existente ${instanceName}`);
+        } catch { }
       }
     } catch { /* instância pode não existir */ }
 
     // Se a instância não existe, criar na Evolution API
     if (!instanceExists) {
-      const webhookUrl = process.env.EVOLUTION_WEBHOOK_URL || 'https://app.iara.click/api/webhook/evolution';
       try {
         const createRes = await fetch(`${EVOLUTION_API_URL}/instance/create`, {
           method: 'POST',
