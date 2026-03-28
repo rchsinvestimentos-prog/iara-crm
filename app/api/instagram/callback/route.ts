@@ -124,23 +124,25 @@ export async function GET(request: NextRequest) {
         const expiresAt = new Date(Date.now() + expiresIn * 1000)
 
         try {
+            // Garantir que a tabela existe com todas as colunas necessárias
             await prisma.$executeRawUnsafe(`
                 CREATE TABLE IF NOT EXISTS config_instagram (
                     id SERIAL PRIMARY KEY,
-                    user_id INT NOT NULL UNIQUE,
-                    ig_account_id VARCHAR(100),
-                    ig_username VARCHAR(100),
-                    page_id VARCHAR(100),
-                    meta_access_token TEXT,
-                    meta_token_expires TIMESTAMPTZ,
-                    ativo BOOLEAN DEFAULT true,
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                    user_id INT NOT NULL UNIQUE
                 )
             `)
-            console.log(`[IG Callback] ✅ config_instagram table ensured`)
-        } catch (e) {
-            console.log(`[IG Callback] ⚠️ Table creation skipped (already exists)`)
+            // Adicionar colunas que podem estar faltando
+            await prisma.$executeRawUnsafe(`ALTER TABLE config_instagram ADD COLUMN IF NOT EXISTS ig_account_id VARCHAR(100)`)
+            await prisma.$executeRawUnsafe(`ALTER TABLE config_instagram ADD COLUMN IF NOT EXISTS ig_username VARCHAR(100)`)
+            await prisma.$executeRawUnsafe(`ALTER TABLE config_instagram ADD COLUMN IF NOT EXISTS page_id VARCHAR(100)`)
+            await prisma.$executeRawUnsafe(`ALTER TABLE config_instagram ADD COLUMN IF NOT EXISTS meta_access_token TEXT`)
+            await prisma.$executeRawUnsafe(`ALTER TABLE config_instagram ADD COLUMN IF NOT EXISTS meta_token_expires TIMESTAMPTZ`)
+            await prisma.$executeRawUnsafe(`ALTER TABLE config_instagram ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT true`)
+            await prisma.$executeRawUnsafe(`ALTER TABLE config_instagram ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`)
+            await prisma.$executeRawUnsafe(`ALTER TABLE config_instagram ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`)
+            console.log(`[IG Callback] ✅ config_instagram table + columns ensured`)
+        } catch (e: any) {
+            console.log(`[IG Callback] ⚠️ Table setup note:`, e.message)
         }
 
         await prisma.$executeRawUnsafe(`
