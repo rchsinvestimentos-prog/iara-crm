@@ -29,12 +29,15 @@ export async function GET() {
         ` as any[]
 
         // 3. Pausas ativas
-        const pausas = await prisma.$queryRaw`
-            SELECT * FROM pausa_conversa 
-            WHERE expira_em > NOW()
-            ORDER BY expira_em DESC
-            LIMIT 20
-        ` as any[]
+        let pausas: any[] = []
+        try {
+            pausas = await prisma.$queryRaw`
+                SELECT * FROM pausa_conversa 
+                WHERE expira_em > NOW()
+                ORDER BY expira_em DESC
+                LIMIT 20
+            ` as any[]
+        } catch { /* tabela pode não existir */ }
 
         // 4. Últimos logs de webhook
         let webhookLogs: any[] = []
