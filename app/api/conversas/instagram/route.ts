@@ -3,6 +3,42 @@ import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+// ── Helper: buscar username do Instagram via Meta API ──
+async function fetchIGUsername(senderId: string, accessToken: string): Promise<string | null> {
+    try {
+        const r = await fetch(`https://graph.facebook.com/v22.0/${senderId}?fields=name,username&access_token=${accessToken}`)
+        if (!r.ok) return null
+        const d = await r.json()
+        if (d.username) return `@${d.username}`
+        if (d.name) return d.name
+        return null
+    } catch {
+        return null
+    }
+}
+
+// ── Helper: buscar token de acesso da config Instagram da clínica ──
+async function getIGAccessToken(clinicaId: number): Promise<string | null> {
+    try {
+        const configs = await prisma.$queryRawUnsafe<any[]>(
+            'SELECT meta_access_token, page_id FROM config_instagram WHERE user_id = $1 AND ativo = true LIMIT 1', clinicaId
+        )
+        if (!configs.length) return null
+        const config = configs[0]
+        // Tentar obter Page Token (mais permissivo)
+        try {
+            const ptRes = await fetch(`https://graph.facebook.com/v22.0/${config.page_id}?fields=access_token&access_token=${config.meta_access_token}`)
+            if (ptRes.ok) {
+                const ptData = await ptRes.json()
+                if (ptData.access_token) return ptData.access_token
+            }
+        } catch { /* fallback */ }
+        return config.meta_access_token || null
+    } catch {
+        return null
+    }
+}
+
 // GET /api/conversas/instagram?sender=ID  → histórico
 // GET /api/conversas/instagram            → lista de threads
 export async function GET(request: Request) {
@@ -26,7 +62,7 @@ export async function GET(request: Request) {
 
             return NextResponse.json({
                 sender,
-                mensagens: msgs.map(m => ({
+                mensagens: msgs.map((m: any) => ({
                     id: Number(m.id),
                     role: m.direcao === 'saida' ? 'assistant' : 'user',
                     content: m.conteudo || '',
@@ -55,8 +91,29 @@ export async function GET(request: Request) {
             LIMIT 100
         `, clinicaId)
 
+        // ── Backfill: buscar nomes que estão faltando ──
+        const semNome = threads.filter((t: any) => !t.ig_sender_name)
+        if (semNome.length > 0) {
+            const token = await getIGAccessToken(clinicaId)
+            if (token) {
+                await Promise.allSettled(
+                    semNome.map(async (t: any) => {
+                        const nome = await fetchIGUsername(t.ig_sender_id, token)
+                        if (nome) {
+                            t.ig_sender_name = nome
+                            // Atualizar no banco pra não precisar buscar de novo
+                            await prisma.$executeRawUnsafe(
+                                `UPDATE mensagens_instagram SET ig_sender_name = $1 WHERE user_id = $2 AND ig_sender_id = $3 AND ig_sender_name IS NULL`,
+                                nome, clinicaId, t.ig_sender_id
+                            ).catch(() => {})
+                        }
+                    })
+                )
+            }
+        }
+
         return NextResponse.json({
-            threads: threads.map(t => ({
+            threads: threads.map((t: any) => ({
                 senderId: t.ig_sender_id,
                 nome: t.ig_sender_name || `ID ${t.ig_sender_id.slice(-6)}`,
                 ultimaMensagem: (t.ultima_mensagem || '').replace('[FALHA_ENVIO] ', ''),
