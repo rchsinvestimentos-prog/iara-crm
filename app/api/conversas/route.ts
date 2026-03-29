@@ -21,6 +21,24 @@ interface MensagemRow {
     created_at: string
 }
 
+// Garantir que a tabela existe antes de consultar
+async function ensureHistoricoTable() {
+    try {
+        await prisma.$executeRawUnsafe(`
+            CREATE TABLE IF NOT EXISTS historico_conversas (
+                id SERIAL PRIMARY KEY,
+                user_id INT,
+                telefone_cliente VARCHAR(50),
+                role VARCHAR(20),
+                content TEXT,
+                push_name VARCHAR(200),
+                origem VARCHAR(30) DEFAULT 'whatsapp',
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        `)
+    } catch { /* silenciar se já existir */ }
+}
+
 // GET /api/conversas — Lista todas as conversas agrupadas por telefone
 export async function GET(request: Request) {
     try {
@@ -30,6 +48,9 @@ export async function GET(request: Request) {
         if (!clinicaId) {
             return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
         }
+
+        // Garantir tabela existe (não quebra se já existir)
+        await ensureHistoricoTable()
 
         const { searchParams } = new URL(request.url)
         const telefone = searchParams.get('telefone')
@@ -53,7 +74,7 @@ export async function GET(request: Request) {
 
             return NextResponse.json({
                 telefone,
-                mensagens: mensagens.map(m => ({
+                mensagens: mensagens.map((m: MensagemRow) => ({
                     id: Number(m.id),
                     role: m.role,
                     content: m.content,
@@ -84,7 +105,7 @@ export async function GET(request: Request) {
         `
 
         return NextResponse.json({
-            conversas: conversas.map(c => ({
+            conversas: conversas.map((c: ConversaRow) => ({
                 telefone: c.telefone,
                 nome: c.nome || c.telefone,
                 ultimaMensagem: c.ultima_mensagem || '',
@@ -93,8 +114,10 @@ export async function GET(request: Request) {
                 origem: c.origem || 'whatsapp',
             })),
         })
-    } catch (err) {
-        console.error('Erro em /api/conversas:', err)
-        return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    } catch (err: any) {
+        const msg = err?.message || String(err)
+        console.error('Erro em /api/conversas:', msg)
+        // Retornar o erro real para facilitar o diagnóstico
+        return NextResponse.json({ error: 'Erro interno', detalhe: msg }, { status: 500 })
     }
 }
