@@ -10,6 +10,7 @@ import crypto from 'crypto'
 
 const META_VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || 'iara_instagram_2026'
 const META_APP_SECRET = process.env.META_APP_SECRET || ''
+const BELIVV_IG_WEBHOOK = process.env.BELIVV_IG_WEBHOOK_URL || ''
 
 // ============================================
 // GET — Handshake de verificação da Meta
@@ -76,6 +77,15 @@ async function ensureTables() {
 export async function POST(request: NextRequest) {
     try {
         const rawBody = await request.text()
+
+        // === PROXY: repassar pro Be Livv (fire-and-forget) ===
+        if (BELIVV_IG_WEBHOOK) {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+            const sig = request.headers.get('x-hub-signature-256')
+            if (sig) headers['x-hub-signature-256'] = sig
+            fetch(BELIVV_IG_WEBHOOK, { method: 'POST', headers, body: rawBody })
+                .catch(err => console.error('[IG Proxy] Erro repassando pro Be Livv:', err.message))
+        }
 
         // Verificar assinatura (warn-only mode para não bloquear)
         if (META_APP_SECRET) {
