@@ -38,24 +38,34 @@ import { createHash } from 'crypto'
 export async function processMessage(msg: MensagemRecebida): Promise<void> {
     const startTime = Date.now()
 
+    // LOG PERSISTENTE — rastrear cada mensagem no pipeline
+    const logPipeline = async (step: string, detail: string) => {
+        try {
+            const payload = JSON.stringify({ step, detail, tel: msg.telefone, inst: msg.instancia, ts: new Date().toISOString() })
+            await prisma.$executeRawUnsafe(`INSERT INTO webhook_debug_log (payload, created_at) VALUES ($1, NOW())`, payload)
+        } catch { /* tabela pode não existir */ }
+        console.log(`[Pipeline] ${step}: ${detail}`)
+    }
+
     // ================================================
     // 1. CATRACA — Pode processar?
     // ================================================
     const acesso = await catraca.checkAccess(msg.instancia, msg.telefone)
 
     if (!acesso.permitido) {
+        await logPipeline('BLOCKED', `motivo=${acesso.motivo} inst=${msg.instancia}`)
         if (acesso.mensagemBloqueio && acesso.motivo === 'sem_creditos' && acesso.clinica) {
             await sender.sendText(
                 { instancia: msg.instancia, telefone: msg.telefone, apikey: acesso.clinica.evolutionApikey || undefined },
                 acesso.mensagemBloqueio
             )
         }
-        console.log(`[Pipeline] ⛔ Bloqueado: ${acesso.motivo} (inst: ${msg.instancia})`)
         return
     }
 
     const clinica = acesso.clinica!
     const isDoutora = acesso.isDoutora || false
+    await logPipeline('CATRACA_OK', `clinica=${clinica.id}/${clinica.nomeClinica} isDra=${isDoutora}`)
 
     // ================================================
     // 2. BLACKLIST — Número bloqueado?
@@ -130,7 +140,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // ================================================
     const pausaAtiva = await checkPausa(clinica.id, msg.telefone)
     if (pausaAtiva) {
-        console.log(`[Pipeline] ⏸️ Pausa ativa para ${msg.telefone}`)
+        await logPipeline('PAUSED', `telefone=${msg.telefone}`)
         return // Silêncio — a dona tá atendendo
     }
 
@@ -138,9 +148,10 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // 6. HORÁRIO DE EXPEDIENTE
     // ================================================
     const horario = checkBusinessHours(clinica)
+    await logPipeline('HOURS_CHECK', `aberto=${horario.aberto} debug=${horario.debugInfo} horarioSab=${clinica.horarioSabado} horarioSem=${clinica.horarioSemana}`)
     if (!horario.aberto) {
         await handleForaDoHorario(clinica, msg, horario.msgFechado)
-        console.log(`[Pipeline] 🌙 Fora do horário: ${horario.debugInfo}`)
+        await logPipeline('CLOSED', `${horario.debugInfo}`)
         return
     }
 
