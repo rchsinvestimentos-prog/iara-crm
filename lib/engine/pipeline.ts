@@ -156,8 +156,11 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     }
 
     // ================================================
-    // 7. SE ÁUDIO → TRANSCREVER
+    // 7-15. PROCESSAR COM IA (try/catch para capturar erros)
     // ================================================
+    try {
+    await logPipeline('AI_START', `tipoMsg=${msg.tipoMensagem} texto="${(msg.mensagem || '').slice(0,50)}"`);
+
     let textoMensagem = msg.mensagem
     let tipoEntrada: 'text' | 'audio' = msg.tipoMensagem === 'audio' ? 'audio' : 'text'
 
@@ -239,6 +242,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         profissionais: profissionaisRaw.length > 1 ? profissionaisRaw : undefined,
     })
 
+    await logPipeline('AI_CALL', `chamando IA... modelo=${(clinica.configuracoes as any)?.modelo_sonnet || 'default'}`)
     const resposta = await aiEngine.callAI(
         systemPrompt,
         textoMensagem,
@@ -246,6 +250,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         historico,
         tipoEntrada
     )
+    await logPipeline('AI_OK', `resposta=${resposta.texto.slice(0,80)} modelo=${resposta.modelo}`)
 
     // ================================================
     // 11. SALVAR NO CACHE
@@ -267,6 +272,11 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // 12-15. FINALIZAR (enviar, salvar, descontar)
     // ================================================
     await finalizarResposta(clinica, msg, respostaFinal, textoMensagem, tipoEntrada, startTime, false)
+    await logPipeline('SENT', `resposta enviada para ${msg.telefone}`)
+    } catch (err: any) {
+        await logPipeline('ERROR', `FALHA NO PIPELINE: ${err.message || err}\n${(err.stack || '').slice(0,200)}`)
+        console.error('[Pipeline] ❌ Erro no processamento:', err)
+    }
 }
 
 // ============================================
