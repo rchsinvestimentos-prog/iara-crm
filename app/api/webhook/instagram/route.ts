@@ -205,27 +205,94 @@ async function handleDM(config: any, msg: any, accessToken: string) {
 
     if (!resposta) return
 
+    let sent = false
+
+    // Endpoint 1: Instagram Graph API (para Instagram Business Login)
     try {
-        const res = await fetch(`https://graph.facebook.com/v22.0/${config.ig_account_id}/messages`, {
+        console.log(`[IG DM] Tentando enviar via graph.instagram.com/me/messages...`)
+        const res = await fetch(`https://graph.instagram.com/v22.0/me/messages`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`,
+            },
             body: JSON.stringify({
                 recipient: { id: senderId },
                 message: { text: resposta },
-                messaging_type: 'RESPONSE',
-                access_token: accessToken,
             }),
         })
-        if (!res.ok) console.error('[IG DM] Erro enviando:', await res.text())
-        else console.log(`[IG DM] ✅ Respondido ${senderId}`)
-    } catch (err) {
-        console.error('[IG DM] Erro fetch:', err)
+        const resText = await res.text()
+        if (res.ok) {
+            console.log(`[IG DM] ✅ Enviado via graph.instagram.com para ${senderId}`)
+            sent = true
+        } else {
+            console.error(`[IG DM] ❌ graph.instagram.com falhou (${res.status}):`, resText)
+        }
+    } catch (err: any) {
+        console.error('[IG DM] Erro graph.instagram.com:', err.message)
     }
 
+    // Endpoint 2: Facebook Graph API (fallback — para Page tokens)
+    if (!sent) {
+        try {
+            console.log(`[IG DM] Tentando fallback via graph.facebook.com/${config.ig_account_id}/messages...`)
+            const res = await fetch(`https://graph.facebook.com/v22.0/${config.ig_account_id}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipient: { id: senderId },
+                    message: { text: resposta },
+                    messaging_type: 'RESPONSE',
+                    access_token: accessToken,
+                }),
+            })
+            const resText = await res.text()
+            if (res.ok) {
+                console.log(`[IG DM] ✅ Enviado via graph.facebook.com para ${senderId}`)
+                sent = true
+            } else {
+                console.error(`[IG DM] ❌ graph.facebook.com falhou (${res.status}):`, resText)
+            }
+        } catch (err: any) {
+            console.error('[IG DM] Erro graph.facebook.com:', err.message)
+        }
+    }
+
+    // Endpoint 3: Page-based send (usando page_id ao invés de ig_account_id)
+    if (!sent && config.page_id) {
+        try {
+            console.log(`[IG DM] Tentando via page_id ${config.page_id}/messages...`)
+            const res = await fetch(`https://graph.facebook.com/v22.0/${config.page_id}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipient: { id: senderId },
+                    message: { text: resposta },
+                    messaging_type: 'RESPONSE',
+                    access_token: accessToken,
+                }),
+            })
+            const resText = await res.text()
+            if (res.ok) {
+                console.log(`[IG DM] ✅ Enviado via page_id para ${senderId}`)
+                sent = true
+            } else {
+                console.error(`[IG DM] ❌ page_id falhou (${res.status}):`, resText)
+            }
+        } catch (err: any) {
+            console.error('[IG DM] Erro page_id:', err.message)
+        }
+    }
+
+    // Salvar a resposta (com flag de envio)
     await prisma.$executeRawUnsafe(
         `INSERT INTO mensagens_instagram (user_id, ig_sender_id, tipo, direcao, conteudo) VALUES ($1, $2, 'dm', 'saida', $3)`,
-        config.user_id, senderId, resposta
+        config.user_id, senderId, sent ? resposta : `[FALHA_ENVIO] ${resposta}`
     )
+    
+    if (!sent) {
+        console.error(`[IG DM] ⚠️ TODAS tentativas de envio falharam para ${senderId}`)
+    }
 }
 
 // ============================================
