@@ -76,9 +76,39 @@ export async function ensureWebhook(instanceName: string): Promise<WebhookSyncRe
             const hasMessagesUpsert = Array.isArray(whData.events) && whData.events.includes('MESSAGES_UPSERT')
 
             if (isEnabled && hasCorrectUrl && hasMessagesUpsert) {
-                result.webhookWasCorrect = true
-                result.details = 'Webhook OK — nenhuma correção necessária'
-                return result
+                // Webhook config OK — mas está REALMENTE entregando?
+                // Se está connected mas nenhum webhook chegou recentemente, force-reset
+                if (result.connectionState === 'open') {
+                    try {
+                        const { prisma } = await import('@/lib/prisma')
+                        const recent = await prisma.$queryRawUnsafe<any[]>(`
+                            SELECT COUNT(*)::int as cnt FROM webhook_debug_log 
+                            WHERE created_at > NOW() - INTERVAL '10 minutes'
+                            AND payload LIKE $1
+                        `, `%${instanceName}%`)
+                        const recentCount = recent[0]?.cnt || 0
+                        
+                        if (recentCount === 0) {
+                            // ZERO webhooks nos últimos 10 min — Evolution parou de enviar
+                            // Force-reset webhook (SEM deslogar!)
+                            result.details = `Webhook config OK mas ZERO eventos em 10 min — forçando reset`
+                            // Não retorna — cai no bloco de correção abaixo
+                        } else {
+                            result.webhookWasCorrect = true
+                            result.details = `Webhook OK — ${recentCount} eventos recentes`
+                            return result
+                        }
+                    } catch {
+                        // Se a tabela não existe, considera OK
+                        result.webhookWasCorrect = true
+                        result.details = 'Webhook OK — nenhuma correção necessária'
+                        return result
+                    }
+                } else {
+                    result.webhookWasCorrect = true
+                    result.details = 'Webhook OK — nenhuma correção necessária'
+                    return result
+                }
             }
 
             // Webhook está errado — precisa corrigir
