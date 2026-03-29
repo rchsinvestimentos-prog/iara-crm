@@ -161,6 +161,17 @@ export function buildSystemPrompt(ctx: PromptContext): string {
         ? `PROFISSIONAL RESPONSÁVEL: ${nomeProfissional} (${tratamento === 'Pelo nome' ? 'refira-se pelo primeiro nome apenas' : `use o tratamento "${tratamento}"`})\n`
         : ''
     const agendaTexto = agendaContext ? `\n${agendaContext}\n` : ''
+
+    // --- Regra anti-cumprimento-repetitivo ---
+    const historico = ctx.historico || []
+    const temHistorico = historico.length > 0
+    const regraHistorico = temHistorico
+        ? `\n⚠️ REGRA CRÍTICA — NÃO REPITA SAUDAÇÃO:
+Vocês JÁ estão conversando (há ${historico.length} mensagens no histórico). NÃO cumprimente de novo ("Oi", "Tudo bem?", etc).
+Continue a conversa naturalmente, como se estivesse no meio de um papo. Vá direto ao ponto da mensagem atual.
+Só cumprimente se for a PRIMEIRÍSSIMA mensagem (histórico vazio).`
+        : ''
+
     return `${roleDesc}
 ${catalogoTexto}${feedbackTexto}${memoriaTexto}
 ${linhaProf}${agendaTexto}${cofre.leisImutaveis}
@@ -170,7 +181,7 @@ ${cofre.roteiroVendas}
 ${cofre.arsenalDeObjecoes}
 
 ${labels.comoFalar}
-
+${regraHistorico}
 NÃO VÁ DIRETO PARA A SONDAGEM. Primeiro, acolhimento. Siga PASSO A PASSO, uma mensagem por vez.
 EXCEÇÃO: Se a cliente quer AGENDAR e já sabe o que quer, é FECHAMENTO — não enrole.
 NOME DA CLIENTE COM QUEM VOCÊ ESTÁ FALANDO AGORA: ${nomeCliente}`
