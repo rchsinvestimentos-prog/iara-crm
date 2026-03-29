@@ -1,5 +1,5 @@
 // ============================================
-// SETUP DB v2 — Recriar tabela agendamentos_v2 com schema correto
+// SETUP DB v3 — Criar TODAS as tabelas que o pipeline precisa
 // ============================================
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -7,79 +7,132 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
     const results: string[] = []
 
-    // 1. DROP e recriar agendamentos_v2 com schema CORRETO do Prisma
-    try {
-        await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS agendamentos_v2 CASCADE`)
-        results.push('✅ Tabela antiga agendamentos_v2 removida')
-    } catch (e: any) {
-        results.push(`⚠️ Drop: ${e.message}`)
+    // Helper
+    const exec = async (label: string, sql: string) => {
+        try {
+            await prisma.$executeRawUnsafe(sql)
+            results.push(`✅ ${label}`)
+        } catch (e: any) {
+            results.push(`❌ ${label}: ${e.message.slice(0, 100)}`)
+        }
     }
 
-    try {
-        await prisma.$executeRawUnsafe(`
-            CREATE TABLE agendamentos_v2 (
-                id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-                clinica_id INT NOT NULL,
-                profissional_id TEXT NOT NULL,
-                nome_paciente VARCHAR(200) NOT NULL,
-                telefone VARCHAR(30) NOT NULL,
-                contato_id INT,
-                procedimento VARCHAR(255) NOT NULL,
-                data TIMESTAMP NOT NULL,
-                horario VARCHAR(10) NOT NULL,
-                duracao INT DEFAULT 30,
-                valor DECIMAL,
-                status VARCHAR(20) DEFAULT 'pendente',
-                observacao TEXT,
-                origem VARCHAR(20) DEFAULT 'painel',
-                google_event_id VARCHAR(200),
-                pix_pago BOOLEAN DEFAULT false,
-                created_at TIMESTAMP DEFAULT NOW(),
-                updated_at TIMESTAMP DEFAULT NOW()
-            )
-        `)
-        results.push('✅ agendamentos_v2 criada com schema correto')
-    } catch (e: any) {
-        results.push(`❌ agendamentos_v2: ${e.message}`)
-    }
+    // === TABELAS QUE O PIPELINE USA ===
 
-    // 2. Indexes
-    try {
-        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS idx_agendamentos_v2_clinica ON agendamentos_v2(clinica_id)`)
-        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS idx_agendamentos_v2_prof ON agendamentos_v2(profissional_id)`)
-        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS idx_agendamentos_v2_data ON agendamentos_v2(data)`)
-        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS idx_agendamentos_v2_status ON agendamentos_v2(status)`)
-        results.push('✅ Indexes criados')
-    } catch (e: any) {
-        results.push(`❌ Indexes: ${e.message}`)
-    }
+    await exec('historico_conversas', `
+        CREATE TABLE IF NOT EXISTS historico_conversas (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL,
+            telefone_cliente VARCHAR(30) NOT NULL,
+            role VARCHAR(20) NOT NULL,
+            content TEXT,
+            push_name VARCHAR(200),
+            origem VARCHAR(20) DEFAULT 'whatsapp',
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    `)
+    await exec('idx_historico', `CREATE INDEX IF NOT EXISTS idx_hist_conv_user_tel ON historico_conversas(user_id, telefone_cliente)`)
 
-    // 3. Verificar outras tabelas necessárias
-    const tablesCheck = [
-        'webhook_debug_log',
-        'status_conversa',
-        'historico_conversa',
-        'contatos_clinica',
-        'procedimentos',
-        'profissionais',
-        'instancias_clinica',
-        'respostas_automaticas',
-        'feedbacks_dra',
-        'cache_respostas',
+    await exec('feedback_iara', `
+        CREATE TABLE IF NOT EXISTS feedback_iara (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL,
+            regra TEXT NOT NULL,
+            origem VARCHAR(20) DEFAULT 'whatsapp',
+            ativo BOOLEAN DEFAULT true,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    `)
+
+    await exec('memoria_clientes', `
+        CREATE TABLE IF NOT EXISTS memoria_clientes (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL,
+            telefone VARCHAR(30) NOT NULL,
+            chave VARCHAR(100) NOT NULL,
+            valor TEXT,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE(user_id, telefone, chave)
+        )
+    `)
+
+    await exec('fila_recontato', `
+        CREATE TABLE IF NOT EXISTS fila_recontato (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL,
+            telefone VARCHAR(30) NOT NULL,
+            instancia VARCHAR(200),
+            mensagem TEXT,
+            agendar_para TIMESTAMP NOT NULL,
+            enviado BOOLEAN DEFAULT false,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    `)
+
+    await exec('logs', `
+        CREATE TABLE IF NOT EXISTS logs (
+            id SERIAL PRIMARY KEY,
+            user_id INT,
+            tipo VARCHAR(50),
+            mensagem TEXT,
+            dados JSONB,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    `)
+
+    await exec('status_conversa (check)', `
+        CREATE TABLE IF NOT EXISTS status_conversa (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL,
+            telefone_cliente VARCHAR(30) NOT NULL,
+            pausa_ate TIMESTAMP,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    `)
+
+    await exec('cache_respostas (check)', `
+        CREATE TABLE IF NOT EXISTS cache_respostas (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL,
+            pergunta_hash VARCHAR(64) NOT NULL,
+            pergunta TEXT,
+            resposta TEXT NOT NULL,
+            modelo VARCHAR(50),
+            hits INT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        )
+    `)
+
+    await exec('webhook_debug_log (check)', `
+        CREATE TABLE IF NOT EXISTS webhook_debug_log (
+            id SERIAL PRIMARY KEY,
+            payload TEXT,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    `)
+
+    // === VERIFICAÇÃO FINAL ===
+    const tablesNeeded = [
+        'users', 'instancias_clinica', 'procedimentos', 'profissionais',
+        'agendamentos_v2', 'historico_conversas', 'status_conversa',
+        'cache_respostas', 'feedback_iara', 'memoria_clientes',
+        'fila_recontato', 'logs', 'webhook_debug_log'
     ]
 
-    for (const table of tablesCheck) {
+    results.push('', '=== VERIFICAÇÃO FINAL ===')
+    for (const table of tablesNeeded) {
         try {
-            const result = await prisma.$queryRawUnsafe<any[]>(`
+            const r = await prisma.$queryRawUnsafe<any[]>(`
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
                     WHERE table_schema = 'public' AND table_name = $1
                 ) as exists
             `, table)
-            const exists = result[0]?.exists
-            results.push(`${exists ? '✅' : '❌ FALTANDO'} ${table}`)
+            results.push(`${r[0]?.exists ? '✅' : '❌ FALTANDO'} ${table}`)
         } catch (e: any) {
-            results.push(`⚠️ ${table}: ${e.message}`)
+            results.push(`⚠️ ${table}: ${e.message.slice(0, 60)}`)
         }
     }
 
