@@ -14,7 +14,8 @@ export async function GET() {
             SELECT id, nome_clinica, status, creditos_disponiveis, 
                    evolution_instance, whatsapp_doutora, idioma,
                    configuracoes::text as config_raw,
-                   horario_semana, atende_sabado, atende_domingo
+                   horario_semana, horario_sabado, horario_domingo,
+                   atende_sabado, atende_domingo
             FROM users 
             WHERE evolution_instance IS NOT NULL AND evolution_instance != ''
             ORDER BY id
@@ -67,7 +68,9 @@ export async function GET() {
                 creditos: c.creditos_disponiveis,
                 evolution_instance: c.evolution_instance,
                 whatsapp_doutora: c.whatsapp_doutora,
-                horario: c.horario_semana || 'não configurado',
+                horario_semana: c.horario_semana || 'não configurado',
+                horario_sabado: c.horario_sabado || null,
+                horario_domingo: c.horario_domingo || null,
                 atende_sabado: c.atende_sabado,
                 atende_domingo: c.atende_domingo,
                 config_pausa_iara: (() => {
