@@ -207,35 +207,55 @@ async function handleDM(config: any, msg: any, accessToken: string) {
 
     let sent = false
 
-    // Endpoint 1: Instagram Graph API (para Instagram Business Login)
+    // Obter o Page Token real (o token salvo é User token, precisa do Page token)
+    let pageToken = accessToken
+    if (config.page_id) {
+        try {
+            const ptRes = await fetch(
+                `https://graph.facebook.com/v22.0/${config.page_id}?fields=access_token&access_token=${accessToken}`
+            )
+            if (ptRes.ok) {
+                const ptData = await ptRes.json()
+                if (ptData.access_token) {
+                    pageToken = ptData.access_token
+                    console.log(`[IG DM] ✅ Page token obtido (${pageToken.slice(0,15)}...)`)
+                }
+            } else {
+                console.error(`[IG DM] ⚠️ Não conseguiu Page token, usando User token`)
+            }
+        } catch (e: any) {
+            console.error(`[IG DM] ⚠️ Erro buscando Page token:`, e.message)
+        }
+    }
+
+    // Enviar via Page ID (endpoint correto para Instagram DM via Page token)
     try {
-        console.log(`[IG DM] Tentando enviar via graph.instagram.com/me/messages...`)
-        const res = await fetch(`https://graph.instagram.com/v22.0/me/messages`, {
+        console.log(`[IG DM] Enviando via page_id ${config.page_id}/messages com Page token...`)
+        const res = await fetch(`https://graph.facebook.com/v22.0/${config.page_id}/messages`, {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`,
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 recipient: { id: senderId },
                 message: { text: resposta },
+                messaging_type: 'RESPONSE',
+                access_token: pageToken,
             }),
         })
         const resText = await res.text()
         if (res.ok) {
-            console.log(`[IG DM] ✅ Enviado via graph.instagram.com para ${senderId}`)
+            console.log(`[IG DM] ✅ Enviado via page_id para ${senderId}`)
             sent = true
         } else {
-            console.error(`[IG DM] ❌ graph.instagram.com falhou (${res.status}):`, resText)
+            console.error(`[IG DM] ❌ page_id falhou (${res.status}):`, resText)
         }
     } catch (err: any) {
-        console.error('[IG DM] Erro graph.instagram.com:', err.message)
+        console.error('[IG DM] Erro page_id:', err.message)
     }
 
-    // Endpoint 2: Facebook Graph API (fallback — para Page tokens)
+    // Fallback: tentar com ig_account_id
     if (!sent) {
         try {
-            console.log(`[IG DM] Tentando fallback via graph.facebook.com/${config.ig_account_id}/messages...`)
+            console.log(`[IG DM] Fallback via ig_account_id ${config.ig_account_id}/messages...`)
             const res = await fetch(`https://graph.facebook.com/v22.0/${config.ig_account_id}/messages`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -243,44 +263,18 @@ async function handleDM(config: any, msg: any, accessToken: string) {
                     recipient: { id: senderId },
                     message: { text: resposta },
                     messaging_type: 'RESPONSE',
-                    access_token: accessToken,
+                    access_token: pageToken,
                 }),
             })
             const resText = await res.text()
             if (res.ok) {
-                console.log(`[IG DM] ✅ Enviado via graph.facebook.com para ${senderId}`)
+                console.log(`[IG DM] ✅ Enviado via ig_account_id para ${senderId}`)
                 sent = true
             } else {
-                console.error(`[IG DM] ❌ graph.facebook.com falhou (${res.status}):`, resText)
+                console.error(`[IG DM] ❌ ig_account_id falhou (${res.status}):`, resText)
             }
         } catch (err: any) {
-            console.error('[IG DM] Erro graph.facebook.com:', err.message)
-        }
-    }
-
-    // Endpoint 3: Page-based send (usando page_id ao invés de ig_account_id)
-    if (!sent && config.page_id) {
-        try {
-            console.log(`[IG DM] Tentando via page_id ${config.page_id}/messages...`)
-            const res = await fetch(`https://graph.facebook.com/v22.0/${config.page_id}/messages`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    recipient: { id: senderId },
-                    message: { text: resposta },
-                    messaging_type: 'RESPONSE',
-                    access_token: accessToken,
-                }),
-            })
-            const resText = await res.text()
-            if (res.ok) {
-                console.log(`[IG DM] ✅ Enviado via page_id para ${senderId}`)
-                sent = true
-            } else {
-                console.error(`[IG DM] ❌ page_id falhou (${res.status}):`, resText)
-            }
-        } catch (err: any) {
-            console.error('[IG DM] Erro page_id:', err.message)
+            console.error('[IG DM] Erro ig_account_id:', err.message)
         }
     }
 
