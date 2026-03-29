@@ -247,7 +247,11 @@ export default function ConversasPage() {
                             </div>
                         ) : tab === 'whatsapp' ? (
                             filtWA.length === 0 ? (
-                                <EmptyState icon="💬" msg="Nenhuma conversa no WhatsApp ainda." />
+                                <EmptyState
+                                    icon="💬"
+                                    msg="Nenhuma conversa no WhatsApp ainda."
+                                    sub="Quando um cliente enviar uma mensagem para o número conectado, ela aparecerá aqui automaticamente."
+                                />
                             ) : filtWA.map(c => (
                                 <ThreadItem
                                     key={c.telefone}
@@ -263,7 +267,11 @@ export default function ConversasPage() {
                             ))
                         ) : (
                             filtIG.length === 0 ? (
-                                <EmptyState icon="📷" msg="Nenhuma mensagem do Instagram ainda. Conecte sua conta e envie uma DM de teste." />
+                                <EmptyState
+                                    icon="📷"
+                                    msg="Nenhuma mensagem do Instagram ainda."
+                                    sub="Quando alguém enviar uma DM para o perfil conectado, a conversa aparecerá aqui."
+                                />
                             ) : filtIG.map(t => (
                                 <ThreadItem
                                     key={t.senderId}
@@ -276,6 +284,7 @@ export default function ConversasPage() {
                                     onClick={() => abrirIG(t.senderId, t.nome)}
                                     accentColor="#E1306C"
                                     falha={t.falhaEnvio}
+                                    isInstagram
                                 />
                             ))
                         )}
@@ -457,21 +466,26 @@ export default function ConversasPage() {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function EmptyState({ icon, msg }: { icon: string; msg: string }) {
+function EmptyState({ icon, msg, sub }: { icon: string; msg: string; sub?: string }) {
     return (
         <div className="text-center py-12 px-4">
             <span style={{ fontSize: 36, opacity: 0.25 }}>{icon}</span>
-            <p className="text-xs mt-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>{msg}</p>
+            <p className="text-xs mt-3 font-medium" style={{ color: 'var(--text-primary)' }}>{msg}</p>
+            {sub && <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
         </div>
     )
 }
 
 function ThreadItem({
-    id, nome, preview, time, count, selected, onClick, accentColor, falha
+    id, nome, preview, time, count, selected, onClick, accentColor, falha, isInstagram
 }: {
     id: string; nome: string; preview: string; time: string; count: number
-    selected: boolean; onClick: () => void; accentColor: string; falha?: boolean
+    selected: boolean; onClick: () => void; accentColor: string; falha?: boolean; isInstagram?: boolean
 }) {
+    const initials = nome.startsWith('@')
+        ? nome.replace('@', '').slice(0, 2).toUpperCase()
+        : nome.split(' ').map((n: string) => n[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || '??'
+
     return (
         <button
             onClick={onClick}
@@ -485,7 +499,7 @@ function ThreadItem({
                 className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
                 style={{ backgroundColor: `${accentColor}18`, border: `1px solid ${accentColor}25`, color: accentColor }}
             >
-                {nome.replace('@', '').slice(0, 2).toUpperCase()}
+                {isInstagram ? '📷' : initials}
             </div>
             <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">

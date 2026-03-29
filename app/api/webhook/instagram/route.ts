@@ -44,6 +44,7 @@ async function ensureTables() {
                 id SERIAL PRIMARY KEY,
                 user_id INT,
                 ig_sender_id VARCHAR(100),
+                ig_sender_name VARCHAR(200),
                 tipo VARCHAR(20) DEFAULT 'dm',
                 direcao VARCHAR(10) DEFAULT 'entrada',
                 conteudo TEXT,
@@ -51,6 +52,10 @@ async function ensureTables() {
                 media_id VARCHAR(100),
                 created_at TIMESTAMPTZ DEFAULT NOW()
             )
+        `)
+        // Adicionar coluna caso tabela já exista sem ela
+        await prisma.$executeRawUnsafe(`
+            ALTER TABLE mensagens_instagram ADD COLUMN IF NOT EXISTS ig_sender_name VARCHAR(200)
         `)
         await prisma.$executeRawUnsafe(`
             CREATE TABLE IF NOT EXISTS respostas_automaticas_ig (
@@ -170,6 +175,19 @@ async function processInstagramEvent(body: any) {
 // ============================================
 // DM
 // ============================================
+async function fetchIGSenderName(senderId: string, pageToken: string): Promise<string | null> {
+    try {
+        const r = await fetch(`https://graph.facebook.com/v22.0/${senderId}?fields=name,username&access_token=${pageToken}`)
+        if (!r.ok) return null
+        const d = await r.json()
+        if (d.username) return `@${d.username}`
+        if (d.name) return d.name
+        return null
+    } catch {
+        return null
+    }
+}
+
 async function handleDM(config: any, msg: any, accessToken: string) {
     const senderId = msg.sender?.id
     const text = msg.message?.text || ''
@@ -177,9 +195,21 @@ async function handleDM(config: any, msg: any, accessToken: string) {
 
     console.log(`[IG DM] De ${senderId}: "${text.slice(0, 100)}"`)
 
+    // Tentar buscar nome do remetente na Meta API
+    let senderName: string | null = null
+    try {
+        // Buscar page token para fazer a chamada
+        const ptRes = await fetch(`https://graph.facebook.com/v22.0/${config.page_id}?fields=access_token&access_token=${accessToken}`)
+        if (ptRes.ok) {
+            const ptData = await ptRes.json()
+            const pageToken = ptData.access_token || accessToken
+            senderName = await fetchIGSenderName(senderId, pageToken)
+        }
+    } catch { /* silenciar */ }
+
     await prisma.$executeRawUnsafe(
-        `INSERT INTO mensagens_instagram (user_id, ig_sender_id, tipo, direcao, conteudo) VALUES ($1, $2, 'dm', 'entrada', $3)`,
-        config.user_id, senderId, text
+        `INSERT INTO mensagens_instagram (user_id, ig_sender_id, ig_sender_name, tipo, direcao, conteudo) VALUES ($1, $2, $3, 'dm', 'entrada', $4)`,
+        config.user_id, senderId, senderName, text
     )
 
     let resposta = ''

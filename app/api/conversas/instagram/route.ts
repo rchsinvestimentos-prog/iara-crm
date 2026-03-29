@@ -40,6 +40,7 @@ export async function GET(request: Request) {
         const threads = await prisma.$queryRawUnsafe<any[]>(`
             SELECT 
                 ig_sender_id,
+                MAX(ig_sender_name) as ig_sender_name,
                 MAX(created_at) as ultima_data,
                 (SELECT conteudo FROM mensagens_instagram m2 
                  WHERE m2.user_id = $1 AND m2.ig_sender_id = mi.ig_sender_id 
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
         return NextResponse.json({
             threads: threads.map(t => ({
                 senderId: t.ig_sender_id,
-                nome: `@${t.ig_sender_id.slice(0, 8)}...`,
+                nome: t.ig_sender_name || `ID ${t.ig_sender_id.slice(-6)}`,
                 ultimaMensagem: (t.ultima_mensagem || '').replace('[FALHA_ENVIO] ', ''),
                 ultimaData: t.ultima_data,
                 totalMensagens: Number(t.total_mensagens),
