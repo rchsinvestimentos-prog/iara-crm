@@ -1,23 +1,27 @@
 // ============================================
-// SETUP DB — Criar tabelas faltantes
+// SETUP DB v2 — Recriar tabela agendamentos_v2 com schema correto
 // ============================================
-// GET /api/debug/setup-db — Cria tabelas que faltam no banco
-// TEMPORÁRIO — remover após rodar
-
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export async function GET() {
     const results: string[] = []
 
-    // 1. agendamentos_v2
+    // 1. DROP e recriar agendamentos_v2 com schema CORRETO do Prisma
+    try {
+        await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS agendamentos_v2 CASCADE`)
+        results.push('✅ Tabela antiga agendamentos_v2 removida')
+    } catch (e: any) {
+        results.push(`⚠️ Drop: ${e.message}`)
+    }
+
     try {
         await prisma.$executeRawUnsafe(`
-            CREATE TABLE IF NOT EXISTS agendamentos_v2 (
-                id SERIAL PRIMARY KEY,
-                clinica_id INT NOT NULL REFERENCES users(id),
-                profissional_id INT NOT NULL,
-                nome_cliente VARCHAR(255) NOT NULL,
+            CREATE TABLE agendamentos_v2 (
+                id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+                clinica_id INT NOT NULL,
+                profissional_id TEXT NOT NULL,
+                nome_paciente VARCHAR(200) NOT NULL,
                 telefone VARCHAR(30) NOT NULL,
                 contato_id INT,
                 procedimento VARCHAR(255) NOT NULL,
@@ -34,42 +38,12 @@ export async function GET() {
                 updated_at TIMESTAMP DEFAULT NOW()
             )
         `)
-        results.push('✅ agendamentos_v2 criada/existente')
+        results.push('✅ agendamentos_v2 criada com schema correto')
     } catch (e: any) {
         results.push(`❌ agendamentos_v2: ${e.message}`)
     }
 
-    // 2. webhook_debug_log
-    try {
-        await prisma.$executeRawUnsafe(`
-            CREATE TABLE IF NOT EXISTS webhook_debug_log (
-                id SERIAL PRIMARY KEY,
-                payload TEXT,
-                created_at TIMESTAMP DEFAULT NOW()
-            )
-        `)
-        results.push('✅ webhook_debug_log criada/existente')
-    } catch (e: any) {
-        results.push(`❌ webhook_debug_log: ${e.message}`)
-    }
-
-    // 3. pausa_conversa (se usada)
-    try {
-        await prisma.$executeRawUnsafe(`
-            CREATE TABLE IF NOT EXISTS pausa_conversa (
-                id SERIAL PRIMARY KEY,
-                user_id INT,
-                telefone VARCHAR(30),
-                expira_em TIMESTAMP,
-                created_at TIMESTAMP DEFAULT NOW()
-            )
-        `)
-        results.push('✅ pausa_conversa criada/existente')
-    } catch (e: any) {
-        results.push(`❌ pausa_conversa: ${e.message}`)
-    }
-
-    // 4. Indexes para agendamentos_v2
+    // 2. Indexes
     try {
         await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS idx_agendamentos_v2_clinica ON agendamentos_v2(clinica_id)`)
         await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS idx_agendamentos_v2_prof ON agendamentos_v2(profissional_id)`)
@@ -78,6 +52,35 @@ export async function GET() {
         results.push('✅ Indexes criados')
     } catch (e: any) {
         results.push(`❌ Indexes: ${e.message}`)
+    }
+
+    // 3. Verificar outras tabelas necessárias
+    const tablesCheck = [
+        'webhook_debug_log',
+        'status_conversa',
+        'historico_conversa',
+        'contatos_clinica',
+        'procedimentos',
+        'profissionais',
+        'instancias_clinica',
+        'respostas_automaticas',
+        'feedbacks_dra',
+        'cache_respostas',
+    ]
+
+    for (const table of tablesCheck) {
+        try {
+            const result = await prisma.$queryRawUnsafe<any[]>(`
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' AND table_name = $1
+                ) as exists
+            `, table)
+            const exists = result[0]?.exists
+            results.push(`${exists ? '✅' : '❌ FALTANDO'} ${table}`)
+        } catch (e: any) {
+            results.push(`⚠️ ${table}: ${e.message}`)
+        }
     }
 
     return NextResponse.json({ results })
