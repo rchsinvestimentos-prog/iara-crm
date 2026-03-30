@@ -95,7 +95,31 @@ export async function getConversationHistory(
 }
 
 /**
+ * Garante que a tabela historico_conversas existe.
+ * Chamada antes de qualquer INSERT para evitar falhas silenciosas.
+ */
+async function ensureHistoricoTable(): Promise<void> {
+    await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS historico_conversas (
+            id SERIAL PRIMARY KEY,
+            user_id INT,
+            telefone_cliente VARCHAR(50),
+            role VARCHAR(20),
+            content TEXT,
+            push_name VARCHAR(200),
+            origem VARCHAR(30) DEFAULT 'whatsapp',
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    `)
+    await prisma.$executeRawUnsafe(`
+        CREATE INDEX IF NOT EXISTS idx_historico_user_tel
+        ON historico_conversas (user_id, telefone_cliente, created_at DESC)
+    `)
+}
+
+/**
  * Salvar mensagem no histórico de conversas.
+ * Auto-cria a tabela se não existir (evita falhas silenciosas no pipeline).
  */
 export async function saveToHistory(
     clinicaId: number,
@@ -109,8 +133,25 @@ export async function saveToHistory(
       INSERT INTO historico_conversas (user_id, telefone_cliente, role, content, push_name, origem, created_at)
       VALUES (${clinicaId}, ${telefone}, ${role}, ${content}, ${pushName || null}, ${role === 'user' ? 'cliente' : 'ia'}, NOW())
     `
-    } catch (err) {
-        console.error('[Memory] Erro ao salvar no histórico:', err)
+    } catch (firstErr: any) {
+        // Se falhou, tenta criar a tabela e tentar novamente
+        const msg = (firstErr?.message || '').toLowerCase()
+        if (msg.includes('does not exist') || msg.includes('relation') || msg.includes('undefined table')) {
+            console.warn('[Memory] Tabela historico_conversas não existe — criando agora...')
+            try {
+                await ensureHistoricoTable()
+                // Retry após criar a tabela
+                await prisma.$executeRaw`
+                    INSERT INTO historico_conversas (user_id, telefone_cliente, role, content, push_name, origem, created_at)
+                    VALUES (${clinicaId}, ${telefone}, ${role}, ${content}, ${pushName || null}, ${role === 'user' ? 'cliente' : 'ia'}, NOW())
+                `
+                console.log('[Memory] ✅ Tabela criada e mensagem salva com sucesso.')
+            } catch (retryErr) {
+                console.error('[Memory] ❌ Falha ao criar tabela ou re-inserir:', retryErr)
+            }
+        } else {
+            console.error('[Memory] Erro ao salvar no histórico:', firstErr)
+        }
     }
 }
 
