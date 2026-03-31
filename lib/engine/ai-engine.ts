@@ -205,7 +205,7 @@ export async function callAI(
 ): Promise<RespostaIA> {
 
     // 1. Tentar Claude Sonnet
-    const modelo = modelOverride || 'claude-sonnet-4-20250514'
+    const modelo = modelOverride || 'claude-sonnet-4-5'
 
     for (let tentativa = 1; tentativa <= 3; tentativa++) {
         try {

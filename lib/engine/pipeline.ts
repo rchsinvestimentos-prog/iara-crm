@@ -201,10 +201,13 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         }
     }
 
+    // Fingerprint da clínica — muda quando nome/config muda, invalidando o cache
+    const clinicaFingerprint = `${clinica.nomeAssistente || 'iara'}:${clinica.nomeClinica || ''}:${clinica.nomeDoutora || ''}`
+
     // ================================================
     // 8. CACHE — Já respondeu isso recentemente?
     // ================================================
-    const cacheHit = await checkCache(clinica.id, textoMensagem)
+    const cacheHit = await checkCache(clinica.id, textoMensagem, clinicaFingerprint)
     if (cacheHit) {
         console.log(`[Pipeline] 💰 Cache hit! Economizando IA.`)
         // Usa resposta cacheada mas ainda envia e salva
@@ -255,7 +258,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // ================================================
     // 11. SALVAR NO CACHE
     // ================================================
-    await saveCache(clinica.id, textoMensagem, resposta.texto, resposta.modelo)
+    await saveCache(clinica.id, textoMensagem, resposta.texto, resposta.modelo, clinicaFingerprint)
 
     // ================================================
     // 11.5 PROCESSAR AGENDAMENTOS (se houver marcadores [AGENDAR:...])
@@ -582,14 +585,16 @@ async function handleForaDoHorario(clinica: DadosClinica, msg: MensagemRecebida,
 // CACHE DE IA (economiza $$$)
 // ============================================
 
-function hashMensagem(msg: string): string {
+function hashMensagem(msg: string, clinicaFingerprint?: string): string {
     // Normaliza: lowercase, sem espaços extras, sem emojis
     const normalizada = msg.toLowerCase().trim().replace(/\s+/g, ' ').replace(/[^\w\s]/g, '')
-    return createHash('sha256').update(normalizada).digest('hex').substring(0, 16)
+    // Inclui fingerprint da clínica pra invalidar cache quando nome/config mudar
+    const base = clinicaFingerprint ? `${clinicaFingerprint}:${normalizada}` : normalizada
+    return createHash('sha256').update(base).digest('hex').substring(0, 16)
 }
 
-async function checkCache(userId: number, mensagem: string): Promise<string | null> {
-    const hash = hashMensagem(mensagem)
+async function checkCache(userId: number, mensagem: string, fingerprint?: string): Promise<string | null> {
+    const hash = hashMensagem(mensagem, fingerprint)
 
     try {
         const result = await prisma.$queryRaw<{ resposta: string }[]>`
@@ -613,8 +618,8 @@ async function checkCache(userId: number, mensagem: string): Promise<string | nu
     return null
 }
 
-async function saveCache(userId: number, mensagem: string, resposta: string, modelo: string): Promise<void> {
-    const hash = hashMensagem(mensagem)
+async function saveCache(userId: number, mensagem: string, resposta: string, modelo: string, fingerprint?: string): Promise<void> {
+    const hash = hashMensagem(mensagem, fingerprint)
 
     // Não cachear mensagens muito curtas (oi, ola, etc) — contexto varia muito
     if (mensagem.length < 15) return
