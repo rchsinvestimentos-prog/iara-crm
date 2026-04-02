@@ -149,10 +149,15 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // ================================================
     const horario = checkBusinessHours(clinica)
     await logPipeline('HOURS_CHECK', `aberto=${horario.aberto} debug=${horario.debugInfo} horarioSab=${clinica.horarioSabado} horarioSem=${clinica.horarioSemana}`)
+    
     if (!horario.aberto) {
-        await handleForaDoHorario(clinica, msg, horario.msgFechado)
-        await logPipeline('CLOSED', `${horario.debugInfo}`)
-        return
+        if (!clinica.sempreLigada) {
+            await handleForaDoHorario(clinica, msg, horario.msgFechado)
+            await logPipeline('CLOSED', `${horario.debugInfo} - sempreLigada=false`)
+            return
+        } else {
+            await logPipeline('HOURS_OVERRIDE', `fechado mas sempreLigada=true`)
+        }
     }
 
     // ================================================
@@ -243,6 +248,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         memoria: memoriaCliente,
         agendaContext,
         profissionais: profissionaisRaw.length > 1 ? profissionaisRaw : undefined,
+        clinicaAbertaAgora: horario.aberto,
     })
 
     await logPipeline('AI_CALL', `chamando IA... modelo=${(clinica.configuracoes as any)?.modelo_sonnet || 'default'}`)
@@ -492,12 +498,6 @@ function checkBusinessHours(clinica: DadosClinica): HorarioCheck {
     const agora = new Date(new Date().toLocaleString("en-US", { timeZone: tz }))
     const horaAtual = agora.getHours() + (agora.getMinutes() / 60)
     const diaSemana = agora.getDay() // 0=Dom, 6=Sab
-
-    // Se 24h configurado
-    const cfg = (clinica.configuracoes as any) || {}
-    if (cfg.atendimento_24h === true) {
-        return { aberto: true, msgFechado: '', debugInfo: '24h' }
-    }
 
     // Determinar horário de hoje
     let horarioTexto = clinica.horarioSemana || '08:00 às 18:00'

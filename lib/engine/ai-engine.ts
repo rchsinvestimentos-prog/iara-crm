@@ -34,6 +34,7 @@ interface PromptContext {
     memoria: MemoriaCliente | null
     agendaContext?: string | null
     profissionais?: ProfissionalAtivo[]
+    clinicaAbertaAgora?: boolean
 }
 
 /**
@@ -161,6 +162,11 @@ export function buildSystemPrompt(ctx: PromptContext): string {
         ? `PROFISSIONAL RESPONSÁVEL: ${nomeProfissional} (${tratamento === 'Pelo nome' ? 'refira-se pelo primeiro nome apenas' : `use o tratamento "${tratamento}"`})\n`
         : ''
     const agendaTexto = agendaContext ? `\n${agendaContext}\n` : ''
+    
+    // --- Horário de Funcionamento (importante quando "Sempre Ligada" estiver ativa) ---
+    const horarioContext = (ctx.clinicaAbertaAgora !== undefined && !ctx.clinicaAbertaAgora)
+        ? `\n⏰ INFORMAÇÃO CRÍTICA DE EXPEDIENTE: A CLÍNICA ESTÁ FECHADA NESTE EXATO MOMENTO.\n- Se a cliente pedir para vir agora ou quiser atendimento imediato, explique que a clínica está fechada e só reabrirá no próximo dia útil/horário comercial.\n- Você AINDA DEVE agendar para dias futuros normalmente. Apenas deixe claro que não há ninguém fisicamente lá agora.\n`
+        : ''
 
     // --- Regra anti-cumprimento-repetitivo ---
     const historico = ctx.historico || []
@@ -174,7 +180,7 @@ Só cumprimente se for a PRIMEIRÍSSIMA mensagem (histórico vazio).`
 
     return `${roleDesc}
 ${catalogoTexto}${feedbackTexto}${memoriaTexto}
-${linhaProf}${agendaTexto}${cofre.leisImutaveis}
+${linhaProf}${horarioContext}${agendaTexto}${cofre.leisImutaveis}
 
 ${cofre.roteiroVendas}
 

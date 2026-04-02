@@ -84,6 +84,7 @@ export interface DadosClinica {
     politicaCancelamento: string | null
     mensagemBoasVindas: string | null
     fraseDespedida: string | null
+    sempreLigada: boolean | null
 
     // Internacionalização
     idioma: string | null

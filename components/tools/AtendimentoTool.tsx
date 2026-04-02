@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { MessageCircle, Plus, Trash2, Save, Sparkles, Shield, ToggleLeft, ToggleRight, Loader2, Check, Bot, Clock, Ban, Cake, MessageSquareText, Pencil, X } from 'lucide-react'
 import SimulatorDrawer from './SimulatorDrawer'
+import VozTool from './VozTool'
 
 // Funcionalidades que a IARA pode fazer — a Dra liga/desliga
 // hidden = true → sempre ativo mas não aparece para o cliente
@@ -679,6 +680,13 @@ export default function AtendimentoTool() {
                     <><Save size={16} /> Salvar Configurações da Secretária</>
                 )}
             </button>
+
+            {/* Separator / Início VozTool */}
+            <div className="pt-8 pb-4">
+                <div className="h-px w-full" style={{ backgroundColor: 'var(--border-default)' }} />
+            </div>
+
+            <VozTool />
 
             {/* Testar IARA Floating Button */}
             <button

@@ -253,7 +253,7 @@ export default function VozTool() {
         <div className="space-y-6">
 
             {/* SELETOR DE TIPO DE VOZ */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                 <h3 className="text-[13px] font-semibold text-[#0F4C61] mb-1 flex items-center gap-2">
                     <Radio size={15} className="text-[#D99773]" />
                     Qual voz a IARA vai usar?
@@ -317,7 +317,7 @@ export default function VozTool() {
             {/* ============================================ */}
             {/* VOZES DIGITAIS (P1+) */}
             {/* ============================================ */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                 <h3 className="text-[13px] font-semibold text-[#0F4C61] mb-1 flex items-center gap-2">
                     <Volume2 size={15} className="text-[#0F4C61]" />
                     Vozes Digitais
