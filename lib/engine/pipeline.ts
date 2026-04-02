@@ -27,6 +27,8 @@ import * as calendar from './calendar'
 import * as aiEngine from './ai-engine'
 import * as sender from './sender'
 import * as logger from './logger'
+import { processaDraMensagem } from '@/lib/agent/dra-agent'
+import { shouldRouteToAgent } from '@/lib/agent/intent-classifier'
 import type { MensagemRecebida, DadosClinica, ProfissionalAtivo } from './types'
 import { prisma } from '@/lib/prisma'
 import { createHash } from 'crypto'
@@ -91,6 +93,22 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
             if (feedback.isFeedback) {
                 await memory.saveDraFeedback(clinica.id, feedback.regra)
                 await sender.sendText(sendOpts, 'Perfeito, Dra! ✅ Feedback registrado.')
+                return
+            }
+
+            // Se não é feedback, verificar se deve ir pro Agent Dra (plano 3+)
+            if (shouldRouteToAgent(msg.mensagem) && (clinica.nivel ?? 1) >= 3) {
+                await logPipeline('AGENT_DRA', `Roteando para Agent Dra: "${msg.mensagem.slice(0, 60)}..."`)
+                try {
+                    const agentResponse = await processaDraMensagem(clinica, msg.mensagem, 'whatsapp')
+                    await sender.sendText(sendOpts, agentResponse.texto)
+                    if (agentResponse.toolsExecuted.length > 0) {
+                        console.log(`[Pipeline] 🤖 Agent executou: ${agentResponse.toolsExecuted.join(', ')}`)
+                    }
+                } catch (agentErr) {
+                    console.error('[Pipeline] Agent Dra error:', agentErr)
+                    await sender.sendText(sendOpts, 'Desculpa Dra, tive um probleminha técnico. 😅 Pode repetir?')
+                }
                 return
             }
         }

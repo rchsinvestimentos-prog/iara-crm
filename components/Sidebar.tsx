@@ -96,6 +96,7 @@ const habilidadesMenu: { titulo: string; nivel: number; emoji: string; skills: S
   {
     titulo: 'Designer', nivel: 3, emoji: '💎',
     skills: [
+      { href: '/iara', label: 'Chat IARA', icon: Bot, nivel: 3 },
       { href: '/habilidades/voz-clonada', label: 'Voz Clonada', icon: Mic, nivel: 3 },
       { href: '/habilidades/leads', label: 'Lead Scoring', icon: Target, nivel: 3 },
       { href: '/habilidades/multi-clinica', label: 'Multi-clínica', icon: Building2, nivel: 3 },
