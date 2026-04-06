@@ -35,6 +35,7 @@ interface PromptContext {
     agendaContext?: string | null
     profissionais?: ProfissionalAtivo[]
     clinicaAbertaAgora?: boolean
+    promocoesAtivas?: { nome: string; descricao: string | null; instrucaoIara: string | null; procedimentos: string[] }[]
 }
 
 /**
@@ -105,7 +106,11 @@ export function buildSystemPrompt(ctx: PromptContext): string {
                 catalogoTexto += `  Procedimentos:\n`
                 for (const proc of prof.procedimentos.slice(0, 10)) {
                     catalogoTexto += `    - ${proc.nome}`
-                    if (proc.valor) catalogoTexto += ` — ${moeda} ${proc.valor}`
+                    if (proc.valorMin && proc.valorMax) {
+                        catalogoTexto += ` — ${moeda} ${proc.valorMin} a ${moeda} ${proc.valorMax} (avaliação necessária)`
+                    } else if (proc.valor) {
+                        catalogoTexto += ` — ${moeda} ${proc.valor}`
+                    }
                     if (proc.duracao) catalogoTexto += ` (${proc.duracao})`
                     catalogoTexto += '\n'
                 }
@@ -121,7 +126,11 @@ export function buildSystemPrompt(ctx: PromptContext): string {
         if (procedimentos.length > 0) {
             procedimentos.slice(0, 10).forEach((proc) => {
                 catalogoTexto += `• ${proc.nome}`
-                if (proc.valor) catalogoTexto += ` — ${moeda} ${proc.valor}`
+                if (proc.valorMin && proc.valorMax) {
+                    catalogoTexto += ` — ${moeda} ${proc.valorMin} a ${moeda} ${proc.valorMax} (avaliação necessária)`
+                } else if (proc.valor) {
+                    catalogoTexto += ` — ${moeda} ${proc.valor}`
+                }
                 if (proc.duracao) catalogoTexto += ` (${proc.duracao})`
                 catalogoTexto += '\n'
                 if (proc.descricao) catalogoTexto += `  ℹ️ ${proc.descricao}\n`
@@ -130,6 +139,16 @@ export function buildSystemPrompt(ctx: PromptContext): string {
             catalogoTexto += `${labels.semCatalogo}\n`
         }
     }
+
+    // --- Regra de Preço Faixa (valor_min/valor_max) ---
+    const temFaixa = procedimentos.some(p => p.valorMin && p.valorMax)
+    const regraFaixa = temFaixa ? `
+⚠️ REGRA DE PREÇO FAIXA:
+Alguns procedimentos têm preço variável (faixa de/até). Para esses:
+- Informe que "os valores podem variar de X a Y, dependendo do caso"
+- Diga: "Para te passar o valor exato, preciso que a ${nomeProfissional || 'profissional'} avalie pessoalmente."
+- SEMPRE puxe para agendar uma avaliação.
+` : ''
 
     // --- Feedbacks da Dra ---
     // Dois tipos: (1) instruções permanentes do painel (clinica.feedbacks) e (2) comandos realtime via WhatsApp (feedback_iara table)
@@ -157,6 +176,27 @@ export function buildSystemPrompt(ctx: PromptContext): string {
         }
     }
 
+    // --- Promoções Ativas ---
+    let promoTexto = ''
+    const promos = ctx.promocoesAtivas || []
+    if (promos.length > 0) {
+        promoTexto = `\n🏷️ PROMOÇÕES ATIVAS (CHEQUE SEMPRE ANTES DE DAR PREÇO):\n`
+        promos.forEach(p => {
+            promoTexto += `• ${p.nome}`
+            if (p.descricao) promoTexto += ` — ${p.descricao}`
+            promoTexto += `\n`
+            if (p.instrucaoIara) promoTexto += `  📝 Instrução: ${p.instrucaoIara}\n`
+            if (p.procedimentos.length > 0) promoTexto += `  Procedimentos inclusos: ${p.procedimentos.join(', ')}\n`
+        })
+        promoTexto += `⚠️ SEMPRE verifique se o procedimento que a cliente quer está em promoção. Se estiver, INFORME a promoção.\n`
+    }
+
+    // --- Estilo de Atendimento (Direta vs Consultiva) ---
+    const estilo = clinica.estiloAtendimento || 'direta'
+    const regraEstilo = estilo === 'consultiva'
+        ? `\n🎯 ESTILO: CONSULTIVO\nAntes de falar preços ou agenda, busque entender a NECESSIDADE da cliente:\n- O que incomoda ela hoje?\n- Há quanto tempo tem esse problema?\n- Já fez algo semelhante antes?\nDepois de entender, RECOMEENDE o procedimento ideal com base nos cadastrados e agende.\nFluxo: Entender → Recomendar → Preço → Agendar.`
+        : `\n🎯 ESTILO: DIRETO\nFoco máximo em AGENDAR. Quando a cliente perguntar preço, responda com o valor + ofereça agenda.\nSem enrolação. Poucas perguntas. Fluxo rápido: Preço → Agenda → Confirmação.`
+
     // --- Montagem final ---
     const linhaProf = nomeProfissional
         ? `PROFISSIONAL RESPONSÁVEL: ${nomeProfissional} (${tratamento === 'Pelo nome' ? 'refira-se pelo primeiro nome apenas' : `use o tratamento "${tratamento}"`})\n`
@@ -179,7 +219,8 @@ Só cumprimente se for a PRIMEIRÍSSIMA mensagem (histórico vazio).`
         : ''
 
     return `${roleDesc}
-${catalogoTexto}${feedbackTexto}${memoriaTexto}
+🎯 SUA META #1: AGENDAR. Toda conversa deve caminhar para um agendamento.
+${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${feedbackTexto}${memoriaTexto}
 ${linhaProf}${horarioContext}${agendaTexto}${cofre.leisImutaveis}
 
 ${cofre.roteiroVendas}

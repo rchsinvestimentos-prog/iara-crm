@@ -249,6 +249,31 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         buscarProfissionais(clinica.id),
     ])
 
+    // Buscar promoções ativas
+    let promocoesAtivas: { nome: string; descricao: string | null; instrucaoIara: string | null; procedimentos: string[] }[] = []
+    try {
+        const promos = await prisma.$queryRawUnsafe<any[]>(`
+            SELECT p.nome, p.descricao, p.instrucao_iara,
+                COALESCE(
+                    (SELECT json_agg(proc.nome) FROM procedimentos proc 
+                     JOIN promocao_procedimentos pp ON pp.procedimento_id = proc.id::text 
+                     WHERE pp.promocao_id = p.id),
+                    '[]'::json
+                ) as procedimentos_nomes
+            FROM promocoes p
+            WHERE p.clinica_id = $1::text AND p.ativo = true
+            AND p.data_inicio <= CURRENT_DATE AND p.data_fim >= CURRENT_DATE
+        `, clinica.id)
+        promocoesAtivas = promos.map(p => ({
+            nome: p.nome,
+            descricao: p.descricao,
+            instrucaoIara: p.instrucao_iara,
+            procedimentos: p.procedimentos_nomes || [],
+        }))
+    } catch (e) {
+        // Silencioso — promoções são opcionais
+    }
+
     // Buscar agenda (com profissionais se multi-prof)
     const agendaContext = await calendar.getAgendaContext(clinica.id, clinica, profissionaisRaw.length > 1 ? profissionaisRaw : undefined)
 
@@ -267,6 +292,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         agendaContext,
         profissionais: profissionaisRaw.length > 1 ? profissionaisRaw : undefined,
         clinicaAbertaAgora: horario.aberto,
+        promocoesAtivas,
     })
 
     await logPipeline('AI_CALL', `chamando IA... modelo=${(clinica.configuracoes as any)?.modelo_sonnet || 'default'}`)
@@ -667,8 +693,11 @@ async function buscarProcedimentos(clinicaId: number) {
             duracao: string | null
             descricao: string | null
             profissional_id: string | null
+            valor_min: number | null
+            valor_max: number | null
         }[]>`
-      SELECT id, nome, valor, desconto, parcelas, duracao, descricao, "profissional_id"
+      SELECT id, nome, valor, desconto, parcelas, duracao, descricao, "profissional_id",
+             valor_min, valor_max
       FROM procedimentos
       WHERE "clinicaId" = ${String(clinicaId)}
         AND COALESCE(ativo, true) = true
@@ -677,6 +706,8 @@ async function buscarProcedimentos(clinicaId: number) {
         return (result || []).map(r => ({
             ...r,
             profissionalId: r.profissional_id || null,
+            valorMin: r.valor_min ? Number(r.valor_min) : null,
+            valorMax: r.valor_max ? Number(r.valor_max) : null,
         }))
     } catch {
         return []

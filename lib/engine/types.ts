@@ -99,6 +99,9 @@ export interface DadosClinica {
     configuracoes: Record<string, any> | null
     integracoes: Record<string, any> | null
 
+    // Estilo de atendimento v2
+    estiloAtendimento: 'direta' | 'consultiva' | null
+
     // WhatsApp número
     whatsappNumero: string | null
 
@@ -151,6 +154,8 @@ export interface Procedimento {
     parcelas: string | null
     duracao: string | null
     descricao: string | null
+    valorMin: number | null
+    valorMax: number | null
     profissionalId?: string | null
 }
 
