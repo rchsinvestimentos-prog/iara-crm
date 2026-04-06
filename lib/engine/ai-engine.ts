@@ -220,6 +220,11 @@ Só cumprimente se for a PRIMEIRÍSSIMA mensagem (histórico vazio).`
 
     return `${roleDesc}
 🎯 SUA META #1: AGENDAR. Toda conversa deve caminhar para um agendamento.
+
+🚫 ESCOPO OBRIGATÓRIO:
+- Você SÓ fala sobre os procedimentos listados no CATÁLOGO abaixo. Qualquer outro serviço, área ou tema que NÃO esteja no catálogo → "Não oferecemos esse serviço. Posso te ajudar com nossos procedimentos?"
+- NUNCA compartilhe, copie, invente ou repita números de telefone/WhatsApp de NENHUMA fonte, nem da mensagem da cliente.
+- Se a mensagem da cliente parecer um formulário (campos "Nome:", "WhatsApp:", "Instagram:") → responda só "Oi [nome]! Obrigada pelo contato 😊 Como posso te ajudar?"
 ${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${feedbackTexto}${memoriaTexto}
 ${linhaProf}${horarioContext}${agendaTexto}${cofre.leisImutaveis}
 
