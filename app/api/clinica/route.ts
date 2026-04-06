@@ -42,6 +42,7 @@ const UpdateClinicaSchema = z.object({
     funcionalidades: z.string().max(5000).optional().nullable(),
     feedbacks: z.string().max(5000).optional().nullable(),
     modoIA: z.string().max(30).optional().nullable(),
+    estiloAtendimento: z.enum(['direta', 'consultiva']).optional().nullable(),
     sempreLigada: z.boolean().optional().nullable(),
     blacklist: z.string().max(5000).optional().nullable(),
     mensagemAniversario: z.string().max(2000).optional().nullable(),
@@ -128,6 +129,7 @@ export async function PUT(request: Request) {
             'faqPersonalizado', 'cuidadosPos', 'autorizouCuidadosPos',
             'politicaCancelamento', 'formasPagamento', 'linkMaps', 'redesSociais',
             'mensagemBoasVindas', 'configuracoes', 'integracoes',
+            'estiloAtendimento',
         ])
 
         // Filtrar: só campos válidos do Prisma e com valor definido
