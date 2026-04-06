@@ -79,6 +79,7 @@ interface ClinicaData {
     nome: string
     nomeClinica: string | null
     nomeAssistente: string | null
+    estiloAtendimento: string | null
     whatsappClinica: string | null
     whatsappDoutora: string | null
     diferenciais: string | null
@@ -151,6 +152,10 @@ export default function ConfiguracoesTool() {
     // ---- Perfil da Profissional ----
     const [nomeDoutora, setNomeDoutora] = useState('')
     const [tratamentoDoutora, setTratamentoDoutora] = useState('Pelo nome')
+
+    // ---- IARA ----
+    const [nomeAssistente, setNomeAssistente] = useState('IARA')
+    const [estiloAtendimento, setEstiloAtendimento] = useState('direta')
 
     // ---- Feedbacks CRUD ----
     const [feedbacks, setFeedbacks] = useState('')
@@ -250,6 +255,8 @@ export default function ConfiguracoesTool() {
                 setDiferencialItems((data.diferenciais || '').split('\n').map((s: string) => s.trim()).filter(Boolean))
                 setNomeDoutora(data.nomeDoutora || '')
                 setTratamentoDoutora(data.tratamentoDoutora || 'Pelo nome')
+                setNomeAssistente(data.nomeAssistente || 'IARA')
+                setEstiloAtendimento(data.estiloAtendimento || 'direta')
                 setEndereco(data.endereco || '')
                 // Tentar parsear endereço existente nos campos separados
                 if (data.endereco) {
@@ -344,6 +351,8 @@ export default function ConfiguracoesTool() {
                     whatsappDoutora: whatsappPessoal || null,
                     nomeDoutora: nomeDoutora || null,
                     tratamentoDoutora: tratamentoDoutora || 'Pelo nome',
+                    nomeAssistente: nomeAssistente || 'IARA',
+                    estiloAtendimento: estiloAtendimento || 'direta',
                     endereco: endereco || null,
                     linkMaps: linkMaps || null,
                 }
@@ -408,6 +417,8 @@ export default function ConfiguracoesTool() {
                     whatsappDoutora: whatsappPessoal || null,
                     nomeDoutora: nomeDoutora || null,
                     tratamentoDoutora: tratamentoDoutora || 'Pelo nome',
+                    nomeAssistente: nomeAssistente || 'IARA',
+                    estiloAtendimento: estiloAtendimento || 'direta',
                     diferenciais: diferencialItems.length > 0 ? diferencialItems.join('\n') : null,
                     endereco: endereco || null,
                     horarioSemana: horarioSemana || null,
@@ -738,6 +749,33 @@ export default function ConfiguracoesTool() {
                                 <option value="Nut.">Nut. (ex: Nut. Ana)</option>
                                 <option value="Esteticista">Esteticista (ex: Esteticista Ana)</option>
                             </select>
+                        </div>
+                    </div>
+
+                    {/* ======= CONFIGURAÇÃO DA IARA ======= */}
+                    <div className="pt-3 mt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                        <p className="text-[11px] font-semibold flex items-center gap-1.5 mb-3" style={{ color: '#D99773' }}>
+                            <Bot size={13} />
+                            Personalização da IARA
+                        </p>
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Nome da Assistente IA</label>
+                                <input className={inputClass} style={inputStyle} value={nomeAssistente} onChange={e => setNomeAssistente(e.target.value)} placeholder="IARA" />
+                                <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>Esse é o nome que a IA usa ao se apresentar</p>
+                            </div>
+                            <div>
+                                <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Estilo de Atendimento</label>
+                                <select className={inputClass} style={inputStyle} value={estiloAtendimento} onChange={e => setEstiloAtendimento(e.target.value)}>
+                                    <option value="direta">⚡ Direta (preço + agenda rápido)</option>
+                                    <option value="consultiva">💬 Consultiva (entende necessidade primeiro)</option>
+                                </select>
+                                <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
+                                    {estiloAtendimento === 'direta' 
+                                        ? 'Foco em agendar rápido. Responde com preço e horário.' 
+                                        : 'Faz perguntas antes de dar preço. Ideal para clínicas premium.'}
+                                </p>
+                            </div>
                         </div>
                     </div>
 
