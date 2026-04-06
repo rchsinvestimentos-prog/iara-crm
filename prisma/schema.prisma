@@ -87,6 +87,7 @@ model Clinica {
   funcionalidades      String?
   feedbacks            String?
   modoIA               String?   @default("secretaria") @map("modo_ia") @db.VarChar(30)
+  estiloAtendimento    String?   @default("direta") @map("estilo_atendimento") @db.VarChar(20)
   sempreLigada         Boolean?  @default(true) @map("sempre_ligada")
   blacklist            String?   @map("blacklist")
   mensagemAniversario  String?   @map("mensagem_aniversario")
@@ -259,6 +260,8 @@ model Procedimento {
   parcelas        Int?           @map("parcelamento_padrao")
   duracao         Int?           @map("duracao_minutos")
   descricao       String?        @db.Text
+  valorMin        Decimal?       @map("valor_min") @db.Decimal
+  valorMax        Decimal?       @map("valor_max") @db.Decimal
   posProcedimento String?        @map("pos_procedimento") @db.Text  // Cuidados pós-procedimento
   ativo           Boolean?       @default(true)
   createdAt       DateTime?      @default(now()) @map("created_at")
