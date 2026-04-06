@@ -6,14 +6,10 @@ import {
     Mic,
     Calendar,
     UserCheck,
-    BarChart3,
     Instagram,
     FileText,
     Camera,
     Paintbrush,
-    Palette,
-    Video,
-    Wand2,
     Lock,
     Check,
     Loader2,
@@ -32,7 +28,7 @@ interface Skill {
 
 const habilidades: { titulo: string; nivel: number; preco: string; cor: string; skills: Skill[] }[] = [
     {
-        titulo: 'Secretária',
+        titulo: 'Essencial',
         nivel: 1,
         preco: 'R$ 97/mês',
         cor: '#06D6A0',
@@ -44,36 +40,24 @@ const habilidades: { titulo: string; nivel: number; preco: string; cor: string; 
         ],
     },
     {
-        titulo: 'Estrategista',
+        titulo: 'Pro',
         nivel: 2,
         preco: 'R$ 197/mês',
         cor: '#F59E0B',
         skills: [
-            { nome: 'Roteiro de Reels', descricao: 'Gera roteiros criativos para Instagram', icon: <FileText size={20} />, nivel: 2, slug: 'roteiro' },
-            { nome: 'Plano de Marketing', descricao: 'Estratégias personalizadas para sua clínica', icon: <BarChart3 size={20} />, nivel: 2, slug: 'marketing' },
-            { nome: 'Análise do Instagram', descricao: 'Analisa perfil, engajamento e métricas', icon: <Instagram size={20} />, nivel: 2, slug: 'instagram' },
+            { nome: 'Instagram DM IA', descricao: 'Atende clientes pelo Instagram automaticamente', icon: <Instagram size={20} />, nivel: 2, slug: 'instagram' },
+            { nome: '4 Idiomas', descricao: 'Atende em PT-BR, PT-PT, EN e ES', icon: <FileText size={20} />, nivel: 2 },
         ],
     },
     {
-        titulo: 'Designer',
+        titulo: 'Premium',
         nivel: 3,
         preco: 'R$ 297/mês',
         cor: '#D99773',
         skills: [
-            { nome: 'Avatar Fotorrealista', descricao: 'Book profissional com fotos IA', icon: <Camera size={20} />, nivel: 3, slug: 'avatar' },
-            { nome: 'Posts Carrossel', descricao: 'Monta posts prontos para Instagram', icon: <Paintbrush size={20} />, nivel: 3, slug: 'posts' },
-            { nome: 'Logo + Manual de Marca', descricao: 'Identidade visual completa', icon: <Palette size={20} />, nivel: 3, slug: 'marca' },
-        ],
-    },
-    {
-        titulo: 'Audiovisual',
-        nivel: 4,
-        preco: 'R$ 497/mês',
-        cor: '#0F4C61',
-        skills: [
-            { nome: 'Vídeo com Avatar', descricao: 'Gera vídeos com avatar IA (HeyGen)', icon: <Video size={20} />, nivel: 4, slug: 'video' },
-            { nome: 'Voz Clonada', descricao: 'Sua voz clonada via ElevenLabs', icon: <Mic size={20} />, nivel: 4, slug: 'voz' },
-            { nome: 'Editor de Vídeo', descricao: 'Edições minimalistas automáticas', icon: <Wand2 size={20} />, nivel: 4, slug: 'editor' },
+            { nome: 'Equipe / Multi-profissional', descricao: 'Cadastre profissionais com agendas próprias', icon: <Camera size={20} />, nivel: 3 },
+            { nome: 'Voz Clonada', descricao: 'Sua voz clonada via ElevenLabs', icon: <Mic size={20} />, nivel: 3, slug: 'voz' },
+            { nome: 'Multi-clínica', descricao: 'Gerencie múltiplas clínicas', icon: <Paintbrush size={20} />, nivel: 3 },
         ],
     },
 ]

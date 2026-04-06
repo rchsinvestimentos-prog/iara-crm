@@ -9,15 +9,15 @@ const PRECOS: Record<string, {
     idioma: string
     flag: string
 }> = {
-    BR: { pais: 'Brasil', moeda: 'BRL', simbolo: 'R$', planos: [97, 197, 297, 497], idioma: 'pt-BR', flag: '🇧🇷' },
-    PT: { pais: 'Portugal', moeda: 'EUR', simbolo: '€', planos: [29, 59, 89, 149], idioma: 'pt-PT', flag: '🇵🇹' },
-    US: { pais: 'United States', moeda: 'USD', simbolo: '$', planos: [29, 59, 89, 149], idioma: 'en-US', flag: '🇺🇸' },
-    ES: { pais: 'España', moeda: 'EUR', simbolo: '€', planos: [29, 59, 89, 149], idioma: 'es', flag: '🇪🇸' },
-    AR: { pais: 'Argentina', moeda: 'USD', simbolo: '$', planos: [29, 59, 89, 149], idioma: 'es', flag: '🇦🇷' },
-    CO: { pais: 'Colombia', moeda: 'USD', simbolo: '$', planos: [29, 59, 89, 149], idioma: 'es', flag: '🇨🇴' },
-    MX: { pais: 'México', moeda: 'USD', simbolo: '$', planos: [29, 59, 89, 149], idioma: 'es', flag: '🇲🇽' },
+    BR: { pais: 'Brasil', moeda: 'BRL', simbolo: 'R$', planos: [97, 197, 297], idioma: 'pt-BR', flag: '🇧🇷' },
+    PT: { pais: 'Portugal', moeda: 'EUR', simbolo: '€', planos: [27, 47, 67], idioma: 'pt-PT', flag: '🇵🇹' },
+    US: { pais: 'United States', moeda: 'USD', simbolo: '$', planos: [27, 47, 67], idioma: 'en-US', flag: '🇺🇸' },
+    ES: { pais: 'España', moeda: 'EUR', simbolo: '€', planos: [27, 47, 67], idioma: 'es', flag: '🇪🇸' },
+    AR: { pais: 'Argentina', moeda: 'USD', simbolo: '$', planos: [27, 47, 67], idioma: 'es', flag: '🇦🇷' },
+    CO: { pais: 'Colombia', moeda: 'USD', simbolo: '$', planos: [27, 47, 67], idioma: 'es', flag: '🇨🇴' },
+    MX: { pais: 'México', moeda: 'USD', simbolo: '$', planos: [27, 47, 67], idioma: 'es', flag: '🇲🇽' },
     // Default para países não mapeados (cobra em USD)
-    DEFAULT: { pais: 'International', moeda: 'USD', simbolo: '$', planos: [29, 59, 89, 149], idioma: 'en-US', flag: '🌍' },
+    DEFAULT: { pais: 'International', moeda: 'USD', simbolo: '$', planos: [27, 47, 67], idioma: 'en-US', flag: '🌍' },
 }
 
 // Detectar país pelo IP usando header do Cloudflare/Vercel ou fallback API
@@ -65,41 +65,31 @@ export async function GET(request: NextRequest) {
             planos: pricing.planos,
             idioma: pricing.idioma,
             flag: pricing.flag,
-            nomes: ['Secretária', 'Estrategista', 'Designer', 'Audiovisual'],
+            nomes: ['Essencial', 'Pro', 'Premium'],
             features: {
                 1: {
-                    label: pricing.idioma === 'en-US' ? 'Secretary' : pricing.idioma === 'es' ? 'Secretaria' : 'Secretária',
+                    label: pricing.idioma === 'en-US' ? 'Essential' : pricing.idioma === 'es' ? 'Esencial' : 'Essencial',
                     items: pricing.idioma === 'en-US'
-                        ? ['Text messaging (WhatsApp/SMS)', 'Audio transcription', 'Auto scheduling', 'Pre-appointment follow-up', '100 credits/month']
+                        ? ['WhatsApp AI 24/7', 'Auto scheduling', 'Smart follow-ups', 'Promotions & combos', '1,000 credits/month']
                         : pricing.idioma === 'es'
-                            ? ['Atención WhatsApp texto', 'Transcripción de audio', 'Agenda automática', 'Seguimiento pre-consulta', '100 créditos/mes']
-                            : pricing.idioma === 'pt-PT'
-                                ? ['Atendimento WhatsApp texto', 'Transcrição de áudio', 'Agendamento automático', 'Follow-up pré-consulta', '100 créditos/mês']
-                                : ['Atendimento WhatsApp texto', 'Atendimento por áudio', 'Agendamento automático', 'Follow-up pré-consulta', '100 créditos/mês'],
+                            ? ['WhatsApp IA 24/7', 'Agenda automática', 'Follow-ups inteligentes', 'Promociones y combos', '1.000 créditos/mes']
+                            : ['WhatsApp IA 24/7', 'Agendamento automático', 'Follow-ups inteligentes', 'Promoções e combos', '1.000 créditos/mês'],
                 },
                 2: {
-                    label: pricing.idioma === 'en-US' ? 'Strategist' : 'Estrategista',
+                    label: 'Pro',
                     items: pricing.idioma === 'en-US'
-                        ? ['Everything in Plan 1', 'Instagram auto-replies', 'All languages supported', 'Marketing plan', '300 credits/month']
+                        ? ['Everything in Essential', 'Instagram DM AI', '4 languages', '3,000 credits/month']
                         : pricing.idioma === 'es'
-                            ? ['Todo del Plan 1', 'Auto-respuestas Instagram', 'Todos los idiomas', 'Plan de marketing', '300 créditos/mes']
-                            : ['Tudo do Plano 1', 'Auto-respostas Instagram', 'Todos os idiomas', 'Plano de marketing', '300 créditos/mês'],
+                            ? ['Todo del Esencial', 'Instagram DM IA', '4 idiomas', '3.000 créditos/mes']
+                            : ['Tudo do Essencial', 'Instagram DM IA', '4 idiomas', '3.000 créditos/mês'],
                 },
                 3: {
-                    label: 'Designer',
+                    label: 'Premium',
                     items: pricing.idioma === 'en-US'
-                        ? ['Everything in Plan 2', 'Cloned voice (ElevenLabs)', 'AI carousel posts', 'Logo + brand guide', '600 credits/month']
+                        ? ['Everything in Pro', 'Team / Multi-professional', 'Cloned voice (ElevenLabs)', 'Multi-clinic', '5,000 credits/month']
                         : pricing.idioma === 'es'
-                            ? ['Todo del Plan 2', 'Voz clonada (ElevenLabs)', 'Posts carrusel IA', 'Logo + manual de marca', '600 créditos/mes']
-                            : ['Tudo do Plano 2', 'Voz clonada (ElevenLabs)', 'Posts carrossel IA', 'Logo + manual de marca', '600 créditos/mês'],
-                },
-                4: {
-                    label: pricing.idioma === 'en-US' ? 'Audiovisual' : 'Audiovisual',
-                    items: pricing.idioma === 'en-US'
-                        ? ['Everything in Plan 3', 'AI video avatar (HeyGen)', 'Cloned voice + avatar', 'AI video editor', '1,200 credits/month']
-                        : pricing.idioma === 'es'
-                            ? ['Todo del Plan 3', 'Avatar vídeo IA (HeyGen)', 'Voz clonada + avatar', 'Editor de vídeo IA', '1.200 créditos/mes']
-                            : ['Tudo do Plano 3', 'Avatar vídeo IA (HeyGen)', 'Voz clonada + avatar', 'Editor de vídeo IA', '1.200 créditos/mês'],
+                            ? ['Todo del Pro', 'Equipo / Multi-profesional', 'Voz clonada (ElevenLabs)', 'Multi-clínica', '5.000 créditos/mes']
+                            : ['Tudo do Pro', 'Equipe / Multi-profissional', 'Voz clonada (ElevenLabs)', 'Multi-clínica', '5.000 créditos/mês'],
                 },
             },
             // Geo-blocking: informar se está no país "certo"

@@ -1,37 +1,36 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, Sparkles, Star, ExternalLink, Loader2, Smartphone, Plus, Crown, Gem, Clapperboard } from 'lucide-react'
+import { Check, Sparkles, Star, ExternalLink, Loader2, Smartphone, Plus, Crown, Gem } from 'lucide-react'
 
 const HOTMART_LINKS: Record<string, string> = {
-    'Secretária': 'https://pay.hotmart.com/B104324141M?off=7esdrrco&checkoutMode=6',
-    'Estrategista': 'https://pay.hotmart.com/B104324141M?off=7ak6m2dh&checkoutMode=6',
-    'Designer': 'https://pay.hotmart.com/B104324141M?off=8yivznpc&checkoutMode=6',
-    'Audiovisual': 'https://pay.hotmart.com/B104324141M?off=u4d05t07&checkoutMode=6',
+    'Essencial': 'https://pay.hotmart.com/B104324141M?off=7esdrrco&checkoutMode=6',
+    'Pro': 'https://pay.hotmart.com/B104324141M?off=7ak6m2dh&checkoutMode=6',
+    'Premium': 'https://pay.hotmart.com/B104324141M?off=8yivznpc&checkoutMode=6',
 }
 
 const planos = [
     {
-        nome: 'Secretária',
+        nome: 'Essencial',
         nivel: 1,
         icon: Sparkles,
-        cor: '#D99773',
+        cor: '#06D6A0',
         popular: false,
         creditos: 1000,
         precos: { USD: 27, EUR: 27, BRL: 97 },
         features: [
-            'Atendimento WhatsApp 24/7',
+            'WhatsApp IA 24/7 (texto + áudio)',
             '1 WhatsApp conectado',
-            'Agendamento automático (Google Calendar)',
-            'Follow-up de pacientes',
-            'Voz IA (OpenAI TTS)',
+            'Agendamento automático',
+            'Follow-ups inteligentes',
             'Promoções e Combos',
             'CRM (Kanban + Contatos)',
-            'Dashboard de métricas',
+            'Análise inteligente de mídias',
+            'Estilo: Direta ou Consultiva',
         ],
     },
     {
-        nome: 'Estrategista',
+        nome: 'Pro',
         nivel: 2,
         icon: Star,
         cor: '#8B5CF6',
@@ -39,47 +38,25 @@ const planos = [
         creditos: 3000,
         precos: { USD: 47, EUR: 47, BRL: 197 },
         features: [
-            'Tudo da Secretária +',
-            '📷 Instagram DM conectado',
-            '📱 App da Clínica (PWA)',
+            'Tudo do Essencial +',
+            '📷 Instagram DM com IA',
             '4 idiomas (PT-BR, PT-PT, EN, ES)',
-            'Fotos IA (Astria)',
-            'Roteiros + Marketing',
-            'Posts e Carrosséis',
-            'Raio-X Instagram',
-            'Calendário de Conteúdo IA',
         ],
     },
     {
-        nome: 'Designer',
+        nome: 'Premium',
         nivel: 3,
         icon: Gem,
-        cor: '#06B6D4',
+        cor: '#D99773',
         popular: false,
         creditos: 5000,
         precos: { USD: 67, EUR: 67, BRL: 297 },
         features: [
-            'Tudo da Estrategista +',
+            'Tudo do Pro +',
+            '👩‍⚕️ Equipe / Multi-profissional',
             '🎙️ Voz Clonada (ElevenLabs)',
-            'Lead Scoring',
             'Multi-clínica',
             '2 WhatsApps conectados',
-        ],
-    },
-    {
-        nome: 'Audiovisual',
-        nivel: 4,
-        icon: Clapperboard,
-        cor: '#F59E0B',
-        popular: false,
-        creditos: 10000,
-        precos: { USD: 97, EUR: 97, BRL: 497 },
-        features: [
-            'Tudo do Designer +',
-            '🎬 Avatar Vídeo IA (10min/mês)',
-            'White-label',
-            'API access',
-            '3 WhatsApps conectados',
         ],
     },
 ]
@@ -200,8 +177,8 @@ export default function PlanoPage() {
                 )}
             </div>
 
-            {/* Grid de planos — 4 colunas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {/* Grid de planos — 3 colunas */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {planos.map((plano, i) => {
                     const isAtual = plano.nivel === planoAtual
                     const hotmartLink = HOTMART_LINKS[plano.nome]

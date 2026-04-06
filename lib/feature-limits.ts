@@ -4,51 +4,20 @@ import { prisma } from '@/lib/prisma'
 // Limites de features por nível de plano
 // -1 = ilimitado
 //
-// LÓGICA:
-// - Features do SEU plano = generoso (nunca atinge no uso normal)
-// - Features de plano SUPERIOR = degustação (3-5) → motiva upgrade
-// - Features de plano INFERIOR = incluso (tem tudo do anterior + mais)
+// IARA v2: foco em agendamento. Features de marketing removidas.
 // ==========================================
 
 export const FEATURE_LIMITS: Record<number, Record<string, number>> = {
-    // P1 Secretária: features P2 = degustação (3)
+    // P1 Essencial
     1: {
-        roteiros: 3,         // degustação P2 → motiva upgrade
-        posts: 3,            // degustação P2
-        raioX: 1,            // degustação P2
-        fotosIA: 3,          // degustação P2
-        marca: 1,            // degustação P2
-        antesDepois: 3,      // degustação P2
         campanhaContatos: 30,
     },
-    // P2 Estrategista: features P2 = generoso
+    // P2 Pro
     2: {
-        roteiros: 30,
-        posts: 15,
-        raioX: 5,
-        fotosIA: 15,
-        marca: 5,
-        antesDepois: 20,
         campanhaContatos: 100,
     },
-    // P3 Designer: features P2+P3 = generoso+
+    // P3 Premium
     3: {
-        roteiros: 60,
-        posts: 30,
-        raioX: 10,
-        fotosIA: 30,
-        marca: 10,
-        antesDepois: 40,
-        campanhaContatos: 300,
-    },
-    // P4 Audiovisual: tudo ilimitado
-    4: {
-        roteiros: -1,
-        posts: -1,
-        raioX: -1,
-        fotosIA: -1,
-        marca: -1,
-        antesDepois: -1,
         campanhaContatos: -1,
     },
 }

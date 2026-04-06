@@ -7,147 +7,36 @@ import {
   LayoutDashboard,
   MessageCircle,
   Calendar,
-  UserCheck,
-  PenTool,
-  BarChart3,
   Instagram,
-  Camera,
-  Palette,
-  Award,
-  Mic,
-  Edit3,
-  Bot,
-  Shield,
-  Gift,
-  History,
-  Zap,
-  CalendarDays,
-  FileText,
   Settings,
   CreditCard,
   LogOut,
-  Lock,
   ChevronDown,
-  Sparkles,
   Sun,
   Moon,
   Smartphone,
   Menu,
   X,
-  Layers,
   Building2,
-  Video,
-  Kanban,
-  Target,
-  Globe,
-  Search,
-  Megaphone,
   Users,
-  TestTube2,
-  Star,
-  Link2,
   User,
+  Tag,
   Palmtree,
   Stethoscope,
   BookOpen,
   Package,
-  Tag,
+  Link2,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTheme } from './ThemeProvider'
 import SeletorIdioma from './SeletorIdioma'
 import dynamic from 'next/dynamic'
 
-type Skill = { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; nivel: number }
-
 interface ClinicaItem {
   id: number
   nomeClinica: string | null
   nome: string | null
   endereco: string | null
-}
-
-const habilidadesMenu: { titulo: string; nivel: number; emoji: string; skills: Skill[] }[] = [
-  {
-    titulo: 'Secretária', nivel: 1, emoji: '💬',
-    skills: [
-      { href: '/habilidades/atendimento', label: 'Atendimento', icon: MessageCircle, nivel: 1 },
-      { href: '/habilidades/agendamento', label: 'Agenda', icon: Calendar, nivel: 1 },
-      { href: '/habilidades/follow-up', label: 'Follow-up', icon: UserCheck, nivel: 1 },
-      { href: '/habilidades/crm', label: 'CRM Mini', icon: Kanban, nivel: 1 },
-    ],
-  },
-  {
-    titulo: 'Estrategista', nivel: 2, emoji: '⭐',
-    skills: [
-      { href: '/habilidades/instagram', label: 'Instagram', icon: Instagram, nivel: 2 },
-      { href: '/habilidades/marketing', label: 'Marketing', icon: BarChart3, nivel: 2 },
-      { href: '/habilidades/roteiros', label: 'Roteiros', icon: PenTool, nivel: 2 },
-      { href: '/habilidades/avatar', label: 'Fotos IA', icon: Camera, nivel: 2 },
-      { href: '/habilidades/posts', label: 'Posts', icon: Palette, nivel: 2 },
-      { href: '/habilidades/colagem', label: 'Antes/Depois', icon: Layers, nivel: 2 },
-      { href: '/habilidades/marca', label: 'Marca', icon: Award, nivel: 2 },
-      { href: '/habilidades/editor', label: 'Editor', icon: Edit3, nivel: 2 },
-      { href: '/habilidades/raiox', label: 'Raio-X Instagram', icon: Search, nivel: 2 },
-      { href: '/habilidades/calendario', label: 'Calendário Conteúdo', icon: CalendarDays, nivel: 2 },
-      { href: '/habilidades/app-config', label: 'App da Clínica', icon: Globe, nivel: 2 },
-    ],
-  },
-  {
-    titulo: 'Designer', nivel: 3, emoji: '💎',
-    skills: [
-      { href: '/iara', label: 'Chat IARA', icon: Bot, nivel: 3 },
-      { href: '/habilidades/voz-clonada', label: 'Voz Clonada', icon: Mic, nivel: 3 },
-      { href: '/habilidades/leads', label: 'Lead Scoring', icon: Target, nivel: 3 },
-      { href: '/habilidades/multi-clinica', label: 'Multi-clínica', icon: Building2, nivel: 3 },
-    ],
-  },
-  {
-    titulo: 'Audiovisual', nivel: 4, emoji: '🎬',
-    skills: [
-      { href: '/habilidades/videos', label: 'Avatar Vídeo', icon: Video, nivel: 4 },
-    ],
-  },
-]
-
-// Mapa rota → featureId (deve bater com admin/links FEATURES)
-const ROUTE_TO_FEATURE: Record<string, string> = {
-  '/dashboard': 'dashboard',
-  '/conversas': 'conversas',
-  '/crm': 'crm',
-  '/contatos': 'crm',
-  '/campanhas': 'campanhas',
-  '/habilidades/atendimento': 'atendimento',
-  '/habilidades/agendamento': 'agendamento',
-  '/habilidades/follow-up': 'follow-up',
-  '/habilidades/instagram': 'instagram',
-  '/habilidades/marketing': 'marketing',
-  '/habilidades/roteiros': 'roteiros',
-  '/habilidades/avatar': 'fotos-ia',
-  '/habilidades/posts': 'posts',
-  '/habilidades/colagem': 'colagem',
-  '/habilidades/marca': 'marca',
-  '/habilidades/editor': 'editor',
-  '/habilidades/raiox': 'raiox',
-  '/habilidades/calendario': 'calendario',
-  '/habilidades/voz-clonada': 'voz-clonada',
-  '/habilidades/crm': 'midia',
-  '/habilidades/leads': 'lancamentos',
-  '/habilidades/multi-clinica': 'midia',
-  '/habilidades/videos': 'reels',
-  '/habilidades/app-config': 'app-config',
-  '/instancias': 'instancias',
-  '/configuracoes': 'configuracoes',
-  '/equipe': 'profissionais',
-  '/satisfacao': 'satisfacao',
-  '/cofre': 'cofre',
-  '/features': 'features',
-  '/agenda': 'agenda',
-  '/templates': 'templates',
-  '/indicacoes': 'indicacoes',
-  '/historico-creditos': 'historico',
-  '/melhorar-iara': 'melhorar-iara',
-  '/plano': 'plano',
 }
 
 export default function Sidebar() {
@@ -157,7 +46,6 @@ export default function Sidebar() {
   const isAdmin = (session?.user as any)?.userType === 'admin'
   const isProfissional = (session?.user as any)?.userType === 'profissional'
   const profissionalNome = isProfissional ? (session?.user as any)?.name || 'Profissional' : ''
-  const [expandedGroups, setExpandedGroups] = useState<number[]>([1])
   const [mobileOpen, setMobileOpen] = useState(false)
   const [planoAtual, setPlanoAtual] = useState(1)
   const [nomeClinica, setNomeClinica] = useState('')
@@ -165,7 +53,6 @@ export default function Sidebar() {
   const [clinicas, setClinicas] = useState<ClinicaItem[]>([])
   const [clinicaAtiva, setClinicaAtiva] = useState<number | null>(null)
   const [showClinicaDropdown, setShowClinicaDropdown] = useState(false)
-  const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
   const isDark = theme === 'dark'
 
   // Buscar plano da clínica
@@ -173,10 +60,10 @@ export default function Sidebar() {
     fetch('/api/clinica')
       .then(r => r.json())
       .then(data => {
-        if (data?.nivel) setPlanoAtual(Number(data.nivel))
+        if (data?.nivel) setPlanoAtual(Math.min(3, Number(data.nivel)))
         if (data?.nome_clinica || data?.nomeClinica) setNomeClinica(data.nome_clinica || data.nomeClinica)
-        const nomes: Record<number, string> = { 1: 'Secretária', 2: 'Estrategista', 3: 'Designer', 4: 'Audiovisual' }
-        setNomePlano(nomes[Number(data?.nivel)] || 'Secretária')
+        const nomes: Record<number, string> = { 1: 'Essencial', 2: 'Pro', 3: 'Premium' }
+        setNomePlano(nomes[Math.min(3, Number(data?.nivel))] || 'Essencial')
         if (data?.id) setClinicaAtiva(Number(data.id))
       })
       .catch(() => { })
@@ -191,26 +78,6 @@ export default function Sidebar() {
       })
       .catch(() => { })
   }, [])
-
-  // Buscar feature flags (visibilidade de features)
-  useEffect(() => {
-    if (isAdmin) return // Admin vê tudo
-    fetch('/api/admin/feature-flags')
-      .then(r => r.json())
-      .then(data => {
-        if (data.flags) setFeatureFlags(data.flags)
-      })
-      .catch(() => { })
-  }, [isAdmin])
-
-  // Verifica se uma rota está visível (feature flag ativa)
-  const isRouteVisible = (href: string): boolean => {
-    if (isAdmin) return true // Admin vê tudo
-    const featureId = ROUTE_TO_FEATURE[href]
-    if (!featureId) return true // Rota sem flag = sempre visível
-    if (featureFlags[featureId] === undefined) return true // Sem flag no banco = visível
-    return featureFlags[featureId]
-  }
 
   // Trocar clínica ativa
   const switchClinica = async (id: number) => {
@@ -241,12 +108,6 @@ export default function Sidebar() {
     }
     return () => { document.body.style.overflow = '' }
   }, [mobileOpen])
-
-  const toggleGroup = (nivel: number) => {
-    setExpandedGroups(prev =>
-      prev.includes(nivel) ? prev.filter(n => n !== nivel) : [...prev, nivel]
-    )
-  }
 
   const linkClass = (href: string) => {
     const active = pathname === href
@@ -451,99 +312,46 @@ export default function Sidebar() {
               </Link>
             </>
           ) : (
-            /* ─── CLÍNICA / ADMIN: sidebar completa ─── */
+            /* ─── CLÍNICA / ADMIN: sidebar simplificada v2 ─── */
             <>
-              <div className="mb-1">
+              {/* Menu Principal */}
+              <div className="space-y-0.5 mb-4">
                 <Link href="/dashboard" className={linkClass('/dashboard')}>
                   <LayoutDashboard size={17} strokeWidth={1.8} />
                   <span>Dashboard</span>
                 </Link>
-              </div>
-              <div className="mb-4">
                 <Link href="/conversas" className={linkClass('/conversas')}>
                   <MessageCircle size={17} strokeWidth={1.8} />
                   <span>Conversas</span>
                 </Link>
+                <Link href="/agenda" className={linkClass('/agenda')}>
+                  <Calendar size={17} strokeWidth={1.8} />
+                  <span>Agenda</span>
+                </Link>
                 <Link href="/crm" className={linkClass('/crm')}>
                   <Users size={17} strokeWidth={1.8} />
-                  <span>CRM</span>
+                  <span>CRM / Contatos</span>
                 </Link>
-                <Link href="/contatos" className={linkClass('/contatos')}>
-                  <UserCheck size={17} strokeWidth={1.8} />
-                  <span>Contatos</span>
+                <Link href="/promocoes" className={linkClass('/promocoes')}>
+                  <Tag size={17} strokeWidth={1.8} />
+                  <span>Promoções / Combos</span>
                 </Link>
-                <Link href="/campanhas" className={linkClass('/campanhas')}>
-                  <Megaphone size={17} strokeWidth={1.8} />
-                  <span>Campanhas</span>
-                </Link>
-              </div>
 
-              {/* Separator */}
-              <div className="flex items-center gap-2 px-3 mb-2">
-                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>Habilidades</span>
-                <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
-              </div>
+                {/* Instagram — P2+ (Pro) */}
+                {planoAtual >= 2 && (
+                  <Link href="/habilidades/instagram" className={linkClass('/habilidades/instagram')}>
+                    <Instagram size={17} strokeWidth={1.8} />
+                    <span>Instagram</span>
+                  </Link>
+                )}
 
-              {/* Skills Groups */}
-              <div className="space-y-0.5 mb-4">
-                {habilidadesMenu.map((grupo) => {
-                  const desbloqueado = true // Todas as habilidades são acessíveis — limites controlam uso
-                  const isExpanded = expandedGroups.includes(grupo.nivel)
-                  const visibleSkills = grupo.skills.filter(skill => isRouteVisible(skill.href))
-                  const allHidden = !isAdmin && visibleSkills.length === 0
-
-                  return (
-                    <div key={grupo.nivel}>
-                      <button
-                        onClick={() => !allHidden && toggleGroup(grupo.nivel)}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all ${allHidden ? 'cursor-default opacity-60' : 'cursor-pointer'}`}
-                        style={{ color: isDark ? (desbloqueado ? '#9CA3AF' : '#374151') : (desbloqueado ? '#6B7280' : '#CBD5E1') }}
-                      >
-                        <span className="text-sm">{grupo.emoji}</span>
-                        <span className="flex-1 text-left">{grupo.titulo}</span>
-                        {allHidden ? (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}>EM BREVE</span>
-                        ) : (
-                          <>
-                            {!desbloqueado && <Lock size={11} style={{ color: isDark ? '#374151' : '#CBD5E1' }} />}
-                            <ChevronDown
-                              size={13}
-                              className={`transition-transform duration-300 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
-                              style={{ color: isDark ? '#374151' : '#CBD5E1' }}
-                            />
-                          </>
-                        )}
-                      </button>
-
-                      {isExpanded && !allHidden && (
-                        <div className="ml-3 pl-3 space-y-0.5 py-0.5" style={{ borderLeft: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)'}` }}>
-                          {visibleSkills.map((skill) => {
-                            const active = pathname === skill.href
-                            const habilitada = true // Limites de uso em vez de bloqueio de acesso
-                            return (
-                              <Link
-                                key={skill.href}
-                                href={skill.href}
-                                className={`flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-[12.5px] transition-all duration-300 ${active
-                                  ? 'bg-[#D99773]/10 text-[#D99773] font-semibold'
-                                  : habilitada
-                                    ? isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]' : 'text-gray-500 hover:text-[#0F4C61] hover:bg-gray-100/50'
-                                    : isDark ? 'text-gray-700 hover:bg-white/[0.02]' : 'text-gray-300 hover:bg-gray-50'
-                                  }`}
-                              >
-                                {habilitada ? <skill.icon size={14} /> : <Lock size={12} strokeWidth={1.5} />}
-                                <span>{skill.label}</span>
-                                {planoAtual < skill.nivel && (
-                                  <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#D99773]/10 text-[#D99773]">TRIAL</span>
-                                )}
-                              </Link>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+                {/* Equipe — P3+ (Premium) */}
+                {planoAtual >= 3 && (
+                  <Link href="/equipe" className={linkClass('/equipe')}>
+                    <Users size={17} strokeWidth={1.8} />
+                    <span>Equipe</span>
+                  </Link>
+                )}
               </div>
 
               {/* Separator */}
@@ -552,52 +360,20 @@ export default function Sidebar() {
                 <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
               </div>
 
-              {isRouteVisible('/instancias') && <Link href="/instancias" className={linkClass('/instancias')}>
-                <Smartphone size={17} strokeWidth={1.8} />
-                <span>Instâncias & Canais</span>
-              </Link>}
-              {isRouteVisible('/configuracoes') && <Link href="/configuracoes" className={linkClass('/configuracoes')}>
-                <Settings size={17} strokeWidth={1.8} />
-                <span>Configurações</span>
-              </Link>}
-              <Link href="/equipe" className={linkClass('/equipe')}>
-                <Users size={17} strokeWidth={1.8} />
-                <span>Profissionais</span>
-              </Link>
-              <Link href="/satisfacao" className={linkClass('/satisfacao')}>
-                <Star size={17} strokeWidth={1.8} />
-                <span>Satisfação</span>
-              </Link>
-              {/* WA Fake e Simulador removidos — só no admin (adm.iara.click) */}
-              {isRouteVisible('/cofre') && <Link href="/cofre" className={linkClass('/cofre')}>
-                <Shield size={17} strokeWidth={1.8} />
-                <span>Personalizar IA</span>
-              </Link>}
-              {isRouteVisible('/features') && <Link href="/features" className={linkClass('/features')}>
-                <Zap size={17} strokeWidth={1.8} />
-                <span>Features</span>
-              </Link>}
-              {/* Agenda movida para Habilidades > Secretária */}
-              {isRouteVisible('/templates') && <Link href="/templates" className={linkClass('/templates')}>
-                <FileText size={17} strokeWidth={1.8} />
-                <span>Templates</span>
-              </Link>}
-              {isRouteVisible('/indicacoes') && <Link href="/indicacoes" className={linkClass('/indicacoes')}>
-                <Gift size={17} strokeWidth={1.8} />
-                <span>Indicações</span>
-              </Link>}
-              {isRouteVisible('/historico-creditos') && <Link href="/historico-creditos" className={linkClass('/historico-creditos')}>
-                <History size={17} strokeWidth={1.8} />
-                <span>Créditos Usados</span>
-              </Link>}
-              {isRouteVisible('/melhorar-iara') && <Link href="/melhorar-iara" className={linkClass('/melhorar-iara')}>
-                <Sparkles size={17} strokeWidth={1.8} />
-                <span>Melhorar a IARA</span>
-              </Link>}
-              {isRouteVisible('/plano') && <Link href="/plano" className={linkClass('/plano')}>
-                <CreditCard size={17} strokeWidth={1.8} />
-                <span>Plano & Créditos</span>
-              </Link>}
+              <div className="space-y-0.5">
+                <Link href="/configuracoes" className={linkClass('/configuracoes')}>
+                  <Settings size={17} strokeWidth={1.8} />
+                  <span>Configurar IARA</span>
+                </Link>
+                <Link href="/instancias" className={linkClass('/instancias')}>
+                  <Smartphone size={17} strokeWidth={1.8} />
+                  <span>WhatsApp</span>
+                </Link>
+                <Link href="/plano" className={linkClass('/plano')}>
+                  <CreditCard size={17} strokeWidth={1.8} />
+                  <span>Meu Plano</span>
+                </Link>
+              </div>
             </>
           )}
         </nav>

@@ -21,7 +21,7 @@ interface ClinicaAdmin {
     criado_em: string
 }
 
-const planoNomes: Record<number, string> = { 1: 'Secretária', 2: 'Estrategista', 3: 'Designer', 4: 'Audiovisual' }
+const planoNomes: Record<number, string> = { 1: 'Essencial', 2: 'Pro', 3: 'Premium' }
 const planoCores: Record<number, string> = { 1: '#06D6A0', 2: '#F59E0B', 3: '#D99773', 4: '#0F4C61' }
 
 export default function AdminDashboard() {

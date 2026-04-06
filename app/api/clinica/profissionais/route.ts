@@ -4,13 +4,11 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import crypto from 'crypto'
 
-// Limites por plano
+// Limites por plano (Equipe é feature P3+)
 function getMaxProfissionais(plano: string | null | undefined, nivel: number): number {
-    const p = plano?.toLowerCase() || ''
-    if (p.includes('4') || nivel >= 4) return 11 // dona + 10
-    if (p.includes('3') || nivel >= 3) return 6  // dona + 5
-    if (p.includes('2') || nivel >= 2) return 4  // dona + 3
-    return 1 // plano 1: só a dona
+    const n = Math.min(3, nivel)
+    if (n >= 3) return 11 // dona + 10 (Premium)
+    return 1 // P1/P2: só a dona
 }
 
 // GET: Listar profissionais da clínica

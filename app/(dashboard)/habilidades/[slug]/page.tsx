@@ -22,7 +22,7 @@ const EditorTool = dynamic(() => import('@/components/tools/EditorTool'))
 const CollagemTool = dynamic(() => import('@/components/tools/CollagemTool'))
 
 // Dados das habilidades
-const PLANO_NOMES: Record<number, string> = { 1: 'Secretária', 2: 'Estrategista', 3: 'Designer', 4: 'Audiovisual' }
+const PLANO_NOMES: Record<number, string> = { 1: 'Essencial', 2: 'Pro', 3: 'Premium' }
 const PLANO_CORES: Record<number, string> = { 1: '#D99773', 2: '#8B5CF6', 3: '#06B6D4', 4: '#F59E0B' }
 
 const skillsData: Record<string, {
