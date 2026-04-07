@@ -288,9 +288,27 @@ export function getCofreParaClinica(clinica: DadosClinica): CofreIARA {
     // A clínica pode sobrescrever partes do cofre
     const override = (clinica.configuracoes as any)?.cofre_iara || {}
 
+    // SEGURANÇA: leisImutaveis NUNCA pode ser substituído por override.
+    // Overrides de leisImutaveis são ADICIONADOS ao final (append), nunca replace.
+    // Isso evita que dados de teste ou configuração errada nukem as regras R1-R3.
     const cofre = {
         ...cofrePadrao,
-        ...override,
+    }
+
+    // Merge seguro: só permite override de roteiro, objeções e conhecimento
+    if (override.roteiroVendas && typeof override.roteiroVendas === 'string' && override.roteiroVendas.length > 50) {
+        cofre.roteiroVendas = override.roteiroVendas
+    }
+    if (override.arsenalDeObjecoes && typeof override.arsenalDeObjecoes === 'string' && override.arsenalDeObjecoes.length > 50) {
+        cofre.arsenalDeObjecoes = override.arsenalDeObjecoes
+    }
+    if (override.conhecimentoEspecialista && typeof override.conhecimentoEspecialista === 'string' && override.conhecimentoEspecialista.length > 30) {
+        cofre.conhecimentoEspecialista = override.conhecimentoEspecialista
+    }
+
+    // leisImutaveis: APPEND only (regras extras da clínica são adicionadas, padrão nunca removido)
+    if (override.leisImutaveis && typeof override.leisImutaveis === 'string' && override.leisImutaveis.length > 100) {
+        cofre.leisImutaveis = cofrePadrao.leisImutaveis + '\n\n' + override.leisImutaveis
     }
 
     // Substituir placeholder {{NOME_ASSISTENTE}} pelo nome real configurado
