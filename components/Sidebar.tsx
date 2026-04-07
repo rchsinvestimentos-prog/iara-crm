@@ -19,6 +19,7 @@ import {
   X,
   Building2,
   Users,
+  UsersRound,
   User,
   Tag,
   Palmtree,
@@ -337,21 +338,11 @@ export default function Sidebar() {
                   <span>Promoções / Combos</span>
                 </Link>
 
-                {/* Instagram — P2+ (Pro) */}
-                {planoAtual >= 2 && (
-                  <Link href="/habilidades/instagram" className={linkClass('/habilidades/instagram')}>
-                    <Instagram size={17} strokeWidth={1.8} />
-                    <span>Instagram</span>
-                  </Link>
-                )}
-
-                {/* Equipe — P3+ (Premium) */}
-                {planoAtual >= 3 && (
-                  <Link href="/equipe" className={linkClass('/equipe')}>
-                    <Users size={17} strokeWidth={1.8} />
-                    <span>Equipe</span>
-                  </Link>
-                )}
+                {/* Equipe / Profissionais */}
+                <Link href="/equipe" className={linkClass('/equipe')}>
+                  <UsersRound size={17} strokeWidth={1.8} />
+                  <span>Equipe</span>
+                </Link>
               </div>
 
               {/* Separator */}
