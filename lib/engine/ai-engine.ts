@@ -221,6 +221,31 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
         ? `\n🎯 ESTILO: CONSULTIVO\nAntes de falar preços ou agenda, busque entender a NECESSIDADE da cliente:\n- O que incomoda ela hoje?\n- Há quanto tempo tem esse problema?\n- Já fez algo semelhante antes?\nDepois de entender, RECOMEENDE o procedimento ideal com base nos cadastrados e agende.\nFluxo: Entender → Recomendar → Preço → Agendar.`
         : `\n🎯 ESTILO: DIRETO\nFoco máximo em AGENDAR. Quando a cliente perguntar preço, responda com o valor + ofereça agenda.\nSem enrolação. Poucas perguntas. Fluxo rápido: Preço → Agenda → Confirmação.`
 
+    // --- Informações da Clínica (diferenciais, endereço, políticas, etc.) ---
+    const infoClinica: string[] = []
+    if (clinica.diferenciais) infoClinica.push(`Diferenciais: ${clinica.diferenciais}`)
+    if (clinica.endereco) infoClinica.push(`Endereço/Localização: ${clinica.endereco}`)
+    if (clinica.cuidadosPos) infoClinica.push(`Cuidados pós-procedimento: ${clinica.cuidadosPos}`)
+    if (clinica.politicaCancelamento) infoClinica.push(`Política de cancelamento: ${clinica.politicaCancelamento}`)
+    if (clinica.funcionalidades) infoClinica.push(`O que oferecemos: ${clinica.funcionalidades}`)
+    // Bio e especialidade da profissional principal
+    if (!multiProf && profissionais && profissionais.length === 1) {
+        const prof = profissionais[0]
+        if (prof.bio) infoClinica.push(`Sobre a profissional: ${prof.bio}`)
+        if (prof.especialidade) infoClinica.push(`Especialidade: ${prof.especialidade}`)
+    }
+    // Horário de funcionamento geral
+    if (clinica.horarioInicio && clinica.horarioFim) {
+        let horarioStr = `Horário: ${clinica.horarioInicio} às ${clinica.horarioFim}`
+        if (clinica.atendeSabado && clinica.horarioSabado) horarioStr += ` | Sábado: ${clinica.horarioSabado}`
+        if (clinica.atendeDomingo && clinica.horarioDomingo) horarioStr += ` | Domingo: ${clinica.horarioDomingo}`
+        infoClinica.push(horarioStr)
+    }
+
+    const sobreClinicaTexto = infoClinica.length > 0
+        ? `\n📋 SOBRE A CLÍNICA (use essas informações quando a cliente perguntar):\n${infoClinica.map(i => `- ${i}`).join('\n')}\n`
+        : ''
+
     // --- Montagem final ---
     const linhaProf = nomeProfissional
         ? `PROFISSIONAL RESPONSÁVEL: ${nomeProfissional} (${tratamento === 'Pelo nome' ? 'refira-se pelo primeiro nome apenas' : `use o tratamento "${tratamento}"`})\n`
@@ -273,7 +298,7 @@ Só cumprimente/apresente se for a PRIMEIRÍSSIMA mensagem (histórico = 0 mensa
   → "Tem alguma referência de como gostaria que ficasse?"
 - Essa pergunta ajuda a personalizar a resposta e mostrar cuidado.
 - NÃO faça mais do que 1 pergunta por mensagem.
-${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${feedbackTexto}${memoriaTexto}
+${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${feedbackTexto}${memoriaTexto}${sobreClinicaTexto}
 ${linhaProf}${horarioContext}${agendaTexto}${cofre.leisImutaveis}
 
 ${cofre.roteiroVendas}
