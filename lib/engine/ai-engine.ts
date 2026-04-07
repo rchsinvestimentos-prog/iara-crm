@@ -212,10 +212,14 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
     const historico = ctx.historico || []
     const temHistorico = historico.length > 0
     const regraHistorico = temHistorico
-        ? `\n⚠️ REGRA CRÍTICA — NÃO REPITA SAUDAÇÃO:
-Vocês JÁ estão conversando (há ${historico.length} mensagens no histórico). NÃO cumprimente de novo ("Oi", "Tudo bem?", etc).
-Continue a conversa naturalmente, como se estivesse no meio de um papo. Vá direto ao ponto da mensagem atual.
-Só cumprimente se for a PRIMEIRÍSSIMA mensagem (histórico vazio).`
+        ? `\n⚠️ REGRA CRÍTICA — NÃO REPITA SAUDAÇÃO NEM SE APRESENTE:
+Vocês JÁ estão conversando (há ${historico.length} mensagens no histórico).
+- NÃO cumprimente de novo ("Oi", "Tudo bem?", "Olá", etc).
+- NÃO se apresente de novo ("Sou a ${clinica.nomeAssistente || 'IARA'}, secretária de..."). Ela JÁ sabe quem você é.
+- NÃO pergunte "o que te trouxe aqui?" se ela JÁ disse o que quer no histórico.
+- Continue a conversa naturalmente no EXATO PONTO onde parou. Releia o histórico e continue.
+- Se a cliente voltou depois de um tempo (ex: "oi boa tarde"), responda algo como: "Oi [nome]! Continuando sobre [assunto anterior]..." — retome de onde parou.
+Só cumprimente/apresente se for a PRIMEIRÍSSIMA mensagem (histórico = 0 mensagens).`
         : ''
 
     return `${roleDesc}
@@ -300,8 +304,9 @@ export async function callAI(
 // ============================================
 
 function prepararMensagens(mensagemOriginal: string, historico?: { role: string; content: string }[], tipoEntrada?: 'text' | 'audio') {
-    // O histórico vem do banco: mais recente primeiro. Limitamos a 12 e invertemos para cronológico.
-    const historyLimit = 12
+    // O histórico vem do banco: mais recente primeiro. Limitamos a 20 e invertemos para cronológico.
+    // ANTES: era 12 — insuficiente para conversas ativas, IA perdia contexto e se re-apresentava.
+    const historyLimit = 20
     const historicoLimpo = (historico || []).slice(0, historyLimit).reverse().map(m => ({
         role: m.role === 'user' ? 'user' : 'assistant',
         content: m.content
