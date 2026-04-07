@@ -153,13 +153,37 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
     // --- Feedbacks da Dra ---
     // Dois tipos: (1) instruções permanentes do painel (clinica.feedbacks) e (2) comandos realtime via WhatsApp (feedback_iara table)
     let feedbackTexto = ''
-    const temFeedbackPainel = clinica.feedbacks && clinica.feedbacks.trim().length > 0
+    
+    // Normalizar feedbacks do painel — pode ser string JSON, array, ou null
+    let feedbackPainelTexto = ''
+    if (clinica.feedbacks) {
+        try {
+            const raw = clinica.feedbacks
+            if (typeof raw === 'string') {
+                // Tenta parsear como JSON array (ex: '["regra1","regra2"]')
+                const parsed = JSON.parse(raw)
+                if (Array.isArray(parsed)) {
+                    feedbackPainelTexto = parsed.filter((f: any) => typeof f === 'string' && f.trim()).join('\n- ')
+                } else {
+                    feedbackPainelTexto = raw.trim()
+                }
+            } else if (Array.isArray(raw)) {
+                // Já é array (ex: vindo do override do simulador)
+                feedbackPainelTexto = (raw as string[]).filter(f => typeof f === 'string' && f.trim()).join('\n- ')
+            }
+        } catch {
+            // Se o JSON.parse falhar, usa como string simples
+            feedbackPainelTexto = String(clinica.feedbacks).trim()
+        }
+    }
+    
+    const temFeedbackPainel = feedbackPainelTexto.length > 0
     const temFeedbackRealtime = feedbacks.length > 0
     if (temFeedbackPainel || temFeedbackRealtime) {
         feedbackTexto = `\n🧠 ${labels.orientacoesDra}:\n`
         // Instruções do painel (campo "Instruções Extras / Feedbacks")
         if (temFeedbackPainel) {
-            feedbackTexto += `- ${clinica.feedbacks!.trim()}\n`
+            feedbackTexto += `- ${feedbackPainelTexto}\n`
         }
         // Comandos realtime enviados via WhatsApp pela Dra
         feedbacks.forEach((fb) => {
