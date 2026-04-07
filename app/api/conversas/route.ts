@@ -21,7 +21,7 @@ interface MensagemRow {
     created_at: string
 }
 
-// Garantir que a tabela existe antes de consultar
+// Garantir que a tabela existe e tem as colunas corretas
 async function ensureHistoricoTable() {
     try {
         await prisma.$executeRawUnsafe(`
@@ -36,6 +36,9 @@ async function ensureHistoricoTable() {
                 created_at TIMESTAMPTZ DEFAULT NOW()
             )
         `)
+        // Corrigir tabelas antigas que não têm push_name e origem
+        await prisma.$executeRawUnsafe(`ALTER TABLE historico_conversas ADD COLUMN IF NOT EXISTS push_name VARCHAR(200)`)
+        await prisma.$executeRawUnsafe(`ALTER TABLE historico_conversas ADD COLUMN IF NOT EXISTS origem VARCHAR(30) DEFAULT 'whatsapp'`)
     } catch { /* silenciar se já existir */ }
 }
 

@@ -111,6 +111,14 @@ async function ensureHistoricoTable(): Promise<void> {
             created_at TIMESTAMPTZ DEFAULT NOW()
         )
     `)
+    // Adicionar colunas que podem não existir em tabelas antigas
+    // ALTER TABLE ADD COLUMN IF NOT EXISTS é seguro — ignora se já existe
+    try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE historico_conversas ADD COLUMN IF NOT EXISTS push_name VARCHAR(200)`)
+    } catch { /* já existe */ }
+    try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE historico_conversas ADD COLUMN IF NOT EXISTS origem VARCHAR(30) DEFAULT 'whatsapp'`)
+    } catch { /* já existe */ }
     await prisma.$executeRawUnsafe(`
         CREATE INDEX IF NOT EXISTS idx_historico_user_tel
         ON historico_conversas (user_id, telefone_cliente, created_at DESC)
@@ -134,20 +142,20 @@ export async function saveToHistory(
       VALUES (${clinicaId}, ${telefone}, ${role}, ${content}, ${pushName || null}, ${role === 'user' ? 'cliente' : 'ia'}, NOW())
     `
     } catch (firstErr: any) {
-        // Se falhou, tenta criar a tabela e tentar novamente
+        // Se falhou por tabela ou coluna inexistente, corrige o schema e tenta de novo
         const msg = (firstErr?.message || '').toLowerCase()
-        if (msg.includes('does not exist') || msg.includes('relation') || msg.includes('undefined table')) {
-            console.warn('[Memory] Tabela historico_conversas não existe — criando agora...')
+        if (msg.includes('does not exist') || msg.includes('relation') || msg.includes('undefined table') || msg.includes('column')) {
+            console.warn('[Memory] Schema de historico_conversas desatualizado — corrigindo agora...')
             try {
                 await ensureHistoricoTable()
-                // Retry após criar a tabela
+                // Retry após corrigir o schema
                 await prisma.$executeRaw`
                     INSERT INTO historico_conversas (user_id, telefone_cliente, role, content, push_name, origem, created_at)
                     VALUES (${clinicaId}, ${telefone}, ${role}, ${content}, ${pushName || null}, ${role === 'user' ? 'cliente' : 'ia'}, NOW())
                 `
-                console.log('[Memory] ✅ Tabela criada e mensagem salva com sucesso.')
+                console.log('[Memory] ✅ Schema corrigido e mensagem salva com sucesso.')
             } catch (retryErr) {
-                console.error('[Memory] ❌ Falha ao criar tabela ou re-inserir:', retryErr)
+                console.error('[Memory] ❌ Falha ao corrigir schema ou re-inserir:', retryErr)
             }
         } else {
             console.error('[Memory] Erro ao salvar no histórico:', firstErr)
