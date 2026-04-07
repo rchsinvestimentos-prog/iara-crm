@@ -225,7 +225,7 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
     const infoClinica: string[] = []
     if (clinica.diferenciais) infoClinica.push(`Diferenciais: ${clinica.diferenciais}`)
     if (clinica.endereco) infoClinica.push(`Endereço/Localização: ${clinica.endereco}`)
-    if (clinica.cuidadosPos) infoClinica.push(`Cuidados pós-procedimento: ${clinica.cuidadosPos}`)
+    if (clinica.cuidadosPos) infoClinica.push(`Cuidados pós-procedimento padrão: ${clinica.cuidadosPos}`)
     if (clinica.politicaCancelamento) infoClinica.push(`Política de cancelamento: ${clinica.politicaCancelamento}`)
     if (clinica.funcionalidades) infoClinica.push(`O que oferecemos: ${clinica.funcionalidades}`)
     // Bio e especialidade da profissional principal
@@ -236,14 +236,73 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
     }
     // Horário de funcionamento geral
     if (clinica.horarioInicio && clinica.horarioFim) {
-        let horarioStr = `Horário: ${clinica.horarioInicio} às ${clinica.horarioFim}`
-        if (clinica.atendeSabado && clinica.horarioSabado) horarioStr += ` | Sábado: ${clinica.horarioSabado}`
-        if (clinica.atendeDomingo && clinica.horarioDomingo) horarioStr += ` | Domingo: ${clinica.horarioDomingo}`
+        let horarioStr = `Horário de funcionamento: ${clinica.horarioInicio} às ${clinica.horarioFim}`
+        if (clinica.almocoSemana) horarioStr += ` (almoço: ${clinica.almocoSemana})`
+        if (clinica.atendeSabado && clinica.horarioSabado) {
+            horarioStr += ` | Sábado: ${clinica.horarioSabado}`
+            if (clinica.almocoSabado) horarioStr += ` (almoço: ${clinica.almocoSabado})`
+        }
+        if (clinica.atendeDomingo && clinica.horarioDomingo) {
+            horarioStr += ` | Domingo: ${clinica.horarioDomingo}`
+            if (clinica.almocoDomingo) horarioStr += ` (almoço: ${clinica.almocoDomingo})`
+        }
+        if (clinica.atendeFeriado && clinica.horarioFeriado) {
+            horarioStr += ` | Feriados: ${clinica.horarioFeriado}`
+        }
         infoClinica.push(horarioStr)
+    }
+    if (clinica.antecedenciaMinima) infoClinica.push(`Antecedência mínima para agendar: ${clinica.antecedenciaMinima}`)
+
+    // --- Formas de pagamento ---
+    if (clinica.formasPagamento && typeof clinica.formasPagamento === 'object') {
+        const fp = clinica.formasPagamento
+        const formas: string[] = []
+        if (fp.pix) formas.push('Pix')
+        if (fp.dinheiro) formas.push('Dinheiro')
+        if (fp.credito) formas.push(`Cartão de crédito${fp.parcelasMax ? ` (até ${fp.parcelasMax}x)` : ''}`)
+        if (fp.debito) formas.push('Cartão de débito')
+        if (fp.transferencia) formas.push('Transferência bancária')
+        if (fp.outros) formas.push(fp.outros)
+        if (formas.length > 0) infoClinica.push(`Formas de pagamento aceitas: ${formas.join(', ')}`)
+    }
+
+    // --- Descontos ---
+    if (clinica.aceitaDescontos) {
+        infoClinica.push(`Desconto: Pode oferecer até ${clinica.descontoMaximo || 10}% de desconto se a cliente negociar. Use com moderação para fechar o agendamento.`)
+    } else if (clinica.aceitaDescontos === false) {
+        infoClinica.push(`Desconto: NÃO oferecemos descontos. Se a cliente pedir, diga que os valores já são justos e competitivos.`)
     }
 
     const sobreClinicaTexto = infoClinica.length > 0
         ? `\n📋 SOBRE A CLÍNICA (use essas informações quando a cliente perguntar):\n${infoClinica.map(i => `- ${i}`).join('\n')}\n`
+        : ''
+
+    // --- Tom de conversa (humor, emojis, tom) ---
+    const configTom: string[] = []
+    if (clinica.tomAtendimento && clinica.tomAtendimento !== 'padrao') {
+        const tons: Record<string, string> = {
+            'formal': 'Use tom formal e profissional. Evite gírias.',
+            'amigavel': 'Use tom amigável e acolhedor. Seja próxima.',
+            'descontraido': 'Use tom descontraído e leve. Bom humor natural.',
+            'luxo': 'Use tom sofisticado e premium. Linguagem elegante.',
+        }
+        if (tons[clinica.tomAtendimento]) configTom.push(tons[clinica.tomAtendimento])
+    }
+    if (clinica.humor) configTom.push(`Nível de humor: ${clinica.humor}`)
+    if (clinica.emojis) {
+        const emojiConfig: Record<string, string> = {
+            'nenhum': 'NÃO use emojis.',
+            'pouco': 'Use emojis com moderação (1-2 por mensagem).',
+            'moderado': 'Use emojis normalmente.',
+            'muito': 'Use bastante emojis para dar vida às mensagens.',
+        }
+        if (emojiConfig[clinica.emojis]) configTom.push(emojiConfig[clinica.emojis])
+    }
+    if (clinica.mensagemBoasVindas) configTom.push(`Na PRIMEIRA mensagem com uma cliente NOVA, use esta saudação personalizada: "${clinica.mensagemBoasVindas}"`)
+    if (clinica.fraseDespedida) configTom.push(`Ao encerrar a conversa (após confirmar agendamento), finalize com: "${clinica.fraseDespedida}"`)
+
+    const configTomTexto = configTom.length > 0
+        ? `\n🎨 PERSONALIZAÇÃO DE TOM:\n${configTom.map(t => `- ${t}`).join('\n')}\n`
         : ''
 
     // --- Montagem final ---
@@ -298,7 +357,7 @@ Só cumprimente/apresente se for a PRIMEIRÍSSIMA mensagem (histórico = 0 mensa
   → "Tem alguma referência de como gostaria que ficasse?"
 - Essa pergunta ajuda a personalizar a resposta e mostrar cuidado.
 - NÃO faça mais do que 1 pergunta por mensagem.
-${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${feedbackTexto}${memoriaTexto}${sobreClinicaTexto}
+${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${feedbackTexto}${memoriaTexto}${sobreClinicaTexto}${configTomTexto}
 ${linhaProf}${horarioContext}${agendaTexto}${cofre.leisImutaveis}
 
 ${cofre.roteiroVendas}
