@@ -196,18 +196,25 @@ export default function Dashboard() {
             {/* Empty State — clínica nova sem atividade (só mostra se onboarding completo) */}
             {!loading && onboardingDone && stats && stats.mensagensHoje === 0 && stats.totalConversas === 0 && stats.agendamentosHoje === 0 && (
                 <div className="rounded-2xl p-6 text-center animate-fade-in" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
-                    <p className="text-4xl mb-3">🚀</p>
+                    <p className="text-4xl mb-3">{whatsappConectado ? '🎉' : '🚀'}</p>
                     <h3 className="text-[16px] font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-                        Tudo pronto! Agora é só conectar o WhatsApp.
+                        {whatsappConectado
+                            ? 'Tudo pronto! Aguardando a primeira cliente.'
+                            : 'Tudo pronto! Agora é só conectar o WhatsApp.'
+                        }
                     </h3>
                     <p className="text-[12px] mb-4 max-w-md mx-auto" style={{ color: 'var(--text-muted)' }}>
-                        Sua {stats.nomeIA || 'IARA'} está configurada e aguardando a primeira mensagem.
-                        Quando uma cliente mandar uma mensagem, ela vai aparecer aqui automaticamente!
+                        {whatsappConectado
+                            ? `Sua ${stats.nomeIA || 'IARA'} está conectada e pronta para atender. Quando uma cliente mandar uma mensagem, ela vai aparecer aqui automaticamente!`
+                            : `Sua ${stats.nomeIA || 'IARA'} está configurada e aguardando a conexão do WhatsApp. Conecte para começar a atender!`
+                        }
                     </p>
                     <div className="flex flex-wrap items-center justify-center gap-2">
-                        <Link href="/instancias" className="px-4 py-2 rounded-xl text-[12px] font-semibold text-white transition-all hover:scale-105" style={{ background: 'linear-gradient(135deg, #06D6A0, #059669)' }}>
-                            📱 Conectar WhatsApp
-                        </Link>
+                        {!whatsappConectado && (
+                            <Link href="/instancias" className="px-4 py-2 rounded-xl text-[12px] font-semibold text-white transition-all hover:scale-105" style={{ background: 'linear-gradient(135deg, #06D6A0, #059669)' }}>
+                                📱 Conectar WhatsApp
+                            </Link>
+                        )}
                         <Link href="/configuracoes" className="px-4 py-2 rounded-xl text-[12px] font-medium transition-all" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}>
                             ⚙️ Configurar Clínica
                         </Link>
