@@ -131,7 +131,7 @@ function joinTime(start: string, end: string): string {
 
 // ==================== Componente ====================
 
-export default function ConfiguracoesTool() {
+export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clinica' | 'servicos' | 'avancado' | 'all' }) {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
@@ -674,6 +674,7 @@ export default function ConfiguracoesTool() {
         <div className="space-y-6">
 
             {/* ============ 1. DADOS DA CLÍNICA ============ */}
+            {(section === 'all' || section === 'clinica') && (<>
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}>
                     <Building2 size={15} className="text-[#D99773]" />
@@ -752,32 +753,6 @@ export default function ConfiguracoesTool() {
                         </div>
                     </div>
 
-                    {/* ======= CONFIGURAÇÃO DA IARA ======= */}
-                    <div className="pt-3 mt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                        <p className="text-[11px] font-semibold flex items-center gap-1.5 mb-3" style={{ color: '#D99773' }}>
-                            <Bot size={13} />
-                            Personalização da IARA
-                        </p>
-                        <div className="grid grid-cols-2 gap-3 mb-3">
-                            <div>
-                                <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Nome da Assistente IA</label>
-                                <input className={inputClass} style={inputStyle} value={nomeAssistente} onChange={e => setNomeAssistente(e.target.value)} placeholder="IARA" />
-                                <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>Esse é o nome que a IA usa ao se apresentar</p>
-                            </div>
-                            <div>
-                                <label className={labelClass} style={{ color: 'var(--text-muted)' }}>Estilo de Atendimento</label>
-                                <select className={inputClass} style={inputStyle} value={estiloAtendimento} onChange={e => setEstiloAtendimento(e.target.value)}>
-                                    <option value="direta">⚡ Direta (preço + agenda rápido)</option>
-                                    <option value="consultiva">💬 Consultiva (entende necessidade primeiro)</option>
-                                </select>
-                                <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
-                                    {estiloAtendimento === 'direta' 
-                                        ? 'Foco em agendar rápido. Responde com preço e horário.' 
-                                        : 'Faz perguntas antes de dar preço. Ideal para clínicas premium.'}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
 
 
                     <div>
@@ -942,8 +917,7 @@ export default function ConfiguracoesTool() {
                 )}
             </button>
 
-
-            {/* ============ 2. DIFERENCIAIS ============ */}
+            {/* --- Diferenciais (também tab clínica) --- */}
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
                     <Award size={15} className="text-[#D99773]" />
@@ -1029,9 +1003,10 @@ export default function ConfiguracoesTool() {
                     <><Save size={14} /> Salvar Diferenciais</>
                 )}
             </button>
-
+            </>)}
 
             {/* ============ 3. PROCEDIMENTOS ============ */}
+            {(section === 'all' || section === 'servicos') && (<>
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>💉 Procedimentos ({procedimentos.length})</h3>
@@ -1285,8 +1260,10 @@ export default function ConfiguracoesTool() {
                     )
                 }
             </div >
+            </>)}
 
             {/* ============ 7. HORÁRIOS ============ */}
+            {(section === 'all' || section === 'avancado') && (<>
             < div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle} >
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}>
                     <Clock size={15} className="text-[#D99773]" />
@@ -1450,8 +1427,10 @@ export default function ConfiguracoesTool() {
                     <><Save size={14} /> Salvar Horários</>
                 )}
             </button>
+            </>)}
 
             {/* ============ 8. PROMOÇÕES ============ */}
+            {(section === 'all' || section === 'servicos') && (<>
             < div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle} >
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[13px] font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -1650,8 +1629,10 @@ export default function ConfiguracoesTool() {
                     )}
                 </div>
             </div >
+            </>)}
 
             {/* ============ 10. PERSONALIZAÇÃO VIP ============ */}
+            {(section === 'all' || section === 'avancado') && (<>
             < div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle} >
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}>
                     <Heart size={15} className="text-[#D99773]" />
@@ -1795,6 +1776,7 @@ export default function ConfiguracoesTool() {
                     )
                 }
             </button >
+            </>)}
 
             {/* ============ MODAL DISCLAIMER PÓS-PROCEDIMENTO ============ */}
             {showDisclaimerPos && (
