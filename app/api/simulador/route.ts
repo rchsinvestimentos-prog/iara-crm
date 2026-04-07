@@ -4,6 +4,8 @@ import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { buildSystemPrompt } from '@/lib/engine/ai-engine'
 import { checkRateLimit } from '@/lib/rate-limiter'
+import { getAgendaContext } from '@/lib/engine/calendar'
+import type { ProfissionalAtivo, Procedimento } from '@/lib/engine/types'
 
 /**
  * POST /api/simulador
@@ -13,7 +15,9 @@ import { checkRateLimit } from '@/lib/rate-limiter'
  * Retorna: { resposta: string }
  * 
  * Usa o mesmo buildSystemPrompt do pipeline real,
- * mas sem enviar WhatsApp, sem salvar histórico, sem créditos.
+ * AGORA busca TODOS os dados reais: procedimentos, profissionais,
+ * feedbacks, agenda, promoções — igual ao pipeline de produção.
+ * Única diferença: não salva histórico e não gasta créditos.
  */
 export async function POST(request: NextRequest) {
     try {
@@ -43,38 +47,126 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Mensagem vazia' }, { status: 400 })
         }
 
-        // Buscar procedimentos
-        let procedimentos: any[] = []
+        // ─── Buscar Procedimentos ────────────────────────────────────────
+        let procedimentos: Procedimento[] = []
         try {
-            procedimentos = await prisma.procedimento.findMany({
+            const raw = await prisma.procedimento.findMany({
                 where: { clinicaId: String(clinicaId) },
             })
+            procedimentos = raw.map((p: any) => ({
+                id: p.id,
+                nome: p.nome,
+                valor: p.valor || 0,
+                desconto: p.desconto || 0,
+                parcelas: p.parcelas,
+                duracao: p.duracao,
+                descricao: p.descricao,
+                valorMin: p.valorMin || p.valor_min || null,
+                valorMax: p.valorMax || p.valor_max || null,
+                profissionalId: p.profissionalId || p.profissional_id || null,
+            }))
         } catch { /* sem procedimentos */ }
 
-        // Montar system prompt identico ao pipeline real
+        // ─── Buscar Profissionais ────────────────────────────────────────
+        let profissionaisRaw: ProfissionalAtivo[] = []
+        try {
+            const profs = await prisma.profissional.findMany({
+                where: { clinicaId, ativo: true },
+                orderBy: { ordem: 'asc' },
+            })
+            profissionaisRaw = profs.map((p: any) => ({
+                id: p.id,
+                nome: p.nome,
+                bio: p.bio,
+                especialidade: p.especialidade,
+                whatsapp: p.whatsapp,
+                isDono: p.isDono || p.is_dono || false,
+                procedimentos: procedimentos.filter(proc => proc.profissionalId === p.id),
+                horarioSemana: p.horarioSemana || p.horario_semana,
+                horarioSabado: p.horarioSabado || p.horario_sabado,
+                atendeSabado: p.atendeSabado ?? p.atende_sabado,
+                horarioDomingo: p.horarioDomingo || p.horario_domingo,
+                atendeDomingo: p.atendeDomingo ?? p.atende_domingo,
+                intervaloAtendimento: p.intervaloAtendimento || p.intervalo_atendimento,
+                ausencias: [],
+                googleCalendarToken: p.googleCalendarToken,
+                googleCalendarRefreshToken: p.googleCalendarRefreshToken,
+                googleCalendarId: p.googleCalendarId,
+                googleTokenExpires: p.googleTokenExpires,
+            }))
+        } catch { /* sem profissionais */ }
+
+        // ─── Buscar Feedbacks da Dra ─────────────────────────────────────
+        let feedbacks: { regra: string }[] = []
+        try {
+            const fbRows = await prisma.$queryRaw<any[]>`
+                SELECT regra FROM feedback_iara 
+                WHERE user_id = ${clinicaId} AND ativo = true
+                ORDER BY created_at DESC LIMIT 10
+            `
+            feedbacks = fbRows.map((r: any) => ({ regra: r.regra }))
+        } catch { /* sem feedbacks */ }
+
+        // ─── Buscar Promoções Ativas ─────────────────────────────────────
+        let promocoesAtivas: { nome: string; descricao: string | null; instrucaoIara: string | null; procedimentos: string[] }[] = []
+        try {
+            const promos = await prisma.$queryRaw<any[]>`
+                SELECT p.nome, p.descricao, p.instrucao_iara,
+                    COALESCE(
+                        (SELECT array_agg(proc.nome) 
+                         FROM promocao_procedimentos pp 
+                         JOIN procedimentos proc ON proc.id = pp.procedimento_id 
+                         WHERE pp.promocao_id = p.id), 
+                        ARRAY[]::text[]
+                    ) as procedimentos_nomes
+                FROM promocoes p
+                WHERE p.clinica_id = ${clinicaId} 
+                  AND p.ativo = true
+                  AND (p.data_fim IS NULL OR p.data_fim >= NOW())
+            `
+            promocoesAtivas = promos.map((p: any) => ({
+                nome: p.nome,
+                descricao: p.descricao,
+                instrucaoIara: p.instrucao_iara,
+                procedimentos: p.procedimentos_nomes || [],
+            }))
+        } catch { /* sem promoções */ }
+
+        // ─── Buscar Agenda (real, sincronizada) ──────────────────────────
+        let agendaContext: string | null = null
+        try {
+            agendaContext = await getAgendaContext(
+                clinicaId,
+                clinica as any,
+                profissionaisRaw.length > 1 ? profissionaisRaw : undefined
+            )
+        } catch { /* sem agenda */ }
+
+        // ─── Montar System Prompt (idêntico ao pipeline real) ────────────
         const systemPrompt = buildSystemPrompt({
             clinica: clinica as any,
             mensagem,
             pushName: 'Cliente Simulada',
             tipoEntrada: 'text',
             procedimentos,
-            feedbacks: [],
+            feedbacks,
             memoria: null,
-            agendaContext: null,
+            agendaContext,
             historico: historico.map((h: any) => ({
                 role: h.role,
                 content: h.content,
             })),
+            profissionais: profissionaisRaw.length > 1 ? profissionaisRaw : undefined,
+            promocoesAtivas,
         })
 
-        // Chamar Anthropic (mesmo modelo do pipeline)
+        // ─── Chamar IA ──────────────────────────────────────────────────
         const anthropicKey = process.env.ANTHROPIC_API_KEY
         const openaiKey = process.env.OPENAI_API_KEY
 
         let resposta = ''
 
         if (anthropicKey) {
-            // Claude Sonnet (principal)
             const res = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
                 headers: {
@@ -103,7 +195,6 @@ export async function POST(request: NextRequest) {
                 throw new Error(`Claude error: ${res.status}`)
             }
         } else if (openaiKey) {
-            // Fallback GPT
             const res = await fetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
                 headers: {
