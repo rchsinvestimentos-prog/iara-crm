@@ -695,11 +695,13 @@ async function buscarProcedimentos(clinicaId: number) {
             profissional_id: string | null
             valor_min: number | null
             valor_max: number | null
+            pos_procedimento: string | null
         }[]>`
-      SELECT id, nome, valor, desconto, parcelas, duracao, descricao, "profissional_id",
-             valor_min, valor_max
+      SELECT id, nome, COALESCE(preco_normal, 0) as valor, COALESCE(preco_minimo, 0) as desconto, 
+             parcelamento_padrao as parcelas, duracao_minutos as duracao, descricao, profissional_id,
+             valor_min, valor_max, pos_procedimento
       FROM procedimentos
-      WHERE "clinicaId" = ${String(clinicaId)}
+      WHERE user_id = ${clinicaId}
         AND COALESCE(ativo, true) = true
       ORDER BY nome ASC
     `
@@ -709,7 +711,8 @@ async function buscarProcedimentos(clinicaId: number) {
             valorMin: r.valor_min ? Number(r.valor_min) : null,
             valorMax: r.valor_max ? Number(r.valor_max) : null,
         }))
-    } catch {
+    } catch (err) {
+        console.error('[Pipeline] ❌ Erro ao buscar procedimentos:', err)
         return []
     }
 }
@@ -719,13 +722,17 @@ async function buscarProfissionais(clinicaId: number): Promise<ProfissionalAtivo
     try {
         const profs = await prisma.$queryRaw<any[]>`
           SELECT id, nome, bio, especialidade, whatsapp, is_dono as "isDono",
-                 "horarioSemana", "horarioSabado", "atendeSabado",
-                 "horarioDomingo", "atendeDomingo", "intervaloAtendimento",
+                 horario_semana as "horarioSemana", horario_sabado as "horarioSabado", 
+                 atende_sabado as "atendeSabado",
+                 horario_domingo as "horarioDomingo", atende_domingo as "atendeDomingo", 
+                 intervalo_atendimento as "intervaloAtendimento",
                  ausencias,
-                 "googleCalendarToken", "googleCalendarRefreshToken",
-                 "googleCalendarId", "googleTokenExpires"
+                 google_calendar_token as "googleCalendarToken", 
+                 google_calendar_refresh_token as "googleCalendarRefreshToken",
+                 google_calendar_id as "googleCalendarId", 
+                 google_token_expires as "googleTokenExpires"
           FROM profissionais
-          WHERE "clinica_id" = ${clinicaId}
+          WHERE clinica_id = ${clinicaId}
             AND ativo = true
           ORDER BY ordem ASC
         `
@@ -735,9 +742,11 @@ async function buscarProfissionais(clinicaId: number): Promise<ProfissionalAtivo
         // Buscar procedimentos de cada profissional
         for (const prof of profs) {
             const procs = await prisma.$queryRaw<any[]>`
-              SELECT id, nome, valor, desconto, parcelas, duracao, descricao
+              SELECT id, nome, COALESCE(preco_normal, 0) as valor, 
+                     COALESCE(preco_minimo, 0) as desconto, 
+                     parcelamento_padrao as parcelas, duracao_minutos as duracao, descricao
               FROM procedimentos
-              WHERE "profissional_id" = ${prof.id}
+              WHERE profissional_id = ${prof.id}
                 AND COALESCE(ativo, true) = true
               ORDER BY nome ASC
             `
