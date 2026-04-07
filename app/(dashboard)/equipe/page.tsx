@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import UpgradeOverlay from '@/components/UpgradeOverlay'
 
 // ==================== Helpers de Horário ====================
 function splitTime(value: string): [string, string] {
@@ -450,12 +451,35 @@ export default function ProfissionaisPage() {
                 </div>
             ))}
 
-            {/* Limite atingido */}
+            {/* Limite atingido — mostra preview do que teria com upgrade */}
             {profissionais.length >= max && (
-                <div style={{ background: 'rgba(217,151,115,0.08)', borderRadius: 14, padding: '16px 20px', border: '1px solid rgba(217,151,115,0.2)', marginBottom: 14, textAlign: 'center' }}>
-                    <p style={{ margin: 0, fontSize: 14, color: '#C07A55', fontWeight: 600, marginBottom: 4 }}>Limite atingido ({profissionais.length}/{max})</p>
-                    <p style={{ margin: 0, fontSize: 13, color: '#94a3b8' }}>Faça <a href="/plano" style={{ color: '#D99773', fontWeight: 600 }}>upgrade do plano</a> para adicionar mais</p>
-                </div>
+                <UpgradeOverlay
+                    planoAtual={nivel}
+                    planoMinimo={nivel >= 2 ? 3 : 2}
+                    nomeFeature={nivel >= 2 ? 'Equipe Ilimitada' : 'Equipe Multi-profissional'}
+                    descricao={nivel >= 2
+                        ? `Você tem ${profissionais.length} profissionais. No plano Premium, tenha quantos precisar!`
+                        : `Adicione até 3 profissionais no plano Pro, ou ilimitados no Premium!`
+                    }
+                >
+                    {/* Preview de como seria o formulário — fica blurrado */}
+                    <div style={{ background: '#fff', borderRadius: 18, padding: '24px', border: '1px solid #e2e8f0', marginBottom: 14 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                            <div style={{ width: 48, height: 48, borderRadius: 14, background: 'linear-gradient(135deg, #0F4C61, #1a6b84)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: '#fff' }}>+</div>
+                            <div>
+                                <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Novo Profissional</p>
+                                <p style={{ margin: '2px 0 0', fontSize: 12, color: '#94a3b8' }}>Cadastre mais membros da sua equipe</p>
+                            </div>
+                        </div>
+                        <div style={{ display: 'grid', gap: 12 }}>
+                            <div><div style={{ ...labelStyle, marginBottom: 4 }}>Nome completo</div><div style={{ ...inputStyle, background: '#f1f5f9', color: '#94a3b8' }}>Ex: Dra. Maria Silva</div></div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                <div><div style={{ ...labelStyle, marginBottom: 4 }}>Especialidade</div><div style={{ ...inputStyle, background: '#f1f5f9', color: '#94a3b8' }}>Harmonização</div></div>
+                                <div><div style={{ ...labelStyle, marginBottom: 4 }}>WhatsApp</div><div style={{ ...inputStyle, background: '#f1f5f9', color: '#94a3b8' }}>(11) 99999-9999</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </UpgradeOverlay>
             )}
 
             {/* ========== FORMULÁRIO - SEÇÕES VERTICAIS ========== */}

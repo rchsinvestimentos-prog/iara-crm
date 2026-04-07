@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import UpgradeOverlay from '@/components/UpgradeOverlay';
 
 interface Instancia {
     id: number;
@@ -530,11 +531,16 @@ export default function ConexoesPage() {
             </div>
 
             {/* ==================== Instagram ==================== */}
+            <UpgradeOverlay
+                planoAtual={plano}
+                planoMinimo={2}
+                nomeFeature="Instagram DM com IA"
+                descricao="A IARA responde DMs do Instagram automaticamente, 24/7. Faça upgrade para o plano Pro!"
+            >
             <div style={{
                 background: '#fff', borderRadius: 20, padding: '24px 28px',
                 border: '1px solid #e2e8f0', marginBottom: 16,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                opacity: limites.max_instancias_instagram === 0 ? 0.7 : 1
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: temInstagram ? 20 : 0 }}>
                     <div style={{
@@ -546,31 +552,15 @@ export default function ConexoesPage() {
                     <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>Instagram</h2>
-                            {limites.max_instancias_instagram === 0 && (
-                                <span style={{
-                                    fontSize: 11, fontWeight: 700,
-                                    background: 'linear-gradient(135deg, #D99773, #C07A55)',
-                                    color: '#fff', padding: '2px 8px', borderRadius: 6
-                                }}>PRO</span>
-                            )}
                         </div>
                         <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
-                            {limites.max_instancias_instagram === 0
-                                ? 'Responda DMs automaticamente · Disponível no Plano 2'
-                                : temInstagram
-                                    ? `${instagrams.length} conta${instagrams.length > 1 ? 's' : ''} conectada${instagrams.length > 1 ? 's' : ''}`
-                                    : 'Conecte para a IARA responder DMs'
+                            {temInstagram
+                                ? `${instagrams.length} conta${instagrams.length > 1 ? 's' : ''} conectada${instagrams.length > 1 ? 's' : ''}`
+                                : 'Conecte para a IARA responder DMs'
                             }
                         </p>
                     </div>
-                    {limites.max_instancias_instagram === 0 ? (
-                        <a href="/plano" style={{
-                            background: 'linear-gradient(135deg, #D99773, #C07A55)',
-                            color: '#fff', border: 'none', borderRadius: 12,
-                            padding: '10px 20px', fontWeight: 600, fontSize: 14,
-                            textDecoration: 'none', whiteSpace: 'nowrap'
-                        }}>Fazer Upgrade</a>
-                    ) : !temInstagram && podeAddInstagram ? (
+                    {!temInstagram && podeAddInstagram && (
                         <button
                             onClick={conectarInstagram}
                             disabled={conectando}
@@ -578,12 +568,12 @@ export default function ConexoesPage() {
                                 background: 'linear-gradient(135deg, #E1306C, #833AB4)',
                                 color: '#fff', border: 'none', borderRadius: 12,
                                 padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
-                                opacity: conectando ? 0.6 : 1, whiteSpace: 'nowrap'
+                                opacity: conectando ? 0.6 : 1, whiteSpace: 'nowrap' as const
                             }}
                         >
                             {conectando ? '⏳ Conectando...' : '+ Conectar'}
                         </button>
-                    ) : null}
+                    )}
                 </div>
 
                 {/* Cards Instagram conectados */}
@@ -626,7 +616,7 @@ export default function ConexoesPage() {
                                         background: 'linear-gradient(135deg, #E1306C, #833AB4)',
                                         color: '#fff', border: 'none', borderRadius: 12,
                                         padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 13,
-                                        whiteSpace: 'nowrap'
+                                        whiteSpace: 'nowrap' as const
                                     }}
                                 >📲 Conectar</button>
                             )}
@@ -643,6 +633,7 @@ export default function ConexoesPage() {
                     );
                 })}
             </div>
+            </UpgradeOverlay>
 
             {/* ==================== Google Calendar ==================== */}
             <div style={{
