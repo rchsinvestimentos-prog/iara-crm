@@ -58,13 +58,22 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
         setSimLoading(true)
 
         try {
+            // Preparar histórico para a API:
+            // 1. Excluir a msg atual (já vai como 'message')
+            // 2. Excluir a saudação inicial do simulador (é fake, não é IA real)
+            // 3. Reverter para newest-first (convenção do banco de dados)
+            const historyForApi = simHistory
+                .filter((m, i) => !(i === 0 && m.role === 'assistant' && m.content.includes('Faça um teste')))
+                .slice(-20)
+                .reverse()
+
             const res = await fetch('/api/iara/simulate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message: userMsg.content,
                     leadName: 'Cliente Teste',
-                    history: newHistory.slice(-10),
+                    history: historyForApi,
                     withAudio: simAudio,
                     overrides: {
                         nomeAssistente: config.nomeIA,
