@@ -461,6 +461,19 @@ export default function ProfissionaisPage() {
                         ? `Você tem ${profissionais.length} profissionais. No plano Premium, tenha quantos precisar!`
                         : `Adicione até 3 profissionais no plano Pro, ou ilimitados no Premium!`
                     }
+                    beneficios={nivel >= 2 ? [
+                        'Profissionais ilimitados na equipe',
+                        'Cada profissional com seus procedimentos',
+                        'Agenda individual por profissional',
+                        'Link de agendamento exclusivo',
+                        'Clone de voz da Dra (ElevenLabs)',
+                    ] : [
+                        'Até 3 profissionais na equipe',
+                        'Procedimentos por profissional',
+                        'Agenda individual com Google Calendar',
+                        'Vozes ultra realistas (12 opções)',
+                        'Instagram DM com IA',
+                    ]}
                 >
                     {/* Preview de como seria o formulário — fica blurrado */}
                     <div style={{ background: '#fff', borderRadius: 18, padding: '24px', border: '1px solid #e2e8f0', marginBottom: 14 }}>

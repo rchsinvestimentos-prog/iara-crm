@@ -1,13 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { Lock, Crown, ArrowRight } from 'lucide-react'
+import { Lock, Crown, ArrowRight, Check } from 'lucide-react'
 
 interface UpgradeOverlayProps {
     planoAtual: number
     planoMinimo: number
     nomeFeature: string
     descricao?: string
+    /** Lista de benefícios que a cliente ganha ao fazer upgrade */
+    beneficios?: string[]
     children: React.ReactNode
     /** 'section' = bloqueia seção inteira com blur, 'inline' = overlay compacto */
     variante?: 'section' | 'inline'
@@ -24,11 +26,35 @@ const PLANO_CORES: Record<number, string> = {
     3: '#D99773',
 }
 
+const PLANO_PRECOS: Record<number, string> = {
+    2: 'R$ 197',
+    3: 'R$ 297',
+}
+
+// Benefícios padrão por plano (usados se nenhum for passado)
+const BENEFICIOS_PADRAO: Record<number, string[]> = {
+    2: [
+        '12 vozes ultra realistas (ElevenLabs)',
+        'Até 3 profissionais na equipe',
+        'Instagram DM com IA',
+        'Atendimento em 4 idiomas',
+        '3.000 mensagens/mês',
+    ],
+    3: [
+        'Clone da sua própria voz',
+        'Profissionais ilimitados',
+        'Multi-clínica',
+        '2 WhatsApps conectados',
+        '5.000 mensagens/mês',
+    ],
+}
+
 export default function UpgradeOverlay({
     planoAtual,
     planoMinimo,
     nomeFeature,
     descricao,
+    beneficios,
     children,
     variante = 'section',
 }: UpgradeOverlayProps) {
@@ -39,6 +65,8 @@ export default function UpgradeOverlay({
 
     const nomePlano = PLANO_NOMES[planoMinimo] || 'Pro'
     const corPlano = PLANO_CORES[planoMinimo] || '#8B5CF6'
+    const precoPlano = PLANO_PRECOS[planoMinimo] || ''
+    const listaBeneficios = beneficios || BENEFICIOS_PADRAO[planoMinimo] || []
 
     if (variante === 'inline') {
         return (
@@ -107,42 +135,93 @@ export default function UpgradeOverlay({
                     alignItems: 'center',
                     justifyContent: 'center',
                     zIndex: 20,
-                    background: 'rgba(255,255,255,0.6)',
-                    backdropFilter: 'blur(4px)',
-                    WebkitBackdropFilter: 'blur(4px)',
+                    background: 'rgba(255,255,255,0.75)',
+                    backdropFilter: 'blur(6px)',
+                    WebkitBackdropFilter: 'blur(6px)',
                     borderRadius: 18,
-                    padding: 24,
+                    padding: '28px 24px',
                     textAlign: 'center',
                 }}
             >
                 {/* Ícone */}
                 <div
                     style={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: 16,
+                        width: 52,
+                        height: 52,
+                        borderRadius: 14,
                         background: `linear-gradient(135deg, ${corPlano}20, ${corPlano}10)`,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginBottom: 14,
+                        marginBottom: 12,
                     }}
                 >
-                    <Crown size={24} style={{ color: corPlano }} />
+                    <Crown size={22} style={{ color: corPlano }} />
                 </div>
 
-                {/* Texto */}
+                {/* Título */}
                 <h4 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: '#1e293b' }}>
                     {nomeFeature}
                 </h4>
-                <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748b', maxWidth: 280, lineHeight: 1.5 }}>
+                <p style={{ margin: '0 0 14px', fontSize: 13, color: '#64748b', maxWidth: 320, lineHeight: 1.5 }}>
                     {descricao || `Disponível no plano ${nomePlano}. Faça upgrade para desbloquear!`}
                 </p>
 
-                {/* Badge do plano atual */}
-                <p style={{ margin: '0 0 12px', fontSize: 11, color: '#94a3b8' }}>
-                    Seu plano: <span style={{ fontWeight: 600, color: '#0F4C61' }}>{PLANO_NOMES[planoAtual] || 'Essencial'}</span>
-                </p>
+                {/* Lista de benefícios */}
+                {listaBeneficios.length > 0 && (
+                    <div
+                        style={{
+                            background: 'rgba(255,255,255,0.9)',
+                            borderRadius: 14,
+                            padding: '14px 18px',
+                            marginBottom: 16,
+                            border: `1px solid ${corPlano}20`,
+                            textAlign: 'left',
+                            maxWidth: 320,
+                            width: '100%',
+                        }}
+                    >
+                        <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: corPlano, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            ✨ O que você ganha no {nomePlano}
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {listaBeneficios.map((b, i) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div
+                                        style={{
+                                            width: 18,
+                                            height: 18,
+                                            borderRadius: 6,
+                                            background: `${corPlano}15`,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        <Check size={11} style={{ color: corPlano }} strokeWidth={3} />
+                                    </div>
+                                    <span style={{ fontSize: 12, color: '#334155', lineHeight: 1.3 }}>{b}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Badge do plano atual + preço */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                        Seu plano: <span style={{ fontWeight: 600, color: '#0F4C61' }}>{PLANO_NOMES[planoAtual] || 'Essencial'}</span>
+                    </span>
+                    {precoPlano && (
+                        <>
+                            <span style={{ color: '#e2e8f0' }}>•</span>
+                            <span style={{ fontSize: 11, color: '#64748b' }}>
+                                {nomePlano}: <span style={{ fontWeight: 700, color: corPlano }}>{precoPlano}/mês</span>
+                            </span>
+                        </>
+                    )}
+                </div>
 
                 {/* CTA */}
                 <Link

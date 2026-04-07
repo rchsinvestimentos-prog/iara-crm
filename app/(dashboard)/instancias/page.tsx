@@ -536,6 +536,13 @@ export default function ConexoesPage() {
                 planoMinimo={2}
                 nomeFeature="Instagram DM com IA"
                 descricao="A IARA responde DMs do Instagram automaticamente, 24/7. Faça upgrade para o plano Pro!"
+                beneficios={[
+                    'Respostas automáticas no Instagram DM',
+                    'Atendimento 24/7 também pelo Instagram',
+                    'A IARA agenda consultas pelo DM',
+                    'Até 3 profissionais na equipe',
+                    '12 vozes ultra realistas',
+                ]}
             >
             <div style={{
                 background: '#fff', borderRadius: 20, padding: '24px 28px',
