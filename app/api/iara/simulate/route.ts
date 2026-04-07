@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         }
 
         const procedimentosRaw = await prisma.procedimento.findMany({
-            where: { clinicaId: String(clinicaId), ativo: true }
+            where: { clinicaId: clinicaId, ativo: true }
         })
 
         // Merge de configs do banco com o que o usuário está testando na UI (sem ter salvo ainda)
@@ -99,8 +99,8 @@ export async function POST(req: NextRequest) {
             fallback: result.fallback,
             ...(audioBase64 ? { audioBase64 } : {}),
         })
-    } catch (error) {
+    } catch (error: any) {
         console.error('[IARA Simulate] Erro geral:', error)
-        return NextResponse.json({ error: 'Erro interno ao simular' }, { status: 500 })
+        return NextResponse.json({ error: `Erro interno ao simular: ${error.message || error}` }, { status: 500 })
     }
 }
