@@ -616,18 +616,72 @@ export default function AtendimentoTool() {
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
                     <MessageCircle size={15} className="text-[#D99773]" />
-                    Feedbacks para a {nomeIA || 'IARA'}
+                    Instruções para a {nomeIA || 'IARA'}
                 </h3>
                 <p className="text-[10px] mb-4" style={{ color: 'var(--text-muted)' }}>
-                    Ensine a {nomeIA || 'IARA'}! Diga o que ela NÃO deve fazer ou como deve se comportar.
+                    Ensine a {nomeIA || 'IARA'} como se comportar! Adicione regras próprias ou use os modelos prontos abaixo.
                 </p>
+
+                {/* Templates prontos */}
+                {feedbacks.length === 0 && (
+                    <div className="mb-5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
+                            💡 Modelos prontos — clique para adicionar:
+                        </p>
+                        {[
+                            { cat: '💰 Preços', templates: [
+                                'Não falar valores, sempre conduzir para a consulta presencial',
+                                'Só falar o preço se a cliente perguntar diretamente',
+                                'Sempre mencionar as opções de parcelamento junto com o preço',
+                            ]},
+                            { cat: '🔍 Sondagem', templates: [
+                                'Sempre perguntar se a cliente já fez o procedimento antes',
+                                'Perguntar o que mais incomoda antes de sugerir qualquer procedimento',
+                                'Perguntar se a cliente tem referência de como quer que fique',
+                            ]},
+                            { cat: '🏥 Clínica', templates: [
+                                'Sempre reforçar que a primeira consulta é uma avaliação personalizada',
+                                'Explicar que cada caso é único e precisa de avaliação presencial',
+                                'Mencionar que trabalhamos com hora marcada e sem fila de espera',
+                            ]},
+                            { cat: '⚖️ Limites', templates: [
+                                'Nunca falar mal de outros profissionais ou concorrentes',
+                                'Não prometer resultados ("vai ficar perfeita")',
+                                'Não dar informações médicas, sempre direcionar para a Dra',
+                            ]},
+                        ].map((grupo) => (
+                            <div key={grupo.cat} className="mb-3">
+                                <p className="text-[10px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>{grupo.cat}</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {grupo.templates.map((tmpl) => (
+                                        <button
+                                            key={tmpl}
+                                            onClick={() => {
+                                                if (!feedbacks.includes(tmpl)) {
+                                                    setFeedbacks([...feedbacks, tmpl])
+                                                }
+                                            }}
+                                            className="text-[10px] px-2.5 py-1.5 rounded-full border transition-all hover:scale-[1.02]"
+                                            style={{
+                                                borderColor: 'var(--border-default)',
+                                                color: 'var(--text-secondary)',
+                                                backgroundColor: 'var(--bg-subtle)',
+                                            }}
+                                        >
+                                            + {tmpl.length > 50 ? tmpl.slice(0, 50) + '...' : tmpl}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Lista de feedbacks existentes */}
                 <div className="space-y-2 mb-4">
-                    {feedbacks.length === 0 && (
-                        <p className="text-center py-4 text-[11px]" style={{ color: 'var(--text-muted)' }}>Nenhum feedback cadastrado</p>
-                    )}
-                    {feedbacks.map((fb, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)' }}>
-                            <p className="text-[12px] flex-1" style={{ color: 'var(--text-primary)' }}>&ldquo;{fb}&rdquo;</p>
+                    {feedbacks.length > 0 && feedbacks.map((fb, i) => (
+                        <div key={i} className="flex items-start justify-between p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)' }}>
+                            <p className="text-[12px] flex-1 leading-relaxed" style={{ color: 'var(--text-primary)' }}>&ldquo;{fb}&rdquo;</p>
                             <button
                                 onClick={() => setFeedbacks(feedbacks.filter((_, j) => j !== i))}
                                 className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors flex-shrink-0 ml-3"
@@ -637,13 +691,15 @@ export default function AtendimentoTool() {
                         </div>
                     ))}
                 </div>
+
+                {/* Input para feedback customizado */}
                 <div className="flex gap-2">
                     <input
                         className={`flex-1 ${inputClass}`}
                         style={inputStyle}
                         value={novoFeedback}
                         onChange={(e) => setNovoFeedback(e.target.value)}
-                        placeholder='Ex: "Não fale sobre concorrentes"...'
+                        placeholder='Ou escreva sua própria instrução...'
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && novoFeedback.trim()) {
                                 setFeedbacks([...feedbacks, novoFeedback.trim()])
@@ -663,7 +719,7 @@ export default function AtendimentoTool() {
                         <Plus size={14} />
                     </button>
                 </div>
-                <BotaoSalvarBloco blocoId="feedbacks" dados={{ feedbacks: JSON.stringify(feedbacks) }} label="Salvar Feedbacks" />
+                <BotaoSalvarBloco blocoId="feedbacks" dados={{ feedbacks: JSON.stringify(feedbacks) }} label="Salvar Instruções" />
             </div>
 
             {/* Salvar Tudo */}
