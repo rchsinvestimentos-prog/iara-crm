@@ -94,6 +94,16 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     // --- Catálogo de Procedimentos (multi-profissional vs single) ---
     let catalogoTexto = ''
     const multiProf = profissionais && profissionais.length > 1
+    
+    // Data de hoje para a IA saber calcular "amanhã", "próxima semana", etc.
+    const agora = new Date()
+    const tz = clinica.timezone || 'America/Sao_Paulo'
+    const dataHojeFormatada = agora.toLocaleDateString('pt-BR', { timeZone: tz, weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
+    const hojeISO = agora.toLocaleDateString('en-CA', { timeZone: tz }) // YYYY-MM-DD
+    
+    // Calcular amanhã
+    const amanha = new Date(agora.getTime() + 24 * 60 * 60 * 1000)
+    const amanhaISO = amanha.toLocaleDateString('en-CA', { timeZone: tz })
 
     if (multiProf) {
         catalogoTexto = `\n👩‍⚕️ PROFISSIONAIS DA CLÍNICA (${profissionais!.length}):\n`
@@ -119,7 +129,6 @@ export function buildSystemPrompt(ctx: PromptContext): string {
         catalogoTexto += `\n⚠️ REGRA MULTI-PROFISSIONAL:`
         catalogoTexto += `\n- Se a cliente pedir um procedimento que MAIS DE UM profissional faz, PERGUNTE com qual profissional ela prefere.`
         catalogoTexto += `\n- Se SÓ UM profissional faz aquele procedimento, direcione direto sem perguntar.`
-        catalogoTexto += `\n- Ao agendar, use o formato: [AGENDAR:Procedimento|YYYY-MM-DD|HH:MM|Duracao|ProfissionalId]`
         catalogoTexto += `\n`
     } else {
         catalogoTexto = `\n💅 ${labels.procedimentosPrecos}:\n`
@@ -131,7 +140,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
                 } else if (proc.valor) {
                     catalogoTexto += ` — ${moeda} ${proc.valor}`
                 }
-                if (proc.duracao) catalogoTexto += ` (${proc.duracao})`
+                if (proc.duracao) catalogoTexto += ` (${proc.duracao}min)`
                 catalogoTexto += '\n'
                 if (proc.descricao) catalogoTexto += `  ℹ️ ${proc.descricao}\n`
             })
@@ -139,6 +148,20 @@ export function buildSystemPrompt(ctx: PromptContext): string {
             catalogoTexto += `${labels.semCatalogo}\n`
         }
     }
+
+    // --- Instrução de Agendamento (OBRIGATÓRIA em todos os modos) ---
+    catalogoTexto += `\n📅 COMO AGENDAR (REGRA OBRIGATÓRIA):
+📆 HOJE é ${dataHojeFormatada} (${hojeISO}). Amanhã = ${amanhaISO}.
+Quando a cliente CONFIRMAR data + horário, inclua NO FINAL da sua mensagem este marcador EXATAMENTE assim:
+[AGENDAR:NomeDoProcedimento|YYYY-MM-DD|HH:MM|DuracaoEmMinutos${multiProf ? '|IdDoProfissional' : ''}]
+Exemplos:
+- "Perfeito, agendei!" + [AGENDAR:Micropigmentação|${hojeISO}|14:00|60${multiProf ? '|prof-id-aqui' : ''}]
+- "Confirmado para amanhã às 10h!" + [AGENDAR:Botox|${amanhaISO}|10:00|30${multiProf ? '|prof-id-aqui' : ''}]
+ESTE MARCADOR É INVISÍVEL para a cliente — ele dispara o sistema de agendamento automático.
+NUNCA mostre o marcador na conversa como texto visível. Apenas inclua ao final.
+Se a cliente ainda NÃO confirmou data+horário, NÃO use o marcador.
+`
+
 
     // --- Regra de Preço Faixa (valor_min/valor_max) ---
     const temFaixa = procedimentos.some(p => p.valorMin && p.valorMax)
