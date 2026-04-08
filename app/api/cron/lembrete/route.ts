@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
                 evolutionApikey: true,
                 linkMaps: true,
                 configuracoes: true,
+                funcionalidades: true,
             },
         })
 
@@ -48,6 +49,15 @@ export async function GET(request: NextRequest) {
 
             // WhatsApp conectado? (status gravado no config pelo webhook)
             if (config.whatsappStatus !== 'open') { pulados++; continue }
+
+            // Toggle lembrete_24h desligado? Pular
+            let funcsLembrete: Record<string, boolean> = {}
+            try {
+                funcsLembrete = typeof (clinica as any).funcionalidades === 'string'
+                    ? JSON.parse((clinica as any).funcionalidades)
+                    : ((clinica as any).funcionalidades || {})
+            } catch { /* default */ }
+            if (funcsLembrete.lembrete_24h === false) { pulados++; continue }
 
             const agendamentos: any[] = config.agendamentos || []
             const lembretes: string[] = config.lembretes || []

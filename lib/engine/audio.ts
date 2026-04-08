@@ -205,10 +205,17 @@ export async function downloadAudioFromEvolution(
  */
 export function determineOutputType(
     clinica: DadosClinica,
-    clienteEnviouAudio: boolean
+    clienteEnviouAudio: boolean,
+    responderAudioAtivo: boolean = true
 ): ConfigSaida {
     // Se não veio áudio, responde com texto
     if (!clienteEnviouAudio) {
+        return { tipoSaida: 'text', provedorVoz: null, voiceId: null }
+    }
+
+    // Se o toggle "responder com áudio" está desligado, força texto
+    if (!responderAudioAtivo) {
+        console.log('[Audio] 🔇 responder_audio=OFF — forçando resposta em texto')
         return { tipoSaida: 'text', provedorVoz: null, voiceId: null }
     }
 

@@ -15,6 +15,7 @@
 
 import { getCofreParaClinica, getLabels } from './cofre'
 import type { DadosClinica, Procedimento, FeedbackDra, MemoriaCliente, RespostaIA, ProfissionalAtivo } from './types'
+import { parseFuncionalidades } from './types'
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ''
@@ -250,7 +251,7 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
     if (clinica.endereco) infoClinica.push(`Endereço/Localização: ${clinica.endereco}`)
     if (clinica.cuidadosPos) infoClinica.push(`Cuidados pós-procedimento padrão: ${clinica.cuidadosPos}`)
     if (clinica.politicaCancelamento) infoClinica.push(`Política de cancelamento: ${clinica.politicaCancelamento}`)
-    if (clinica.funcionalidades) infoClinica.push(`O que oferecemos: ${clinica.funcionalidades}`)
+    // funcionalidades: NÃO injetar JSON bruto — os toggles são usados programaticamente pelo pipeline
     // Bio e especialidade da profissional principal
     if (!multiProf && profissionais && profissionais.length === 1) {
         const prof = profissionais[0]
@@ -294,6 +295,18 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
         infoClinica.push(`Desconto: Pode oferecer até ${clinica.descontoMaximo || 10}% de desconto se a cliente negociar. Use com moderação para fechar o agendamento.`)
     } else if (clinica.aceitaDescontos === false) {
         infoClinica.push(`Desconto: NÃO oferecemos descontos. Se a cliente pedir, diga que os valores já são justos e competitivos.`)
+    }
+
+    // --- Regras dos toggles de funcionalidades ---
+    const funcs = parseFuncionalidades(clinica.funcionalidades)
+    if (!funcs.dar_desconto) {
+        infoClinica.push(`⛔ REGRA: NÃO ofereça NENHUM tipo de desconto, promoção ou abatimento. Se a cliente pedir desconto, diga que os valores já são especiais e justos.`)
+    }
+    if (!funcs.parcelamento) {
+        infoClinica.push(`⛔ REGRA: NÃO mencione parcelamento ou divisão de pagamento. Se a cliente perguntar, diga que o pagamento é à vista.`)
+    }
+    if (funcs.enviar_endereco && clinica.endereco) {
+        infoClinica.push(`📍 REGRA: Ao confirmar um agendamento, SEMPRE envie o endereço da clínica para a cliente.`)
     }
 
     const sobreClinicaTexto = infoClinica.length > 0
@@ -384,7 +397,7 @@ ${regraHistorico}
 ${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${feedbackTexto}${memoriaTexto}${sobreClinicaTexto}${configTomTexto}
 ${linhaProf}${horarioContext}${agendaTexto}${cofre.leisImutaveis}
 
-${cofre.roteiroVendas}
+${funcs.vendas_7_passos ? cofre.roteiroVendas : '(Método de vendas desativado pela clínica — foque em informar preços e agendar diretamente.)'}
 
 ${cofre.arsenalDeObjecoes}
 

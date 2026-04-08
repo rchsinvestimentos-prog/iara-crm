@@ -29,7 +29,8 @@ import * as sender from './sender'
 import * as logger from './logger'
 import { processaDraMensagem } from '@/lib/agent/dra-agent'
 import { shouldRouteToAgent } from '@/lib/agent/intent-classifier'
-import type { MensagemRecebida, DadosClinica, ProfissionalAtivo } from './types'
+import type { MensagemRecebida, DadosClinica, ProfissionalAtivo, Funcionalidades } from './types'
+import { parseFuncionalidades } from './types'
 import { prisma } from '@/lib/prisma'
 import { createHash } from 'crypto'
 
@@ -67,7 +68,8 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
 
     const clinica = acesso.clinica!
     const isDoutora = acesso.isDoutora || false
-    await logPipeline('CATRACA_OK', `clinica=${clinica.id}/${clinica.nomeClinica} isDra=${isDoutora}`)
+    const funcs = parseFuncionalidades(clinica.funcionalidades)
+    await logPipeline('CATRACA_OK', `clinica=${clinica.id}/${clinica.nomeClinica} isDra=${isDoutora} funcs=${JSON.stringify(funcs)}`)
 
     // ================================================
     // 2. BLACKLIST — Número bloqueado?
@@ -139,8 +141,16 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // 4. TRIAGEM DE MÍDIA — Foto/Vídeo/Documento = Ack + Alerta Dra (SEM pausa)
     // ================================================
     if (msg.tipoMensagem === 'image' || msg.tipoMensagem === 'video' || msg.tipoMensagem === 'document') {
-        await handleMediaTriage(clinica, msg)
-        return // Não processa com IA — espera decisão da Dra
+        if (funcs.encaminhar_foto) {
+            await handleMediaTriage(clinica, msg)
+        } else {
+            // Encaminhar foto desligado — manda ack simples sem alertar profissionais
+            const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
+            await sender.sendText(sendOpts, 'Recebi! ✨ Vou encaminhar pra equipe, tá? 😊')
+            await memory.saveToHistory(clinica.id, msg.telefone, 'user', `[${msg.tipoMensagem.toUpperCase()} ENVIADO]`, msg.pushName)
+            console.log(`[Pipeline] 📸 Mídia recebida mas encaminhar_foto=OFF — sem alerta`)
+        }
+        return
     }
 
     // ================================================
@@ -184,10 +194,31 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     try {
     await logPipeline('AI_START', `tipoMsg=${msg.tipoMensagem} texto="${(msg.mensagem || '').slice(0,50)}"`);
 
+    // ================================================
+    // 7.1 CHECK: responder_texto desligado?
+    // ================================================
+    if (!funcs.responder_texto && msg.tipoMensagem === 'text') {
+        await logPipeline('SKIP', `responder_texto=OFF — ignorando mensagem de texto`)
+        // Salva no histórico pra não perder contexto, mas não responde
+        await memory.saveToHistory(clinica.id, msg.telefone, 'user', msg.mensagem, msg.pushName)
+        return
+    }
+
     let textoMensagem = msg.mensagem
     let tipoEntrada: 'text' | 'audio' = msg.tipoMensagem === 'audio' ? 'audio' : 'text'
 
     if (msg.tipoMensagem === 'audio') {
+        // ================================================
+        // 7.2 CHECK: transcrever_audio desligado?
+        // ================================================
+        if (!funcs.transcrever_audio) {
+            await logPipeline('SKIP', `transcrever_audio=OFF — não transcreve áudio`)
+            const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
+            await sender.sendText(sendOpts, 'Oi! No momento não estou conseguindo ouvir áudios 🙈 Pode me mandar por texto? Assim consigo te ajudar rapidinho! 😊')
+            await memory.saveToHistory(clinica.id, msg.telefone, 'user', '[ÁUDIO - não transcrito]', msg.pushName)
+            return
+        }
+
         let audioData = msg.audioBase64
 
         if (!audioData) {
@@ -360,8 +391,9 @@ async function finalizarResposta(
     startTime: number,
     fromCache: boolean
 ) {
-    // Determinar saída
-    const configSaida = audio.determineOutputType(clinica, tipoEntrada === 'audio')
+    // Determinar saída (respeita toggle responder_audio)
+    const funcsLocal = parseFuncionalidades(clinica.funcionalidades)
+    const configSaida = audio.determineOutputType(clinica, tipoEntrada === 'audio', funcsLocal.responder_audio)
 
     let audioBase64Resposta: string | null = null
     if (configSaida.tipoSaida === 'audio') {

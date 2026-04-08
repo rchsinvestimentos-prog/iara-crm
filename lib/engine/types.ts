@@ -201,3 +201,57 @@ export interface LogEvento {
     tipo: 'mensagem_recebida' | 'mensagem_enviada' | 'erro' | 'feedback' | 'credito'
     dados: Record<string, any>
 }
+
+// ============================================
+// FUNCIONALIDADES — Toggles do painel
+// ============================================
+
+/** Mapa de todas as funcionalidades que a Dra pode ligar/desligar */
+export interface Funcionalidades {
+    responder_texto: boolean
+    responder_audio: boolean
+    transcrever_audio: boolean
+    vendas_7_passos: boolean
+    dar_desconto: boolean
+    google_calendar: boolean
+    lembrete_24h: boolean
+    lembrete_2h: boolean
+    followup_abandono: boolean
+    horario_ponto: boolean
+    enviar_endereco: boolean
+    parcelamento: boolean
+    encaminhar_foto: boolean
+}
+
+const FUNCIONALIDADES_DEFAULT: Funcionalidades = {
+    responder_texto: true,
+    responder_audio: true,
+    transcrever_audio: true,
+    vendas_7_passos: true,
+    dar_desconto: true,
+    google_calendar: true,
+    lembrete_24h: true,
+    lembrete_2h: true,
+    followup_abandono: true,
+    horario_ponto: false,
+    enviar_endereco: true,
+    parcelamento: true,
+    encaminhar_foto: true,
+}
+
+/**
+ * Parseia o campo `funcionalidades` (string JSON) em um objeto tipado.
+ * Se falhar ou estiver vazio, retorna os defaults (tudo ativo).
+ */
+export function parseFuncionalidades(raw: string | null | undefined): Funcionalidades {
+    if (!raw) return { ...FUNCIONALIDADES_DEFAULT }
+    try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+        return {
+            ...FUNCIONALIDADES_DEFAULT,
+            ...parsed,
+        }
+    } catch {
+        return { ...FUNCIONALIDADES_DEFAULT }
+    }
+}

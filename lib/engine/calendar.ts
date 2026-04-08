@@ -14,6 +14,7 @@ import {
     createCalendarEvent,
 } from '@/lib/google-calendar'
 import type { DadosClinica, ProfissionalAtivo } from './types'
+import { parseFuncionalidades } from './types'
 import { prisma } from '@/lib/prisma'
 
 // ============================================
@@ -399,19 +400,25 @@ export async function processarAgendamentos(
             // =========================================
             let googleEventId: string | null = null
 
-            const evento = await createCalendarEventForProfissional(profissionalId, {
-                summary: `${agendamento.procedimento} — ${nomeCliente}`,
-                description: `Agendado pela IARA via WhatsApp.\nCliente: ${nomeCliente}\nTelefone: ${telefoneCliente || ''}\nProcedimento: ${agendamento.procedimento}\nDuração: ${agendamento.duracao}min`,
-                startDateTime,
-                endDateTime,
-                timeZone: tz,
-            })
+            // Verificar toggle google_calendar
+            const funcsCalendar = parseFuncionalidades(clinica.funcionalidades)
+            if (funcsCalendar.google_calendar) {
+                const evento = await createCalendarEventForProfissional(profissionalId, {
+                    summary: `${agendamento.procedimento} — ${nomeCliente}`,
+                    description: `Agendado pela IARA via WhatsApp.\nCliente: ${nomeCliente}\nTelefone: ${telefoneCliente || ''}\nProcedimento: ${agendamento.procedimento}\nDuração: ${agendamento.duracao}min`,
+                    startDateTime,
+                    endDateTime,
+                    timeZone: tz,
+                })
 
-            if (evento) {
-                googleEventId = evento.id || null
-                console.log(`[Calendar] ✅ Google Calendar: evento criado (${googleEventId})`)
+                if (evento) {
+                    googleEventId = evento.id || null
+                    console.log(`[Calendar] ✅ Google Calendar: evento criado (${googleEventId})`)
+                } else {
+                    console.warn(`[Calendar] ⚠️ Google Calendar: falha ao criar (sem token?). Continuando com agendamento interno.`)
+                }
             } else {
-                console.warn(`[Calendar] ⚠️ Google Calendar: falha ao criar (sem token?). Continuando com agendamento interno.`)
+                console.log(`[Calendar] 🔇 google_calendar=OFF — pulando Google Calendar, só agendamento interno`)
             }
 
             // =========================================
