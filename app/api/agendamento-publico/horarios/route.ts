@@ -161,7 +161,7 @@ export async function GET(req: Request) {
       SELECT horario, duracao
       FROM agendamentos_v2
       WHERE profissional_id = $1
-        AND DATE(data) = $2
+        AND DATE(data) = $2::date
         AND status NOT IN ('cancelado', 'rejeitado')
     `, profId, dataStr)
 
