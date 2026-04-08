@@ -202,6 +202,6 @@ export async function GET(req: Request) {
 
   } catch (err: any) {
     console.error('Erro /api/agendamento-publico/horarios:', err)
-    return NextResponse.json({ error: 'Erro ao processar horários', detail: err?.message || String(err) }, { status: 500 })
+    return NextResponse.json({ error: 'Erro ao processar horários' }, { status: 500 })
   }
 }
