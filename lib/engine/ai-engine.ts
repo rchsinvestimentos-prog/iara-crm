@@ -319,18 +319,19 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
     // --- Regra anti-cumprimento-repetitivo ---
     const historico = ctx.historico || []
     const temHistorico = historico.length > 0
+    // A regra precisa estar NO INÍCIO do prompt para máxima compliance
     const regraHistorico = temHistorico
-        ? `\n⚠️ REGRA CRÍTICA — NÃO REPITA SAUDAÇÃO NEM SE APRESENTE:
-Vocês JÁ estão conversando (há ${historico.length} mensagens no histórico).
-- NÃO cumprimente de novo ("Oi", "Tudo bem?", "Olá", etc).
-- NÃO se apresente de novo ("Sou a ${clinica.nomeAssistente || 'IARA'}, secretária de..."). Ela JÁ sabe quem você é.
-- NÃO pergunte "o que te trouxe aqui?" se ela JÁ disse o que quer no histórico.
-- Continue a conversa naturalmente no EXATO PONTO onde parou. Releia o histórico e continue.
-- Se a cliente voltou depois de um tempo (ex: "oi boa tarde"), responda algo como: "Oi [nome]! Continuando sobre [assunto anterior]..." — retome de onde parou.
-Só cumprimente/apresente se for a PRIMEIRÍSSIMA mensagem (histórico = 0 mensagens).`
+        ? `\n🚨🚨🚨 REGRA #0 — PRIORIDADE MÁXIMA — LEIA ANTES DE TUDO:
+VOCÊS JÁ ESTÃO NO MEIO DE UMA CONVERSA (${historico.length} mensagens trocadas).
+PROIBIDO começar sua resposta com "Oi", "Olá", "Oi ${ctx.pushName}", "Tudo bem?", ou qualquer saudação.
+PROIBIDO se apresentar ("Sou a ${clinica.nomeAssistente || 'IARA'}..."). A cliente JÁ sabe quem você é.
+Comece direto respondendo o que a cliente pediu. Sem saudação. Sem apresentação.
+EXCEÇÃO ÚNICA: se a cliente mandou uma saudação ("oi", "boa tarde"), responda com no máximo "Oi!" e vá direto ao ponto.
+🚨🚨🚨`
         : ''
 
     return `${roleDesc}
+${regraHistorico}
 🎯 SUA META #1: AGENDAR. Toda conversa deve caminhar para um agendamento.
 
 🚫 ESCOPO OBRIGATÓRIO (LEIA COM ATENÇÃO MÁXIMA):
@@ -365,10 +366,10 @@ ${cofre.roteiroVendas}
 ${cofre.arsenalDeObjecoes}
 
 ${labels.comoFalar}
-${regraHistorico}
 NÃO VÁ DIRETO PARA A SONDAGEM. Primeiro, acolhimento. Siga PASSO A PASSO, uma mensagem por vez.
 EXCEÇÃO: Se a cliente quer AGENDAR e já sabe o que quer, é FECHAMENTO — não enrole.
-NOME DA CLIENTE COM QUEM VOCÊ ESTÁ FALANDO AGORA: ${nomeCliente}`
+NOME DA CLIENTE COM QUEM VOCÊ ESTÁ FALANDO AGORA: ${nomeCliente}
+${temHistorico ? `\n🔁 LEMBRETE FINAL: NÃO comece com "Oi" — esta conversa já está em andamento.` : ''}`
 }
 
 // ============================================
