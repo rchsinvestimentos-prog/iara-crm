@@ -240,6 +240,7 @@ export async function POST(request: NextRequest) {
                     telefone,
                     pushName,
                     canal: 'whatsapp',
+                    instancia: instance,
                 }).catch(err => console.error('[Webhook] AutoCapture error:', err))
             }
         }

@@ -88,6 +88,11 @@ export async function GET(request: Request) {
             })
         }
 
+        // Garantir coluna foto_url existe na tabela contatos
+        try {
+            await prisma.$executeRawUnsafe(`ALTER TABLE contatos ADD COLUMN IF NOT EXISTS foto_url TEXT`)
+        } catch { /* já existe */ }
+
         // Senão, retorna a lista de conversas (agrupadas por telefone)
         const conversas = await prisma.$queryRaw<ConversaRow[]>`
             SELECT 
@@ -99,7 +104,11 @@ export async function GET(request: Request) {
                  ORDER BY h2.created_at DESC LIMIT 1) as ultima_mensagem,
                 MAX(hc.created_at) as ultima_data,
                 COUNT(*)::bigint as total_mensagens,
-                COALESCE(MAX(hc.origem), 'whatsapp') as origem
+                COALESCE(MAX(hc.origem), 'whatsapp') as origem,
+                (SELECT c.foto_url FROM contatos c 
+                 WHERE c.clinica_id = ${clinicaId} 
+                   AND c.numero_whatsapp = hc.telefone_cliente 
+                 LIMIT 1) as foto_url
             FROM historico_conversas hc
             WHERE hc.user_id = ${clinicaId}
             GROUP BY hc.telefone_cliente
@@ -115,6 +124,7 @@ export async function GET(request: Request) {
                 ultimaData: c.ultima_data,
                 totalMensagens: Number(c.total_mensagens),
                 origem: c.origem || 'whatsapp',
+                fotoUrl: (c as any).foto_url || null,
             })),
         })
     } catch (err: any) {

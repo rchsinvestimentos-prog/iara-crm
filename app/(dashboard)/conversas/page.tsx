@@ -12,6 +12,7 @@ interface Conversa {
     ultimaData: string
     totalMensagens: number
     origem: string
+    fotoUrl?: string | null
 }
 
 interface IgThread {
@@ -263,6 +264,7 @@ export default function ConversasPage() {
                                     selected={selecionado === c.telefone}
                                     onClick={() => abrirWA(c.telefone, c.nome)}
                                     accentColor="#D99773"
+                                    fotoUrl={c.fotoUrl}
                                 />
                             ))
                         ) : (
@@ -477,10 +479,10 @@ function EmptyState({ icon, msg, sub }: { icon: string; msg: string; sub?: strin
 }
 
 function ThreadItem({
-    id, nome, preview, time, count, selected, onClick, accentColor, falha, isInstagram
+    id, nome, preview, time, count, selected, onClick, accentColor, falha, isInstagram, fotoUrl
 }: {
     id: string; nome: string; preview: string; time: string; count: number
-    selected: boolean; onClick: () => void; accentColor: string; falha?: boolean; isInstagram?: boolean
+    selected: boolean; onClick: () => void; accentColor: string; falha?: boolean; isInstagram?: boolean; fotoUrl?: string | null
 }) {
     const initials = nome.startsWith('@')
         ? nome.replace('@', '').slice(0, 2).toUpperCase()
@@ -495,8 +497,17 @@ function ThreadItem({
                 border: selected ? `1px solid ${accentColor}30` : '1px solid transparent',
             }}
         >
+            {fotoUrl ? (
+                <img
+                    src={fotoUrl}
+                    alt={nome}
+                    className="w-9 h-9 rounded-full flex-shrink-0 object-cover"
+                    style={{ border: `1px solid ${accentColor}25` }}
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden') }}
+                />
+            ) : null}
             <div
-                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
+                className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold ${fotoUrl ? 'hidden' : ''}`}
                 style={{ backgroundColor: `${accentColor}18`, border: `1px solid ${accentColor}25`, color: accentColor }}
             >
                 {isInstagram ? '📷' : initials}
