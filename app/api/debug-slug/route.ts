@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const slug = searchParams.get('slug')
+  const nome = searchParams.get('nome')
   const secret = searchParams.get('secret')
 
   if (secret !== 'iara2026debug') {
@@ -36,6 +37,25 @@ export async function GET(req: Request) {
         found: result.length,
         profissionais: result 
       })
+    }
+
+    if (nome) {
+      // Buscar por nome (parcial)
+      const result = await prisma.$queryRawUnsafe<any[]>(`
+        SELECT 
+          p.id, p.nome, p.link_agendamento, p.link_config->>'slug' as config_slug,
+          p.horario_semana, p.almoco_semana, p.atende_sabado, p.horario_sabado,
+          p.atende_domingo, p.horario_domingo,
+          p.ativo,
+          c.horario_semana as cli_horario_semana, c.almoco_semana as cli_almoco_semana,
+          c.nome_clinica
+        FROM profissionais p
+        LEFT JOIN users c ON c.id = p.clinica_id
+        WHERE LOWER(p.nome) LIKE LOWER($1)
+        LIMIT 10
+      `, `%${nome}%`)
+
+      return NextResponse.json({ query: nome, found: result.length, profissionais: result })
     }
 
     // Listar todos os profissionais com slugs configurados
