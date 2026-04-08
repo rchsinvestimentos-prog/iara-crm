@@ -9,18 +9,25 @@ interface PageProps {
 export default async function PublicBookingPage({ params }: PageProps) {
     const { slug } = await params
 
-    // Buscar profissional pelo slug
+    // Buscar profissional pelo slug (tenta link_config->>'slug' OU link_agendamento)
     const profs = await prisma.$queryRawUnsafe<any[]>(`
         SELECT 
             p.id, p.clinica_id, p.nome, p.tratamento, p.especialidade, p.bio, p.foto_url,
             p.horario_semana, p.almoco_semana, p.atende_sabado, p.horario_sabado,
-            p.atende_domingo, p.horario_domingo, p.intervalo_atendimento,
+            p.almoco_sabado, p.atende_domingo, p.horario_domingo, p.almoco_domingo,
+            p.intervalo_atendimento,
             p.link_config, p.whatsapp,
-            c.nome_clinica, c.nome as nome_doutora, c.plano
+            c.nome_clinica, c.nome as nome_doutora, c.plano,
+            c.horario_semana as cli_horario_semana, c.almoco_semana as cli_almoco_semana,
+            c.atende_sabado as cli_atende_sabado, c.horario_sabado as cli_horario_sabado,
+            c.almoco_sabado as cli_almoco_sabado,
+            c.atende_domingo as cli_atende_domingo, c.horario_domingo as cli_horario_domingo,
+            c.almoco_domingo as cli_almoco_domingo,
+            c.intervalo_atendimento as cli_intervalo
         FROM profissionais p
         LEFT JOIN users c ON c.id = p.clinica_id
         WHERE p.ativo = true
-          AND p.link_config->>'slug' = $1
+          AND (p.link_config->>'slug' = $1 OR p.link_agendamento = $1)
         LIMIT 1
     `, slug)
 

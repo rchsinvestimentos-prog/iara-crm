@@ -37,36 +37,41 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Faltam prâmetros obrigatórios' }, { status: 400 })
     }
 
-    // Buscar profissional
-    const prof = await prisma.profissional.findUnique({
-      where: { id: profId },
-      include: {
-        clinica: {
-          select: {
-            horarioSemana: true, almocoSemana: true,
-            atendeSabado: true, horarioSabado: true, almocoSabado: true,
-            atendeDomingo: true, horarioDomingo: true, almocoDomingo: true,
-            intervaloAtendimento: true
-          }
-        }
-      }
-    })
+    // Buscar profissional + clínica via SQL raw (mais confiável que Prisma Client)
+    const profRows = await prisma.$queryRawUnsafe<any[]>(`
+      SELECT 
+        p.id, p.horario_semana, p.almoco_semana,
+        p.atende_sabado, p.horario_sabado, p.almoco_sabado,
+        p.atende_domingo, p.horario_domingo, p.almoco_domingo,
+        p.intervalo_atendimento,
+        c.horario_semana as cli_horario_semana, c.almoco_semana as cli_almoco_semana,
+        c.atende_sabado as cli_atende_sabado, c.horario_sabado as cli_horario_sabado,
+        c.almoco_sabado as cli_almoco_sabado,
+        c.atende_domingo as cli_atende_domingo, c.horario_domingo as cli_horario_domingo,
+        c.almoco_domingo as cli_almoco_domingo,
+        c.intervalo_atendimento as cli_intervalo
+      FROM profissionais p
+      LEFT JOIN users c ON c.id = p.clinica_id
+      WHERE p.id = $1
+      LIMIT 1
+    `, profId)
 
+    const prof = profRows[0]
     if (!prof) {
       return NextResponse.json({ error: 'Profissional não encontrado' }, { status: 404 })
     }
 
     // Definir as regras de horário. Profissional sobrepõe Clínica.
     const rules = {
-      horarioSemana: prof.horarioSemana || prof.clinica.horarioSemana,
-      almocoSemana: prof.almocoSemana || prof.clinica.almocoSemana,
-      atendeSabado: prof.atendeSabado ?? prof.clinica.atendeSabado ?? false,
-      horarioSabado: prof.horarioSabado || prof.clinica.horarioSabado,
-      almocoSabado: prof.almocoSabado || prof.clinica.almocoSabado,
-      atendeDomingo: prof.atendeDomingo ?? prof.clinica.atendeDomingo ?? false,
-      horarioDomingo: prof.horarioDomingo || prof.clinica.horarioDomingo,
-      almocoDomingo: prof.almocoDomingo || prof.clinica.almocoDomingo,
-      intervalo: prof.intervaloAtendimento || prof.clinica.intervaloAtendimento || 30
+      horarioSemana: prof.horario_semana || prof.cli_horario_semana,
+      almocoSemana: prof.almoco_semana || prof.cli_almoco_semana,
+      atendeSabado: prof.atende_sabado ?? prof.cli_atende_sabado ?? false,
+      horarioSabado: prof.horario_sabado || prof.cli_horario_sabado,
+      almocoSabado: prof.almoco_sabado || prof.cli_almoco_sabado,
+      atendeDomingo: prof.atende_domingo ?? prof.cli_atende_domingo ?? false,
+      horarioDomingo: prof.horario_domingo || prof.cli_horario_domingo,
+      almocoDomingo: prof.almoco_domingo || prof.cli_almoco_domingo,
+      intervalo: prof.intervalo_atendimento || prof.cli_intervalo || 30
     }
 
     const dateTarget = new Date(dataStr + 'T00:00:00') // Local "00:00:00" is tricky with timezones, let's use the date string "2023-10-25" directly to get the day of the week
@@ -93,7 +98,18 @@ export async function GET(req: Request) {
     }
 
     if (!atende || !strTrabalho) {
-      return NextResponse.json({ slots: [] }) // Não atende
+      return NextResponse.json({ 
+        slots: [],
+        _debug: {
+          reason: !atende ? 'Dia marcado como não atende' : 'Sem horário de trabalho configurado',
+          weekDay,
+          horarioSemana: rules.horarioSemana || null,
+          horarioSabado: rules.horarioSabado || null,
+          horarioDomingo: rules.horarioDomingo || null,
+          atendeSabado: rules.atendeSabado,
+          atendeDomingo: rules.atendeDomingo,
+        }
+      })
     }
 
     const t = parseHorariosString(strTrabalho)
