@@ -399,6 +399,7 @@ model Contato {
   retornoData     DateTime? @map("retorno_data")
   retornoMensagem String?   @map("retorno_mensagem") @db.Text
   retornoEnviado  Boolean?  @default(false) @map("retorno_enviado")
+  fotoUrl         String?   @map("foto_url") @db.Text
   createdAt       DateTime? @default(now()) @map("created_at")
   updatedAt       DateTime? @default(now()) @map("updated_at")
 

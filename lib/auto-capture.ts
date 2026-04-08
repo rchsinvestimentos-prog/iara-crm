@@ -78,13 +78,14 @@ async function fetchAndSaveProfilePhoto(
     apikey?: string
 ) {
     try {
-        // Verificar se já tem foto salva
-        const existing = await prisma.$queryRawUnsafe<any[]>(
-            `SELECT foto_url FROM contatos WHERE clinica_id = $1 AND numero_whatsapp = $2 AND foto_url IS NOT NULL LIMIT 1`,
-            clinicaId, telefone
-        ).catch(() => [])
-        
-        if (existing.length > 0 && existing[0].foto_url) return // Já tem foto
+        // Verificar se já tem foto salva (usando Prisma p/ mapear campos corretamente)
+        const existente = await prisma.contato.findFirst({
+            where: { clinicaId, telefone },
+            select: { id: true, fotoUrl: true },
+        })
+
+        // Se já tem foto, pular
+        if (existente?.fotoUrl) return
 
         let fotoUrl: string | null = null
 
@@ -92,31 +93,40 @@ async function fetchAndSaveProfilePhoto(
             // WhatsApp: buscar via Evolution API
             const evolutionUrl = process.env.EVOLUTION_API_URL || 'https://press-evolution.h4xd66.easypanel.host'
             const evolutionKey = apikey || process.env.EVOLUTION_API_KEY || ''
-            
-            const res = await fetch(`${evolutionUrl}/chat/fetchProfilePictureUrl/${instancia}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': evolutionKey,
-                },
-                body: JSON.stringify({ number: telefone }),
-            })
-            
-            if (res.ok) {
-                const data = await res.json()
-                fotoUrl = data.profilePictureUrl || data.wpiUrl || data.url || null
+
+            try {
+                const res = await fetch(`${evolutionUrl}/chat/fetchProfilePictureUrl/${instancia}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': evolutionKey,
+                    },
+                    body: JSON.stringify({ number: telefone }),
+                    signal: AbortSignal.timeout(8000), // 8s timeout
+                })
+
+                if (res.ok) {
+                    const data = await res.json()
+                    fotoUrl = data.profilePictureUrl || data.wpiUrl || data.url || data.picture || null
+                    console.log(`[AutoCapture] 📸 Evolution resposta foto ${telefone}: ${fotoUrl ? 'ENCONTROU' : 'sem foto'}`)
+                } else {
+                    console.log(`[AutoCapture] ⚠️ Evolution foto ${telefone}: status ${res.status}`)
+                }
+            } catch (fetchErr: any) {
+                console.log(`[AutoCapture] ⚠️ Erro buscando foto ${telefone}: ${fetchErr.message}`)
             }
         }
 
-        // Salvar a foto no contato
-        if (fotoUrl) {
-            await prisma.$executeRawUnsafe(
-                `UPDATE contatos SET foto_url = $1 WHERE clinica_id = $2 AND numero_whatsapp = $3`,
-                fotoUrl, clinicaId, telefone
-            ).catch(() => {})
-            console.log(`[AutoCapture] 📸 Foto salva para ${telefone}`)
+        // Salvar a foto no contato via Prisma
+        if (fotoUrl && existente) {
+            await prisma.contato.update({
+                where: { id: existente.id },
+                data: { fotoUrl },
+            })
+            console.log(`[AutoCapture] ✅ Foto salva para ${telefone}: ${fotoUrl.slice(0, 60)}...`)
         }
     } catch (err) {
         // Silencioso — foto é opcional
+        console.log(`[AutoCapture] Erro geral foto: ${(err as any)?.message}`)
     }
 }

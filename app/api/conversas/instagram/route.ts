@@ -95,21 +95,66 @@ export async function GET(request: Request) {
         const semNome = threads.filter((t: any) => !t.ig_sender_name)
         if (semNome.length > 0) {
             const token = await getIGAccessToken(clinicaId)
-            if (token) {
-                await Promise.allSettled(
-                    semNome.map(async (t: any) => {
-                        const nome = await fetchIGUsername(t.ig_sender_id, token)
-                        if (nome) {
-                            t.ig_sender_name = nome
-                            // Atualizar no banco pra não precisar buscar de novo
-                            await prisma.$executeRawUnsafe(
-                                `UPDATE mensagens_instagram SET ig_sender_name = $1 WHERE user_id = $2 AND ig_sender_id = $3 AND ig_sender_name IS NULL`,
-                                nome, clinicaId, t.ig_sender_id
-                            ).catch(() => {})
-                        }
-                    })
-                )
-            }
+
+            await Promise.allSettled(
+                semNome.map(async (t: any) => {
+                    let nome: string | null = null
+
+                    // Tentativa 1: Meta API (se tiver token)
+                    if (token) {
+                        nome = await fetchIGUsername(t.ig_sender_id, token)
+                    }
+
+                    // Tentativa 2: Extrair nome do greeting da IARA ("Oi Tatiane! 😊")
+                    if (!nome) {
+                        try {
+                            const primeiraResposta = await prisma.$queryRawUnsafe<any[]>(
+                                `SELECT conteudo FROM mensagens_instagram 
+                                 WHERE user_id = $1 AND ig_sender_id = $2 AND direcao = 'saida'
+                                 ORDER BY created_at ASC LIMIT 1`,
+                                clinicaId, t.ig_sender_id
+                            )
+                            if (primeiraResposta.length > 0) {
+                                const texto = primeiraResposta[0].conteudo || ''
+                                // Padrões comuns: "Oi Nome!", "Olá Nome!", "Oi Nome,", "Oi, Nome!"
+                                const match = texto.match(/^(?:Oi[i!,]?\s+|Ol[áa][!,]?\s+|Hey\s+|Oi,?\s*)([A-ZÀ-Ú][a-zà-ú]+)/i)
+                                if (match && match[1]) {
+                                    nome = match[1]
+                                }
+                            }
+                        } catch { /* silenciar */ }
+                    }
+
+                    // Tentativa 3: Pegar da primeira mensagem do usuário (se mencionar nome)
+                    if (!nome) {
+                        try {
+                            const primeiraMsg = await prisma.$queryRawUnsafe<any[]>(
+                                `SELECT conteudo FROM mensagens_instagram 
+                                 WHERE user_id = $1 AND ig_sender_id = $2 AND direcao = 'entrada'
+                                 ORDER BY created_at ASC LIMIT 1`,
+                                clinicaId, t.ig_sender_id
+                            )
+                            if (primeiraMsg.length > 0) {
+                                const texto = primeiraMsg[0].conteudo || ''
+                                // Se a primeira msg for curta (nome ou oi), pode ser o nome
+                                const matchNome = texto.match(/^(?:meu nome [ée]\s+|me chamo\s+|sou (?:a |o )?)?([A-ZÀ-Ú][a-zà-ú]+)(?:\s|$|,|!)/i)
+                                if (matchNome && matchNome[1] && matchNome[1].length > 2 && !['Oi', 'Olá', 'Ola', 'Bom', 'Boa', 'Quero', 'Quanto', 'Qual', 'Gostaria', 'Preciso'].includes(matchNome[1])) {
+                                    nome = matchNome[1]
+                                }
+                            }
+                        } catch { /* silenciar */ }
+                    }
+
+                    if (nome) {
+                        t.ig_sender_name = nome
+                        // Atualizar no banco pra não precisar buscar de novo
+                        await prisma.$executeRawUnsafe(
+                            `UPDATE mensagens_instagram SET ig_sender_name = $1 WHERE user_id = $2 AND ig_sender_id = $3 AND ig_sender_name IS NULL`,
+                            nome, clinicaId, t.ig_sender_id
+                        ).catch(() => {})
+                    }
+                })
+            )
         }
 
         return NextResponse.json({

@@ -235,12 +235,23 @@ export async function POST(request: NextRequest) {
             }
 
             if (clinica) {
+                // Buscar API key da instância
+                let evoApikey: string | undefined
+                try {
+                    const clinicaFull = await prisma.clinica.findFirst({
+                        where: { id: clinica.id },
+                        select: { evolutionApikey: true }
+                    })
+                    evoApikey = clinicaFull?.evolutionApikey || undefined
+                } catch { /* usar env fallback */ }
+
                 autoCaptureCRM({
                     clinicaId: clinica.id,
                     telefone,
                     pushName,
                     canal: 'whatsapp',
                     instancia: instance,
+                    evolutionApikey: evoApikey,
                 }).catch(err => console.error('[Webhook] AutoCapture error:', err))
             }
         }
