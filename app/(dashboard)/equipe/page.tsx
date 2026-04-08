@@ -86,8 +86,10 @@ export default function ProfissionaisPage() {
     const [almocoSemana, setAlmocoSemana] = useState('')
     const [atendeSabado, setAtendeSabado] = useState(false)
     const [horarioSabado, setHorarioSabado] = useState('')
+    const [almocoSabado, setAlmocoSabado] = useState('')
     const [atendeDomingo, setAtendeDomingo] = useState(false)
     const [horarioDomingo, setHorarioDomingo] = useState('')
+    const [almocoDomingo, setAlmocoDomingo] = useState('')
     const [intervaloAtendimento, setIntervaloAtendimento] = useState(15)
     const [linkAgendamento, setLinkAgendamento] = useState('')
     const [chavePix, setChavePix] = useState('')
@@ -126,8 +128,8 @@ export default function ProfissionaisPage() {
         setNome(''); setTratamento(''); setEspecialidade(''); setEmail(''); setWhatsapp('')
         setBio(''); setDiferenciais(''); setFotoUrl(''); setRedesSociais({})
         setHorarioSemana(''); setAlmocoSemana('')
-        setAtendeSabado(false); setHorarioSabado('')
-        setAtendeDomingo(false); setHorarioDomingo('')
+        setAtendeSabado(false); setHorarioSabado(''); setAlmocoSabado('')
+        setAtendeDomingo(false); setHorarioDomingo(''); setAlmocoDomingo('')
         setIntervaloAtendimento(15)
         setLinkAgendamento(''); setChavePix(''); setLinkPagamento('')
         setCursos([]); setNovoProc(false); setEditandoProc(null); setNovoCurso(false); setEditandoCurso(null)
@@ -142,8 +144,8 @@ export default function ProfissionaisPage() {
             setFotoUrl(prof.fotoUrl || '')
             setRedesSociais(prof.redesSociais && typeof prof.redesSociais === 'object' ? prof.redesSociais : {})
             setHorarioSemana(prof.horarioSemana || ''); setAlmocoSemana(prof.almocoSemana || '')
-            setAtendeSabado(prof.atendeSabado || false); setHorarioSabado(prof.horarioSabado || '')
-            setAtendeDomingo(prof.atendeDomingo || false); setHorarioDomingo(prof.horarioDomingo || '')
+            setAtendeSabado(prof.atendeSabado || false); setHorarioSabado(prof.horarioSabado || ''); setAlmocoSabado((prof as any).almocoSabado || '')
+            setAtendeDomingo(prof.atendeDomingo || false); setHorarioDomingo(prof.horarioDomingo || ''); setAlmocoDomingo((prof as any).almocoDomingo || '')
             setIntervaloAtendimento(prof.intervaloAtendimento || 15)
             setLinkAgendamento(prof.linkAgendamento || '')
             setChavePix(prof.chavePix || ''); setLinkPagamento(prof.linkPagamento || '')
@@ -165,8 +167,8 @@ export default function ProfissionaisPage() {
             const body = {
                 ...(editId ? { id: editId } : {}),
                 nome, tratamento, especialidade, email, whatsapp, bio, diferenciais, fotoUrl,
-                redesSociais, horarioSemana, almocoSemana, atendeSabado, horarioSabado,
-                atendeDomingo, horarioDomingo, intervaloAtendimento,
+                redesSociais, horarioSemana, almocoSemana, atendeSabado, horarioSabado, almocoSabado,
+                atendeDomingo, horarioDomingo, almocoDomingo, intervaloAtendimento,
                 linkAgendamento, chavePix, linkPagamento, cursos: [],
             }
             const res = await fetch('/api/clinica/profissionais', {
@@ -333,7 +335,7 @@ export default function ProfissionaisPage() {
                             <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>{prof.especialidade || (prof.procedimentos?.length ? `${prof.procedimentos.length} procedimento(s)` : 'Sem especialidade')}</p>
                             <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
                                 {prof.procedimentos?.length > 0 && <span style={badgeStyle}>📋 {prof.procedimentos.length} proc.</span>}
-                                {prof.linkAgendamento && <span style={badgeStyle}>🔗 Link ativo</span>}
+                                {prof.linkAgendamento && <a href={`/a/${prof.linkAgendamento}`} target="_blank" rel="noopener" style={{ ...badgeStyle, textDecoration: 'none', cursor: 'pointer' }} onClick={e => e.stopPropagation()}>🔗 /a/{prof.linkAgendamento}</a>}
                                 {prof.googleCalendarToken ? <span style={{ ...badgeStyle, background: 'rgba(6,214,160,0.1)', color: '#059669' }}>📅 Google Calendar</span> : null}
                                 {isOnVacation(prof) ? <span style={{ ...badgeStyle, background: 'rgba(245,158,11,0.1)', color: '#d97706' }}>🏖️ Férias</span> : null}
                             </div>
@@ -679,10 +681,30 @@ export default function ProfissionaisPage() {
                             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#475569', cursor: 'pointer' }}><input type="checkbox" checked={atendeSabado} onChange={e => setAtendeSabado(e.target.checked)} /> Sábado</label>
                             {atendeSabado && <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><input type="time" value={splitTime(horarioSabado)[0]} onChange={e => setHorarioSabado(joinTime(e.target.value, splitTime(horarioSabado)[1]))} style={{ ...inputStyle, width: 110 }} /><span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>às</span><input type="time" value={splitTime(horarioSabado)[1]} onChange={e => setHorarioSabado(joinTime(splitTime(horarioSabado)[0], e.target.value))} style={{ ...inputStyle, width: 110 }} /></div>}
                         </div>
+                        {atendeSabado && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 4, marginLeft: 28 }}>
+                                <label style={{ fontSize: 12, color: '#64748b' }}>Almoço:</label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <input type="time" value={splitTime(almocoSabado)[0]} onChange={e => setAlmocoSabado(joinTime(e.target.value, splitTime(almocoSabado)[1]))} style={{ ...inputStyle, width: 110 }} />
+                                    <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>às</span>
+                                    <input type="time" value={splitTime(almocoSabado)[1]} onChange={e => setAlmocoSabado(joinTime(splitTime(almocoSabado)[0], e.target.value))} style={{ ...inputStyle, width: 110 }} />
+                                </div>
+                            </div>
+                        )}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 8 }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#475569', cursor: 'pointer' }}><input type="checkbox" checked={atendeDomingo} onChange={e => setAtendeDomingo(e.target.checked)} /> Domingo</label>
                             {atendeDomingo && <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><input type="time" value={splitTime(horarioDomingo)[0]} onChange={e => setHorarioDomingo(joinTime(e.target.value, splitTime(horarioDomingo)[1]))} style={{ ...inputStyle, width: 110 }} /><span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>às</span><input type="time" value={splitTime(horarioDomingo)[1]} onChange={e => setHorarioDomingo(joinTime(splitTime(horarioDomingo)[0], e.target.value))} style={{ ...inputStyle, width: 110 }} /></div>}
                         </div>
+                        {atendeDomingo && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 4, marginLeft: 28 }}>
+                                <label style={{ fontSize: 12, color: '#64748b' }}>Almoço:</label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <input type="time" value={splitTime(almocoDomingo)[0]} onChange={e => setAlmocoDomingo(joinTime(e.target.value, splitTime(almocoDomingo)[1]))} style={{ ...inputStyle, width: 110 }} />
+                                    <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>às</span>
+                                    <input type="time" value={splitTime(almocoDomingo)[1]} onChange={e => setAlmocoDomingo(joinTime(splitTime(almocoDomingo)[0], e.target.value))} style={{ ...inputStyle, width: 110 }} />
+                                </div>
+                            </div>
+                        )}
                         <div style={{ marginTop: 12 }}><label style={labelStyle}>Intervalo entre consultas (min)</label><input type="number" value={intervaloAtendimento} onChange={e => setIntervaloAtendimento(Number(e.target.value))} min={5} max={120} style={{ ...inputStyle, width: 100 }} /></div>
                     </Section>
 
@@ -699,7 +721,7 @@ export default function ProfissionaisPage() {
                         <div style={{ display: 'grid', gap: 14 }}>
                             <div><label style={labelStyle}>Slug do link de agendamento</label>
                                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                                    <span style={{ background: '#f1f5f9', padding: '10px 12px', borderRadius: '10px 0 0 10px', border: '1px solid #e2e8f0', borderRight: 'none', fontSize: 13, color: '#64748b' }}>/agendar/</span>
+                                    <span style={{ background: '#f1f5f9', padding: '10px 12px', borderRadius: '10px 0 0 10px', border: '1px solid #e2e8f0', borderRight: 'none', fontSize: 13, color: '#64748b' }}>app.iara.click/a/</span>
                                     <input value={linkAgendamento} onChange={e => setLinkAgendamento(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} placeholder="dra-maria" style={{ ...inputStyle, borderRadius: '0 10px 10px 0' }} />
                                 </div>
                                 <span style={hintStyle}>Link público para clientes agendarem diretamente</span>

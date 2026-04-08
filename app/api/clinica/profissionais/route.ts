@@ -254,6 +254,15 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // Sincronizar slug no link_config (usado pela página pública /a/slug)
+        if (body.linkAgendamento && result[0]?.id) {
+            await prisma.$executeRawUnsafe(`
+                UPDATE profissionais 
+                SET link_config = COALESCE(link_config, '{}'::jsonb) || jsonb_build_object('slug', $2::text)
+                WHERE id = $1
+            `, result[0].id, body.linkAgendamento).catch(() => {})
+        }
+
         return NextResponse.json(result[0] || { ok: true }, { status: 201 })
     } catch (error: any) {
         console.error('POST /api/clinica/profissionais error:', error)
@@ -340,6 +349,15 @@ export async function PUT(req: NextRequest) {
             body.linkPagamento ?? null,
             body.ausencias ? JSON.stringify(body.ausencias) : null,
         )
+
+        // Sincronizar slug no link_config (usado pela página pública /a/slug)
+        if (body.linkAgendamento) {
+            await prisma.$executeRawUnsafe(`
+                UPDATE profissionais 
+                SET link_config = COALESCE(link_config, '{}'::jsonb) || jsonb_build_object('slug', $2::text)
+                WHERE id = $1
+            `, body.id, body.linkAgendamento).catch(() => {})
+        }
 
         return NextResponse.json({ ok: true, id: body.id })
     } catch (error: any) {
