@@ -280,6 +280,10 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // ================================================
     // 10. MONTAR PROMPT + CHAMAR IA
     // ================================================
+    
+    // Debug: logar tamanho do histórico e dados carregados
+    await logPipeline('CONTEXT', `historico=${historico.length} procs=${procedimentosRaw.length} profs=${profissionaisRaw.length} feedbacks=${feedbacks.length} memoria=${memoriaCliente ? 'sim' : 'nao'} config.diferenciais=${!!(clinica as any).diferenciais}`)
+
     const systemPrompt = aiEngine.buildSystemPrompt({
         clinica,
         mensagem: textoMensagem,
@@ -303,6 +307,16 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         historico,
         tipoEntrada
     )
+    
+    // ================================================
+    // 10.5 PÓS-PROCESSAMENTO — Remover saudação repetida
+    // ================================================
+    // Se já há histórico, a IA não deveria começar com "Oi [nome]!"
+    // mas ela insiste. Solução programática: strip do início.
+    if (historico.length > 0) {
+        resposta.texto = stripRepeatedGreeting(resposta.texto, msg.pushName)
+    }
+    
     await logPipeline('AI_OK', `resposta=${resposta.texto.slice(0,80)} modelo=${resposta.modelo}`)
 
     // ================================================
@@ -764,3 +778,40 @@ async function buscarProfissionais(clinicaId: number): Promise<ProfissionalAtivo
         return []
     }
 }
+
+// ============================================
+// STRIP GREETING (pós-processamento)
+// ============================================
+// Remove saudações repetitivas do início da resposta da IA
+// quando já há histórico de conversa. Solução programática
+// porque a IA teima em cumprimentar toda hora.
+
+function stripRepeatedGreeting(texto: string, pushName?: string): string {
+    const nome = pushName || ''
+    const nomeEscaped = nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    
+    // Padrões que a IA repete: "Oi Rafael!", "Olá Rafael!", "Oi Rafael,", "Oi!", etc.
+    // Captura "Oi/Olá [nome]! \n" ou "Oi/Olá [nome], \n" ou "Oi! \n"
+    const patterns = [
+        // "Oi Rafael!\n\n" ou "Oi Rafael!\n"
+        new RegExp(`^\\s*(Oi|Olá|Oii|Oiii|Hey|Eii)\\s+${nomeEscaped}\\s*[!,.]?\\s*\\n+`, 'i'),
+        // "Oi!\n\n"
+        new RegExp(`^\\s*(Oi|Olá|Oii|Oiii|Hey|Eii)\\s*[!,.]?\\s*\\n+`, 'i'),
+        // "Oi Rafael! \n" (com espaço)
+        new RegExp(`^\\s*(Oi|Olá|Oii|Oiii|Hey|Eii)\\s+${nomeEscaped}\\s*[!,.]?\\s+`, 'i'),
+    ]
+    
+    let resultado = texto
+    for (const pattern of patterns) {
+        resultado = resultado.replace(pattern, '')
+    }
+    
+    // Se ficou vazio (improvável), devolve original
+    if (!resultado.trim()) return texto
+    
+    // Capitalizar a primeira letra do resultado
+    resultado = resultado.charAt(0).toUpperCase() + resultado.slice(1)
+    
+    return resultado
+}
+
