@@ -349,6 +349,52 @@ export async function processarAgendamentos(
 
         try {
             // =========================================
+            // PASSO 0: CANCELAR AGENDAMENTOS ANTERIORES (reagendamento)
+            // =========================================
+            // Se a cliente já tem agendamento futuro confirmado/pendente,
+            // cancela automaticamente ao criar um novo (= reagendamento)
+            if (telefoneCliente) {
+                const agendamentosAnteriores = await prisma.agendamento.findMany({
+                    where: {
+                        clinicaId,
+                        telefone: telefoneCliente,
+                        status: { in: ['confirmado', 'pendente'] },
+                        data: { gte: new Date() },
+                    },
+                    select: { id: true, googleEventId: true, horario: true, data: true, procedimento: true, profissionalId: true },
+                })
+
+                if (agendamentosAnteriores.length > 0) {
+                    console.log(`[Calendar] 🔄 Reagendamento detectado: cancelando ${agendamentosAnteriores.length} agendamento(s) anterior(es)`)
+                    
+                    for (const ant of agendamentosAnteriores) {
+                        // Cancelar no banco
+                        await prisma.agendamento.update({
+                            where: { id: ant.id },
+                            data: { status: 'reagendado' },
+                        })
+                        console.log(`[Calendar] ❌ Agendamento #${ant.id} (${ant.procedimento} ${ant.horario}) → reagendado`)
+
+                        // Cancelar no Google Calendar se existir
+                        if (ant.googleEventId && ant.profissionalId) {
+                            try {
+                                const tokens = await getCalendarTokensForProfissional(ant.profissionalId)
+                                if (tokens?.accessToken) {
+                                    await fetch(`https://www.googleapis.com/calendar/v3/calendars/${tokens.calendarId || 'primary'}/events/${ant.googleEventId}`, {
+                                        method: 'DELETE',
+                                        headers: { Authorization: `Bearer ${tokens.accessToken}` },
+                                    })
+                                    console.log(`[Calendar] ❌ Google Calendar: evento ${ant.googleEventId} cancelado`)
+                                }
+                            } catch (gcErr) {
+                                console.warn(`[Calendar] ⚠️ Falha ao cancelar evento Google: ${(gcErr as any).message}`)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // =========================================
             // WRITE 1: Google Calendar
             // =========================================
             let googleEventId: string | null = null
