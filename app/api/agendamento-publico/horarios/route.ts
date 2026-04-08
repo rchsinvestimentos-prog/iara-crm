@@ -38,23 +38,49 @@ export async function GET(req: Request) {
     }
 
     // Buscar profissional + clínica via SQL raw (mais confiável que Prisma Client)
-    const profRows = await prisma.$queryRawUnsafe<any[]>(`
-      SELECT 
-        p.id, p.horario_semana, p.almoco_semana,
-        p.atende_sabado, p.horario_sabado, p.almoco_sabado,
-        p.atende_domingo, p.horario_domingo, p.almoco_domingo,
-        p.intervalo_atendimento,
-        c.horario_semana as cli_horario_semana, c.almoco_semana as cli_almoco_semana,
-        c.atende_sabado as cli_atende_sabado, c.horario_sabado as cli_horario_sabado,
-        c.almoco_sabado as cli_almoco_sabado,
-        c.atende_domingo as cli_atende_domingo, c.horario_domingo as cli_horario_domingo,
-        c.almoco_domingo as cli_almoco_domingo,
-        c.intervalo_atendimento as cli_intervalo
-      FROM profissionais p
-      LEFT JOIN users c ON c.id = p.clinica_id
-      WHERE p.id = $1
-      LIMIT 1
-    `, profId)
+    // NOTA: algumas colunas (almoco_sabado/domingo) podem não existir ainda no banco
+    let profRows: any[]
+    try {
+      profRows = await prisma.$queryRawUnsafe<any[]>(`
+        SELECT 
+          p.id, p.horario_semana, p.almoco_semana,
+          p.atende_sabado, p.horario_sabado,
+          p.atende_domingo, p.horario_domingo,
+          p.intervalo_atendimento,
+          c.horario_semana as cli_horario_semana, c.almoco_semana as cli_almoco_semana,
+          c.atende_sabado as cli_atende_sabado, c.horario_sabado as cli_horario_sabado,
+          c.atende_domingo as cli_atende_domingo, c.horario_domingo as cli_horario_domingo,
+          c.intervalo_atendimento as cli_intervalo
+        FROM profissionais p
+        LEFT JOIN users c ON c.id = p.clinica_id
+        WHERE p.id = $1
+        LIMIT 1
+      `, profId)
+    } catch (sqlErr: any) {
+      console.error('SQL base falhou, tentando com colunas extras:', sqlErr.message)
+      // Tentar com todas as colunas (caso existam)
+      try {
+        profRows = await prisma.$queryRawUnsafe<any[]>(`
+          SELECT 
+            p.id, p.horario_semana, p.almoco_semana,
+            p.atende_sabado, p.horario_sabado, p.almoco_sabado,
+            p.atende_domingo, p.horario_domingo, p.almoco_domingo,
+            p.intervalo_atendimento,
+            c.horario_semana as cli_horario_semana, c.almoco_semana as cli_almoco_semana,
+            c.atende_sabado as cli_atende_sabado, c.horario_sabado as cli_horario_sabado,
+            c.almoco_sabado as cli_almoco_sabado,
+            c.atende_domingo as cli_atende_domingo, c.horario_domingo as cli_horario_domingo,
+            c.almoco_domingo as cli_almoco_domingo,
+            c.intervalo_atendimento as cli_intervalo
+          FROM profissionais p
+          LEFT JOIN users c ON c.id = p.clinica_id
+          WHERE p.id = $1
+          LIMIT 1
+        `, profId)
+      } catch {
+        return NextResponse.json({ error: 'Erro na consulta SQL', detail: sqlErr.message }, { status: 500 })
+      }
+    }
 
     const prof = profRows[0]
     if (!prof) {
@@ -176,6 +202,6 @@ export async function GET(req: Request) {
 
   } catch (err: any) {
     console.error('Erro /api/agendamento-publico/horarios:', err)
-    return NextResponse.json({ error: 'Erro ao processar horários' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro ao processar horários', detail: err?.message || String(err) }, { status: 500 })
   }
 }
