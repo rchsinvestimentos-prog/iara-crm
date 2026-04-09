@@ -354,7 +354,7 @@ export default function Sidebar() {
                       color: '#D99773', background: 'rgba(217,151,115,0.1)', padding: '2px 6px',
                       borderRadius: 6, lineHeight: 1.4,
                     }}>
-                      PRO
+                      PREMIUM
                     </span>
                   )}
                 </Link>
