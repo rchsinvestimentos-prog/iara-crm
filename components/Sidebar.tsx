@@ -343,6 +343,21 @@ export default function Sidebar() {
                   <UsersRound size={17} strokeWidth={1.8} />
                   <span>Equipe</span>
                 </Link>
+
+                {/* Multi-Clínica — visível para todos, bloqueado para não-Premium */}
+                <Link href="/clinicas" className={linkClass('/clinicas')}>
+                  <Building2 size={17} strokeWidth={1.8} />
+                  <span className="flex-1">Multi-Clínica</span>
+                  {planoAtual < 3 && (
+                    <span style={{
+                      fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px',
+                      color: '#D99773', background: 'rgba(217,151,115,0.1)', padding: '2px 6px',
+                      borderRadius: 6, lineHeight: 1.4,
+                    }}>
+                      PRO
+                    </span>
+                  )}
+                </Link>
               </div>
 
               {/* Separator */}
