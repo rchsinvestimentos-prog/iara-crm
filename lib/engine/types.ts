@@ -79,6 +79,10 @@ export interface DadosClinica {
     tomAtendimento: string | null
     diferenciais: string | null
     daCursos: boolean | null
+    calendarProvider: string | null
+    appleCalendarEmail: string | null
+    appleCalendarPassword: string | null
+    appleCalendarUrl: string | null
     funcionalidades: string | null
     feedbacks: string | null
     cuidadosPos: string | null

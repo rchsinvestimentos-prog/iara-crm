@@ -32,7 +32,26 @@ export default function ConexoesPage() {
     const [loading, setLoading] = useState(true);
     const [calendarConnected, setCalendarConnected] = useState(false);
     const [calendarId, setCalendarId] = useState('');
+    const [appleCalendarConnected, setAppleCalendarConnected] = useState(false);
+    const [calendarProvider, setCalendarProvider] = useState('google');
     const [conectando, setConectando] = useState(false);
+
+    // Apple Calendar modal
+    const [appleModal, setAppleModal] = useState<{
+        open: boolean;
+        email: string;
+        password: string;
+        loading: boolean;
+        error: string;
+        success: boolean;
+    }>({
+        open: false,
+        email: '',
+        password: '',
+        loading: false,
+        error: '',
+        success: false,
+    });
 
     // QR Code modal
     const [qrModal, setQrModal] = useState<{
@@ -86,6 +105,8 @@ export default function ConexoesPage() {
             setPlano(data.plano || 1);
             setCalendarConnected(!!data.calendarConnected);
             setCalendarId(data.calendarId || '');
+            setAppleCalendarConnected(!!data.appleCalendarConnected);
+            setCalendarProvider(data.calendarProvider || 'google');
         } catch (e) { console.error(e); }
         setLoading(false);
     }, []);
@@ -686,6 +707,64 @@ export default function ConexoesPage() {
                 </div>
             </div>
 
+            {/* ==================== Apple Calendar ==================== */}
+            <div style={{
+                background: '#fff', borderRadius: 20, padding: '24px 28px',
+                border: '1px solid #e2e8f0', marginBottom: 16,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                        width: 44, height: 44, borderRadius: 12,
+                        background: appleCalendarConnected
+                            ? 'linear-gradient(135deg, #FF3B30, #FF9500)'
+                            : 'linear-gradient(135deg, #e2e8f0, #cbd5e1)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 22, flexShrink: 0
+                    }}>🍎</div>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>Apple Calendar</h2>
+                            {appleCalendarConnected && <span style={{ fontSize: 14 }}>🟢</span>}
+                        </div>
+                        <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
+                            {appleCalendarConnected
+                                ? 'Conectada — IARA agenda no Apple Calendar automaticamente'
+                                : 'Alternativa ao Google Agenda para quem usa iPhone/Mac'
+                            }
+                        </p>
+                    </div>
+                    {appleCalendarConnected ? (
+                        <button
+                            onClick={async () => {
+                                if (!confirm('Desconectar Apple Calendar?')) return;
+                                try {
+                                    await fetch('/api/auth/apple-calendar/disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+                                    setAppleCalendarConnected(false);
+                                    setCalendarProvider('google');
+                                } catch { alert('Erro ao desconectar'); }
+                            }}
+                            style={{
+                                background: 'rgba(239,68,68,0.08)', color: '#ef4444',
+                                border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12,
+                                padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                                whiteSpace: 'nowrap' as const
+                            }}
+                        >🔌 Desconectar</button>
+                    ) : (
+                        <button
+                            onClick={() => setAppleModal(prev => ({ ...prev, open: true, error: '', success: false }))}
+                            style={{
+                                background: 'linear-gradient(135deg, #FF3B30, #FF9500)',
+                                color: '#fff', border: 'none', borderRadius: 12,
+                                padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                                whiteSpace: 'nowrap' as const
+                            }}
+                        >+ Conectar</button>
+                    )}
+                </div>
+            </div>
+
             {/* ==================== Contatos Google ==================== */}
             <div style={{
                 background: '#fff', borderRadius: 20, padding: '24px 28px',
@@ -730,6 +809,171 @@ export default function ConexoesPage() {
                     A IARA vai começar a atender automaticamente assim que conectar!
                 </p>
             </div>
+
+            {/* ==================== Apple Calendar Modal ==================== */}
+            {appleModal.open && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    zIndex: 9999, backdropFilter: 'blur(4px)',
+                }}
+                    onClick={(e) => { if (e.target === e.currentTarget) setAppleModal(prev => ({ ...prev, open: false })); }}
+                >
+                    <div style={{
+                        background: '#fff', borderRadius: 24, padding: '32px',
+                        maxWidth: 480, width: '90vw',
+                        boxShadow: '0 25px 50px rgba(0,0,0,0.2)',
+                        border: '2px solid rgba(255,59,48,0.2)',
+                    }}>
+                        {/* Header */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                            <span style={{ fontSize: 28 }}>🍎</span>
+                            <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#1e293b' }}>
+                                Conectar Apple Calendar
+                            </h3>
+                        </div>
+
+                        {/* Guia passo-a-passo */}
+                        <div style={{
+                            background: 'rgba(255,149,0,0.06)', borderRadius: 14, padding: '14px 18px',
+                            marginBottom: 20, border: '1px solid rgba(255,149,0,0.15)',
+                        }}>
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#d97706', marginBottom: 8 }}>
+                                📋 Como gerar a Senha de App:
+                            </p>
+                            <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#64748b', lineHeight: 1.8 }}>
+                                <li>Acesse <a href="https://appleid.apple.com/account/manage" target="_blank" rel="noopener" style={{ color: '#0066CC', fontWeight: 600 }}>appleid.apple.com</a></li>
+                                <li>Faça login com seu Apple ID</li>
+                                <li>Vá em <strong>Segurança</strong> → <strong>Senhas de App</strong></li>
+                                <li>Clique em <strong>Gerar senha de app</strong></li>
+                                <li>Dê o nome <strong>"IARA"</strong> e clique em <strong>Criar</strong></li>
+                                <li>Copie a senha gerada e cole abaixo</li>
+                            </ol>
+                        </div>
+
+                        {appleModal.success ? (
+                            <div style={{
+                                textAlign: 'center', padding: '24px 0',
+                            }}>
+                                <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+                                <p style={{ fontSize: 16, fontWeight: 600, color: '#16a34a', margin: '0 0 8px' }}>
+                                    Apple Calendar conectado!
+                                </p>
+                                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
+                                    A IARA agora vai sincronizar agendamentos com o seu Apple Calendar.
+                                </p>
+                                <button
+                                    onClick={() => { setAppleModal(prev => ({ ...prev, open: false })); fetchInstancias(); }}
+                                    style={{
+                                        marginTop: 20, background: 'linear-gradient(135deg, #FF3B30, #FF9500)',
+                                        color: '#fff', border: 'none', borderRadius: 12,
+                                        padding: '10px 24px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                                    }}
+                                >Fechar</button>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Form */}
+                                <div style={{ marginBottom: 14 }}>
+                                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                                        Apple ID (email)
+                                    </label>
+                                    <input
+                                        type="email"
+                                        placeholder="seu@icloud.com"
+                                        value={appleModal.email}
+                                        onChange={(e) => setAppleModal(prev => ({ ...prev, email: e.target.value, error: '' }))}
+                                        style={{
+                                            width: '100%', padding: '10px 14px', borderRadius: 10,
+                                            border: '1px solid #e2e8f0', fontSize: 14,
+                                            outline: 'none', boxSizing: 'border-box',
+                                        }}
+                                    />
+                                </div>
+                                <div style={{ marginBottom: 20 }}>
+                                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                                        Senha de App (gerada acima)
+                                    </label>
+                                    <input
+                                        type="password"
+                                        placeholder="xxxx-xxxx-xxxx-xxxx"
+                                        value={appleModal.password}
+                                        onChange={(e) => setAppleModal(prev => ({ ...prev, password: e.target.value, error: '' }))}
+                                        style={{
+                                            width: '100%', padding: '10px 14px', borderRadius: 10,
+                                            border: '1px solid #e2e8f0', fontSize: 14,
+                                            outline: 'none', boxSizing: 'border-box',
+                                        }}
+                                    />
+                                </div>
+
+                                {appleModal.error && (
+                                    <div style={{
+                                        padding: '10px 14px', background: 'rgba(239,68,68,0.06)',
+                                        borderRadius: 10, marginBottom: 16,
+                                        border: '1px solid rgba(239,68,68,0.15)',
+                                    }}>
+                                        <p style={{ margin: 0, fontSize: 13, color: '#ef4444', fontWeight: 500 }}>
+                                            ❌ {appleModal.error}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Buttons */}
+                                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                                    <button
+                                        onClick={() => setAppleModal(prev => ({ ...prev, open: false }))}
+                                        style={{
+                                            background: 'rgba(0,0,0,0.05)', color: '#64748b',
+                                            border: 'none', borderRadius: 12,
+                                            padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                                        }}
+                                    >Cancelar</button>
+                                    <button
+                                        onClick={async () => {
+                                            if (!appleModal.email || !appleModal.password) {
+                                                setAppleModal(prev => ({ ...prev, error: 'Preencha todos os campos.' }));
+                                                return;
+                                            }
+                                            setAppleModal(prev => ({ ...prev, loading: true, error: '' }));
+                                            try {
+                                                const res = await fetch('/api/auth/apple-calendar', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        email: appleModal.email,
+                                                        appPassword: appleModal.password,
+                                                    }),
+                                                });
+                                                const data = await res.json();
+                                                if (!res.ok) {
+                                                    setAppleModal(prev => ({ ...prev, loading: false, error: data.error || 'Erro ao conectar.' }));
+                                                } else {
+                                                    setAppleModal(prev => ({ ...prev, loading: false, success: true }));
+                                                    setAppleCalendarConnected(true);
+                                                    setCalendarProvider('apple');
+                                                }
+                                            } catch {
+                                                setAppleModal(prev => ({ ...prev, loading: false, error: 'Erro de conexão. Tente novamente.' }));
+                                            }
+                                        }}
+                                        disabled={appleModal.loading}
+                                        style={{
+                                            background: appleModal.loading ? '#94a3b8' : 'linear-gradient(135deg, #FF3B30, #FF9500)',
+                                            color: '#fff', border: 'none', borderRadius: 12,
+                                            padding: '10px 24px', cursor: appleModal.loading ? 'not-allowed' : 'pointer',
+                                            fontWeight: 600, fontSize: 14,
+                                        }}
+                                    >
+                                        {appleModal.loading ? '⏳ Verificando...' : '🔗 Conectar'}
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* ==================== QR Code Modal ==================== */}
             {qrModal.open && (

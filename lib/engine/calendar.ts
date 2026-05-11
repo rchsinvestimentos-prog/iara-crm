@@ -1,9 +1,10 @@
 // ============================================
-// CALENDAR — Agendamento com Google Calendar
+// CALENDAR — Agendamento com Google Calendar + Apple Calendar
 // ============================================
-// Conecta o google-calendar.ts ao pipeline da IARA.
+// Conecta o google-calendar.ts e apple-calendar.ts ao pipeline da IARA.
 // Fornece: contexto de agenda, verificação de disponibilidade, criação de eventos.
-// DUAL-WRITE: cria tanto no Agendamento interno quanto no Google Calendar.
+// DUAL-WRITE: cria tanto no Agendamento interno quanto no Google/Apple Calendar.
+// Detecta calendarProvider da clínica ('google' ou 'apple') para escolher o provedor.
 
 import {
     getCalendarEvents,
@@ -13,6 +14,11 @@ import {
     createCalendarEventForProfissional,
     createCalendarEvent,
 } from '@/lib/google-calendar'
+import {
+    createAppleCalendarEvent,
+    deleteAppleCalendarEvent,
+    type AppleCalendarCredentials,
+} from '@/lib/apple-calendar'
 import type { DadosClinica, ProfissionalAtivo } from './types'
 import { parseFuncionalidades } from './types'
 import { prisma } from '@/lib/prisma'
@@ -399,29 +405,61 @@ export async function processarAgendamentos(
             }
 
             // =========================================
-            // WRITE 1: Google Calendar
+            // WRITE 1: Calendário Externo (Google ou Apple)
             // =========================================
             let googleEventId: string | null = null
+            const calProvider = clinica.calendarProvider || 'google'
 
-            // Verificar toggle google_calendar
+            // Verificar toggle google_calendar (funciona para ambos provedores)
             const funcsCalendar = parseFuncionalidades(clinica.funcionalidades)
             if (funcsCalendar.google_calendar) {
-                const evento = await createCalendarEventForProfissional(profissionalId, {
-                    summary: `${agendamento.procedimento} — ${nomeCliente}`,
-                    description: `Agendado pela IARA via WhatsApp.\nCliente: ${nomeCliente}\nTelefone: ${telefoneCliente || ''}\nProcedimento: ${agendamento.procedimento}\nDuração: ${agendamento.duracao}min`,
-                    startDateTime,
-                    endDateTime,
-                    timeZone: tz,
-                })
+                if (calProvider === 'apple' && clinica.appleCalendarEmail && clinica.appleCalendarPassword) {
+                    // ===== APPLE CALENDAR =====
+                    const appleCredentials: AppleCalendarCredentials = {
+                        email: clinica.appleCalendarEmail,
+                        appPassword: clinica.appleCalendarPassword,
+                        calendarUrl: clinica.appleCalendarUrl || undefined,
+                    }
 
-                if (evento) {
-                    googleEventId = evento.id || null
-                    console.log(`[Calendar] ✅ Google Calendar: evento criado (${googleEventId})`)
+                    const eventUid = `iara-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+                    const [endH, endM] = [endHH, endMM]
+
+                    const appleResult = await createAppleCalendarEvent(appleCredentials, {
+                        uid: eventUid,
+                        title: `${agendamento.procedimento} — ${nomeCliente}`,
+                        description: `Agendado pela IARA via WhatsApp.\nCliente: ${nomeCliente}\nTelefone: ${telefoneCliente || ''}\nProcedimento: ${agendamento.procedimento}\nDuração: ${agendamento.duracao}min`,
+                        location: clinica.endereco || '',
+                        startDate: agendamento.data,
+                        startTime: agendamento.hora,
+                        endTime: `${endH}:${endM}`,
+                        timezone: tz,
+                    })
+
+                    if (appleResult.success) {
+                        googleEventId = appleResult.eventId || null // Reusa o campo para armazenar o UID
+                        console.log(`[Calendar] ✅ Apple Calendar: evento criado (${googleEventId})`)
+                    } else {
+                        console.warn(`[Calendar] ⚠️ Apple Calendar: falha ao criar — ${appleResult.error}`)
+                    }
                 } else {
-                    console.warn(`[Calendar] ⚠️ Google Calendar: falha ao criar (sem token?). Continuando com agendamento interno.`)
+                    // ===== GOOGLE CALENDAR (padrão) =====
+                    const evento = await createCalendarEventForProfissional(profissionalId, {
+                        summary: `${agendamento.procedimento} — ${nomeCliente}`,
+                        description: `Agendado pela IARA via WhatsApp.\nCliente: ${nomeCliente}\nTelefone: ${telefoneCliente || ''}\nProcedimento: ${agendamento.procedimento}\nDuração: ${agendamento.duracao}min`,
+                        startDateTime,
+                        endDateTime,
+                        timeZone: tz,
+                    })
+
+                    if (evento) {
+                        googleEventId = evento.id || null
+                        console.log(`[Calendar] ✅ Google Calendar: evento criado (${googleEventId})`)
+                    } else {
+                        console.warn(`[Calendar] ⚠️ Google Calendar: falha ao criar (sem token?). Continuando com agendamento interno.`)
+                    }
                 }
             } else {
-                console.log(`[Calendar] 🔇 google_calendar=OFF — pulando Google Calendar, só agendamento interno`)
+                console.log(`[Calendar] 🔇 google_calendar=OFF — pulando calendário externo, só agendamento interno`)
             }
 
             // =========================================

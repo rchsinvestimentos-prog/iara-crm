@@ -115,6 +115,12 @@ model Clinica {
   googleCalendarRefreshToken String?   @map("google_calendar_refresh_token")
   googleCalendarId           String?   @default("primary") @map("google_calendar_id") @db.VarChar(200)
   googleTokenExpires         DateTime? @map("google_token_expires")
+
+  // Apple Calendar (CalDAV)
+  appleCalendarEmail         String?   @map("apple_calendar_email") @db.VarChar(200)
+  appleCalendarPassword      String?   @map("apple_calendar_password")
+  appleCalendarUrl           String?   @map("apple_calendar_url")
+  calendarProvider           String?   @default("google") @map("calendar_provider") @db.VarChar(20)
   
   // Mídia
   avatarFotos          Json?     @default("[]") @map("avatar_fotos") @db.JsonB
@@ -186,6 +192,12 @@ model Profissional {
   googleCalendarRefreshToken String?   @map("google_calendar_refresh_token")
   googleCalendarId           String?   @default("primary") @map("google_calendar_id") @db.VarChar(200)
   googleTokenExpires         DateTime? @map("google_token_expires")
+
+  // Apple Calendar (CalDAV)
+  appleCalendarEmail         String?   @map("apple_calendar_email") @db.VarChar(200)
+  appleCalendarPassword      String?   @map("apple_calendar_password")
+  appleCalendarUrl           String?   @map("apple_calendar_url")
+  calendarProvider           String?   @default("google") @map("calendar_provider") @db.VarChar(20)
 
   // Férias/Folgas — [{inicio, fim, motivo}]
   ausencias            Json?     @default("[]") @db.JsonB

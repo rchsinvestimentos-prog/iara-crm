@@ -63,17 +63,22 @@ export async function GET(req: Request) {
     }
   }
 
-  // Buscar Google Calendar da clinica
+  // Buscar Google/Apple Calendar da clinica
   let calendarConnected = false;
   let calendarId = '';
+  let appleCalendarConnected = false;
+  let calendarProvider = 'google';
   try {
     const calData = await prisma.$queryRaw`
-      SELECT google_calendar_token, google_calendar_id 
+      SELECT google_calendar_token, google_calendar_id,
+             apple_calendar_email, calendar_provider
       FROM users WHERE id = ${user.id} LIMIT 1
     ` as any[];
     const cal = calData?.[0];
     calendarConnected = !!cal?.google_calendar_token;
     calendarId = cal?.google_calendar_id || '';
+    appleCalendarConnected = !!cal?.apple_calendar_email;
+    calendarProvider = cal?.calendar_provider || 'google';
   } catch { }
 
   // Limites derivados do nível do plano (fonte da verdade: PLANOS)
@@ -89,6 +94,8 @@ export async function GET(req: Request) {
     plano: user.plano,
     calendarConnected,
     calendarId,
+    appleCalendarConnected,
+    calendarProvider,
   });
 }
 
