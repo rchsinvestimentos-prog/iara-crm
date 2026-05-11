@@ -343,9 +343,64 @@ export async function generateTTS_ElevenLabs(
 }
 
 /**
+ * Pré-processa texto antes de enviar ao TTS.
+ * Expande abreviações, remove emojis, normaliza números para pronunça natural.
+ */
+function prepareTextForTTS(texto: string): string {
+    return texto
+        // Asteriscos de formatação WhatsApp (negrito)
+        .replace(/\*/g, '')
+        // Horas: "15hrs" → "15 horas", "15h" → "15 horas", "15h30" → "15 horas e 30"
+        .replace(/(\d{1,2})\s*hrs?\b/gi, '$1 horas')
+        .replace(/(\d{1,2})\s*hs?\b/gi, '$1 horas')
+        .replace(/(\d{1,2})h(\d{2})\b/gi, '$1 horas e $2')
+        .replace(/(\d{1,2})h\b/gi, '$1 horas')
+        // Minutos: "30min" → "30 minutos"
+        .replace(/(\d+)\s*min\b/gi, '$1 minutos')
+        // Dra. / Dr.
+        .replace(/\bDra\.\s*/gi, 'Doutora ')
+        .replace(/\bDr\.\s*/gi, 'Doutor ')
+        // R$ valores: "R$ 150,00" → "150 reais", "R$ 1.500" → "1500 reais"
+        .replace(/R\$\s*(\d+)\.(\d{3}),(\d{2})/g, '$1$2 reais e $3 centavos')
+        .replace(/R\$\s*(\d+)\.(\d{3})/g, '$1$2 reais')
+        .replace(/R\$\s*(\d+),(\d{2})/g, '$1 reais e $2 centavos')
+        .replace(/R\$\s*(\d+)/g, '$1 reais')
+        // US$ / € / $
+        .replace(/US\$\s*(\d+)/g, '$1 dólares')
+        .replace(/\u20ac\s*(\d+)/g, '$1 euros')
+        // Porcentagem: "10%" → "10 por cento"
+        .replace(/(\d+)%/g, '$1 por cento')
+        // Endereço
+        .replace(/\bnº\s*/gi, 'número ')
+        .replace(/\bN\.\s*(\d)/gi, 'número $1')
+        // Abreviações comuns
+        .replace(/\bobs\b/gi, 'observação')
+        .replace(/\btel\b/gi, 'telefone')
+        .replace(/\bqtd\b/gi, 'quantidade')
+        .replace(/\bex\b/gi, 'exemplo')
+        .replace(/\bprof\b/gi, 'profissional')
+        // Emojis (remover para TTS — não são pronúncias)
+        .replace(/[\u{1F600}-\u{1F64F}]/gu, '')
+        .replace(/[\u{1F300}-\u{1F5FF}]/gu, '')
+        .replace(/[\u{1F680}-\u{1F6FF}]/gu, '')
+        .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '')
+        .replace(/[\u{2600}-\u{26FF}]/gu, '')
+        .replace(/[\u{2700}-\u{27BF}]/gu, '')
+        .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
+        .replace(/[\u{1F900}-\u{1F9FF}]/gu, '')
+        .replace(/[\u{1FA00}-\u{1FAFF}]/gu, '')
+        .replace(/[\u{200D}]/gu, '')
+        .replace(/[\u{20E3}]/gu, '')
+        // Limpar espaços extras
+        .replace(/\s{2,}/g, ' ')
+        .trim()
+}
+
+/**
  * Gera TTS com o provedor correto baseado na config.
  * 
  * Wrapper que chama OpenAI ou ElevenLabs.
+ * Aplica pré-processamento de texto para pronunça natural.
  */
 export async function generateTTS(
     texto: string,
@@ -353,14 +408,18 @@ export async function generateTTS(
 ): Promise<string | null> {
     if (config.tipoSaida !== 'audio' || !config.provedorVoz) return null
 
+    // Pré-processar texto para pronunça natural
+    const textoProcessado = prepareTextForTTS(texto)
+    console.log(`[TTS] Texto processado: "${textoProcessado.slice(0, 80)}..."`)
+
     if (config.provedorVoz === 'elevenlabs' && config.voiceId) {
         // Tenta ElevenLabs primeiro
-        const audio = await generateTTS_ElevenLabs(texto, config.voiceId)
+        const audio = await generateTTS_ElevenLabs(textoProcessado, config.voiceId)
         if (audio) return audio
         // Fallback pro OpenAI
         console.log('[TTS] Fallback ElevenLabs → OpenAI')
-        return generateTTS_OpenAI(texto, 'nova')
+        return generateTTS_OpenAI(textoProcessado, 'nova')
     }
 
-    return generateTTS_OpenAI(texto, config.voiceId || 'nova')
+    return generateTTS_OpenAI(textoProcessado, config.voiceId || 'nova')
 }

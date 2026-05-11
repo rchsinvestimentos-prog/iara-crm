@@ -342,11 +342,14 @@ export async function processarAgendamentos(
             contatoId = contato?.id || null
         }
 
-        // Preparar datas
-        const startDateTime = `${agendamento.data}T${agendamento.hora}:00`
-        const endDate = new Date(`${agendamento.data}T${agendamento.hora}:00`)
+        // Preparar datas (com timezone para evitar rollback UTC)
+        const tzOffset = getTzOffset(tz)
+        const startDateTime = `${agendamento.data}T${agendamento.hora}:00${tzOffset}`
+        const endDate = new Date(`${agendamento.data}T${agendamento.hora}:00${tzOffset}`)
         endDate.setMinutes(endDate.getMinutes() + agendamento.duracao)
-        const endDateTime = endDate.toISOString().split('.')[0]
+        const endHH = String(endDate.getHours()).padStart(2, '0')
+        const endMM = String(endDate.getMinutes()).padStart(2, '0')
+        const endDateTime = `${agendamento.data}T${endHH}:${endMM}:00${tzOffset}`
 
         try {
             // =========================================
@@ -424,6 +427,10 @@ export async function processarAgendamentos(
             // =========================================
             // WRITE 2: Agendamento interno (tabela)
             // =========================================
+            // Parsear data SEM UTC — usando componentes para evitar rollback de fuso
+            const [year, month, day] = agendamento.data.split('-').map(Number)
+            const dataLocal = new Date(year, month - 1, day) // Meia-noite local, não UTC
+
             const agendamentoInterno = await prisma.agendamento.create({
                 data: {
                     clinicaId,
@@ -431,7 +438,7 @@ export async function processarAgendamentos(
                     nomePaciente: nomeCliente,
                     telefone: telefoneCliente || '',
                     procedimento: agendamento.procedimento,
-                    data: new Date(agendamento.data),
+                    data: dataLocal,
                     horario: agendamento.hora,
                     duracao: agendamento.duracao,
                     origem: 'whatsapp',
@@ -514,4 +521,32 @@ function formatDateBR(date: Date, tz: string): string {
     } catch {
         return date.toISOString()
     }
+}
+
+/**
+ * Calcula o offset UTC de um timezone (ex: 'America/Sao_Paulo' → '-03:00').
+ * Usado para construir datas ISO com timezone correto.
+ */
+function getTzOffset(tz: string): string {
+    try {
+        const now = new Date()
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: tz,
+            timeZoneName: 'shortOffset',
+        })
+        const parts = formatter.formatToParts(now)
+        const tzPart = parts.find(p => p.type === 'timeZoneName')
+        if (tzPart) {
+            // Formato: "GMT-3" ou "GMT+5:30"
+            const match = tzPart.value.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/)
+            if (match) {
+                const sign = match[1]
+                const hours = match[2].padStart(2, '0')
+                const minutes = match[3] || '00'
+                return `${sign}${hours}:${minutes}`
+            }
+        }
+    } catch {}
+    // Fallback: São Paulo
+    return '-03:00'
 }

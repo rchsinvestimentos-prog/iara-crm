@@ -37,6 +37,7 @@ interface PromptContext {
     profissionais?: ProfissionalAtivo[]
     clinicaAbertaAgora?: boolean
     promocoesAtivas?: { nome: string; descricao: string | null; instrucaoIara: string | null; procedimentos: string[] }[]
+    cursosAtivos?: { nome: string; modalidade: string; valor: number; duracao: string | null; descricao: string | null; link: string | null }[]
 }
 
 /**
@@ -47,7 +48,7 @@ interface PromptContext {
  * Obs: Histórico agora é passado diretamente na array de mensagens da API.
  */
 export function buildSystemPrompt(ctx: PromptContext): string {
-    const { clinica, mensagem, pushName, tipoEntrada, procedimentos, feedbacks, memoria, agendaContext, profissionais } = ctx
+    const { clinica, mensagem, pushName, tipoEntrada, procedimentos, feedbacks, memoria, agendaContext, profissionais, cursosAtivos } = ctx
 
     const nivel = clinica.nivel || 1
 
@@ -239,6 +240,24 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
         promoTexto += `⚠️ SEMPRE verifique se o procedimento que a cliente quer está em promoção. Se estiver, INFORME a promoção.\n`
     }
 
+    // --- Cursos da Clínica ---
+    let cursosTexto = ''
+    const cursos = cursosAtivos || []
+    if (cursos.length > 0) {
+        const moedaLocal = clinica.moeda === 'USD' ? '$' : clinica.moeda === 'EUR' ? '€' : 'R$'
+        cursosTexto = `\n🎓 CURSOS QUE A CLÍNICA VENDE:\n`
+        cursos.forEach(c => {
+            cursosTexto += `• ${c.nome}`
+            if (c.modalidade) cursosTexto += ` (${c.modalidade})`
+            if (c.valor) cursosTexto += ` — ${moedaLocal} ${c.valor}`
+            if (c.duracao) cursosTexto += ` | Duração: ${c.duracao}`
+            cursosTexto += '\n'
+            if (c.descricao) cursosTexto += `  ℹ️ ${c.descricao}\n`
+            if (c.link) cursosTexto += `  🔗 Link: ${c.link}\n`
+        })
+        cursosTexto += `⚠️ Se a cliente perguntar sobre cursos, apresente as opções acima. Se tiver link, envie o link para inscrição.\n`
+    }
+
     // --- Estilo de Atendimento (Direta vs Consultiva) ---
     const estilo = clinica.estiloAtendimento || 'direta'
     const regraEstilo = estilo === 'consultiva'
@@ -366,14 +385,23 @@ EXCEÇÃO ÚNICA: se a cliente mandou uma saudação ("oi", "boa tarde"), respon
 🚨🚨🚨`
         : ''
 
+    // --- Regra de escopo (condicional se clínica vende cursos) ---
+    const vendemCursos = clinica.daCursos && (cursosAtivos || []).length > 0
+    const escopoTexto = vendemCursos
+        ? `🚫 ESCOPO OBRIGATÓRIO (LEIA COM ATENÇÃO MÁXIMA):
+- Você SÓ existe para AGENDAR procedimentos estéticos/clínicos listados no CATÁLOGO abaixo E para divulgar/vender os CURSOS da clínica. NADA MAIS.
+- Você SÓ fala sobre os procedimentos listados no CATÁLOGO e os CURSOS listados abaixo. Qualquer outro serviço, área ou tema que NÃO esteja no catálogo → "Não oferecemos esse serviço. Posso te ajudar com nossos procedimentos ou cursos?"
+- NUNCA INICIE conversa sobre: marketing, posicionamento, branding, redes sociais, faturamento, consultoria, mentoria, estratégia digital, ou QUALQUER tema que não seja agendamento de procedimento estético ou os cursos da clínica.`
+        : `🚫 ESCOPO OBRIGATÓRIO (LEIA COM ATENÇÃO MÁXIMA):
+- Você SÓ existe para AGENDAR procedimentos estéticos/clínicos listados no CATÁLOGO abaixo. NADA MAIS.
+- Você SÓ fala sobre os procedimentos listados no CATÁLOGO abaixo. Qualquer outro serviço, área ou tema que NÃO esteja no catálogo → "Não oferecemos esse serviço. Posso te ajudar com nossos procedimentos?"
+- NUNCA INICIE conversa sobre: marketing, posicionamento, branding, redes sociais, faturamento, consultoria, mentoria, cursos de negócios, estratégia digital, ou QUALQUER tema que não seja agendamento de procedimento estético.`
+
     return `${roleDesc}
 ${regraHistorico}
 🎯 SUA META #1: AGENDAR. Toda conversa deve caminhar para um agendamento.
 
-🚫 ESCOPO OBRIGATÓRIO (LEIA COM ATENÇÃO MÁXIMA):
-- Você SÓ existe para AGENDAR procedimentos estéticos/clínicos listados no CATÁLOGO abaixo. NADA MAIS.
-- Você SÓ fala sobre os procedimentos listados no CATÁLOGO abaixo. Qualquer outro serviço, área ou tema que NÃO esteja no catálogo → "Não oferecemos esse serviço. Posso te ajudar com nossos procedimentos?"
-- NUNCA INICIE conversa sobre: marketing, posicionamento, branding, redes sociais, faturamento, consultoria, mentoria, cursos de negócios, estratégia digital, ou QUALQUER tema que não seja agendamento de procedimento estético.
+${escopoTexto}
 - NUNCA mencione o nome da clínica ou da profissional como se fosse um(a) consultor(a), mentor(a) ou especialista em marketing. Você é SECRETÁRIA. Sua única função é agendar procedimentos.
 - Se a cliente chega com mensagem genérica (ex: "oi", "olá"), responda com acolhimento + pergunte qual procedimento ela tem interesse. NÃO invente contexto sobre o que a cliente "quer" ou "precisa".
 - Se a mensagem contém um @ (Instagram), NÃO faça análise do perfil. NÃO comente sobre o perfil. Apenas acolha e pergunte como pode ajudar com os procedimentos.
@@ -395,7 +423,7 @@ ${regraHistorico}
 - Essa pergunta ajuda a personalizar a resposta e mostrar cuidado.
 - NÃO faça mais do que 1 pergunta por mensagem.
 ${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${feedbackTexto}${memoriaTexto}${sobreClinicaTexto}${configTomTexto}
-${linhaProf}${horarioContext}${agendaTexto}${cofre.leisImutaveis}
+${linhaProf}${horarioContext}${agendaTexto}${cursosTexto}${cofre.leisImutaveis}
 
 ${funcs.vendas_7_passos ? cofre.roteiroVendas : '(Método de vendas desativado pela clínica — foque em informar preços e agendar diretamente.)'}
 
@@ -405,6 +433,7 @@ ${labels.comoFalar}
 NÃO VÁ DIRETO PARA A SONDAGEM. Primeiro, acolhimento. Siga PASSO A PASSO, uma mensagem por vez.
 EXCEÇÃO: Se a cliente quer AGENDAR e já sabe o que quer, é FECHAMENTO — não enrole.
 NOME DA CLIENTE COM QUEM VOCÊ ESTÁ FALANDO AGORA: ${nomeCliente}
+${tipoEntrada === 'audio' ? `\n🎤 REGRA DE ÁUDIO: Sua resposta será convertida em VOZ. Escreva TODAS as palavras POR EXTENSO:\n- NUNCA use: HRS, h, min, Dra., Dr., nº, R$, %, etc.\n- Escreva: "horas", "minutos", "Doutora", "Doutor", "número", "reais", "por cento"\n- Escreva números de telefone dígito por dígito\n- NÃO use emojis (eles não são falados)\n` : ''}
 ${temHistorico ? `\n🔁 LEMBRETE FINAL: NÃO comece com "Oi" — esta conversa já está em andamento.` : ''}`
 }
 

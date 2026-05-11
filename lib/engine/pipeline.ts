@@ -255,22 +255,8 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         }
     }
 
-    // Fingerprint da clínica — muda quando nome/config muda, invalidando o cache
-    const clinicaFingerprint = `${clinica.nomeAssistente || 'iara'}:${clinica.nomeClinica || ''}:${clinica.nomeDoutora || ''}`
-
     // ================================================
-    // 8. CACHE — Já respondeu isso recentemente?
-    // ================================================
-    const cacheHit = await checkCache(clinica.id, textoMensagem, clinicaFingerprint)
-    if (cacheHit) {
-        console.log(`[Pipeline] 💰 Cache hit! Economizando IA.`)
-        // Usa resposta cacheada mas ainda envia e salva
-        await finalizarResposta(clinica, msg, cacheHit, textoMensagem, tipoEntrada, startTime, true)
-        return
-    }
-
-    // ================================================
-    // 9. BUSCAR CONTEXTO
+    // 8. BUSCAR CONTEXTO (ANTES do cache para fingerprint correto)
     // ================================================
     const [historico, procedimentosRaw, feedbacks, memoriaCliente, profissionaisRaw] = await Promise.all([
         memory.getConversationHistory(clinica.id, msg.telefone),
@@ -279,6 +265,21 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         memory.getClientMemory(clinica.id, msg.telefone),
         buscarProfissionais(clinica.id),
     ])
+
+    // Buscar cursos (se a clínica vende cursos)
+    let cursosAtivos: { nome: string; modalidade: string; valor: number; duracao: string | null; descricao: string | null; link: string | null }[] = []
+    if (clinica.daCursos) {
+        try {
+            cursosAtivos = await prisma.$queryRawUnsafe<any[]>(`
+                SELECT nome, modalidade, valor, duracao, descricao, link
+                FROM cursos
+                WHERE clinica_id = $1::text AND ativo = true
+                ORDER BY nome ASC
+            `, String(clinica.id))
+        } catch (e) {
+            // Silencioso — cursos são opcionais
+        }
+    }
 
     // Buscar promoções ativas
     let promocoesAtivas: { nome: string; descricao: string | null; instrucaoIara: string | null; procedimentos: string[] }[] = []
@@ -305,6 +306,22 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         // Silencioso — promoções são opcionais
     }
 
+    // Fingerprint da clínica — inclui procedimentos e cursos para invalidar cache ao mudar
+    const procFingerprint = procedimentosRaw.map(p => p.nome).sort().join(',')
+    const cursoFingerprint = cursosAtivos.map(c => c.nome).sort().join(',')
+    const clinicaFingerprint = `${clinica.nomeAssistente || 'iara'}:${clinica.nomeClinica || ''}:${clinica.nomeDoutora || ''}:${procFingerprint}:${cursoFingerprint}`
+
+    // ================================================
+    // 9. CACHE — Já respondeu isso recentemente?
+    // ================================================
+    const cacheHit = await checkCache(clinica.id, textoMensagem, clinicaFingerprint)
+    if (cacheHit) {
+        console.log(`[Pipeline] 💰 Cache hit! Economizando IA.`)
+        // Usa resposta cacheada mas ainda envia e salva
+        await finalizarResposta(clinica, msg, cacheHit, textoMensagem, tipoEntrada, startTime, true)
+        return
+    }
+
     // Buscar agenda (com profissionais se multi-prof)
     const agendaContext = await calendar.getAgendaContext(clinica.id, clinica, profissionaisRaw.length > 1 ? profissionaisRaw : undefined)
 
@@ -313,7 +330,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // ================================================
     
     // Debug: logar tamanho do histórico e dados carregados
-    await logPipeline('CONTEXT', `historico=${historico.length} procs=${procedimentosRaw.length} profs=${profissionaisRaw.length} feedbacks=${feedbacks.length} memoria=${memoriaCliente ? 'sim' : 'nao'} config.diferenciais=${!!(clinica as any).diferenciais}`)
+    await logPipeline('CONTEXT', `historico=${historico.length} procs=${procedimentosRaw.length} profs=${profissionaisRaw.length} cursos=${cursosAtivos.length} feedbacks=${feedbacks.length} memoria=${memoriaCliente ? 'sim' : 'nao'} config.diferenciais=${!!(clinica as any).diferenciais}`)
 
     const systemPrompt = aiEngine.buildSystemPrompt({
         clinica,
@@ -328,6 +345,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         profissionais: profissionaisRaw.length > 1 ? profissionaisRaw : undefined,
         clinicaAbertaAgora: horario.aberto,
         promocoesAtivas,
+        cursosAtivos,
     })
 
     await logPipeline('AI_CALL', `chamando IA... modelo=${(clinica.configuracoes as any)?.modelo_sonnet || 'default'}`)

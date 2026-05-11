@@ -78,6 +78,7 @@ export interface DadosClinica {
     emojis: string | null
     tomAtendimento: string | null
     diferenciais: string | null
+    daCursos: boolean | null
     funcionalidades: string | null
     feedbacks: string | null
     cuidadosPos: string | null
