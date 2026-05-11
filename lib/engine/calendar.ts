@@ -464,6 +464,15 @@ export async function processarAgendamentos(
                 }
             }
 
+            // =========================================
+            // LINK .ICS — Adicionar ao calendário (Apple Calendar, Outlook, etc)
+            // =========================================
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://app.useiara.com'
+            const icsLink = `${appUrl}/api/calendario/ics?id=${agendamentoInterno.id}`
+            // Adicionar link de calendário na mensagem de confirmação
+            respostaLimpa += `\n\n📅 *Adicione ao seu calendário:* ${icsLink}`
+            console.log(`[Calendar] 📅 Link .ics gerado: ${icsLink}`)
+
         } catch (err) {
             console.error('[Calendar] Erro ao processar agendamento:', err)
         }
