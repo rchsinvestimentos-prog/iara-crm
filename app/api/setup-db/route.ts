@@ -267,6 +267,30 @@ export async function GET() {
       results.push('ℹ️ Coluna pos_procedimento já existe em procedimentos')
     }
 
+    // ============================================
+    // Apple Calendar columns on users table
+    // ============================================
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "apple_calendar_email" VARCHAR(200)`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "apple_calendar_password" TEXT`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "apple_calendar_url" TEXT`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "calendar_provider" VARCHAR(20) DEFAULT 'google'`)
+      results.push('✅ Colunas Apple Calendar em users garantidas')
+    } catch (e: any) {
+      results.push(`⚠️ Apple Calendar cols (users): ${e.message?.slice(0, 80)}`)
+    }
+
+    // Apple Calendar columns on profissionais table
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "profissionais" ADD COLUMN IF NOT EXISTS "apple_calendar_email" VARCHAR(200)`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "profissionais" ADD COLUMN IF NOT EXISTS "apple_calendar_password" TEXT`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "profissionais" ADD COLUMN IF NOT EXISTS "apple_calendar_url" TEXT`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "profissionais" ADD COLUMN IF NOT EXISTS "calendar_provider" VARCHAR(20) DEFAULT 'google'`)
+      results.push('✅ Colunas Apple Calendar em profissionais garantidas')
+    } catch (e: any) {
+      results.push(`⚠️ Apple Calendar cols (profissionais): ${e.message?.slice(0, 80)}`)
+    }
+
     return NextResponse.json({ success: true, results })
   } catch (error: any) {
     console.error('Setup DB error:', error)
