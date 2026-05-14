@@ -306,10 +306,12 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         // Silencioso — promoções são opcionais
     }
 
-    // Fingerprint da clínica — inclui procedimentos e cursos para invalidar cache ao mudar
-    const procFingerprint = procedimentosRaw.map(p => p.nome).sort().join(',')
-    const cursoFingerprint = cursosAtivos.map(c => c.nome).sort().join(',')
-    const clinicaFingerprint = `${clinica.nomeAssistente || 'iara'}:${clinica.nomeClinica || ''}:${clinica.nomeDoutora || ''}:${procFingerprint}:${cursoFingerprint}`
+    // Fingerprint da clínica — inclui procedimentos, profissionais e cursos para invalidar cache ao mudar
+    const procFingerprint = createHash('md5').update(JSON.stringify(procedimentosRaw)).digest('hex')
+    const profFingerprint = createHash('md5').update(JSON.stringify(profissionaisRaw)).digest('hex')
+    const cursoFingerprint = createHash('md5').update(JSON.stringify(cursosAtivos)).digest('hex')
+    const promoFingerprint = createHash('md5').update(JSON.stringify(promocoesAtivas)).digest('hex')
+    const clinicaFingerprint = `${clinica.nomeAssistente || 'iara'}:${clinica.nomeClinica || ''}:${clinica.nomeDoutora || ''}:${profFingerprint}:${procFingerprint}:${cursoFingerprint}:${promoFingerprint}`
 
     // ================================================
     // 9. CACHE — Já respondeu isso recentemente?
