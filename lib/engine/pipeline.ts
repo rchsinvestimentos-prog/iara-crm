@@ -768,7 +768,7 @@ async function buscarProcedimentos(clinicaId: number) {
              valor_min, valor_max, pos_procedimento
       FROM procedimentos
       WHERE user_id = ${clinicaId}
-        AND COALESCE(ativo, true) = true
+        AND ativo = true
       ORDER BY nome ASC
     `
         return (result || []).map(r => ({
@@ -814,7 +814,7 @@ async function buscarProfissionais(clinicaId: number): Promise<ProfissionalAtivo
               FROM procedimentos
               WHERE profissional_id = ${prof.id}
                 AND user_id = ${clinicaId}
-                AND COALESCE(ativo, true) = true
+                AND ativo = true
               ORDER BY nome ASC
             `
             prof.procedimentos = (procs || []).map((p: any) => ({
