@@ -813,6 +813,7 @@ async function buscarProfissionais(clinicaId: number): Promise<ProfissionalAtivo
                      parcelamento_padrao as parcelas, duracao_minutos as duracao, descricao
               FROM procedimentos
               WHERE profissional_id = ${prof.id}
+                AND user_id = ${clinicaId}
                 AND COALESCE(ativo, true) = true
               ORDER BY nome ASC
             `
