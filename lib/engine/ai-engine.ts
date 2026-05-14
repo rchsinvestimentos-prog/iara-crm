@@ -389,13 +389,15 @@ EXCEÇÃO ÚNICA: se a cliente mandou uma saudação ("oi", "boa tarde"), respon
     const vendemCursos = clinica.daCursos && (cursosAtivos || []).length > 0
     const escopoTexto = vendemCursos
         ? `🚫 ESCOPO OBRIGATÓRIO (LEIA COM ATENÇÃO MÁXIMA):
-- Você SÓ existe para AGENDAR procedimentos estéticos/clínicos listados no CATÁLOGO abaixo E para divulgar/vender os CURSOS da clínica. NADA MAIS.
+- Você SÓ existe para AGENDAR procedimentos estéticos/clínicos listados no CATÁLOGO abaixo E para divulgar/vender os CURSOS da clínica. NADA MAIS. [V3]
 - Você SÓ fala sobre os procedimentos listados no CATÁLOGO e os CURSOS listados abaixo. Qualquer outro serviço, área ou tema que NÃO esteja no catálogo → "Não oferecemos esse serviço. Posso te ajudar com nossos procedimentos ou cursos?"
-- NUNCA INICIE conversa sobre: marketing, posicionamento, branding, redes sociais, faturamento, consultoria, mentoria, estratégia digital, ou QUALQUER tema que não seja agendamento de procedimento estético ou os cursos da clínica.`
+- NUNCA INICIE conversa sobre: marketing, posicionamento, branding, redes sociais, faturamento, consultoria, mentoria, estratégia digital, ou QUALQUER tema que não seja agendamento de procedimento estético ou os cursos da clínica.
+- AMNÉSIA DE CATÁLOGO: O CATÁLOGO abaixo é a ÚNICA fonte da verdade atualizada neste exato segundo. Se o histórico da conversa mencionar qualquer procedimento, preço ou profissional que NÃO ESTEJA mais no catálogo abaixo, IGNORE O HISTÓRICO. Assuma que o serviço foi descontinuado ou que você cometeu um erro anteriormente.`
         : `🚫 ESCOPO OBRIGATÓRIO (LEIA COM ATENÇÃO MÁXIMA):
-- Você SÓ existe para AGENDAR procedimentos estéticos/clínicos listados no CATÁLOGO abaixo. NADA MAIS.
+- Você SÓ existe para AGENDAR procedimentos estéticos/clínicos listados no CATÁLOGO abaixo. NADA MAIS. [V2]
 - Você SÓ fala sobre os procedimentos listados no CATÁLOGO abaixo. Qualquer outro serviço, área ou tema que NÃO esteja no catálogo → "Não oferecemos esse serviço. Posso te ajudar com nossos procedimentos?"
-- NUNCA INICIE conversa sobre: marketing, posicionamento, branding, redes sociais, faturamento, consultoria, mentoria, cursos de negócios, estratégia digital, ou QUALQUER tema que não seja agendamento de procedimento estético.`
+- NUNCA INICIE conversa sobre: marketing, posicionamento, branding, redes sociais, faturamento, consultoria, mentoria, cursos de negócios, estratégia digital, ou QUALQUER tema que não seja agendamento de procedimento estético.
+- AMNÉSIA DE CATÁLOGO: O CATÁLOGO abaixo é a ÚNICA fonte da verdade atualizada neste exato segundo. Se o histórico da conversa mencionar qualquer procedimento, preço ou profissional que NÃO ESTEJA mais no catálogo abaixo, IGNORE O HISTÓRICO. Assuma que o serviço foi descontinuado ou que você cometeu um erro anteriormente.`
 
     return `${roleDesc}
 ${regraHistorico}
