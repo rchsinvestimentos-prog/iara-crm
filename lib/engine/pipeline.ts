@@ -272,8 +272,8 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         try {
             cursosAtivos = await prisma.$queryRawUnsafe<any[]>(`
                 SELECT nome, modalidade, valor, duracao, descricao, link
-                FROM cursos
-                WHERE clinica_id = $1::text AND ativo = true
+                FROM "Curso"
+                WHERE "clinicaId" = $1::text AND ativo = true
                 ORDER BY nome ASC
             `, String(clinica.id))
         } catch (e) {
