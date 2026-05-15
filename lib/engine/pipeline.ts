@@ -154,13 +154,26 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     }
 
     // ================================================
-    // 4.5 EMOJI-ONLY — Só emojis? Responde com 😊 e pronto
+    // 4.5 EMOJI-ONLY E COMANDOS ESPECIAIS (RESET)
     // ================================================
-    if (msg.tipoMensagem === 'text' && msg.mensagem && isEmojiOnly(msg.mensagem)) {
-        const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
-        await sender.sendText(sendOpts, '😊')
-        console.log(`[Pipeline] 😊 Emoji-only de ${msg.telefone} → respondeu com 😊`)
-        return
+    if (msg.tipoMensagem === 'text' && msg.mensagem) {
+        // Comando de debug para limpar histórico da conversa
+        if (msg.mensagem.trim().toUpperCase() === 'IARA RESET') {
+            await prisma.$executeRaw`DELETE FROM historico_conversas WHERE user_id = ${clinica.id} AND telefone_cliente = ${msg.telefone}`
+            await prisma.$executeRaw`DELETE FROM cache_respostas WHERE user_id = ${clinica.id}`
+            const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
+            await sender.sendText(sendOpts, '✅ Histórico de conversa e cache limpos com sucesso! Pode começar uma nova conversa de teste. (Esta mensagem não cobrou crédito)')
+            console.log(`[Pipeline] 🧹 Histórico resetado para ${msg.telefone}`)
+            return
+        }
+
+        // Só emojis? Responde com 😊 e pronto
+        if (isEmojiOnly(msg.mensagem)) {
+            const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
+            await sender.sendText(sendOpts, '😊')
+            console.log(`[Pipeline] 😊 Emoji-only de ${msg.telefone} → respondeu com 😊`)
+            return
+        }
     }
 
     // ================================================
