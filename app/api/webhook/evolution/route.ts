@@ -134,6 +134,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ ok: true, ignored: 'broadcast' })
         }
 
+        // Ignorar mensagens de grupos
+        if (key.remoteJid?.endsWith('@g.us')) {
+            return NextResponse.json({ ok: true, ignored: 'group' })
+        }
+
+
         // ================================================
         // DEDUPLICAÇÃO — Evitar resposta duplicada
         // ================================================
