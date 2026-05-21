@@ -219,16 +219,23 @@ export default function AgendaPage() {
     const isHoje = (dia: number) => hoje.getFullYear() === ano && hoje.getMonth() === mes && hoje.getDate() === dia
     const isDiaSel = (dia: number) => diaSelecionado.getFullYear() === ano && diaSelecionado.getMonth() === mes && diaSelecionado.getDate() === dia
 
+    // Parseia a data do agendamento sem converter timezone (evita rollback UTC→BRT)
+    const parseDateLocal = (dataStr: string): Date => {
+        const iso = dataStr.split('T')[0] // 'YYYY-MM-DD'
+        const [y, m, d] = iso.split('-').map(Number)
+        return new Date(y, m - 1, d) // meia-noite local, sem UTC
+    }
+
     const getAgendDia = (date: Date) => {
         return agendamentos.filter(a => {
-            const d = new Date(a.data)
+            const d = parseDateLocal(a.data)
             return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth() && d.getDate() === date.getDate()
         })
     }
 
     const getAgendDiaNum = (dia: number) => {
         return agendamentos.filter(a => {
-            const d = new Date(a.data)
+            const d = parseDateLocal(a.data)
             return d.getFullYear() === ano && d.getMonth() === mes && d.getDate() === dia
         })
     }

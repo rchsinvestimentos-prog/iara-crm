@@ -8,7 +8,6 @@
 // - Texto → POST /message/sendText/{instancia}
 // - Áudio → POST /message/sendWhatsAppAudio/{instancia}
 // - Imagem → POST /message/sendMedia/{instancia}
-
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || ''
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || ''
 
@@ -16,6 +15,17 @@ interface SendOptions {
     instancia: string
     telefone: string
     apikey?: string  // cada clínica pode ter sua própria apikey
+}
+
+/**
+ * Normaliza o número para o padrão internacional com prefixo '55' caso seja brasileiro de 10 ou 11 dígitos.
+ */
+function normalizarTelefone(tel: string): string {
+    const limpo = tel.replace(/\D/g, '')
+    if (limpo.length === 10 || limpo.length === 11) {
+        return `55${limpo}`
+    }
+    return limpo
 }
 
 /**
@@ -33,7 +43,7 @@ export async function sendText(
     }
 
     try {
-        const numero = telefone.replace(/\D/g, '')
+        const numero = normalizarTelefone(telefone)
         const res = await fetch(`${EVOLUTION_URL}/message/sendText/${instancia}`, {
             method: 'POST',
             headers: {
@@ -75,7 +85,7 @@ export async function sendAudio(
     }
 
     try {
-        const numero = telefone.replace(/\D/g, '')
+        const numero = normalizarTelefone(telefone)
         const res = await fetch(`${EVOLUTION_URL}/message/sendWhatsAppAudio/${instancia}`, {
             method: 'POST',
             headers: {
@@ -113,7 +123,7 @@ export async function sendImage(
     const { instancia, telefone, apikey } = opts
 
     try {
-        const numero = telefone.replace(/\D/g, '')
+        const numero = normalizarTelefone(telefone)
         const res = await fetch(`${EVOLUTION_URL}/message/sendMedia/${instancia}`, {
             method: 'POST',
             headers: {

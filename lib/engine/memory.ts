@@ -196,8 +196,15 @@ export function detectFeedback(
     telefoneRemetente: string,
     whatsappDoutora: string
 ): { isFeedback: boolean; regra: string } {
-    const telLimpo = telefoneRemetente.replace(/\D/g, '')
-    const draLimpo = (whatsappDoutora || '').replace(/\D/g, '')
+    const normalizar = (tel: string) => {
+        const limpo = tel.replace(/\D/g, '')
+        if (limpo.length === 10 || limpo.length === 11) {
+            return `55${limpo}`
+        }
+        return limpo
+    }
+    const telLimpo = normalizar(telefoneRemetente)
+    const draLimpo = normalizar(whatsappDoutora || '')
 
     // Precisa ser da doutora
     if (!telLimpo || !draLimpo || telLimpo !== draLimpo) {

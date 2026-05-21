@@ -67,8 +67,15 @@ export async function checkAccess(
     }
 
     // 2. Verificar se é a doutora
-    const telefoneLimpo = telefoneRemetente.replace(/\D/g, '')
-    const whatsappDoutora = (clinica.whatsappDoutora || '').replace(/\D/g, '')
+    const normalizar = (tel: string) => {
+        const limpo = tel.replace(/\D/g, '')
+        if (limpo.length === 10 || limpo.length === 11) {
+            return `55${limpo}`
+        }
+        return limpo
+    }
+    const telefoneLimpo = normalizar(telefoneRemetente)
+    const whatsappDoutora = normalizar(clinica.whatsappDoutora || '')
     const isDoutora = telefoneLimpo && whatsappDoutora && telefoneLimpo === whatsappDoutora
 
     // Se é a doutora, SEMPRE permite (mesmo sem créditos)

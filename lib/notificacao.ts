@@ -100,20 +100,25 @@ export function gerarMensagemConfirmacao(
 export async function enviarNotificacaoWhatsApp(
     instanceName: string,
     whatsappDona: string,
-    mensagem: string
+    mensagem: string,
+    apikey?: string
 ): Promise<boolean> {
-    if (!EVOLUTION_URL || !EVOLUTION_KEY || !whatsappDona || !mensagem) {
+    const keyToUse = apikey || EVOLUTION_KEY
+    if (!EVOLUTION_URL || !keyToUse || !whatsappDona || !mensagem) {
         console.log('[Notificação] Pulando envio — configuração incompleta')
         return false
     }
 
     try {
-        const numero = whatsappDona.replace(/\D/g, '')
+        let numero = whatsappDona.replace(/\D/g, '')
+        if (numero.length === 10 || numero.length === 11) {
+            numero = `55${numero}`
+        }
         const res = await fetch(`${EVOLUTION_URL}/message/sendText/${instanceName}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'apikey': EVOLUTION_KEY,
+                'apikey': keyToUse,
             },
             body: JSON.stringify({
                 number: numero,
@@ -151,11 +156,12 @@ export async function notificarMudancaConfig(
         select: {
             nomeAssistente: true,
             whatsappDoutora: true,
-            instanceName: true,
+            evolutionInstance: true,
+            evolutionApikey: true,
         },
     })
 
-    if (!clinica?.whatsappDoutora || !clinica?.instanceName) {
+    if (!clinica?.whatsappDoutora || !clinica?.evolutionInstance) {
         console.log('[Notificação] Sem WhatsApp/instância configurados — pulando')
         return
     }
@@ -167,9 +173,10 @@ export async function notificarMudancaConfig(
 
     if (mensagem) {
         await enviarNotificacaoWhatsApp(
-            clinica.instanceName,
+            clinica.evolutionInstance,
             clinica.whatsappDoutora,
-            mensagem
+            mensagem,
+            clinica.evolutionApikey || undefined
         )
     }
 }

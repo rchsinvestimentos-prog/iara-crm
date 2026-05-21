@@ -101,6 +101,7 @@ async function notificarAlteracaoAsync(params: NotifAlteracaoParams) {
       whatsappClinica: true,
       nomeAssistente: true,
       timezone: true,
+      evolutionApikey: true,
     }
   })
 
@@ -113,6 +114,14 @@ async function notificarAlteracaoAsync(params: NotifAlteracaoParams) {
   const nomeProfissional = profissional
     ? (profissional.tratamento ? `${profissional.tratamento} ${profissional.nome}` : profissional.nome)
     : 'Profissional'
+
+  const normalizar = (tel: string) => {
+    const limpo = tel.replace(/\D/g, '')
+    if (limpo.length === 10 || limpo.length === 11) {
+      return `55${limpo}`
+    }
+    return limpo
+  }
 
   const msg = [
     `📅 *Agendamento Alterado*`,
@@ -128,16 +137,16 @@ async function notificarAlteracaoAsync(params: NotifAlteracaoParams) {
 
   // Notificar clínica
   if (instanceName && clinica?.whatsappClinica) {
-    await enviarNotificacaoWhatsApp(instanceName, clinica.whatsappClinica, msg)
+    await enviarNotificacaoWhatsApp(instanceName, clinica.whatsappClinica, msg, clinica.evolutionApikey || undefined)
     console.log(`[Alterar] 📩 Notificação enviada para CLÍNICA`)
   }
 
   // Notificar profissional (se diferente da clínica)
   if (instanceName && profissional?.whatsapp) {
-    const numClinica = clinica?.whatsappClinica?.replace(/\D/g, '') || ''
-    const numProf = profissional.whatsapp.replace(/\D/g, '')
+    const numClinica = normalizar(clinica?.whatsappClinica || '')
+    const numProf = normalizar(profissional.whatsapp)
     if (numProf !== numClinica) {
-      await enviarNotificacaoWhatsApp(instanceName, profissional.whatsapp, msg)
+      await enviarNotificacaoWhatsApp(instanceName, profissional.whatsapp, msg, clinica?.evolutionApikey || undefined)
       console.log(`[Alterar] 📩 Notificação enviada para PROFISSIONAL`)
     }
   }

@@ -22,7 +22,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Faltam campos obrigatórios' }, { status: 400 })
     }
 
-    const dateObj = new Date(`${data}T00:00:00Z`)
+    // Parsear data local (evitar rollback UTC→BRT)
+    // new Date(`${data}T00:00:00Z`) criaria meia-noite UTC = 21h do dia ANTERIOR em BRT
+    const [year, month, day] = data.split('-').map(Number)
+    const dateObj = new Date(year, month - 1, day) // meia-noite local
     const duracaoMin = Number(duracao || 30)
 
     // =========================================
@@ -105,6 +108,7 @@ async function dispararAutomacoesAsync(params: AutomacaoParams) {
       nomeClinica: true,
       nomeAssistente: true,
       timezone: true,
+      evolutionApikey: true,
     }
   })
 
@@ -119,6 +123,14 @@ async function dispararAutomacoesAsync(params: AutomacaoParams) {
     : 'Profissional'
   const tz = clinica?.timezone || 'America/Sao_Paulo'
   const profSlug = (profissional?.linkConfig as any)?.slug || null
+
+  const normalizar = (tel: string) => {
+    const limpo = tel.replace(/\D/g, '')
+    if (limpo.length === 10 || limpo.length === 11) {
+      return `55${limpo}`
+    }
+    return limpo
+  }
 
   // ─── A) Notificação WhatsApp para a CLÍNICA ───
   if (instanceName && clinica?.whatsappClinica) {
@@ -136,7 +148,7 @@ async function dispararAutomacoesAsync(params: AutomacaoParams) {
       `_Agendamento feito pelo link público da ${clinica.nomeAssistente || 'IARA'}._`,
     ].join('\n')
 
-    await enviarNotificacaoWhatsApp(instanceName, clinica.whatsappClinica, msgClinica)
+    await enviarNotificacaoWhatsApp(instanceName, clinica.whatsappClinica, msgClinica, clinica.evolutionApikey || undefined)
     console.log(`[Reservar] 📩 Notificação enviada para CLÍNICA (${clinica.whatsappClinica})`)
   }
 
@@ -145,8 +157,8 @@ async function dispararAutomacoesAsync(params: AutomacaoParams) {
     const whatsappProf = profissional.whatsapp
 
     // Evitar envio duplicado se o número da profissional = número da clínica
-    const numClinica = clinica?.whatsappClinica?.replace(/\D/g, '') || ''
-    const numProf = whatsappProf.replace(/\D/g, '')
+    const numClinica = normalizar(clinica?.whatsappClinica || '')
+    const numProf = normalizar(whatsappProf)
 
     if (numProf !== numClinica) {
       const msgProf = [
@@ -162,7 +174,7 @@ async function dispararAutomacoesAsync(params: AutomacaoParams) {
         `_Agendamento feito pelo seu link público._`,
       ].join('\n')
 
-      await enviarNotificacaoWhatsApp(instanceName, whatsappProf, msgProf)
+      await enviarNotificacaoWhatsApp(instanceName, whatsappProf, msgProf, clinica?.evolutionApikey || undefined)
       console.log(`[Reservar] 📩 Notificação enviada para PROFISSIONAL (${whatsappProf})`)
     }
   }
@@ -197,7 +209,7 @@ async function dispararAutomacoesAsync(params: AutomacaoParams) {
           clinicaId,
           profissionalId,
           horario,
-          data: new Date(`${data}T00:00:00Z`),
+          data: dateObj,
           nomePaciente,
         },
         data: { googleEventId: evento.id },
