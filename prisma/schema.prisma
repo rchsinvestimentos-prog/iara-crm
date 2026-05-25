@@ -275,6 +275,7 @@ model Procedimento {
   valorMin        Decimal?       @map("valor_min") @db.Decimal
   valorMax        Decimal?       @map("valor_max") @db.Decimal
   posProcedimento String?        @map("pos_procedimento") @db.Text  // Cuidados pós-procedimento
+  profissionalIds Json?          @default("[]") @map("profissional_ids") @db.JsonB  // Array de IDs de profissionais que realizam
   ativo           Boolean?       @default(true)
   createdAt       DateTime?      @default(now()) @map("created_at")
 

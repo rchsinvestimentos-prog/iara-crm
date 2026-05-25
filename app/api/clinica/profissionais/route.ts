@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import crypto from 'crypto'
 
 // Limites por plano (Equipe é feature P3+)
 function getMaxProfissionais(plano: string | null | undefined, nivel: number): number {
@@ -103,7 +102,7 @@ export async function GET() {
     }
 }
 
-// POST: Criar profissional
+// POST: Criar profissional (simplificado — sem magic links, sem envio de email/whatsapp)
 export async function POST(req: NextRequest) {
     try {
         const session = await getServerSession(authOptions)
@@ -113,7 +112,7 @@ export async function POST(req: NextRequest) {
 
         const clinica = await prisma.clinica.findFirst({
             where: { email: session.user.email },
-            select: { id: true, plano: true, nivel: true, nomeDoutora: true, nome: true, diferenciais: true }
+            select: { id: true, plano: true, nivel: true }
         })
 
         if (!clinica) {
@@ -122,13 +121,10 @@ export async function POST(req: NextRequest) {
 
         const max = getMaxProfissionais(clinica.plano, clinica.nivel)
 
-        // Usar SQL raw para count em caso de problema com Prisma Client
         let count = 0
         try {
             count = await prisma.profissional.count({ where: { clinicaId: clinica.id } })
         } catch (countErr: any) {
-            // Fallback: usar SQL raw
-            console.error('Prisma count falhou, tentando SQL raw:', countErr.message)
             const rawCount = await prisma.$queryRawUnsafe<any[]>(
                 `SELECT COUNT(*)::int as total FROM profissionais WHERE clinica_id = $1`, clinica.id
             )
@@ -143,26 +139,18 @@ export async function POST(req: NextRequest) {
 
         const body = await req.json()
 
-        // Gerar magic token se email fornecido
-        const magicToken = body.email ? crypto.randomUUID() : null
-        const magicTokenExpires = body.email ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null // 24h
-
-        // Usar SQL raw para criar, evitando problema Prisma Client desatualizado
+        // Criar profissional de forma simples — sem magic links, sem envio de emails/whatsapp
         const result = await prisma.$queryRawUnsafe<any[]>(`
             INSERT INTO profissionais (
                 id, clinica_id, nome, tratamento, bio, especialidade, diferenciais,
-                whatsapp, cursos, redes_sociais_prof, horario_semana, almoco_semana,
-                atende_sabado, horario_sabado, atende_domingo, horario_domingo,
-                intervalo_atendimento, ausencias, link_agendamento, foto_url,
-                chave_pix, link_pagamento, is_dono, ativo, ordem, created_at,
-                email, magic_token, magic_token_expires
+                whatsapp, cursos, redes_sociais_prof,
+                ausencias, foto_url,
+                is_dono, ativo, ordem, created_at
             ) VALUES (
                 gen_random_uuid()::text, $1, $2, $3, $4, $5, $6,
-                $7, $8::jsonb, $9::jsonb, $10, $11,
-                $12, $13, $14, $15,
-                $16, '[]'::jsonb, $17, $18,
-                $19, $20, $21, true, $22, NOW(),
-                $23, $24, $25
+                $7, $8::jsonb, $9::jsonb,
+                '[]'::jsonb, $10,
+                $11, true, $12, NOW()
             ) RETURNING *
         `,
             clinica.id,
@@ -174,94 +162,10 @@ export async function POST(req: NextRequest) {
             body.whatsapp || null,
             JSON.stringify(body.cursos || []),
             JSON.stringify(body.redesSociais || {}),
-            body.horarioSemana || null,
-            body.almocoSemana || null,
-            body.atendeSabado ?? false,
-            body.horarioSabado || null,
-            body.atendeDomingo ?? false,
-            body.horarioDomingo || null,
-            body.intervaloAtendimento ?? null,
-            body.linkAgendamento || null,
             body.fotoUrl || null,
-            body.chavePix || null,
-            body.linkPagamento || null,
             body.isDono || false,
             body.ordem ?? count,
-            body.email || null,
-            magicToken,
-            magicTokenExpires,
         )
-
-        // Enviar magic link se email fornecido
-        if (body.email && magicToken) {
-            const baseUrl = process.env.NEXTAUTH_URL || 'https://app.iara.click'
-            const magicUrl = `${baseUrl}/login?magicToken=${magicToken}`
-            const nomeClinica = clinica.nomeDoutora || clinica.nome || 'sua clínica'
-
-            // Enviar por email (Resend)
-            try {
-                await fetch('https://api.resend.com/emails', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        from: 'IARA <noreply@iara.click>',
-                        to: body.email,
-                        subject: `🔑 Acesse seu painel na IARA - ${nomeClinica}`,
-                        html: `
-                            <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; background: #0B0F19; border-radius: 16px;">
-                                <img src="https://app.iara.click/iara-avatar.png" width="60" height="60" style="border-radius: 12px; margin-bottom: 16px;" />
-                                <h2 style="color: #fff; margin: 0 0 8px;">Olá, ${body.nome}! 👋</h2>
-                                <p style="color: #9CA3AF; font-size: 14px;">Você foi adicionada como profissional em <strong style="color: #D99773;">${nomeClinica}</strong>.</p>
-                                <p style="color: #9CA3AF; font-size: 14px;">Clique no botão abaixo para acessar e criar sua senha:</p>
-                                <a href="${magicUrl}" style="display: inline-block; background: linear-gradient(135deg, #D99773, #C07A55); color: #fff; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; margin-top: 16px;">Acessar Painel ✨</a>
-                                <p style="color: #6B7280; font-size: 12px; margin-top: 24px;">Este link expira em 24 horas. Se não foi você, ignore este email.</p>
-                            </div>
-                        `,
-                    }),
-                })
-            } catch (emailErr) {
-                console.error('Erro ao enviar magic link por email:', emailErr)
-            }
-
-            // Enviar por WhatsApp (Evolution API) se tiver número
-            if (body.whatsapp) {
-                try {
-                    const instanceName = await prisma.$queryRawUnsafe<any[]>(
-                        `SELECT evolution_instance FROM users WHERE id = $1`, clinica.id
-                    )
-                    const instance = instanceName[0]?.evolution_instance
-                    if (instance && process.env.EVOLUTION_API_URL) {
-                        const phone = body.whatsapp.replace(/\D/g, '')
-                        const whatsNumber = phone.startsWith('55') ? phone : `55${phone}`
-                        await fetch(`${process.env.EVOLUTION_API_URL}/message/sendText/${instance}`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'apikey': process.env.EVOLUTION_API_KEY || '',
-                            },
-                            body: JSON.stringify({
-                                number: whatsNumber,
-                                text: `🔑 *IARA - Acesso ao Painel*\n\nOlá ${body.nome}! Você foi adicionada como profissional em *${nomeClinica}*.\n\nAcesse o link abaixo para entrar e criar sua senha:\n${magicUrl}\n\n⏰ Este link expira em 24 horas.`,
-                            }),
-                        })
-                    }
-                } catch (whatsErr) {
-                    console.error('Erro ao enviar magic link por WhatsApp:', whatsErr)
-                }
-            }
-        }
-
-        // Sincronizar slug no link_config (usado pela página pública /a/slug)
-        if (body.linkAgendamento && result[0]?.id) {
-            await prisma.$executeRawUnsafe(`
-                UPDATE profissionais 
-                SET link_config = COALESCE(link_config, '{}'::jsonb) || jsonb_build_object('slug', $2::text)
-                WHERE id = $1
-            `, result[0].id, body.linkAgendamento).catch(() => {})
-        }
 
         return NextResponse.json(result[0] || { ok: true }, { status: 201 })
     } catch (error: any) {
@@ -349,15 +253,6 @@ export async function PUT(req: NextRequest) {
             body.linkPagamento ?? null,
             body.ausencias ? JSON.stringify(body.ausencias) : null,
         )
-
-        // Sincronizar slug no link_config (usado pela página pública /a/slug)
-        if (body.linkAgendamento) {
-            await prisma.$executeRawUnsafe(`
-                UPDATE profissionais 
-                SET link_config = COALESCE(link_config, '{}'::jsonb) || jsonb_build_object('slug', $2::text)
-                WHERE id = $1
-            `, body.id, body.linkAgendamento).catch(() => {})
-        }
 
         return NextResponse.json({ ok: true, id: body.id })
     } catch (error: any) {
