@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { enviarEmailBoasVindas } from '@/lib/email'
+import { sendText } from '@/lib/engine/sender'
 import bcrypt from 'bcryptjs'
 
 // Token de segurança da Hotmart — validar que o request é legítimo
@@ -69,6 +70,25 @@ export async function POST(request: NextRequest) {
         const evento = body?.event
         console.log(`[Hotmart Webhook] Evento: ${evento}`)
 
+        // Helper para enviar notificações do sistema via WhatsApp
+        const sendSystemNotification = async (email: string, message: string) => {
+            try {
+                const systemInstance = process.env.HOTMART_SYSTEM_INSTANCE || process.env.EVOLUTION_SYSTEM_INSTANCE || ''
+                if (!systemInstance) return
+                const c = await prisma.clinica.findUnique({
+                    where: { email },
+                    select: { telefone: true, whatsappDoutora: true, nome: true }
+                })
+                const phone = c?.whatsappDoutora || c?.telefone
+                if (phone) {
+                    const formattedMsg = message.replace('{{nome}}', c.nome?.split(' ')[0] || 'Doutora')
+                    await sendText({ instancia: systemInstance, telefone: phone }, formattedMsg)
+                }
+            } catch (err) {
+                console.error('[Hotmart Webhook] Erro ao enviar notificação WhatsApp:', err)
+            }
+        }
+
         // ============ COMPRA APROVADA ============
         if (evento === 'PURCHASE_APPROVED') {
             const buyer = body?.data?.buyer
@@ -103,6 +123,16 @@ export async function POST(request: NextRequest) {
                     },
                 })
                 console.log(`[Hotmart Webhook] Plano atualizado: ${buyer.email} → ${planoConfig.plano}`)
+
+                // Enviar notificação de atualização/reativação via WhatsApp
+                const systemInstance = process.env.HOTMART_SYSTEM_INSTANCE || process.env.EVOLUTION_SYSTEM_INSTANCE || ''
+                const targetPhone = existente.whatsappDoutora || existente.telefone || (buyer.phone_checkout_local_code ? `${buyer.phone_checkout_local_code}${buyer.phone_checkout_number}` : buyer.phone_checkout_number)
+                if (targetPhone && systemInstance) {
+                    const primeiroNome = existente.nome?.split(' ')[0] || 'Doutora'
+                    const msg = `Olá, *${primeiroNome}*! Seu plano da *IARA* foi renovado/reativado com sucesso! 💜🚀\n\n🔹 *Plano:* ${planoConfig.plano.toUpperCase()}\n🔹 *Créditos:* ${planoConfig.creditos}\n\nSua assistente já está ativa e pronta para atender seus pacientes! Qualquer dúvida, conte conosco. 🤗`
+                    sendText({ instancia: systemInstance, telefone: targetPhone }, msg).catch(err => console.error('[Hotmart Webhook] Erro WhatsApp Renovação:', err))
+                }
+
                 return NextResponse.json({ ok: true, action: 'updated' })
             }
 
@@ -144,6 +174,14 @@ export async function POST(request: NextRequest) {
                 plano: planoConfig.plano,
             }).catch(err => console.error('[Hotmart Webhook] Erro email:', err))
 
+            // Enviar credenciais via WhatsApp
+            const systemInstance = process.env.HOTMART_SYSTEM_INSTANCE || process.env.EVOLUTION_SYSTEM_INSTANCE || ''
+            if (telefone && systemInstance) {
+                const primeiroNome = nomeCompleto.split(' ')[0] || 'Doutora'
+                const msg = `Olá, *${primeiroNome}*! Seja muito bem-vinda à *IARA*! 💜🎉\n\nSua conta no plano *${planoConfig.plano.toUpperCase()}* foi criada com sucesso! A partir de agora, sua assistente virtual cuidará do atendimento e agendamento da sua clínica 24h por dia.\n\n🔑 *Seus dados de acesso:*\n🔗 *Painel:* https://app.iara.click\n📧 *E-mail:* ${buyer.email}\n🔑 *Senha:* ${senhaTemporaria}\n\n*Próximos passos:*\n1️⃣ Acesse o painel e aceite os termos\n2️⃣ Configure sua clínica em "Configurações"\n3️⃣ Conecte seu WhatsApp em "Instâncias"\n\nQualquer dúvida, fale conosco por aqui! 🚀`
+                sendText({ instancia: systemInstance, telefone }, msg).catch(err => console.error('[Hotmart Webhook] Erro WhatsApp Boas-Vindas:', err))
+            }
+
             return NextResponse.json({
                 ok: true,
                 action: 'created',
@@ -161,6 +199,9 @@ export async function POST(request: NextRequest) {
                     data: { status: 'inativo' },
                 })
                 console.log(`[Hotmart Webhook] ❌ Conta desativada: ${buyer.email} (${evento})`)
+                // Notificar via WhatsApp
+                const acaoNome = evento === 'PURCHASE_REFUNDED' ? 'reembolsada' : evento === 'PURCHASE_CHARGEBACK' ? 'contestada' : 'cancelada'
+                await sendSystemNotification(buyer.email, `Olá, {{nome}}! Sua compra da *IARA* foi ${acaoNome} e sua conta foi desativada temporariamente. 😔\n\nCaso tenha ocorrido algum engano ou queira reativar seu plano, entre em contato conosco para te ajudarmos! 💜`)
             }
             return NextResponse.json({ ok: true, action: 'deactivated' })
         }
@@ -174,6 +215,8 @@ export async function POST(request: NextRequest) {
                     data: { status: 'cancelado' },
                 })
                 console.log(`[Hotmart Webhook] 🚫 Assinatura cancelada: ${buyer.email}`)
+                // Notificar via WhatsApp
+                await sendSystemNotification(buyer.email, `Olá, {{nome}}! Confirmamos o cancelamento da sua assinatura da *IARA*. 😔\n\nSua assistente continuará ativa até o fim do período já pago. Esperamos ter você de volta em breve! 💜`)
             }
             return NextResponse.json({ ok: true, action: 'subscription_cancelled' })
         }
@@ -200,6 +243,8 @@ export async function POST(request: NextRequest) {
                     },
                 })
                 console.log(`[Hotmart Webhook] 🔄 Plano trocado: ${buyer.email} → ${planoConfig.plano}`)
+                // Notificar via WhatsApp
+                await sendSystemNotification(buyer.email, `Olá, {{nome}}! Seu plano da *IARA* foi alterado com sucesso! 🎉\n\n🔹 *Novo Plano:* ${planoConfig.plano.toUpperCase()}\n🔹 *Novos Limites:* ${planoConfig.creditos} créditos mensais e até ${planoConfig.whatsapps} WhatsApps.\n\nAs mudanças já estão aplicadas no seu painel! Aproveite! 🚀`)
             }
             return NextResponse.json({ ok: true, action: 'plan_switched' })
         }
@@ -213,6 +258,8 @@ export async function POST(request: NextRequest) {
                     data: { status: 'ativo' },
                 })
                 console.log(`[Hotmart Webhook] ♻️ Assinatura reativada: ${buyer.email}`)
+                // Notificar via WhatsApp
+                await sendSystemNotification(buyer.email, `Olá, {{nome}}! Sua assinatura da *IARA* foi reativada com sucesso! 😍💜\n\nSua assistente já está ativa novamente e cuidando de tudo na sua clínica. Bem-vinda de volta! 🚀`)
             }
             return NextResponse.json({ ok: true, action: 'reactivated' })
         }

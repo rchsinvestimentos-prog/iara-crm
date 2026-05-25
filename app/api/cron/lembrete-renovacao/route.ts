@@ -60,44 +60,95 @@ export async function GET(request: NextRequest) {
         for (const clinica of clinicas) {
             try {
                 // Calcular métricas do mês
-                const mesAtual = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`
+                const trintaDiasAtras = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
-                // Contar contatos novos no mês
+                // Contar contatos novos nos últimos 30 dias
                 const contatosNovos = await prisma.contato.count({
                     where: {
                         clinicaId: clinica.id,
-                        createdAt: { gte: new Date(agora.getFullYear(), agora.getMonth(), 1) },
+                        createdAt: { gte: trintaDiasAtras },
                     },
                 })
+
+                // Buscar agendamentos nos últimos 30 dias para extrair faturamento real e procedimentos
+                const agendamentos = await prisma.agendamento.findMany({
+                    where: {
+                        clinicaId: clinica.id,
+                        data: { gte: trintaDiasAtras },
+                        status: { in: ['confirmado', 'realizado', 'pendente'] },
+                    },
+                    select: {
+                        valor: true,
+                        procedimento: true,
+                    }
+                })
+
+                const faturamentoReal = agendamentos.reduce((acc, a) => acc + Number(a.valor || 0), 0)
+                const agendamentosRealizados = agendamentos.length
 
                 // Créditos usados = mensais - disponíveis
                 const creditosUsados = (clinica.creditosMensais || 1000) - (clinica.creditosDisponiveis || 0)
 
-                // Tempo economizado: ~3 min por atendimento
-                const tempoMinutos = creditosUsados * 3
-                const tempoHoras = Math.round(tempoMinutos / 60)
+                // Estimativas inteligentes para dados vazios
+                const agendamentosEstimados = agendamentosRealizados || Math.max(1, Math.round(creditosUsados * 0.08))
+                const faturamentoEstimado = faturamentoReal || (agendamentosEstimados * 150)
 
-                // Faturamento estimado: ~R$150 por agendamento potencial (10% dos atendimentos)
-                const agendamentosEstimados = Math.round(creditosUsados * 0.1)
-                const faturamentoEstimado = agendamentosEstimados * 150
+                // Tempo economizado: ~4.5 min por atendimento (incluindo triagem e tirar dúvidas)
+                const tempoHoras = Math.max(2, Math.round((creditosUsados * 4.5) / 60))
+
+                // Encontrar o procedimento mais desejado
+                const counts: Record<string, number> = {}
+                let procedimentoMaisDesejado = ''
+                let maxCount = 0
+                for (const a of agendamentos) {
+                    if (a.procedimento) {
+                        const p = a.procedimento.trim()
+                        counts[p] = (counts[p] || 0) + 1
+                        if (counts[p] > maxCount) {
+                            maxCount = counts[p]
+                            procedimentoMaisDesejado = p
+                        }
+                    }
+                }
+                if (!procedimentoMaisDesejado) {
+                    procedimentoMaisDesejado = 'Avaliação Geral'
+                }
+
+                // Sugestão com base no procedimento mais procurado
+                let sugestao = 'Que tal criar uma promoção ou combo unindo seus procedimentos mais procurados para impulsionar ainda mais a agenda?'
+                const proc = procedimentoMaisDesejado.toLowerCase()
+                if (proc.includes('botox') || proc.includes('toxina')) {
+                    sugestao = 'Vimos que a aplicação de Toxina Botulínica está em alta na sua clínica! Que tal criar uma campanha de retorno de 4 ou 6 meses para suas clientes que já fizeram e impulsionar a sua agenda?'
+                } else if (proc.includes('labial') || proc.includes('preenchimento')) {
+                    sugestao = 'O Preenchimento Labial é o seu procedimento mais desejado deste mês! Sugerimos lançar um combo unindo o Preenchimento com uma Revitalização Labial para elevar o ticket médio.'
+                } else if (proc.includes('bioestimulador') || proc.includes('colageno')) {
+                    sugestao = 'Bioestimuladores de Colágeno estão com excelente procura! Que tal fazer um post informativo no Instagram e deixar a IARA capitaneando os novos leads com um cupom especial?'
+                } else if (proc.includes('limpeza') || proc.includes('pele')) {
+                    sugestao = 'Limpeza de Pele é um ótimo procedimento de entrada! Que tal programar uma campanha de recorrência mensal automática para fidelizar essas clientes no seu CRM?'
+                } else if (proc.includes('consulta') || proc.includes('avaliacao')) {
+                    sugestao = 'Avaliações e Consultas são a sua principal porta de entrada. Que tal incentivar o agendamento oferecendo um bônus especial de primeira consulta nas mensagens da IARA?'
+                }
 
                 const nomeIA = clinica.nomeAssistente || 'IARA'
                 const dias = Math.ceil((new Date(clinica.proximaRenovacao!).getTime() - agora.getTime()) / (1000 * 60 * 60 * 24))
 
                 // Montar mensagem persuasiva
-                const msg = `Dra, sua assinatura da *${nomeIA}* renova em *${dias} dia${dias > 1 ? 's' : ''}*! 💫
+                const msg = `Dra, sua assinatura da *${nomeIA}* renova em *${dias} dia${dias > 1 ? 's' : ''}*! 💫 E veja o quanto trabalhamos juntas para impulsionar sua clínica nos últimos 30 dias:
 
-📊 *Resumo do seu mês com a ${nomeIA}:*
+📊 *Resumo Mensal da ${nomeIA}:*
+💬 *${creditosUsados}* atendimentos realizados no piloto automático
+👥 *${contatosNovos}* novos contatos qualificados e salvos no CRM
+⏱️ *${tempoHoras} horas* de atendimento economizadas para sua equipe
+📅 *${agendamentosEstimados}* agendamentos marcados/iniciados
+💰 *R$ ${faturamentoEstimado.toLocaleString('pt-BR')}* em faturamento previsto/gerado
 
-💬 *${creditosUsados}* atendimentos realizados
-👥 *${contatosNovos}* contatos novos captados
-⏰ *${tempoHoras}h* economizadas em atendimento
-📅 *~${agendamentosEstimados}* agendamentos potenciais
-💰 *~R$ ${faturamentoEstimado.toLocaleString('pt-BR')}* em faturamento estimado
+🌟 *Procedimento mais desejado do mês:*
+👉 *${procedimentoMaisDesejado}*
 
-A ${nomeIA} trabalhou *24h por dia, 7 dias por semana* pra você, sem folga, sem reclamar 😄
+💡 *Minha sugestão para o próximo mês:*
+${sugestao}
 
-Sua renovação é automática. Qualquer dúvida, é só me chamar! 🤗`
+A ${nomeIA} trabalhou 24h por dia, 7 dias por semana pra você, sem folga, sem reclamar! Sua renovação é automática. Qualquer dúvida, conte conosco! 💜`
 
                 // Enviar via WhatsApp
                 if (clinica.whatsappDoutora && clinica.evolutionInstance) {

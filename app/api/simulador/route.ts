@@ -142,6 +142,19 @@ export async function POST(request: NextRequest) {
             )
         } catch { /* sem agenda */ }
 
+        // ─── Buscar Cursos Ativos ────────────────────────────────────────
+        let cursosAtivos: { nome: string; modalidade: string; valor: number; duracao: string | null; descricao: string | null; link: string | null }[] = []
+        if (clinica.daCursos) {
+            try {
+                cursosAtivos = await prisma.$queryRawUnsafe<any[]>(`
+                    SELECT nome, modalidade, valor, duracao, descricao, link
+                    FROM "Curso"
+                    WHERE "clinicaId" = $1::text AND ativo = true
+                    ORDER BY nome ASC
+                `, String(clinicaId))
+            } catch { /* sem cursos */ }
+        }
+
         // ─── Montar System Prompt (idêntico ao pipeline real) ────────────
         const systemPrompt = buildSystemPrompt({
             clinica: clinica as any,
@@ -158,6 +171,7 @@ export async function POST(request: NextRequest) {
             })),
             profissionais: profissionaisRaw.length > 1 ? profissionaisRaw : undefined,
             promocoesAtivas,
+            cursosAtivos,
         })
 
         // ─── Chamar IA ──────────────────────────────────────────────────
