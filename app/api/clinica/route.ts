@@ -140,6 +140,9 @@ export async function PUT(request: Request) {
             }
         }
 
+        // Forçar atualização do updatedAt para invalidar cache de IA
+        dataToUpdate.updatedAt = new Date()
+
         // Converter aceiteTermos string → Date pra Prisma
         if (dataToUpdate.aceiteTermos && typeof dataToUpdate.aceiteTermos === 'string') {
             dataToUpdate.aceiteTermos = new Date(dataToUpdate.aceiteTermos as string)

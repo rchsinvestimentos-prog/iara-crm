@@ -495,6 +495,9 @@ function isBlacklisted(clinica: DadosClinica, telefone: string, canal: string): 
 // ============================================
 
 function isEmojiOnly(text: string): boolean {
+    // Se for apenas números, não é emoji
+    if (/^\d+$/.test(text.trim())) return false
+
     // Remove todos os emojis, variações de skin tone, ZWJ sequences, e espaços
     const semEmoji = text
         .replace(/[\u{1F600}-\u{1F64F}]/gu, '')  // Emoticons
