@@ -302,7 +302,7 @@ export async function processarAgendamentos(
     nomeCliente: string,
     telefoneCliente?: string
 ): Promise<string> {
-    const regex = /\[AGENDAR:([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|(\d+)(?:\|([^\]]+))?\]/g
+    const regex = /\[AGENDAR:\s*([^|\]]+?)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(\d{2}:\d{2})\s*\|\s*(\d+)(?:\s*\|\s*([^\]]+?))?\s*\]/g
     const matches = [...respostaIA.matchAll(regex)]
 
     if (matches.length === 0) return respostaIA
@@ -313,9 +313,9 @@ export async function processarAgendamentos(
     for (const match of matches) {
         const agendamento: AgendamentoDetectado = {
             procedimento: match[1].trim(),
-            data: match[2],
-            hora: match[3],
-            duracao: parseInt(match[4]) || 60,
+            data: match[2].trim(),
+            hora: match[3].trim(),
+            duracao: parseInt(match[4].trim()) || 60,
             profissionalId: match[5]?.trim() || null,
         }
 
@@ -413,50 +413,54 @@ export async function processarAgendamentos(
             // Verificar toggle google_calendar (funciona para ambos provedores)
             const funcsCalendar = parseFuncionalidades(clinica.funcionalidades)
             if (funcsCalendar.google_calendar) {
-                if (calProvider === 'apple' && clinica.appleCalendarEmail && clinica.appleCalendarPassword) {
-                    // ===== APPLE CALENDAR =====
-                    const appleCredentials: AppleCalendarCredentials = {
-                        email: clinica.appleCalendarEmail,
-                        appPassword: clinica.appleCalendarPassword,
-                        calendarUrl: clinica.appleCalendarUrl || undefined,
-                    }
+                try {
+                    if (calProvider === 'apple' && clinica.appleCalendarEmail && clinica.appleCalendarPassword) {
+                        // ===== APPLE CALENDAR =====
+                        const appleCredentials: AppleCalendarCredentials = {
+                            email: clinica.appleCalendarEmail,
+                            appPassword: clinica.appleCalendarPassword,
+                            calendarUrl: clinica.appleCalendarUrl || undefined,
+                        }
 
-                    const eventUid = `iara-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-                    const [endH, endM] = [endHH, endMM]
+                        const eventUid = `iara-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+                        const [endH, endM] = [endHH, endMM]
 
-                    const appleResult = await createAppleCalendarEvent(appleCredentials, {
-                        uid: eventUid,
-                        title: `${agendamento.procedimento} — ${nomeCliente}`,
-                        description: `Agendado pela IARA via WhatsApp.\nCliente: ${nomeCliente}\nTelefone: ${telefoneCliente || ''}\nProcedimento: ${agendamento.procedimento}\nDuração: ${agendamento.duracao}min`,
-                        location: clinica.endereco || '',
-                        startDate: agendamento.data,
-                        startTime: agendamento.hora,
-                        endTime: `${endH}:${endM}`,
-                        timezone: tz,
-                    })
+                        const appleResult = await createAppleCalendarEvent(appleCredentials, {
+                            uid: eventUid,
+                            title: `${agendamento.procedimento} — ${nomeCliente}`,
+                            description: `Agendado pela IARA via WhatsApp.\nCliente: ${nomeCliente}\nTelefone: ${telefoneCliente || ''}\nProcedimento: ${agendamento.procedimento}\nDuração: ${agendamento.duracao}min`,
+                            location: clinica.endereco || '',
+                            startDate: agendamento.data,
+                            startTime: agendamento.hora,
+                            endTime: `${endH}:${endM}`,
+                            timezone: tz,
+                        })
 
-                    if (appleResult.success) {
-                        googleEventId = appleResult.eventId || null // Reusa o campo para armazenar o UID
-                        console.log(`[Calendar] ✅ Apple Calendar: evento criado (${googleEventId})`)
+                        if (appleResult.success) {
+                            googleEventId = appleResult.eventId || null // Reusa o campo para armazenar o UID
+                            console.log(`[Calendar] ✅ Apple Calendar: evento criado (${googleEventId})`)
+                        } else {
+                            console.warn(`[Calendar] ⚠️ Apple Calendar: falha ao criar — ${appleResult.error}`)
+                        }
                     } else {
-                        console.warn(`[Calendar] ⚠️ Apple Calendar: falha ao criar — ${appleResult.error}`)
-                    }
-                } else {
-                    // ===== GOOGLE CALENDAR (padrão) =====
-                    const evento = await createCalendarEventForProfissional(profissionalId, {
-                        summary: `${agendamento.procedimento} — ${nomeCliente}`,
-                        description: `Agendado pela IARA via WhatsApp.\nCliente: ${nomeCliente}\nTelefone: ${telefoneCliente || ''}\nProcedimento: ${agendamento.procedimento}\nDuração: ${agendamento.duracao}min`,
-                        startDateTime,
-                        endDateTime,
-                        timeZone: tz,
-                    })
+                        // ===== GOOGLE CALENDAR (padrão) =====
+                        const evento = await createCalendarEventForProfissional(profissionalId, {
+                            summary: `${agendamento.procedimento} — ${nomeCliente}`,
+                            description: `Agendado pela IARA via WhatsApp.\nCliente: ${nomeCliente}\nTelefone: ${telefoneCliente || ''}\nProcedimento: ${agendamento.procedimento}\nDuração: ${agendamento.duracao}min`,
+                            startDateTime,
+                            endDateTime,
+                            timeZone: tz,
+                        })
 
-                    if (evento) {
-                        googleEventId = evento.id || null
-                        console.log(`[Calendar] ✅ Google Calendar: evento criado (${googleEventId})`)
-                    } else {
-                        console.warn(`[Calendar] ⚠️ Google Calendar: falha ao criar (sem token?). Continuando com agendamento interno.`)
+                        if (evento) {
+                            googleEventId = evento.id || null
+                            console.log(`[Calendar] ✅ Google Calendar: evento criado (${googleEventId})`)
+                        } else {
+                            console.warn(`[Calendar] ⚠️ Google Calendar: falha ao criar (sem token?). Continuando com agendamento interno.`)
+                        }
                     }
+                } catch (calErr) {
+                    console.error('[Calendar] ⚠️ Erro ao criar evento em calendário externo. Prosseguindo apenas com agendamento interno:', calErr)
                 }
             } else {
                 console.log(`[Calendar] 🔇 google_calendar=OFF — pulando calendário externo, só agendamento interno`)

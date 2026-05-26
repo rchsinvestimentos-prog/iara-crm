@@ -43,22 +43,6 @@ const planos = [
             '4 idiomas (PT-BR, PT-PT, EN, ES)',
         ],
     },
-    {
-        nome: 'Premium',
-        nivel: 3,
-        icon: Gem,
-        cor: '#D99773',
-        popular: false,
-        creditos: 5000,
-        precos: { USD: 67, EUR: 67, BRL: 297 },
-        features: [
-            'Tudo do Pro +',
-            '👩‍⚕️ Equipe / Multi-profissional',
-            '🎙️ Voz Clonada (ElevenLabs)',
-            'Multi-clínica',
-            '2 WhatsApps conectados',
-        ],
-    },
 ]
 
 interface StatsData {
@@ -177,8 +161,8 @@ export default function PlanoPage() {
                 )}
             </div>
 
-            {/* Grid de planos — 3 colunas */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Grid de planos — 2 colunas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
                 {planos.map((plano, i) => {
                     const isAtual = plano.nivel === planoAtual
                     const hotmartLink = HOTMART_LINKS[plano.nome]

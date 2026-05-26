@@ -260,7 +260,7 @@ export default function VozTool() {
                 </h3>
                 <p className="text-[10px] text-gray-400 mb-4">Selecione o tipo de voz que a sua assistente vai usar nos áudios</p>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                     {/* TTS */}
                     <button
                         onClick={() => setTipoVozAtiva('tts')}
@@ -286,21 +286,6 @@ export default function VozTool() {
                         <p className="text-[9px] text-gray-400">Parecem humanos de verdade</p>
                         <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium mt-2 inline-block">Plano 2+</span>
                         {tipoVozAtiva === 'ultra' && <Check size={14} className="text-[#D99773] mt-1" />}
-                    </button>
-
-                    {/* Clone */}
-                    <button
-                        onClick={() => podeAtivarClone ? setTipoVozAtiva('clone') : null}
-                        className={`p-4 rounded-xl border-2 transition-all text-left relative ${!podeAtivarClone ? 'cursor-default' :
-                            tipoVozAtiva === 'clone' ? 'border-purple-400 bg-purple-50' : 'border-gray-100 hover:border-gray-200'
-                            }`}
-                    >
-                        {!podeAtivarClone && <Lock size={12} className="absolute top-3 right-3 text-gray-300" />}
-                        <Mic size={14} className={tipoVozAtiva === 'clone' ? 'text-purple-500' : 'text-gray-400'} />
-                        <p className="text-[11px] font-semibold text-gray-700 mt-1">Sua Voz</p>
-                        <p className="text-[9px] text-gray-400">Clone da sua própria voz</p>
-                        <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium mt-2 inline-block">Plano 3+</span>
-                        {tipoVozAtiva === 'clone' && <Check size={14} className="text-purple-500 mt-1" />}
                     </button>
                 </div>
 
@@ -400,102 +385,6 @@ export default function VozTool() {
                             <Crown size={10} /> Upgrade
                         </a>
                     </div>
-                )}
-            </div>
-
-            {/* ============================================ */}
-            {/* CLONE DA SUA VOZ (P3+) */}
-            {/* ============================================ */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
-                <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-[13px] font-semibold text-[#0F4C61] flex items-center gap-2">
-                        <Mic size={15} className="text-purple-500" />
-                        Sua Voz — Clone com IA
-                    </h3>
-                    {!podeAtivarClone && (
-                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium flex items-center gap-1">
-                            <Lock size={9} /> Plano 3+
-                        </span>
-                    )}
-                </div>
-                <p className="text-[10px] text-gray-400 mb-4">Grave um áudio de 30 segundos e ouça como a IA reproduz a SUA voz. Incrível!</p>
-
-                {/* Gravação direto pelo app */}
-                <div className="p-4 bg-gray-50 rounded-xl mb-4">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${gravando ? 'bg-red-500 animate-pulse' : 'bg-purple-100'}`}>
-                            <Mic size={16} className={gravando ? 'text-white' : 'text-purple-500'} />
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-[12px] font-medium text-gray-700">
-                                {gravando ? `Gravando... ${formatTime(tempoGravacao)}` : audioGravado ? 'Áudio gravado!' : 'Grave sua voz por 30 segundos'}
-                            </p>
-                            <p className="text-[9px] text-gray-400">
-                                {gravando ? 'Fale naturalmente sobre qualquer assunto' : audioGravado ? 'Ouça abaixo o resultado' : 'Fale naturalmente por 30 segundos'}
-                            </p>
-                        </div>
-                    </div>
-
-                    {gravando && (
-                        <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3">
-                            <div className="bg-red-500 h-1.5 rounded-full transition-all duration-1000" style={{ width: `${(tempoGravacao / 30) * 100}%` }} />
-                        </div>
-                    )}
-
-                    <div className="flex gap-2">
-                        {!gravando ? (
-                            <button
-                                onClick={iniciarGravacao}
-                                className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl text-[11px] font-medium bg-purple-500 text-white hover:bg-purple-600 transition-colors"
-                            >
-                                <Mic size={14} />
-                                {audioGravado ? 'Gravar novamente' : 'Começar a gravar'}
-                            </button>
-                        ) : (
-                            <button
-                                onClick={pararGravacao}
-                                className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl text-[11px] font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
-                            >
-                                <Square size={14} />
-                                Parar gravação
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {audioGravado && (
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="p-3 bg-gray-50 rounded-xl">
-                            <p className="text-[9px] uppercase tracking-wider text-gray-400 mb-2">Seu Áudio Original</p>
-                            <audio src={audioGravado} controls className="w-full h-8" />
-                        </div>
-                        <div className="p-3 bg-purple-50 rounded-xl">
-                            <p className="text-[9px] uppercase tracking-wider text-purple-400 mb-2">Sua Voz Clonada (IA)</p>
-                            <div className="flex items-center gap-2 p-2 bg-white rounded-lg text-[10px] text-gray-400">
-                                <Loader2 size={12} className="animate-spin text-purple-400" />
-                                Processando clone...
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {!podeAtivarClone && (
-                    <div className="p-3 rounded-xl bg-gradient-to-r from-purple-50 to-fuchsia-50 flex items-center gap-3">
-                        <Mic size={16} className="text-purple-500 flex-shrink-0" />
-                        <div className="flex-1">
-                            <p className="text-[11px] font-medium text-gray-700">Ative no Plano 3+ para usar sua voz</p>
-                            <p className="text-[9px] text-gray-400">Sua IARA vai falar com a SUA voz clonada</p>
-                        </div>
-                        <a href="/plano" className="text-[10px] font-medium px-3 py-1.5 rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors flex items-center gap-1">
-                            <Crown size={10} /> Upgrade
-                        </a>
-                    </div>
-                )}
-
-                {podeAtivarClone && audioGravado && (
-                    <button className="w-full text-[11px] font-medium px-3 py-2 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center gap-1.5 hover:bg-purple-100 transition-colors">
-                        <RefreshCw size={12} /> Re-treinar voz
-                    </button>
                 )}
             </div>
         </div>

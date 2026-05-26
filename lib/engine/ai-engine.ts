@@ -38,6 +38,7 @@ interface PromptContext {
     clinicaAbertaAgora?: boolean
     promocoesAtivas?: { nome: string; descricao: string | null; instrucaoIara: string | null; procedimentos: string[] }[]
     cursosAtivos?: { nome: string; modalidade: string; valor: number; duracao: string | null; descricao: string | null; link: string | null }[]
+    combosAtivos?: { nome: string; descricao: string | null; valorOriginal: number; valorCombo: number; procedimentos: string[] }[]
 }
 
 /**
@@ -48,7 +49,7 @@ interface PromptContext {
  * Obs: Histórico agora é passado diretamente na array de mensagens da API.
  */
 export function buildSystemPrompt(ctx: PromptContext): string {
-    const { clinica, mensagem, pushName, tipoEntrada, procedimentos, feedbacks, memoria, agendaContext, profissionais, cursosAtivos } = ctx
+    const { clinica, mensagem, pushName, tipoEntrada, procedimentos, feedbacks, memoria, agendaContext, profissionais, cursosAtivos, combosAtivos } = ctx
 
     const nivel = clinica.nivel || 1
 
@@ -154,14 +155,12 @@ export function buildSystemPrompt(ctx: PromptContext): string {
     // --- Instrução de Agendamento (OBRIGATÓRIA em todos os modos) ---
     catalogoTexto += `\n📅 COMO AGENDAR (REGRA OBRIGATÓRIA):
 📆 HOJE é ${dataHojeFormatada} (${hojeISO}). Amanhã = ${amanhaISO}.
-Quando a cliente CONFIRMAR data + horário, inclua NO FINAL da sua mensagem este marcador EXATAMENTE assim:
+Quando a cliente CONFIRMAR data + horário, você DEVE incluir NO FINAL da sua resposta este marcador exatamente assim:
 [AGENDAR:NomeDoProcedimento|YYYY-MM-DD|HH:MM|DuracaoEmMinutos${multiProf ? '|IdDoProfissional' : ''}]
 Exemplos:
-- "Perfeito, agendei!" + [AGENDAR:Micropigmentação|${hojeISO}|14:00|60${multiProf ? '|prof-id-aqui' : ''}]
-- "Confirmado para amanhã às 10h!" + [AGENDAR:Botox|${amanhaISO}|10:00|30${multiProf ? '|prof-id-aqui' : ''}]
-ESTE MARCADOR É INVISÍVEL para a cliente — ele dispara o sistema de agendamento automático.
-NUNCA mostre o marcador na conversa como texto visível. Apenas inclua ao final.
-Se a cliente ainda NÃO confirmou data+horário, NÃO use o marcador.
+- "Perfeito, agendei!" [AGENDAR:Micropigmentação|${hojeISO}|14:00|60${multiProf ? '|prof-id-aqui' : ''}]
+- "Confirmado para amanhã às 10h!" [AGENDAR:Botox|${amanhaISO}|10:00|30${multiProf ? '|prof-id-aqui' : ''}]
+IMPORTANTE: O sistema remove esse marcador de forma 100% automática antes do envio, garantindo que a cliente NÃO o veja. Por isso, você DEVE sim colocá-lo no final do seu texto sempre que confirmar um horário, caso contrário a consulta não será marcada no sistema!
 `
 
 
@@ -256,6 +255,23 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
             if (c.link) cursosTexto += `  🔗 Link: ${c.link}\n`
         })
         cursosTexto += `⚠️ Se a cliente perguntar sobre cursos, apresente as opções acima. Se tiver link, envie o link para inscrição.\n`
+    }
+
+    // --- Combos da Clínica ---
+    let combosTexto = ''
+    const combos = combosAtivos || []
+    if (combos.length > 0) {
+        const moedaLocal = clinica.moeda === 'USD' ? '$' : clinica.moeda === 'EUR' ? '€' : 'R$'
+        combosTexto = `\n📦 COMBOS DE PROCEDIMENTOS DISPONÍVEIS:\n`
+        combos.forEach(c => {
+            combosTexto += `• Combo: ${c.nome}`
+            if (c.valorCombo) combosTexto += ` — Por apenas ${moedaLocal} ${c.valorCombo}`
+            if (c.valorOriginal) combosTexto += ` (Valor original: ${moedaLocal} ${c.valorOriginal})`
+            combosTexto += `\n`
+            if (c.descricao) combosTexto += `  ℹ️ Descrição: ${c.descricao}\n`
+            if (c.procedimentos.length > 0) combosTexto += `  Procedimentos inclusos: ${c.procedimentos.join(', ')}\n`
+        })
+        combosTexto += `⚠️ Se a cliente perguntar sobre combos ou quiser fazer múltiplos procedimentos que estão inclusos em algum combo, ofereça e explique o combo acima.\n`
     }
 
     // --- Estilo de Atendimento (Direta vs Consultiva) ---
@@ -386,7 +402,7 @@ EXCEÇÃO ÚNICA: se a cliente mandou uma saudação ("oi", "boa tarde"), respon
         : ''
 
     // --- Regra de escopo (condicional se clínica vende cursos) ---
-    const vendemCursos = clinica.daCursos && (cursosAtivos || []).length > 0
+    const vendemCursos = (cursosAtivos || []).length > 0
     const escopoTexto = vendemCursos
         ? `🚫 ESCOPO OBRIGATÓRIO (LEIA COM ATENÇÃO MÁXIMA):
 - Você SÓ existe para AGENDAR procedimentos estéticos/clínicos listados no CATÁLOGO abaixo E para divulgar/vender os CURSOS da clínica. NADA MAIS. [V3]
@@ -425,7 +441,7 @@ ${escopoTexto}
 - Essa pergunta ajuda a personalizar a resposta e mostrar cuidado.
 - NÃO faça mais do que 1 pergunta por mensagem.
 ${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${feedbackTexto}${memoriaTexto}${sobreClinicaTexto}${configTomTexto}
-${linhaProf}${horarioContext}${agendaTexto}${cursosTexto}${cofre.leisImutaveis}
+${linhaProf}${horarioContext}${agendaTexto}${cursosTexto}${combosTexto}${cofre.leisImutaveis}
 
 ${funcs.vendas_7_passos ? cofre.roteiroVendas : '(Método de vendas desativado pela clínica — foque em informar preços e agendar diretamente.)'}
 

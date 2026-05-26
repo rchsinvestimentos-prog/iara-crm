@@ -137,6 +137,18 @@ export async function GET(req: Request) {
       } catch (dbErr) {
         console.error('[Status] Erro ao atualizar DB:', dbErr);
       }
+    } else {
+      try {
+        if (connected && number) {
+          await prisma.$queryRaw`
+            UPDATE users
+            SET whatsapp_clinica = ${number}
+            WHERE id = ${user.id}
+          `;
+        }
+      } catch (dbErr) {
+        console.error('[Status] Erro ao atualizar DB legado:', dbErr);
+      }
     }
 
     return NextResponse.json({

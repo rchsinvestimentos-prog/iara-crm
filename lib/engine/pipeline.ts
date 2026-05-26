@@ -281,17 +281,47 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
 
     // Buscar cursos (se a clínica vende cursos)
     let cursosAtivos: { nome: string; modalidade: string; valor: number; duracao: string | null; descricao: string | null; link: string | null }[] = []
-    if (clinica.daCursos) {
-        try {
-            cursosAtivos = await prisma.$queryRawUnsafe<any[]>(`
-                SELECT nome, modalidade, valor, duracao, descricao, link
-                FROM "Curso"
-                WHERE "clinicaId" = $1::text AND ativo = true
-                ORDER BY nome ASC
-            `, String(clinica.id))
-        } catch (e) {
-            // Silencioso — cursos são opcionais
-        }
+    try {
+        cursosAtivos = await prisma.$queryRawUnsafe<any[]>(`
+            SELECT nome, modalidade, valor, duracao, descricao, link
+            FROM "Curso"
+            WHERE "clinicaId" = $1::text AND ativo = true
+            ORDER BY nome ASC
+        `, String(clinica.id))
+    } catch (e) {
+        // Silencioso — cursos são opcionais
+    }
+
+    // Buscar combos ativos
+    let combosAtivos: { nome: string; descricao: string | null; valorOriginal: number; valorCombo: number; procedimentos: string[] }[] = []
+    try {
+        const combos = await prisma.combo.findMany({
+            where: {
+                clinicaId: String(clinica.id),
+                ativo: true
+            },
+            include: {
+                procedimentos: true
+            }
+        })
+        const procMap = new Map<string, string>()
+        procedimentosRaw.forEach((p: any) => {
+            procMap.set(String(p.id), p.nome)
+        })
+        combosAtivos = combos.map((c: any) => {
+            const procsNomes = c.procedimentos
+                .map((cp: any) => procMap.get(String(cp.procedimentoId)))
+                .filter(Boolean) as string[]
+            return {
+                nome: c.nome,
+                descricao: c.descricao,
+                valorOriginal: Number(c.valorOriginal || 0),
+                valorCombo: Number(c.valorCombo || 0),
+                procedimentos: procsNomes
+            }
+        })
+    } catch (e) {
+        // Silencioso — combos são opcionais
     }
 
     // Buscar promoções ativas
@@ -323,9 +353,10 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     const procFingerprint = createHash('md5').update(JSON.stringify(procedimentosRaw)).digest('hex')
     const profFingerprint = createHash('md5').update(JSON.stringify(profissionaisRaw)).digest('hex')
     const cursoFingerprint = createHash('md5').update(JSON.stringify(cursosAtivos)).digest('hex')
+    const comboFingerprint = createHash('md5').update(JSON.stringify(combosAtivos)).digest('hex')
     const promoFingerprint = createHash('md5').update(JSON.stringify(promocoesAtivas)).digest('hex')
     const feedbackFingerprint = createHash('md5').update(JSON.stringify(feedbacks) + (clinica.feedbacks || '')).digest('hex')
-    const clinicaFingerprint = `${clinica.updatedAt?.getTime() || 0}:${clinica.nomeAssistente || 'iara'}:${profFingerprint}:${procFingerprint}:${cursoFingerprint}:${promoFingerprint}:${feedbackFingerprint}`
+    const clinicaFingerprint = `${clinica.updatedAt?.getTime() || 0}:${clinica.nomeAssistente || 'iara'}:${profFingerprint}:${procFingerprint}:${cursoFingerprint}:${comboFingerprint}:${promoFingerprint}:${feedbackFingerprint}`
 
     // ================================================
     // 9. CACHE — Já respondeu isso recentemente?
@@ -346,7 +377,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // ================================================
     
     // Debug: logar tamanho do histórico e dados carregados
-    await logPipeline('CONTEXT', `historico=${historico.length} procs=${procedimentosRaw.length} profs=${profissionaisRaw.length} cursos=${cursosAtivos.length} feedbacks=${feedbacks.length} memoria=${memoriaCliente ? 'sim' : 'nao'} config.diferenciais=${!!(clinica as any).diferenciais}`)
+    await logPipeline('CONTEXT', `historico=${historico.length} procs=${procedimentosRaw.length} profs=${profissionaisRaw.length} cursos=${cursosAtivos.length} combos=${combosAtivos.length} feedbacks=${feedbacks.length} memoria=${memoriaCliente ? 'sim' : 'nao'} config.diferenciais=${!!(clinica as any).diferenciais}`)
 
     const systemPrompt = aiEngine.buildSystemPrompt({
         clinica,
@@ -362,6 +393,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         clinicaAbertaAgora: horario.aberto,
         promocoesAtivas,
         cursosAtivos,
+        combosAtivos,
     })
 
     await logPipeline('AI_CALL', `chamando IA... modelo=${(clinica.configuracoes as any)?.modelo_sonnet || 'default'}`)

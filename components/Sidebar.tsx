@@ -333,31 +333,7 @@ export default function Sidebar() {
                   <Users size={17} strokeWidth={1.8} />
                   <span>CRM / Contatos</span>
                 </Link>
-                <Link href="/promocoes" className={linkClass('/promocoes')}>
-                  <Tag size={17} strokeWidth={1.8} />
-                  <span>Promoções / Combos</span>
-                </Link>
 
-                {/* Equipe / Profissionais */}
-                <Link href="/equipe" className={linkClass('/equipe')}>
-                  <UsersRound size={17} strokeWidth={1.8} />
-                  <span>Equipe</span>
-                </Link>
-
-                {/* Multi-Clínica — visível para todos, bloqueado para não-Premium */}
-                <Link href="/clinicas" className={linkClass('/clinicas')}>
-                  <Building2 size={17} strokeWidth={1.8} />
-                  <span className="flex-1">Multi-Clínica</span>
-                  {planoAtual < 3 && (
-                    <span style={{
-                      fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px',
-                      color: '#D99773', background: 'rgba(217,151,115,0.1)', padding: '2px 6px',
-                      borderRadius: 6, lineHeight: 1.4,
-                    }}>
-                      PREMIUM
-                    </span>
-                  )}
-                </Link>
               </div>
 
               {/* Separator */}

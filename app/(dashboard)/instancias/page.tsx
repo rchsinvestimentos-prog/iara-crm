@@ -124,14 +124,14 @@ export default function ConexoesPage() {
                 fetch(`/api/instancias/status?id=${inst.id}`)
                     .then(res => res.json())
                     .then(data => {
-                        if (data.connected && inst.status_conexao !== 'conectado') {
+                        if (data.connected) {
                             // Atualizar no state local
                             setInstancias(prev => prev.map(i =>
                                 i.id === inst.id
                                     ? { ...i, status_conexao: 'conectado', numero_whatsapp: data.number || i.numero_whatsapp }
                                     : i
                             ));
-                        } else if (!data.connected && inst.status_conexao === 'conectado') {
+                        } else {
                             setInstancias(prev => prev.map(i =>
                                 i.id === inst.id ? { ...i, status_conexao: 'desconectado' } : i
                             ));
