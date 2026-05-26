@@ -91,7 +91,7 @@ export async function GET(req: Request) {
   return NextResponse.json({
     instancias,
     limites,
-    plano: user.plano,
+    plano: user.nivel || 1,
     calendarConnected,
     calendarId,
     appleCalendarConnected,

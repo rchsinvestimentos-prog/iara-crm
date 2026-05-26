@@ -142,6 +142,14 @@ export default function AtendimentoTool() {
             const funcsObj: Record<string, boolean> = {}
             funcionalidades.forEach(f => { funcsObj[f.id] = f.ativo })
 
+            // Auto-incluir feedback do input pendente se o usuário não clicou no botão de "+"
+            let feedbacksAtualizados = [...feedbacks]
+            if (novoFeedback.trim()) {
+                feedbacksAtualizados.push(novoFeedback.trim())
+                setFeedbacks(feedbacksAtualizados)
+                setNovoFeedback('')
+            }
+
             const res = await fetch('/api/clinica', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -152,7 +160,7 @@ export default function AtendimentoTool() {
                     emojis,
                     fraseDespedida: fraseFavorita,
                     funcionalidades: JSON.stringify(funcsObj),
-                    feedbacks: JSON.stringify(feedbacks),
+                    feedbacks: JSON.stringify(feedbacksAtualizados),
                     modoIA,
                     sempreLigada,
                     horarioInicio,
@@ -189,10 +197,21 @@ export default function AtendimentoTool() {
         setSavingBloco(blocoId)
         setSavedBloco(null)
         try {
+            let dadosParaEnviar = { ...dados }
+            if (blocoId === 'feedbacks') {
+                let feedbacksAtualizados = [...feedbacks]
+                if (novoFeedback.trim()) {
+                    feedbacksAtualizados.push(novoFeedback.trim())
+                    setFeedbacks(feedbacksAtualizados)
+                    setNovoFeedback('')
+                }
+                dadosParaEnviar = { feedbacks: JSON.stringify(feedbacksAtualizados) }
+            }
+
             const res = await fetch('/api/clinica', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dados),
+                body: JSON.stringify(dadosParaEnviar),
             })
             if (res.ok) {
                 setSavedBloco(blocoId)

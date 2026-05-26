@@ -13,13 +13,13 @@ export async function GET() {
         // Verificar se plano >= 2
         const clinica = await prisma.clinica.findUnique({
             where: { id: clinicaId },
-            select: { plano: true },
+            select: { plano: true, nivel: true },
         })
-        if (!clinica || clinica.plano < 2) {
+        if (!clinica || clinica.nivel < 2) {
             return NextResponse.json({
                 error: 'Instagram disponível a partir do Plano Estrategista (2)',
                 planoNecessario: 2,
-                planoAtual: clinica?.plano || 1,
+                planoAtual: clinica?.nivel || 1,
             }, { status: 403 })
         }
 
@@ -59,9 +59,9 @@ export async function POST(request: NextRequest) {
 
         const clinica = await prisma.clinica.findUnique({
             where: { id: clinicaId },
-            select: { plano: true },
+            select: { plano: true, nivel: true },
         })
-        if (!clinica || clinica.plano < 2) {
+        if (!clinica || clinica.nivel < 2) {
             return NextResponse.json({ error: 'Plano 2+ necessário' }, { status: 403 })
         }
 
