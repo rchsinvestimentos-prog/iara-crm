@@ -304,9 +304,15 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
 
     // --- Formas de pagamento ---
     if (clinica.formasPagamento && typeof clinica.formasPagamento === 'object') {
-        const fp = clinica.formasPagamento
+        const fp = clinica.formasPagamento as any
         const formas: string[] = []
-        if (fp.pix) formas.push('Pix')
+        if (fp.pix) {
+            let pixStr = 'Pix'
+            if (fp.chavePix && String(fp.chavePix).trim() !== '') {
+                pixStr += ` (Chave PIX: ${String(fp.chavePix).trim()})`
+            }
+            formas.push(pixStr)
+        }
         if (fp.dinheiro) formas.push('Dinheiro')
         if (fp.credito) formas.push(`Cartão de crédito${fp.parcelasMax ? ` (até ${fp.parcelasMax}x)` : ''}`)
         if (fp.debito) formas.push('Cartão de débito')
