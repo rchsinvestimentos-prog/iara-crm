@@ -176,7 +176,8 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
 
     // --- Feedbacks da Dra ---
     // Dois tipos: (1) instruções permanentes do painel (clinica.feedbacks) e (2) comandos realtime via WhatsApp (feedback_iara table)
-    let feedbackTexto = ''
+    // NOTA: feedbacks NÃO são mais injetados aqui no meio do prompt.
+    // Eles são movidos para o FINAL do prompt com prioridade máxima (seção "INSTRUÇÕES DA DONA").
     
     // Normalizar feedbacks do painel — pode ser string JSON, array, ou null
     let feedbackPainelTexto = ''
@@ -203,17 +204,6 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
     
     const temFeedbackPainel = feedbackPainelTexto.length > 0
     const temFeedbackRealtime = feedbacks.length > 0
-    if (temFeedbackPainel || temFeedbackRealtime) {
-        feedbackTexto = `\n🧠 ${labels.orientacoesDra}:\n`
-        // Instruções do painel (campo "Instruções Extras / Feedbacks")
-        if (temFeedbackPainel) {
-            feedbackTexto += `- ${feedbackPainelTexto}\n`
-        }
-        // Comandos realtime enviados via WhatsApp pela Dra
-        feedbacks.forEach((fb) => {
-            feedbackTexto += `- ${fb.regra}\n`
-        })
-    }
 
     // --- Memória da Cliente ---
     let memoriaTexto = ''
@@ -352,22 +342,34 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
     const configTom: string[] = []
     if (clinica.tomAtendimento && clinica.tomAtendimento !== 'padrao') {
         const tons: Record<string, string> = {
-            'formal': 'Use tom formal e profissional. Evite gírias.',
-            'amigavel': 'Use tom amigável e acolhedor. Seja próxima.',
+            'formal': 'Use tom formal e profissional. Evite gírias e coloquialismos.',
+            'informal': 'Use tom informal e próximo. Gírias leves são bem-vindas.',
+            'amigavel': 'Use tom amigável e acolhedor. Seja próxima e calorosa.',
             'descontraido': 'Use tom descontraído e leve. Bom humor natural.',
-            'luxo': 'Use tom sofisticado e premium. Linguagem elegante.',
+            'luxo': 'Use tom sofisticado e premium. Linguagem elegante e refinada.',
         }
         if (tons[clinica.tomAtendimento]) configTom.push(tons[clinica.tomAtendimento])
     }
-    if (clinica.humor) configTom.push(`Nível de humor: ${clinica.humor}`)
-    if (clinica.emojis) {
-        const emojiConfig: Record<string, string> = {
-            'nenhum': 'NÃO use emojis.',
-            'pouco': 'Use emojis com moderação (1-2 por mensagem).',
-            'moderado': 'Use emojis normalmente.',
-            'muito': 'Use bastante emojis para dar vida às mensagens.',
+    if (clinica.humor) {
+        const humorMap: Record<string, string> = {
+            'nenhum': 'ZERO humor — seja 100% direta e profissional. Sem brincadeiras, piadas ou descontração.',
+            'pouco': 'Humor discreto — seja profissional com leve descontração quando apropriado.',
+            'amigavel': 'Humor amigável — seja leve e acolhedora, com naturalidade.',
+            'moderado': 'Humor moderado — use bom humor para deixar a conversa agradável.',
+            'muito': 'Humor alto — seja descontraída, use expressões engraçadas e divertidas.',
         }
-        if (emojiConfig[clinica.emojis]) configTom.push(emojiConfig[clinica.emojis])
+        configTom.push(humorMap[clinica.humor] || `Nível de humor: ${clinica.humor}`)
+    }
+    // Config de emojis (será reforçada no final do prompt)
+    const emojiLevel = clinica.emojis || 'moderado'
+    if (emojiLevel) {
+        const emojiConfig: Record<string, string> = {
+            'nenhum': 'NÃO use emojis em NENHUMA circunstância. ZERO emojis.',
+            'pouco': 'Use emojis com moderação (máximo 1-2 por mensagem).',
+            'moderado': 'Use emojis normalmente para dar vida às mensagens.',
+            'muito': 'Use bastante emojis para dar vida e expressão às mensagens.',
+        }
+        if (emojiConfig[emojiLevel]) configTom.push(emojiConfig[emojiLevel])
     }
     if (clinica.mensagemBoasVindas) configTom.push(`Na PRIMEIRA mensagem com uma cliente NOVA, use esta saudação personalizada: "${clinica.mensagemBoasVindas}"`)
     if (clinica.fraseDespedida) configTom.push(`Ao encerrar a conversa (após confirmar agendamento), finalize com: "${clinica.fraseDespedida}"`)
@@ -415,6 +417,64 @@ EXCEÇÃO ÚNICA: se a cliente mandou uma saudação ("oi", "boa tarde"), respon
 - NUNCA INICIE conversa sobre: marketing, posicionamento, branding, redes sociais, faturamento, consultoria, mentoria, cursos de negócios, estratégia digital, ou QUALQUER tema que não seja agendamento de procedimento estético.
 - AMNÉSIA DE CATÁLOGO: O CATÁLOGO abaixo é a ÚNICA fonte da verdade atualizada neste exato segundo. Se o histórico da conversa mencionar qualquer procedimento, preço ou profissional que NÃO ESTEJA mais no catálogo abaixo, IGNORE O HISTÓRICO. Assuma que o serviço foi descontinuado ou que você cometeu um erro anteriormente.`
 
+    // --- Sanitizar emojis do cofre quando config diz 'nenhum' ---
+    let cofreLeisFinais = cofre.leisImutaveis
+    let cofreRoteiroFinal = cofre.roteiroVendas
+    let cofreObjecoesFinal = cofre.arsenalDeObjecoes
+    let comoFalarFinal = labels.comoFalar
+    if (emojiLevel === 'nenhum') {
+        const stripEmojis = (text: string): string => text
+            .replace(/[\u{1F600}-\u{1F64F}]/gu, '')
+            .replace(/[\u{1F300}-\u{1F5FF}]/gu, '')
+            .replace(/[\u{1F680}-\u{1F6FF}]/gu, '')
+            .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '')
+            .replace(/[\u{2600}-\u{26FF}]/gu, '')
+            .replace(/[\u{2700}-\u{27BF}]/gu, '')
+            .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
+            .replace(/[\u{1F900}-\u{1F9FF}]/gu, '')
+            .replace(/[\u{1FA00}-\u{1FA6F}]/gu, '')
+            .replace(/[\u{1FA70}-\u{1FAFF}]/gu, '')
+            .replace(/[\u{200D}]/gu, '')
+            .replace(/[\u{20E3}]/gu, '')
+            .replace(/[\u{E0020}-\u{E007F}]/gu, '')
+            .replace(/[\u{2702}-\u{27B0}]/gu, '')
+            .replace(/[\u{FE0F}]/gu, '')
+            .replace(/\s{2,}/g, ' ')
+        cofreLeisFinais = stripEmojis(cofreLeisFinais)
+        cofreRoteiroFinal = stripEmojis(cofreRoteiroFinal)
+        cofreObjecoesFinal = stripEmojis(cofreObjecoesFinal)
+        comoFalarFinal = stripEmojis(comoFalarFinal)
+    }
+
+    // --- Bloco de configurações da dona (prioridade máxima, vai no FINAL do prompt) ---
+    const configDonaLinhas: string[] = []
+    // Feedbacks do painel (campo clinica.feedbacks)
+    if (temFeedbackPainel) {
+        configDonaLinhas.push(`- ${feedbackPainelTexto}`)
+    }
+    // Feedbacks realtime (tabela feedback_iara via WhatsApp)
+    feedbacks.forEach((fb) => {
+        configDonaLinhas.push(`- ${fb.regra}`)
+    })
+    // Config de emojis reforçada
+    if (emojiLevel === 'nenhum') {
+        configDonaLinhas.push('- PROIBIDO usar emojis. ZERO emojis na resposta. Sem exceção.')
+    } else if (emojiLevel === 'pouco') {
+        configDonaLinhas.push('- Use no MÁXIMO 1-2 emojis por mensagem. Moderação total.')
+    }
+    // Tom reforçado
+    if (clinica.tomAtendimento === 'formal') {
+        configDonaLinhas.push('- Tom FORMAL. Nada de gírias, "vc", "tá", "pra". Linguagem profissional.')
+    }
+
+    const configDonaTexto = configDonaLinhas.length > 0
+        ? `\n🚨🚨🚨 INSTRUÇÕES DA DONA DA CLÍNICA — PRIORIDADE MÁXIMA 🚨🚨🚨
+Essas instruções foram definidas PELA DONA DA CLÍNICA e TÊM PRIORIDADE SOBRE QUALQUER OUTRA REGRA DESTE PROMPT.
+Se algo abaixo contradisser regras anteriores, OBEDEÇA O QUE ESTÁ AQUI:
+${configDonaLinhas.join('\n')}
+🚨🚨🚨 FIM DAS INSTRUÇÕES DA DONA — PRIORIDADE MÁXIMA 🚨🚨🚨`
+        : ''
+
     return `${roleDesc}
 ${regraHistorico}
 🎯 SUA META #1: AGENDAR. Toda conversa deve caminhar para um agendamento.
@@ -424,14 +484,14 @@ ${escopoTexto}
 - Se a cliente chega com mensagem genérica (ex: "oi", "olá"), responda com acolhimento + pergunte qual procedimento ela tem interesse. NÃO invente contexto sobre o que a cliente "quer" ou "precisa".
 - Se a mensagem contém um @ (Instagram), NÃO faça análise do perfil. NÃO comente sobre o perfil. Apenas acolha e pergunte como pode ajudar com os procedimentos.
 - NUNCA compartilhe, copie, invente ou repita números de telefone/WhatsApp de NENHUMA fonte, nem da mensagem da cliente.
-- Se a mensagem da cliente parecer um formulário (campos "Nome:", "WhatsApp:", "Instagram:") → responda só "Oi [nome]! Obrigada pelo contato 😊 Como posso te ajudar?"
+- Se a mensagem da cliente parecer um formulário (campos "Nome:", "WhatsApp:", "Instagram:") → responda só "Oi [nome]! Obrigada pelo contato! Como posso te ajudar?"
 
 💰 REGRAS DE PREÇO E CATÁLOGO:
 - NUNCA liste todos os procedimentos com preços de uma vez como um cardápio. Isso soa robotizado e não vende.
 - Se a cliente perguntar "quais serviços/procedimentos vocês fazem?": diga de forma natural os NOMES dos principais procedimentos (sem preço!) e pergunte qual desperta mais o interesse dela.
 - SÓ fale o preço DEPOIS de: (1) entender o que ela busca, (2) explicar como o procedimento resolve o problema DELA, (3) mostrar o valor/transformação.
 - Se a cliente insistir no preço direto: diga o valor com confiança + parcelas se houver. Sem enrolar.
-- NUNCA mostre o preço entre parênteses com duração como se fosse uma tabela. Fale naturalmente: "O investimento é de R$ X, e a sessão dura Y minutes."
+- NUNCA mostre o preço entre parênteses com duração como se fosse uma tabela. Fale naturalmente: "O investimento é de R$ X, e a sessão dura Y minutos."
 
 🔍 SONDAGEM OBRIGATÓRIA (antes de falar de procedimento):
 - Quando a cliente demonstra interesse em algo, faça pelo menos UMA pergunta de sondagem antes de apresentar a solução:
@@ -440,19 +500,20 @@ ${escopoTexto}
   → "Tem alguma referência de como gostaria que ficasse?"
 - Essa pergunta ajuda a personalizar a resposta e mostrar cuidado.
 - NÃO faça mais do que 1 pergunta por mensagem.
-${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${feedbackTexto}${memoriaTexto}${sobreClinicaTexto}${configTomTexto}
-${linhaProf}${horarioContext}${agendaTexto}${cursosTexto}${combosTexto}${cofre.leisImutaveis}
+${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${memoriaTexto}${sobreClinicaTexto}${configTomTexto}
+${linhaProf}${horarioContext}${agendaTexto}${cursosTexto}${combosTexto}${cofreLeisFinais}
 
-${funcs.vendas_7_passos ? cofre.roteiroVendas : '(Método de vendas desativado pela clínica — foque em informar preços e agendar diretamente.)'}
+${funcs.vendas_7_passos ? cofreRoteiroFinal : '(Método de vendas desativado pela clínica — foque em informar preços e agendar diretamente.)'}
 
-${cofre.arsenalDeObjecoes}
+${cofreObjecoesFinal}
 
-${labels.comoFalar}
+${comoFalarFinal}
 NÃO VÁ DIRETO PARA A SONDAGEM. Primeiro, acolhimento. Siga PASSO A PASSO, uma mensagem por vez.
 EXCEÇÃO: Se a cliente quer AGENDAR e já sabe o que quer, é FECHAMENTO — não enrole.
 NOME DA CLIENTE COM QUEM VOCÊ ESTÁ FALANDO AGORA: ${nomeCliente}
 ${tipoEntrada === 'audio' ? `\n🎤 REGRA DE ÁUDIO: Sua resposta será convertida em VOZ. Escreva TODAS as palavras POR EXTENSO:\n- NUNCA use: HRS, h, min, Dra., Dr., nº, R$, %, etc.\n- Escreva: "horas", "minutos", "Doutora", "Doutor", "número", "reais", "por cento"\n- Escreva números de telefone dígito por dígito\n- NÃO use emojis (eles não são falados)\n` : ''}
-${temHistorico ? `\n🔁 LEMBRETE FINAL: NÃO comece com "Oi" — esta conversa já está em andamento.` : ''}`
+${temHistorico ? `\n🔁 LEMBRETE FINAL: NÃO comece com "Oi" — esta conversa já está em andamento.` : ''}
+${configDonaTexto}`
 }
 
 // ============================================

@@ -35,6 +35,36 @@ import { prisma } from '@/lib/prisma'
 import { createHash } from 'crypto'
 
 // ============================================
+// HELPER: Emoji-safe — respeita config da clínica
+// ============================================
+
+/** Retorna o emoji se a clínica permite, ou string vazia se emojis='nenhum'. */
+function safeEmoji(clinica: DadosClinica, emoji: string): string {
+    if (clinica.emojis === 'nenhum') return ''
+    return emoji
+}
+
+/** Limpa emojis de um texto se a clínica não quer emojis. */
+function stripEmojisIfNeeded(clinica: DadosClinica, texto: string): string {
+    if (clinica.emojis !== 'nenhum') return texto
+    return texto
+        .replace(/[\u{1F600}-\u{1F64F}]/gu, '')
+        .replace(/[\u{1F300}-\u{1F5FF}]/gu, '')
+        .replace(/[\u{1F680}-\u{1F6FF}]/gu, '')
+        .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '')
+        .replace(/[\u{2600}-\u{26FF}]/gu, '')
+        .replace(/[\u{2700}-\u{27BF}]/gu, '')
+        .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
+        .replace(/[\u{1F900}-\u{1F9FF}]/gu, '')
+        .replace(/[\u{1FA00}-\u{1FA6F}]/gu, '')
+        .replace(/[\u{1FA70}-\u{1FAFF}]/gu, '')
+        .replace(/[\u{200D}]/gu, '')
+        .replace(/[\u{20E3}]/gu, '')
+        .replace(/[\u{2702}-\u{27B0}]/gu, '')
+        .replace(/\s{2,}/g, ' ').trim()
+}
+
+// ============================================
 // MAIN PIPELINE
 // ============================================
 
@@ -94,7 +124,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
             const feedback = memory.detectFeedback(msg.mensagem, msg.telefone, clinica.whatsappDoutora || '')
             if (feedback.isFeedback) {
                 await memory.saveDraFeedback(clinica.id, feedback.regra)
-                await sender.sendText(sendOpts, 'Perfeito, Dra! ✅ Feedback registrado.')
+                await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, 'Perfeito, Dra! ✅ Feedback registrado.'))
                 return
             }
 
@@ -109,7 +139,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
                     }
                 } catch (agentErr) {
                     console.error('[Pipeline] Agent Dra error:', agentErr)
-                    await sender.sendText(sendOpts, 'Desculpa Dra, tive um probleminha técnico. 😅 Pode repetir?')
+                    await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, 'Desculpa Dra, tive um probleminha técnico. Pode repetir?'))
                 }
                 return
             }
@@ -146,7 +176,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         } else {
             // Encaminhar foto desligado — manda ack simples sem alertar profissionais
             const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
-            await sender.sendText(sendOpts, 'Recebi! ✨ Vou encaminhar pra equipe, tá? 😊')
+            await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, 'Recebi! ✨ Vou encaminhar pra equipe, tá? 😊'))
             await memory.saveToHistory(clinica.id, msg.telefone, 'user', `[${msg.tipoMensagem.toUpperCase()} ENVIADO]`, msg.pushName)
             console.log(`[Pipeline] 📸 Mídia recebida mas encaminhar_foto=OFF — sem alerta`)
         }
@@ -162,7 +192,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
             await prisma.$executeRaw`DELETE FROM historico_conversas WHERE user_id = ${clinica.id} AND telefone_cliente = ${msg.telefone}`
             await prisma.$executeRaw`DELETE FROM cache_respostas WHERE user_id = ${clinica.id}`
             const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
-            await sender.sendText(sendOpts, '✅ Histórico de conversa e cache limpos com sucesso! Pode começar uma nova conversa de teste. (Esta mensagem não cobrou crédito)')
+            await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, '✅ Histórico de conversa e cache limpos com sucesso! Pode começar uma nova conversa de teste. (Esta mensagem não cobrou crédito)'))
             console.log(`[Pipeline] 🧹 Histórico resetado para ${msg.telefone}`)
             return
         }
@@ -170,7 +200,8 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         // Só emojis? Responde com 😊 e pronto
         if (isEmojiOnly(msg.mensagem)) {
             const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
-            await sender.sendText(sendOpts, '😊')
+            const emojiReply = clinica.emojis === 'nenhum' ? ':)' : '😊'
+            await sender.sendText(sendOpts, emojiReply)
             console.log(`[Pipeline] 😊 Emoji-only de ${msg.telefone} → respondeu com 😊`)
             return
         }
@@ -227,7 +258,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         if (!funcs.transcrever_audio) {
             await logPipeline('SKIP', `transcrever_audio=OFF — não transcreve áudio`)
             const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
-            await sender.sendText(sendOpts, 'Oi! No momento não estou conseguindo ouvir áudios 🙈 Pode me mandar por texto? Assim consigo te ajudar rapidinho! 😊')
+            await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, 'Oi! No momento não estou conseguindo ouvir áudios 🙈 Pode me mandar por texto? Assim consigo te ajudar rapidinho! 😊'))
             await memory.saveToHistory(clinica.id, msg.telefone, 'user', '[ÁUDIO - não transcrito]', msg.pushName)
             return
         }
@@ -476,7 +507,7 @@ async function finalizarResposta(
     if (audioBase64Resposta) {
         await sender.sendAudio(sendOpts, audioBase64Resposta)
     } else {
-        await sender.sendText(sendOpts, respostaTexto)
+        await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, respostaTexto))
     }
 
     // Salvar no histórico
@@ -602,7 +633,7 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
     const tipoEmoji = msg.tipoMensagem === 'document' ? '📄' : '📸'
 
     // 1. Avisa a cliente que recebeu (SEM pausar)
-    await sender.sendText(sendOpts, `Recebi ${msg.tipoMensagem === 'document' ? 'seu documento' : 'sua ' + tipoLabel}! ✨ Já encaminhei agora mesmo pra Doutora dar uma olhada. Assim que ela ver, já te damos um retorno, tá? 😊`)
+    await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, `Recebi ${msg.tipoMensagem === 'document' ? 'seu documento' : 'sua ' + tipoLabel}! ✨ Já encaminhei agora mesmo pra Doutora dar uma olhada. Assim que ela ver, já te damos um retorno, tá? 😊`))
 
     // 2. Alerta a Dra E profissionais no WhatsApp pessoal
     const alertaMensagem = `${tipoEmoji} *${nomeCliente}* mandou ${msg.tipoMensagem === 'document' ? 'um documento' : (msg.tipoMensagem === 'image' ? 'uma foto' : 'um vídeo')}${msg.tipoMensagem === 'document' && msg.mensagem ? ' (' + msg.mensagem + ')' : ''}\n📱 ${msg.telefone}\n\nDra, abra o WhatsApp da clínica pra ver.\n\n*O que eu faço?*\n\n1️⃣ *Me mande a resposta* — escreva ou mande áudio com o que devo dizer. Eu adapto e te mostro antes de enviar.\n\n2️⃣ *"Eu assumo"* — responda direto à cliente que eu pauso 3h.\n\n3️⃣ *"${nomeIA} lembre em X min"* — aviso a cliente que a Dra tá analisando e volto depois.`
@@ -669,7 +700,7 @@ function checkBusinessHours(clinica: DadosClinica): HorarioCheck {
                 debugInfo: `Dom ${horaAtual.toFixed(1)} - não atende dom`
             }
         }
-        horarioTexto = (clinica as any).horarioDomingo || horarioTexto
+        horarioTexto = clinica.horarioDomingo || horarioTexto
     } else if (diaSemana === 6) { // Sábado
         if (!clinica.atendeSabado) {
             return {
@@ -678,7 +709,7 @@ function checkBusinessHours(clinica: DadosClinica): HorarioCheck {
                 debugInfo: `Sab ${horaAtual.toFixed(1)} - não atende sab`
             }
         }
-        horarioTexto = (clinica as any).horarioSabado || horarioTexto
+        horarioTexto = clinica.horarioSabado || horarioTexto
     }
 
     // Parse "08:00 às 18:00"
@@ -709,17 +740,27 @@ function parseHorario(texto: string): { inicio: number, fim: number } {
 }
 
 function buildMsgFechado(clinica: DadosClinica, voltaQuando: string): string {
+    // Se a clínica tem mensagem personalizada de fora do horário, usar ela
+    if (clinica.mensagemForaHorario) {
+        // Substituir placeholders comuns
+        let msg = clinica.mensagemForaHorario
+        msg = msg.replace(/\{hora\}/gi, voltaQuando)
+        msg = msg.replace(/\{horario\}/gi, voltaQuando)
+        msg = msg.replace(/\{clinica\}/gi, clinica.nomeClinica || 'a clínica')
+        return stripEmojisIfNeeded(clinica, msg)
+    }
+
     const nomeClinica = clinica.nomeClinica || 'o studio'
     const idioma = clinica.idioma || 'pt-BR'
 
     if (idioma === 'en-US') {
-        return `Hey! 😊 We're currently closed. We'll be back at ${voltaQuando}. Leave your message and we'll reach out as soon as we open! ✨`
+        return stripEmojisIfNeeded(clinica, `Hey! 😊 We're currently closed. We'll be back at ${voltaQuando}. Leave your message and we'll reach out as soon as we open! ✨`)
     }
     if (idioma === 'es') {
-        return `¡Hola! 😊 En este momento estamos cerrados. Volvemos a las ${voltaQuando}. ¡Deja tu mensaje y te contactamos apenas abramos! ✨`
+        return stripEmojisIfNeeded(clinica, `¡Hola! 😊 En este momento estamos cerrados. Volvemos a las ${voltaQuando}. ¡Deja tu mensaje y te contactamos apenas abramos! ✨`)
     }
 
-    return `Oi, tudo bem? 😊\n\nEssa é uma resposta automática. No momento ${nomeClinica} está fechado, mas voltamos às *${voltaQuando}*.\n\nAssim que voltarmos, já chamamos você por aqui. É só aguardar! ✨`
+    return stripEmojisIfNeeded(clinica, `Oi, tudo bem? 😊\n\nEssa é uma resposta automática. No momento ${nomeClinica} está fechado, mas voltamos às *${voltaQuando}*.\n\nAssim que voltarmos, já chamamos você por aqui. É só aguardar! ✨`)
 }
 
 async function handleForaDoHorario(clinica: DadosClinica, msg: MensagemRecebida, mensagem: string): Promise<void> {
