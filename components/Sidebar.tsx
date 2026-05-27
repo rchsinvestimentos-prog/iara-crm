@@ -46,6 +46,7 @@ export default function Sidebar() {
   const { data: session } = useSession()
   const isAdmin = (session?.user as any)?.userType === 'admin'
   const isProfissional = (session?.user as any)?.userType === 'profissional'
+  const isTester = (session?.user as any)?.role === 'tester'
   const profissionalNome = isProfissional ? (session?.user as any)?.name || 'Profissional' : ''
   const [mobileOpen, setMobileOpen] = useState(false)
   const [planoAtual, setPlanoAtual] = useState(1)
@@ -355,6 +356,22 @@ export default function Sidebar() {
                   <CreditCard size={17} strokeWidth={1.8} />
                   <span>Meu Plano</span>
                 </Link>
+                {isTester && (
+                  <>
+                    <div className="flex items-center gap-2 px-3 mb-2 mt-4">
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-[#D99773]">Novos Recursos 🧪</span>
+                      <div className="flex-1 h-px bg-white/5" />
+                    </div>
+                    <Link href="/anamnese" className={linkClass('/anamnese')}>
+                      <Stethoscope size={17} strokeWidth={1.8} />
+                      <span>Ficha de Anamnese</span>
+                    </Link>
+                    <Link href="/integracoes-agenda" className={linkClass('/integracoes-agenda')}>
+                      <Link2 size={17} strokeWidth={1.8} />
+                      <span>Integração de Agenda</span>
+                    </Link>
+                  </>
+                )}
               </div>
             </>
           )}
