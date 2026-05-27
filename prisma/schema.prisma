@@ -555,3 +555,33 @@ model Agendamento {
   @@index([status])
   @@map("agendamentos_v2")
 }
+
+model ModeloAnamnese {
+  id        String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId Int      @map("clinica_id")
+  titulo    String
+  perguntas Json     // JSON com as perguntas dinâmicas [{tipo, label, opcoes, obrigatorio}]
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("modelos_anamnese")
+}
+
+model FichaPreenchida {
+  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId       Int      @map("clinica_id")
+  contatoId       Int      @map("contato_id")
+  titulo          String
+  respostas       Json     // Respostas do formulário {perguntaId: resposta}
+  
+  // Trilha de Evidências Criptográficas (Validade Jurídica)
+  assinaturaPng   String   @map("assinatura_png") @db.Text // Desenho em Base64
+  dataAssinatura  DateTime @default(now()) @map("data_assinatura")
+  ipOrigem        String   @map("ip_origem") @db.VarChar(50)
+  userAgent       String   @map("user_agent") @db.VarChar(500)
+  hashIntegridade String   @map("hash_integridade") @db.VarChar(64) // SHA-256 Hash
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("fichas_preenchidas")
+}
