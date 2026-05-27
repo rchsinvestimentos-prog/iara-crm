@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail, MoreHorizontal, KeyRound, Ban, Settings, Trash2, LogIn, CreditCard, ArrowUpDown } from 'lucide-react'
+import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail, MoreHorizontal, KeyRound, Ban, Settings, Trash2, LogIn, CreditCard, ArrowUpDown, RefreshCw } from 'lucide-react'
 
 interface Clinica {
     id: number
@@ -45,6 +45,7 @@ export default function AdminClinicas() {
     const [busca, setBusca] = useState('')
     const [showModal, setShowModal] = useState(false)
     const [saving, setSaving] = useState(false)
+    const [refreshingGeral, setRefreshingGeral] = useState(false)
     const [msg, setMsg] = useState('')
     const [resultado, setResultado] = useState<{ senha: string; email: string; emailStatus?: string; whatsappStatus?: string } | null>(null)
     const [copiado, setCopiado] = useState(false)
@@ -129,6 +130,7 @@ export default function AdminClinicas() {
         if (acao === 'bloquear' && !confirm('Deseja realmente alterar o status (Bloquear/Desbloquear) desta clínica?')) return
         if (acao === 'reenviar' && !confirm('Deseja gerar uma NOVA SENHA e reenviar por email+whatsapp para o cliente?')) return
         if (acao === 'excluir' && !confirm('⚠️ ATENÇÃO: Isso vai EXCLUIR permanentemente a clínica, todos os dados e a instância na Evolution API. Tem certeza?')) return
+        if (acao === 'refresh' && !confirm('Deseja realmente limpar o cache de respostas e forçar o reload do prompt/configs desta clínica?')) return
 
         try {
             const r = await fetch(`/api/admin/clinicas/${id}/acao`, {
@@ -151,6 +153,27 @@ export default function AdminClinicas() {
         } catch (e) {
             alert('Erro de comunicação com o servidor')
         }
+    }
+
+    async function refreshGeral() {
+        if (!confirm('🚨 ATENÇÃO: Deseja realmente atualizar TODAS as clínicas e limpar todos os caches de mensagens? Isso fará com que todas as IAs usem a última versão das atualizações.')) return
+        setRefreshingGeral(true)
+        try {
+            const r = await fetch('/api/admin/clinicas/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            const data = await r.json()
+            if (r.ok) {
+                alert(data.message || 'Atualização geral executada com sucesso!')
+                load()
+            } else {
+                alert(data.error || 'Erro ao executar atualização geral')
+            }
+        } catch {
+            alert('Erro de comunicação com o servidor')
+        }
+        setRefreshingGeral(false)
     }
 
     async function liberarCreditos() {
@@ -212,13 +235,23 @@ export default function AdminClinicas() {
                         />
                     </div>
                     {canCreate && (
-                        <button
-                            onClick={() => setShowModal(true)}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:scale-105"
-                            style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)', color: '#fff' }}
-                        >
-                            <Plus size={16} /> Nova Clínica
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={refreshGeral}
+                                disabled={refreshingGeral}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border border-white/10 hover:bg-white/5 disabled:opacity-50 text-gray-300"
+                            >
+                                <RefreshCw size={16} className={refreshingGeral ? 'animate-spin' : ''} />
+                                {refreshingGeral ? 'Atualizando...' : 'Refresh Geral'}
+                            </button>
+                            <button
+                                onClick={() => setShowModal(true)}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:scale-105"
+                                style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)', color: '#fff' }}
+                            >
+                                <Plus size={16} /> Nova Clínica
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
@@ -324,6 +357,7 @@ export default function AdminClinicas() {
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'reenviar') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><KeyRound size={14} className="text-[#D99773]" /> Reenviar Acesso</button>
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'bloquear') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><Ban size={14} className="text-yellow-400" /> Bloquear/Desbloquear</button>
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'testes') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><Settings size={14} className="text-blue-400" /> Rodar Testes API</button>
+                                                    <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'refresh') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><RefreshCw size={14} className="text-cyan-400" /> Refresh Clínica</button>
                                                     <div className="h-px bg-white/5 my-1" />
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'excluir') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-red-500/10 text-red-400 flex items-center gap-2 transition-colors"><Trash2 size={14} /> Excluir Clínica</button>
                                                 </div>

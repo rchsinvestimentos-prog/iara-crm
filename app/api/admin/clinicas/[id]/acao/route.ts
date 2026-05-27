@@ -233,6 +233,21 @@ export async function POST(
             return NextResponse.json({ message: `✅ Plano alterado para ${nomePlano}! Instagram: ${maxIg > 0 ? 'liberado' : 'bloqueado'}` })
         }
 
+        if (acao === 'refresh') {
+            // 1. Atualizar updatedAt da clínica para invalidar o fingerprint de cache
+            await prisma.clinica.update({
+                where: { id: clinicaId },
+                data: { updatedAt: new Date() }
+            })
+            // 2. Limpar o cache físico de respostas do banco de dados para esta clínica
+            try {
+                await prisma.$executeRaw`DELETE FROM cache_respostas WHERE user_id = ${clinicaId}`
+            } catch (e) {
+                console.error('[Admin] Erro ao deletar cache_respostas:', e)
+            }
+            return NextResponse.json({ message: `✅ Clínica "${clinica.nomeClinica || clinica.nome}" atualizada! Cache limpo e nova versão ativa.` })
+        }
+
         return NextResponse.json({ error: 'Ação inválida' }, { status: 400 })
 
     } catch (err) {
