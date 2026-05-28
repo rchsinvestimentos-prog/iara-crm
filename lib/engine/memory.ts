@@ -17,17 +17,63 @@ export async function getClientMemory(
     telefone: string
 ): Promise<MemoriaCliente | null> {
     try {
+        // 1. Tentar carregar os dados reais do Contato do CRM (tabela contatos)
+        const contato = await prisma.contato.findFirst({
+            where: { clinicaId, telefone }
+        })
+
+        if (contato) {
+            // Buscar todos os agendamentos já realizados (concluídos) do paciente
+            const agendamentosConcluidos = await prisma.agendamento.findMany({
+                where: {
+                    contatoId: contato.id,
+                    status: 'realizado'
+                },
+                orderBy: { data: 'desc' },
+                select: {
+                    data: true,
+                    procedimento: true,
+                    observacao: true
+                }
+            })
+
+            const procedimentosList = agendamentosConcluidos.map(a => 
+                `${new Date(a.data).toLocaleDateString('pt-BR')}: ${a.procedimento}${a.observacao ? ` (${a.observacao})` : ''}`
+            )
+
+            // Compilar um prompt unificado super rico em informações para injetar na IA
+            let resumoGeral = ''
+            if (contato.resumoClinico) {
+                resumoGeral += `### HISTÓRICO E DIÁLOGO (MEMÓRIA DA IA):\n${contato.resumoClinico}\n\n`
+            }
+            if (contato.notas) {
+                resumoGeral += `### ANOTAÇÕES CLÍNICAS DO PROFISSIONAL:\n${contato.notas}\n\n`
+            }
+            if (procedimentosList.length > 0) {
+                resumoGeral += `### HISTÓRICO DE PROCEDIMENTOS CONCLUÍDOS:\n` + procedimentosList.map(p => `- ${p}`).join('\n')
+            } else {
+                resumoGeral += `### HISTÓRICO DE PROCEDIMENTOS CONCLUÍDOS: Nenhum registrado na clínica até o momento.`
+            }
+
+            return {
+                resumoGeral,
+                procedimentosRealizados: agendamentosConcluidos.map(a => a.procedimento),
+                tags: contato.tags || []
+            }
+        }
+
+        // 2. Fallback caso o contato não exista (tabela legada de memoria_clientes)
         const result = await prisma.$queryRaw<{
             resumo_geral: string | null
             procedimentos_realizados: string[] | null
             tags: string[] | null
         }[]>`
-      SELECT resumo_geral, procedimentos_realizados, tags
-      FROM memoria_clientes
-      WHERE user_id = ${clinicaId}
-        AND telefone_cliente = ${telefone}
-      LIMIT 1
-    `
+            SELECT resumo_geral, procedimentos_realizados, tags
+            FROM memoria_clientes
+            WHERE user_id = ${clinicaId}
+              AND telefone_cliente = ${telefone}
+            LIMIT 1
+        `
 
         if (!result || result.length === 0) return null
 
@@ -38,8 +84,7 @@ export async function getClientMemory(
             tags: mem.tags || [],
         }
     } catch (err) {
-        // Tabela pode não existir ainda — não é erro grave
-        console.log('[Memory] Tabela memoria_clientes não encontrada ou erro:', (err as any).message?.slice(0, 80))
+        console.log('[Memory] Erro ao buscar memória unificada de clientes:', (err as any).message?.slice(0, 80))
         return null
     }
 }

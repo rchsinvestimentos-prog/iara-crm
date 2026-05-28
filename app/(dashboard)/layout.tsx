@@ -4,6 +4,7 @@ import Sidebar from '@/components/Sidebar'
 import { IdiomaProvider } from '@/components/IdiomaProvider'
 import TermosModal from '@/components/TermosModal'
 import TrocarSenhaModal from '@/components/TrocarSenhaModal'
+import TesterPlanSwitcher from '@/components/TesterPlanSwitcher'
 import { SessionProvider } from 'next-auth/react'
 import { useState, useEffect, Suspense } from 'react'
 import { usePathname } from 'next/navigation'
@@ -71,6 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Suspense fallback={null}>
                 <TrocarSenhaModal />
             </Suspense>
+            <TesterPlanSwitcher />
         </IdiomaProvider>
         </SessionProvider>
     )

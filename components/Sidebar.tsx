@@ -27,6 +27,8 @@ import {
   BookOpen,
   Package,
   Link2,
+  Clock,
+  UserCheck,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTheme } from './ThemeProvider'
@@ -365,6 +367,14 @@ export default function Sidebar() {
                     <Link href="/anamnese" className={linkClass('/anamnese')}>
                       <Stethoscope size={17} strokeWidth={1.8} />
                       <span>Ficha de Anamnese</span>
+                    </Link>
+                    <Link href="/follow-up" className={linkClass('/follow-up')}>
+                      <Clock size={17} strokeWidth={1.8} />
+                      <span>Follow UP</span>
+                    </Link>
+                    <Link href="/clientes" className={linkClass('/clientes')}>
+                      <UserCheck size={17} strokeWidth={1.8} />
+                      <span>Clientes</span>
                     </Link>
                     <Link href="/integracoes-agenda" className={linkClass('/integracoes-agenda')}>
                       <Link2 size={17} strokeWidth={1.8} />

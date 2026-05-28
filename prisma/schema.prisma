@@ -413,6 +413,8 @@ model Contato {
   retornoMensagem String?   @map("retorno_mensagem") @db.Text
   retornoEnviado  Boolean?  @default(false) @map("retorno_enviado")
   fotoUrl         String?   @map("foto_url") @db.Text
+  iaPausada       Boolean   @default(false) @map("ia_pausada")
+  resumoClinico   String?   @map("resumo_clinico") @db.Text
   createdAt       DateTime? @default(now()) @map("created_at")
   updatedAt       DateTime? @default(now()) @map("updated_at")
 
@@ -557,14 +559,32 @@ model Agendamento {
 }
 
 model ModeloAnamnese {
-  id        String   @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId Int      @map("clinica_id")
-  titulo    String
-  perguntas Json     // JSON com as perguntas dinâmicas [{tipo, label, opcoes, obrigatorio}]
-  ativo     Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
+  id                String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId         Int      @map("clinica_id")
+  titulo            String
+  perguntas         Json     // JSON com as perguntas dinâmicas [{tipo, label, opcoes, obrigatorio}]
+  procedimentoIds   Json?    @default("[]") @map("procedimento_ids")
+  mensagemEnvio     String?  @map("mensagem_envio") @db.Text
+  horasAntecedencia Int?     @default(24) @map("horas_antecedencia")
+  ativo             Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at")
 
   @@map("modelos_anamnese")
+}
+
+model FollowUpConfig {
+  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId       Int      @map("clinica_id")
+  tipo            String   @db.VarChar(50) // 'pix_agendamento', 'anamnese_24h', 'lembrete_dia', 'pos_24h', 'retorno_30d', 'pos_3meses', 'pos_6meses'
+  ativo           Boolean  @default(true)
+  mensagem        String   @db.Text
+  diasDelay       Int?     @map("dias_delay")
+  procedimentoIds Json?    @default("[]") @map("procedimento_ids")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([clinicaId, tipo])
+  @@map("follow_up_configs")
 }
 
 model FichaPreenchida {

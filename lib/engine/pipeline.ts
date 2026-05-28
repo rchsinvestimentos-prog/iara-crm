@@ -602,6 +602,16 @@ async function pausarConversa(userId: number, telefone: string, minutos: number,
 
 async function checkPausa(userId: number, telefone: string): Promise<boolean> {
     try {
+        // 1. Verificar se a clínica pausou individualmente este contato no CRM
+        const contato = await prisma.contato.findFirst({
+            where: { clinicaId: userId, telefone }
+        })
+        if (contato?.iaPausada) {
+            console.log(`[Pipeline] 👩‍⚕️ IA pausada individualmente no CRM para o paciente ${telefone}`)
+            return true
+        }
+
+        // 2. Verificar pausas temporárias de status_conversa
         const result = await prisma.$queryRaw<{ pausa_ate: Date }[]>`
             SELECT pausa_ate FROM status_conversa
             WHERE telefone_cliente = ${telefone} AND user_id = ${userId}

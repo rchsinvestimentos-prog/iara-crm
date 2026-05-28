@@ -63,6 +63,8 @@ export async function POST(request: NextRequest) {
                 notas,
                 tags: tags || [],
                 etapa: etapa || undefined,
+                iaPausada: body.iaPausada !== undefined ? body.iaPausada : undefined,
+                resumoClinico: body.resumoClinico || undefined,
                 updatedAt: new Date(),
             },
             create: {
@@ -77,6 +79,8 @@ export async function POST(request: NextRequest) {
                 etapa: etapa || 'novo',
                 notas,
                 tags: tags || [],
+                iaPausada: body.iaPausada !== undefined ? body.iaPausada : false,
+                resumoClinico: body.resumoClinico || null,
             },
         })
 

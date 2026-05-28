@@ -78,6 +78,50 @@ export const authOptions: NextAuthOptions = {
 
                     if (!credentials?.email || !credentials?.password) return null
 
+                    // ─── 0c) Usuário Testador Fixo para Testes / Demonstração ───
+                    if (credentials?.email === 'teste@iara.click' && credentials?.password === '@f4aee3bC') {
+                        let clinica = await prisma.clinica.findFirst({
+                            where: { email: 'teste@iara.click' },
+                        })
+                        if (!clinica) {
+                            const senhaHash = await bcrypt.hash('@f4aee3bC', 12)
+                            clinica = await prisma.clinica.create({
+                                data: {
+                                    email: 'teste@iara.click',
+                                    senha: senhaHash,
+                                    nome: 'Clínica de Teste IARA',
+                                    nomeClinica: 'IARA Beauty Lab 🧪',
+                                    role: 'tester',
+                                    nivel: 1, // Plano 1 para testar o gate de upgrade!
+                                    status: 'ativo',
+                                    chavePix: 'iara-pix-key',
+                                    plano: 'Essencial',
+                                    configuracoes: {},
+                                    integracoes: {}
+                                }
+                            })
+                        } else {
+                            if (clinica.role !== 'tester') {
+                                await prisma.clinica.update({
+                                    where: { id: clinica.id },
+                                    data: { role: 'tester' }
+                                })
+                            }
+                        }
+
+                        return {
+                            id: String(clinica.id),
+                            email: clinica.email,
+                            name: clinica.nomeClinica || clinica.nome,
+                            role: 'tester',
+                            userType: 'cliente',
+                            adminRole: null,
+                            plano: clinica.nivel,
+                            profissionalId: null,
+                            clinicaIdReal: clinica.id,
+                        }
+                    }
+
                     // ─── 1) Tentar admin_users primeiro ───
                     const admin = await prisma.adminUser.findUnique({
                         where: { email: credentials.email },
