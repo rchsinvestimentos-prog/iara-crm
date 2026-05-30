@@ -1,0 +1,164 @@
+'use client'
+
+import { useState } from 'react'
+import { Paintbrush, Wand2, Copy, Plus, Image } from 'lucide-react'
+import { useFeatureLimit } from '@/hooks/useFeatureLimit'
+import FeatureLimitBanner from '@/components/FeatureLimitBanner'
+
+const templates = [
+    { nome: 'Antes e Depois', tipo: 'Carrossel 5 slides', cor: '#D99773' },
+    { nome: 'Dica Rápida', tipo: 'Post único', cor: '#0F4C61' },
+    { nome: 'Depoimento', tipo: 'Carrossel 3 slides', cor: '#06D6A0' },
+    { nome: 'Promoção', tipo: 'Post + Stories', cor: '#F59E0B' },
+]
+
+export default function PostsTool() {
+    const [tema, setTema] = useState('')
+    const [templateSel, setTemplateSel] = useState<number | null>(null)
+    const [gerando, setGerando] = useState(false)
+    const [postGerado, setPostGerado] = useState(false)
+    const [conteudoPost, setConteudoPost] = useState('')
+    const feature = useFeatureLimit('posts')
+
+    const handleGerar = async () => {
+        if (!tema.trim()) return
+        if (!feature.permitido) { alert('Você atingiu o limite de posts grátis este mês! Faça upgrade para criar mais.'); return }
+        setGerando(true)
+        try {
+            const tipoNome = templateSel !== null ? templates[templateSel].nome : 'carrossel'
+            const res = await fetch('/api/gerar-conteudo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tipo: 'post', tema, tipoPost: tipoNome })
+            })
+            const data = await res.json()
+            if (data.sucesso) {
+                setConteudoPost(data.conteudo)
+                setPostGerado(true)
+                feature.increment()
+            } else {
+                alert(data.error || 'Erro ao gerar post')
+            }
+        } catch {
+            alert('Erro de conexão. Tente novamente.')
+        } finally {
+            setGerando(false)
+        }
+    }
+
+    return (
+        <div className="space-y-6">
+            <FeatureLimitBanner {...feature} />
+            {/* Templates */}
+            <div className="glass-card p-6">
+                <h3 className="font-semibold text-petroleo mb-4 flex items-center gap-2">
+                    <Paintbrush size={16} className="text-terracota" />
+                    Escolha um Template
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {templates.map((t, i) => (
+                        <button
+                            key={i}
+                            onClick={() => setTemplateSel(i)}
+                            className={`p-4 rounded-2xl border-2 transition-all text-left ${templateSel === i
+                                ? 'border-terracota bg-terracota/5'
+                                : 'border-transparent bg-glacial hover:border-terracota/30'
+                                }`}
+                        >
+                            <div
+                                className="w-full aspect-square rounded-xl mb-3 flex items-center justify-center"
+                                style={{ backgroundColor: t.cor + '15' }}
+                            >
+                                <Image size={28} style={{ color: t.cor }} />
+                            </div>
+                            <p className="font-semibold text-petroleo text-sm">{t.nome}</p>
+                            <p className="text-xs text-acinzentado">{t.tipo}</p>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Criar post */}
+            <div className="glass-card p-6">
+                <h3 className="font-semibold text-petroleo mb-4">✍️ Descreva seu Post</h3>
+                <textarea
+                    value={tema}
+                    onChange={(e) => setTema(e.target.value)}
+                    placeholder="Sobre o que é o post?&#10;&#10;Ex: Carrossel explicando os benefícios da micropigmentação fio a fio, com antes e depois"
+                    className="input-field min-h-[100px] resize-none"
+                    rows={4}
+                />
+                <div className="flex items-center justify-between mt-4">
+                    <p className="text-xs text-acinzentado">
+                        {templateSel !== null ? `Template: ${templates[templateSel].nome}` : 'Nenhum template selecionado'}
+                    </p>
+                    <button
+                        onClick={handleGerar}
+                        disabled={gerando || !tema.trim()}
+                        className="btn-primary flex items-center gap-2 disabled:opacity-50"
+                    >
+                        {gerando ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                Criando...
+                            </>
+                        ) : (
+                            <>
+                                <Wand2 size={16} /> Gerar Post
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
+
+            {/* Post gerado */}
+            {postGerado && conteudoPost && (
+                <div className="glass-card p-6 animate-fade-in">
+                    <h3 className="font-semibold text-petroleo mb-4">🎨 Post Pronto!</h3>
+
+                    {/* Conteúdo gerado pela IA */}
+                    <div className="p-5 bg-glacial rounded-2xl whitespace-pre-wrap text-sm text-petroleo leading-relaxed max-h-[500px] overflow-y-auto">
+                        {conteudoPost}
+                    </div>
+
+                    {/* Ações */}
+                    <div className="flex gap-3 mt-4">
+                        <button
+                            onClick={() => { navigator.clipboard.writeText(conteudoPost); alert('Conteúdo copiado!') }}
+                            className="btn-primary flex items-center gap-2"
+                        >
+                            <Copy size={16} /> Copiar Conteúdo
+                        </button>
+                        <button
+                            onClick={() => { setPostGerado(false); setConteudoPost(''); setTema('') }}
+                            className="btn-secondary"
+                        >
+                            Gerar outro
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Posts anteriores */}
+            <div className="glass-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-petroleo">📁 Meus Posts</h3>
+                    <span className="text-xs text-acinzentado">3 posts criados</span>
+                </div>
+                <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+                    {['Promo Fev', 'Dica Hidratação', 'Antes/Depois'].map((titulo, i) => (
+                        <div key={i} className="group rounded-2xl overflow-hidden bg-glacial aspect-square flex items-center justify-center cursor-pointer relative">
+                            <Image size={24} className="text-terracota/30 group-hover:text-terracota transition-colors" />
+                            <div className="absolute bottom-0 left-0 right-0 p-2 bg-white/80 backdrop-blur-sm">
+                                <p className="text-xs font-medium text-petroleo truncate">{titulo}</p>
+                            </div>
+                        </div>
+                    ))}
+                    <button className="rounded-2xl border-2 border-dashed border-terracota/30 aspect-square flex items-center justify-center hover:border-terracota transition-colors">
+                        <Plus size={24} className="text-terracota/50" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}

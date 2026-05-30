@@ -1,0 +1,568 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
+import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail, MoreHorizontal, KeyRound, Ban, Settings, Trash2, LogIn, CreditCard, ArrowUpDown, RefreshCw } from 'lucide-react'
+
+interface Clinica {
+    id: number
+    nome_clinica: string
+    email: string
+    nomeIA: string
+    nivel: number
+    status: string
+    whatsapp_clinica: string
+    whatsapp_status: string
+    creditos_restantes: number
+    creditos_total: number
+    pct_credito: number
+    proxima_renovacao: string | null
+    criado_em: string
+    autorizou_cuidados_pos: string | null
+    cuidados_pos: string | null
+    onboarding: {
+        dados: boolean
+        secretaria: boolean
+        conexoes: boolean
+        done: number
+        total: number
+    }
+    aceite_termos: string | null
+}
+
+const planoNomes: Record<number, string> = { 1: 'Essencial', 2: 'Premium' }
+const planoCores: Record<number, string> = { 1: '#06D6A0', 2: '#D99773' }
+const statusCor: Record<string, string> = {
+    ativo: 'bg-green-500/15 text-green-400',
+    inativo: 'bg-red-500/15 text-red-400',
+    trial: 'bg-blue-500/15 text-blue-400',
+}
+
+export default function AdminClinicas() {
+    const { data: session } = useSession()
+    const [clinicas, setClinicas] = useState<Clinica[]>([])
+    const [loading, setLoading] = useState(true)
+    const [busca, setBusca] = useState('')
+    const [showModal, setShowModal] = useState(false)
+    const [saving, setSaving] = useState(false)
+    const [refreshingGeral, setRefreshingGeral] = useState(false)
+    const [msg, setMsg] = useState('')
+    const [resultado, setResultado] = useState<{ senha: string; email: string; emailStatus?: string; whatsappStatus?: string } | null>(null)
+    const [copiado, setCopiado] = useState(false)
+
+    const isSuperAdmin = (session?.user as any)?.adminRole === 'super_admin'
+    const canCreate = isSuperAdmin || (session?.user as any)?.adminRole === 'desenvolvimento'
+
+    const [form, setForm] = useState({
+        nome: '',
+        email: '',
+        codigoPais: '55',
+        telefone: '',
+        nivel: 1,
+        duracao: '30',
+        creditos: 1000,
+        enviarEmail: true,
+    })
+
+    useEffect(() => { load() }, [])
+
+    async function load() {
+        setLoading(true)
+        try {
+            const r = await fetch('/api/admin/clinicas')
+            const data = await r.json()
+            setClinicas(data.clinicas || [])
+        } catch { }
+        setLoading(false)
+    }
+
+    async function criarClinica() {
+        if (!form.nome || !form.email) {
+            setMsg('Nome e email são obrigatórios')
+            return
+        }
+        setSaving(true)
+        setMsg('')
+        try {
+            const r = await fetch('/api/admin/clinicas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(form),
+            })
+            const data = await r.json()
+            if (!r.ok) { setMsg(data.error || 'Erro'); setSaving(false); return }
+            setResultado({ senha: data.clinica.senha_gerada, email: form.email, emailStatus: data.emailStatus, whatsappStatus: data.whatsappStatus })
+            load()
+        } catch { setMsg('Erro de rede') }
+        setSaving(false)
+    }
+
+    function fecharModal() {
+        setShowModal(false)
+        setResultado(null)
+        setForm({ nome: '', email: '', codigoPais: '55', telefone: '', nivel: 1, duracao: '30', creditos: 1000, enviarEmail: true })
+        setMsg('')
+    }
+
+    function copiarSenha(senha: string) {
+        navigator.clipboard.writeText(senha)
+        setCopiado(true)
+        setTimeout(() => setCopiado(false), 2000)
+    }
+
+    const [menuAberto, setMenuAberto] = useState<number | null>(null)
+
+    // Modais de créditos e plano
+    const [modalCreditos, setModalCreditos] = useState<{ id: number; nome: string } | null>(null)
+    const [creditosQtd, setCreditosQtd] = useState('500')
+    const [modalPlano, setModalPlano] = useState<{ id: number; nome: string; nivelAtual: number } | null>(null)
+    const [planoNovo, setPlanoNovo] = useState(1)
+    const [savingModal, setSavingModal] = useState(false)
+
+    // Fechar menu ao clicar fora (simples)
+    useEffect(() => {
+        const handleClick = () => setMenuAberto(null)
+        window.addEventListener('click', handleClick)
+        return () => window.removeEventListener('click', handleClick)
+    }, [])
+
+    async function executarAcao(id: number, acao: string) {
+        if (acao === 'bloquear' && !confirm('Deseja realmente alterar o status (Bloquear/Desbloquear) desta clínica?')) return
+        if (acao === 'reenviar' && !confirm('Deseja gerar uma NOVA SENHA e reenviar por email+whatsapp para o cliente?')) return
+        if (acao === 'excluir' && !confirm('⚠️ ATENÇÃO: Isso vai EXCLUIR permanentemente a clínica, todos os dados e a instância na Evolution API. Tem certeza?')) return
+        if (acao === 'refresh' && !confirm('Deseja realmente limpar o cache de respostas e forçar o reload do prompt/configs desta clínica?')) return
+
+        try {
+            const r = await fetch(`/api/admin/clinicas/${id}/acao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ acao })
+            })
+            const data = await r.json()
+            if (r.ok) {
+                // Se for impersonação, abre nova aba com token
+                if (acao === 'impersonar' && data.impersonateToken) {
+                    window.open(`https://app.iara.click/login?impersonateToken=${data.impersonateToken}`, '_blank')
+                    return
+                }
+                alert(data.message || 'Ação executada com sucesso!')
+                load()
+            } else {
+                alert(data.error || 'Erro ao executar ação')
+            }
+        } catch (e) {
+            alert('Erro de comunicação com o servidor')
+        }
+    }
+
+    async function refreshGeral() {
+        if (!confirm('🚨 ATENÇÃO: Deseja realmente atualizar TODAS as clínicas e limpar todos os caches de mensagens? Isso fará com que todas as IAs usem a última versão das atualizações.')) return
+        setRefreshingGeral(true)
+        try {
+            const r = await fetch('/api/admin/clinicas/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            const data = await r.json()
+            if (r.ok) {
+                alert(data.message || 'Atualização geral executada com sucesso!')
+                load()
+            } else {
+                alert(data.error || 'Erro ao executar atualização geral')
+            }
+        } catch {
+            alert('Erro de comunicação com o servidor')
+        }
+        setRefreshingGeral(false)
+    }
+
+    async function liberarCreditos() {
+        if (!modalCreditos) return
+        const qtd = parseInt(creditosQtd)
+        if (!qtd || qtd <= 0) { alert('Quantidade inválida'); return }
+        setSavingModal(true)
+        try {
+            const r = await fetch(`/api/admin/clinicas/${modalCreditos.id}/acao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ acao: 'creditos', quantidade: qtd })
+            })
+            const data = await r.json()
+            alert(data.message || data.error)
+            if (r.ok) { setModalCreditos(null); setCreditosQtd('500'); load() }
+        } catch { alert('Erro de rede') }
+        setSavingModal(false)
+    }
+
+    async function mudarPlano() {
+        if (!modalPlano) return
+        setSavingModal(true)
+        try {
+            const r = await fetch(`/api/admin/clinicas/${modalPlano.id}/acao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ acao: 'plano', nivel: planoNovo })
+            })
+            const data = await r.json()
+            alert(data.message || data.error)
+            if (r.ok) { setModalPlano(null); load() }
+        } catch { alert('Erro de rede') }
+        setSavingModal(false)
+    }
+
+    const filtradas = clinicas.filter(c =>
+        c.nome_clinica?.toLowerCase().includes(busca.toLowerCase()) ||
+        c.email?.toLowerCase().includes(busca.toLowerCase())
+    )
+
+    return (
+        <div className="max-w-7xl space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary, #fff)' }}>
+                        🏥 Clínicas
+                    </h1>
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted, #6B7280)' }}>
+                        {clinicas.length} clínicas cadastradas
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="relative">
+                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                        <input
+                            value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..."
+                            className="text-xs pl-8 pr-3 py-2 rounded-lg focus:outline-none" style={{ backgroundColor: 'var(--bg-subtle, rgba(255,255,255,0.04))', border: '1px solid var(--border-default, rgba(255,255,255,0.06))', color: 'var(--text-primary, #fff)', width: 200 }}
+                        />
+                    </div>
+                    {canCreate && (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={refreshGeral}
+                                disabled={refreshingGeral}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border border-white/10 hover:bg-white/5 disabled:opacity-50 text-gray-300"
+                            >
+                                <RefreshCw size={16} className={refreshingGeral ? 'animate-spin' : ''} />
+                                {refreshingGeral ? 'Atualizando...' : 'Refresh Geral'}
+                            </button>
+                            <button
+                                onClick={() => setShowModal(true)}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:scale-105"
+                                style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)', color: '#fff' }}
+                            >
+                                <Plus size={16} /> Nova Clínica
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Tabela */}
+            <div className="backdrop-blur-xl rounded-2xl overflow-visible" style={{ backgroundColor: 'var(--bg-card, #111827)', border: '1px solid var(--border-default, rgba(255,255,255,0.06))' }}>
+                {loading ? (
+                    <div className="flex items-center justify-center py-16">
+                        <Loader2 size={24} className="animate-spin text-[#D99773]" />
+                    </div>
+                ) : filtradas.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16">
+                        <Building2 size={40} className="mb-3 opacity-20" style={{ color: 'var(--text-muted)' }} />
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                            {busca ? 'Nenhuma clínica encontrada' : 'Nenhuma clínica cadastrada'}
+                        </p>
+                        {canCreate && !busca && (
+                            <button onClick={() => setShowModal(true)} className="mt-3 text-sm text-[#D99773] hover:underline">
+                                Criar primeira clínica →
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <div className="overflow-x-visible">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr style={{ borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.04))' }}>
+                                    {['Clínica', 'Plano', 'Status', 'Créditos', 'WhatsApp', 'Setup', 'Aceites', 'Expira em', 'Desde', ''].map((h, i) => (
+                                        <th key={i} className="text-left px-5 py-3 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filtradas.map(c => (
+                                    <tr key={c.id} className="hover:bg-white/[0.02] transition-colors" style={{ borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.04))' }}>
+                                        <td className="px-5 py-3.5">
+                                            <p className="font-medium text-sm" style={{ color: 'var(--text-primary, #fff)' }}>{c.nome_clinica || '—'}</p>
+                                            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{c.email}</p>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ backgroundColor: `${planoCores[c.nivel] || '#999'}15`, color: planoCores[c.nivel] || '#999' }}>
+                                                {planoNomes[c.nivel] || `P${c.nivel}`}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${statusCor[c.status] || 'bg-gray-500/15 text-gray-400'}`}>
+                                                {c.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-subtle)' }}>
+                                                    <div className="h-full rounded-full" style={{ width: `${c.pct_credito}%`, backgroundColor: c.pct_credito <= 20 ? '#EF4444' : c.pct_credito > 50 ? '#06D6A0' : '#F59E0B' }} />
+                                                </div>
+                                                <span className="text-[11px]" style={{ color: c.pct_credito <= 20 ? '#EF4444' : 'var(--text-muted)' }}>{c.pct_credito}%</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <span className={`text-[11px] ${c.whatsapp_status === 'conectado' ? 'text-green-400' : 'text-gray-500'}`}>
+                                                {c.whatsapp_status === 'conectado' ? '✅ Conectado' : '⚪ Não conectado'}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <span
+                                                className={`text-[10px] font-semibold ${c.onboarding.done === 3 ? 'text-green-400' : c.onboarding.done >= 1 ? 'text-amber-400' : 'text-gray-500'}`}
+                                                title={`Dados: ${c.onboarding.dados ? '✅' : '❌'} | IA: ${c.onboarding.secretaria ? '✅' : '❌'} | WhatsApp: ${c.onboarding.conexoes ? '✅' : '❌'}`}
+                                            >
+                                                {c.onboarding.done}/{c.onboarding.total} {c.onboarding.done === 3 ? '✅' : ''}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-3.5">
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className={`text-[10px] ${c.aceite_termos ? 'text-green-400' : 'text-gray-500'}`} title={c.aceite_termos ? `Cadastro: ${new Date(c.aceite_termos).toLocaleString('pt-BR')}` : 'Cadastro inicial pendente'}>
+                                                    {c.aceite_termos ? '✅' : '❌'} Cadastro
+                                                </span>
+                                                <span className={`text-[10px] ${c.autorizou_cuidados_pos ? 'text-green-400' : 'text-gray-500'}`} title={c.autorizou_cuidados_pos ? `Pós-proc: ${new Date(c.autorizou_cuidados_pos).toLocaleString('pt-BR')}` : 'Pós-procedimento pendente'}>
+                                                    {c.autorizou_cuidados_pos ? '✅' : '❌'} Pós-proc
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                                            {c.proxima_renovacao ? new Date(c.proxima_renovacao).toLocaleDateString('pt-BR') : '∞'}
+                                        </td>
+                                        <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                                            {new Date(c.criado_em).toLocaleDateString('pt-BR')}
+                                        </td>
+                                        <td className="px-3 py-3.5 text-right relative">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setMenuAberto(menuAberto === c.id ? null : c.id); }}
+                                                className="p-1.5 hover:bg-white/10 rounded-md transition-colors"
+                                            >
+                                                <MoreHorizontal size={16} className="text-gray-400" />
+                                            </button>
+                                            {menuAberto === c.id && (
+                                                <div
+                                                    className="absolute right-8 top-8 w-48 bg-[#1F2937] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden py-1"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'impersonar') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><LogIn size={14} className="text-green-400" /> Acessar Painel</button>
+                                                    <button onClick={() => { setMenuAberto(null); setModalCreditos({ id: c.id, nome: c.nome_clinica }); setCreditosQtd('500') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><CreditCard size={14} className="text-emerald-400" /> Liberar Créditos</button>
+                                                    <button onClick={() => { setMenuAberto(null); setModalPlano({ id: c.id, nome: c.nome_clinica, nivelAtual: c.nivel }); setPlanoNovo(c.nivel) }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><ArrowUpDown size={14} className="text-purple-400" /> Mudar Plano</button>
+                                                    <div className="h-px bg-white/5 my-1" />
+                                                    <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'reenviar') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><KeyRound size={14} className="text-[#D99773]" /> Reenviar Acesso</button>
+                                                    <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'bloquear') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><Ban size={14} className="text-yellow-400" /> Bloquear/Desbloquear</button>
+                                                    <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'testes') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><Settings size={14} className="text-blue-400" /> Rodar Testes API</button>
+                                                    <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'refresh') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><RefreshCw size={14} className="text-cyan-400" /> Refresh Clínica</button>
+                                                    <div className="h-px bg-white/5 my-1" />
+                                                    <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'excluir') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-red-500/10 text-red-400 flex items-center gap-2 transition-colors"><Trash2 size={14} /> Excluir Clínica</button>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* Modal Criar Clínica */}
+            {showModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={fecharModal}>
+                    <div className="rounded-2xl p-6 w-full max-w-md space-y-5" style={{ backgroundColor: '#111827', border: '1px solid rgba(255,255,255,0.08)' }} onClick={e => e.stopPropagation()}>
+
+                        {resultado ? (
+                            /* Sucesso — mostrar senha */
+                            <div className="text-center space-y-4">
+                                <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center mx-auto">
+                                    <Check size={28} className="text-green-400" />
+                                </div>
+                                <h2 className="text-lg font-bold text-white">Clínica criada! 🎉</h2>
+                                <div className="text-xs text-left space-y-1 p-3 rounded-lg bg-white/5">
+                                    <p className="text-gray-400">📧 Email: <span className="text-white">{resultado.emailStatus || 'não verificado'}</span></p>
+                                    <p className="text-gray-400">💬 WhatsApp: <span className="text-white">{resultado.whatsappStatus || 'não verificado'}</span></p>
+                                </div>
+
+                                <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-left space-y-2">
+                                    <p className="text-xs text-gray-500">Senha gerada:</p>
+                                    <div className="flex items-center gap-2">
+                                        <code className="text-lg font-mono font-bold text-white tracking-wider">{resultado.senha}</code>
+                                        <button onClick={() => copiarSenha(resultado.senha)} className="text-gray-500 hover:text-gray-300 transition-colors">
+                                            {copiado ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <button onClick={fecharModal}
+                                    className="w-full py-2.5 rounded-xl font-semibold text-sm text-white bg-violet-600 hover:bg-violet-700 transition-all">
+                                    Fechar
+                                </button>
+                            </div>
+                        ) : (
+                            /* Formulário */
+                            <>
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                        <Building2 size={18} className="text-[#D99773]" /> Nova Clínica
+                                    </h2>
+                                    <button onClick={fecharModal} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-xs text-gray-400 mb-1 block">Nome da Dra / Clínica *</label>
+                                        <input value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="Dra. Ana Silva"
+                                            className="w-full text-sm px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#D99773]/50" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-400 mb-1 block">Email *</label>
+                                        <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="dra.ana@clinica.com"
+                                            className="w-full text-sm px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#D99773]/50" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-400 mb-1 block">WhatsApp <span className="text-gray-600">(opcional)</span></label>
+                                        <div className="flex gap-2">
+                                            <select value={form.codigoPais} onChange={e => setForm({ ...form, codigoPais: e.target.value })}
+                                                className="w-24 text-sm px-2 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none">
+                                                <option value="55" style={{ backgroundColor: '#111827' }}>🇧🇷 +55</option>
+                                                <option value="351" style={{ backgroundColor: '#111827' }}>🇵🇹 +351</option>
+                                                <option value="1" style={{ backgroundColor: '#111827' }}>🇺🇸 +1</option>
+                                                <option value="54" style={{ backgroundColor: '#111827' }}>🇦🇷 +54</option>
+                                                <option value="595" style={{ backgroundColor: '#111827' }}>🇵🇾 +595</option>
+                                                <option value="598" style={{ backgroundColor: '#111827' }}>🇺🇾 +598</option>
+                                                <option value="56" style={{ backgroundColor: '#111827' }}>🇨🇱 +56</option>
+                                                <option value="57" style={{ backgroundColor: '#111827' }}>🇨🇴 +57</option>
+                                                <option value="34" style={{ backgroundColor: '#111827' }}>🇪🇸 +34</option>
+                                                <option value="39" style={{ backgroundColor: '#111827' }}>🇮🇹 +39</option>
+                                                <option value="44" style={{ backgroundColor: '#111827' }}>🇬🇧 +44</option>
+                                                <option value="81" style={{ backgroundColor: '#111827' }}>🇯🇵 +81</option>
+                                            </select>
+                                            <input value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} placeholder="41 99999-9999"
+                                                className="flex-1 text-sm px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#D99773]/50" />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-xs text-gray-400 mb-1 block">Plano</label>
+                                            <select value={form.nivel} onChange={e => {
+                                                const n = Number(e.target.value)
+                                                setForm({ ...form, nivel: n, creditos: n === 2 ? 3000 : 1000 })
+                                            }}
+                                                className="w-full text-sm px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none">
+                                                <option value={1} style={{ backgroundColor: '#111827' }}>Essencial</option>
+                                                <option value={2} style={{ backgroundColor: '#111827' }}>Premium</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-gray-400 mb-1 block">Duração</label>
+                                            <select value={form.duracao} onChange={e => setForm({ ...form, duracao: e.target.value })}
+                                                className="w-full text-sm px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none">
+                                                <option value="7" style={{ backgroundColor: '#111827' }}>7 dias</option>
+                                                <option value="15" style={{ backgroundColor: '#111827' }}>15 dias</option>
+                                                <option value="30" style={{ backgroundColor: '#111827' }}>30 dias</option>
+                                                <option value="90" style={{ backgroundColor: '#111827' }}>90 dias</option>
+                                                <option value="ilimitado" style={{ backgroundColor: '#111827' }}>Ilimitado</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs text-gray-400 mb-1 block">Créditos iniciais</label>
+                                        <input type="number" value={form.creditos} onChange={e => setForm({ ...form, creditos: Number(e.target.value) })}
+                                            className="w-full text-sm px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#D99773]/50" />
+                                    </div>
+
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" checked={form.enviarEmail} onChange={e => setForm({ ...form, enviarEmail: e.target.checked })}
+                                            className="rounded accent-[#D99773]" />
+                                        <span className="text-xs text-gray-400 flex items-center gap-1"><Mail size={12} /> Enviar email de boas-vindas</span>
+                                    </label>
+                                </div>
+
+                                {msg && <p className="text-xs text-red-400">{msg}</p>}
+
+                                <button onClick={criarClinica} disabled={saving}
+                                    className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)' }}>
+                                    {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Criar Clínica'}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Liberar Créditos */}
+            {modalCreditos && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setModalCreditos(null)}>
+                    <div className="rounded-2xl p-6 w-full max-w-sm space-y-4" style={{ backgroundColor: '#111827', border: '1px solid rgba(255,255,255,0.08)' }} onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                <CreditCard size={18} className="text-emerald-400" /> Liberar Créditos
+                            </h2>
+                            <button onClick={() => setModalCreditos(null)} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
+                        </div>
+                        <p className="text-xs text-gray-400">Para: <span className="text-white font-medium">{modalCreditos.nome}</span></p>
+                        <div>
+                            <label className="text-xs text-gray-400 mb-1 block">Quantidade de créditos</label>
+                            <input type="number" value={creditosQtd} onChange={e => setCreditosQtd(e.target.value)} min="1"
+                                className="w-full text-sm px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-emerald-500/50" />
+                        </div>
+                        <div className="flex gap-2">
+                            {[100, 500, 1000, 3000].map(v => (
+                                <button key={v} onClick={() => setCreditosQtd(String(v))}
+                                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${creditosQtd === String(v) ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10'}`}>
+                                    {v}
+                                </button>
+                            ))}
+                        </div>
+                        <button onClick={liberarCreditos} disabled={savingModal}
+                            className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50"
+                            style={{ background: 'linear-gradient(135deg, #06D6A0, #059669)' }}>
+                            {savingModal ? <Loader2 size={16} className="animate-spin mx-auto" /> : `Liberar ${creditosQtd} créditos`}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Mudar Plano */}
+            {modalPlano && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setModalPlano(null)}>
+                    <div className="rounded-2xl p-6 w-full max-w-sm space-y-4" style={{ backgroundColor: '#111827', border: '1px solid rgba(255,255,255,0.08)' }} onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                <ArrowUpDown size={18} className="text-purple-400" /> Mudar Plano
+                            </h2>
+                            <button onClick={() => setModalPlano(null)} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
+                        </div>
+                        <p className="text-xs text-gray-400">Para: <span className="text-white font-medium">{modalPlano.nome}</span></p>
+                        <p className="text-xs text-gray-500">Plano atual: <span className="font-semibold" style={{ color: planoCores[modalPlano.nivelAtual] }}>{planoNomes[modalPlano.nivelAtual]}</span></p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button onClick={() => setPlanoNovo(1)}
+                                className={`p-4 rounded-xl text-center transition-all border ${planoNovo === 1 ? 'bg-[#06D6A0]/10 border-[#06D6A0]/30' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                                <p className="text-sm font-bold" style={{ color: planoNovo === 1 ? '#06D6A0' : '#9CA3AF' }}>Essencial</p>
+                                <p className="text-[10px] text-gray-500 mt-1">Nível 1</p>
+                            </button>
+                            <button onClick={() => setPlanoNovo(2)}
+                                className={`p-4 rounded-xl text-center transition-all border ${planoNovo === 2 ? 'bg-[#D99773]/10 border-[#D99773]/30' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                                <p className="text-sm font-bold" style={{ color: planoNovo === 2 ? '#D99773' : '#9CA3AF' }}>Premium</p>
+                                <p className="text-[10px] text-gray-500 mt-1">Nível 2</p>
+                            </button>
+                        </div>
+                        <button onClick={mudarPlano} disabled={savingModal || planoNovo === modalPlano.nivelAtual}
+                            className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50"
+                            style={{ background: planoNovo === modalPlano.nivelAtual ? '#374151' : 'linear-gradient(135deg, #8B5CF6, #7C3AED)' }}>
+                            {savingModal ? <Loader2 size={16} className="animate-spin mx-auto" /> : planoNovo === modalPlano.nivelAtual ? 'Mesmo plano atual' : `Alterar para ${planoNomes[planoNovo]}`}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
