@@ -3,10 +3,8 @@
 import { useEffect, useState } from 'react'
 import { 
     Stethoscope, Plus, ClipboardList, Eye, Trash2, Edit2, 
-    Share2, Calendar, CheckCircle2, User, Clock, AlertCircle,
-    X, Save, FileText, Check, ShieldCheck, Download
+    ShieldCheck, X, Save
 } from 'lucide-react'
-import { useSession } from 'next-auth/react'
 
 interface Pergunta {
     id: string
@@ -49,13 +47,11 @@ interface Procedimento {
 }
 
 export default function AnamnesePage() {
-    const { data: session } = useSession()
     const [modelos, setModelos] = useState<ModeloAnamnese[]>([])
     const [fichas, setFichas] = useState<FichaPreenchida[]>([])
     const [procedimentos, setProcedimentos] = useState<Procedimento[]>([])
     const [loading, setLoading] = useState(true)
 
-    // Form modal state
     const [modalOpen, setModalOpen] = useState(false)
     const [editingModel, setEditingModel] = useState<ModeloAnamnese | null>(null)
     const [titulo, setTitulo] = useState('')
@@ -64,10 +60,8 @@ export default function AnamnesePage() {
     const [mensagemEnvio, setMensagemEnvio] = useState('')
     const [horasAntecedencia, setHorasAntecedencia] = useState(24)
 
-    // View responses modal
     const [viewFicha, setViewFicha] = useState<FichaPreenchida | null>(null)
 
-    // Load data
     const loadData = async () => {
         setLoading(true)
         try {
@@ -88,9 +82,7 @@ export default function AnamnesePage() {
         }
     }
 
-    useEffect(() => {
-        loadData()
-    }, [])
+    useEffect(() => { loadData() }, [])
 
     const handleOpenCreate = () => {
         setEditingModel(null)
@@ -170,21 +162,25 @@ export default function AnamnesePage() {
     }
 
     const handleProcToggle = (procId: number) => {
-        setSelectedProcs(prev => 
+        setSelectedProcs(prev =>
             prev.includes(procId) ? prev.filter(id => id !== procId) : [...prev, procId]
         )
     }
 
     return (
         <div className="space-y-8 max-w-6xl mx-auto animate-fade-in">
+            {/* Background orbs — mesmo padrão do dashboard */}
+            <div className="fixed top-20 -left-40 w-80 h-80 rounded-full blur-[120px] pointer-events-none" style={{ backgroundColor: 'var(--orb-1)' }} />
+            <div className="fixed bottom-20 right-0 w-96 h-96 rounded-full blur-[120px] pointer-events-none" style={{ backgroundColor: 'var(--orb-2)' }} />
+
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-petroleo dark:text-white flex items-center gap-2">
-                        <Stethoscope className="text-terracota" />
+                    <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                        <Stethoscope style={{ color: '#D99773' }} />
                         Fichas de Anamnese 🩺
                     </h1>
-                    <p className="text-xs text-acinzentado mt-1">
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
                         Crie prontuários dinâmicos, vincule aos seus procedimentos e audite assinaturas com validade legal.
                     </p>
                 </div>
@@ -195,21 +191,24 @@ export default function AnamnesePage() {
 
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-16">
-                    <div className="w-10 h-10 border-4 border-[#D99773] border-t-transparent rounded-full animate-spin mb-4" />
-                    <p className="text-xs text-acinzentado">Carregando fichas e histórico...</p>
+                    <div className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin mb-4" style={{ borderColor: 'rgba(217,151,115,0.3)', borderTopColor: 'transparent' }} />
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Carregando fichas e histórico...</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Modelos cadastrados */}
+                    {/* Coluna principal */}
                     <div className="lg:col-span-2 space-y-6">
+                        {/* Modelos */}
                         <div className="flex items-center gap-2">
-                            <ClipboardList size={16} className="text-terracota" />
-                            <h2 className="font-bold text-sm text-petroleo dark:text-white">Modelos Ativos de Fichas ({modelos.length})</h2>
+                            <ClipboardList size={16} style={{ color: '#D99773' }} />
+                            <h2 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                                Modelos Ativos de Fichas ({modelos.length})
+                            </h2>
                         </div>
 
                         {modelos.length === 0 ? (
-                            <div className="glass-card p-8 text-center">
-                                <p className="text-xs text-acinzentado">Você ainda não tem nenhum modelo de ficha cadastrado.</p>
+                            <div className="rounded-2xl p-8 text-center" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Você ainda não tem nenhum modelo de ficha cadastrado.</p>
                                 <button onClick={handleOpenCreate} className="btn-secondary text-[11px] mt-4">
                                     Criar minha primeira ficha
                                 </button>
@@ -217,21 +216,44 @@ export default function AnamnesePage() {
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {modelos.map(m => (
-                                    <div key={m.id} className="glass-card p-5 flex flex-col justify-between h-48 transition-all hover:scale-[1.01]">
+                                    <div
+                                        key={m.id}
+                                        className="group relative rounded-2xl p-5 flex flex-col justify-between h-48 transition-all duration-500 hover:-translate-y-1 overflow-hidden"
+                                        style={{
+                                            backgroundColor: 'var(--bg-card)',
+                                            border: '1px solid var(--border-default)',
+                                            boxShadow: 'var(--shadow-card)'
+                                        }}
+                                    >
+                                        {/* Glow line on hover */}
+                                        <div className="absolute top-0 left-0 right-0 h-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                                            style={{ background: 'linear-gradient(90deg, transparent, #D99773, transparent)' }} />
+
                                         <div>
                                             <div className="flex justify-between items-start mb-2">
-                                                <h3 className="font-bold text-sm text-petroleo dark:text-white truncate max-w-[80%]">{m.titulo}</h3>
-                                                <span className="badge badge-success text-[10px]">Ativo</span>
+                                                <h3 className="font-bold text-sm truncate max-w-[75%]" style={{ color: 'var(--text-primary)' }}>
+                                                    {m.titulo}
+                                                </h3>
+                                                <span className="text-[10px] font-semibold px-2.5 py-1 rounded-lg"
+                                                    style={{ backgroundColor: 'rgba(6,214,160,0.1)', color: '#06D6A0' }}>
+                                                    Ativo
+                                                </span>
                                             </div>
-                                            <p className="text-[11px] text-gray-400 mb-3">{m.perguntas.length} perguntas formuladas</p>
+                                            <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
+                                                {m.perguntas.length} perguntas formuladas
+                                            </p>
                                             <div className="flex flex-wrap gap-1.5 max-h-16 overflow-y-auto">
                                                 {m.procedimentoIds.length === 0 ? (
-                                                    <span className="text-[10px] text-acinzentado italic">Sem procedimentos vinculados</span>
+                                                    <span className="text-[10px] italic" style={{ color: 'var(--text-muted)' }}>
+                                                        Sem procedimentos vinculados
+                                                    </span>
                                                 ) : (
                                                     m.procedimentoIds.map(pid => {
                                                         const p = procedimentos.find(pr => pr.id === pid)
                                                         return p ? (
-                                                            <span key={pid} className="px-2 py-0.5 rounded bg-petroleo/10 text-petroleo dark:text-terracota dark:bg-[#D99773]/10 text-[9px] font-semibold">
+                                                            <span key={pid}
+                                                                className="px-2 py-0.5 rounded-lg text-[9px] font-semibold"
+                                                                style={{ backgroundColor: 'rgba(217,151,115,0.12)', color: '#D99773' }}>
                                                                 {p.nome}
                                                             </span>
                                                         ) : null
@@ -240,11 +262,21 @@ export default function AnamnesePage() {
                                             </div>
                                         </div>
 
-                                        <div className="flex justify-end gap-2 pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-                                            <button onClick={() => handleOpenEdit(m)} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-500 hover:text-gray-700 dark:text-gray-300 transition-all">
+                                        <div className="flex justify-end gap-2 pt-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                                            <button
+                                                onClick={() => handleOpenEdit(m)}
+                                                className="p-2 rounded-lg transition-all"
+                                                style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}
+                                                title="Editar"
+                                            >
                                                 <Edit2 size={13} />
                                             </button>
-                                            <button onClick={() => handleDeleteModel(m.id)} className="p-2 rounded-lg bg-red-500/5 hover:bg-red-500/10 text-red-500 transition-all">
+                                            <button
+                                                onClick={() => handleDeleteModel(m.id)}
+                                                className="p-2 rounded-lg transition-all"
+                                                style={{ backgroundColor: 'rgba(239,68,68,0.07)', color: '#EF4444' }}
+                                                title="Excluir"
+                                            >
                                                 <Trash2 size={13} />
                                             </button>
                                         </div>
@@ -253,46 +285,61 @@ export default function AnamnesePage() {
                             </div>
                         )}
 
-                        {/* Fichas já respondidas */}
+                        {/* Fichas respondidas */}
                         <div className="pt-4">
                             <div className="flex items-center gap-2 mb-4">
                                 <ShieldCheck size={16} className="text-green-500" />
-                                <h2 className="font-bold text-sm text-petroleo dark:text-white">Auditoria Jurídica: Assinaturas Recebidas ({fichas.length})</h2>
+                                <h2 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                                    Auditoria Jurídica: Assinaturas Recebidas ({fichas.length})
+                                </h2>
                             </div>
 
                             {fichas.length === 0 ? (
-                                <div className="glass-card p-8 text-center">
-                                    <p className="text-xs text-acinzentado">Nenhuma paciente respondeu ou assinou prontuários ainda.</p>
+                                <div className="rounded-2xl p-8 text-center" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhuma paciente respondeu ou assinou prontuários ainda.</p>
                                 </div>
                             ) : (
-                                <div className="glass-card overflow-hidden">
+                                <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-[11px] text-left">
                                             <thead>
-                                                <tr className="bg-petroleo/5 dark:bg-white/5 text-petroleo dark:text-white font-bold border-b" style={{ borderColor: 'var(--border-default)' }}>
-                                                    <th className="p-3">Paciente</th>
-                                                    <th className="p-3">Procedimento/Ficha</th>
-                                                    <th className="p-3">Data</th>
-                                                    <th className="p-3">Status</th>
-                                                    <th className="p-3 text-right">Ação</th>
+                                                <tr style={{ borderBottom: '1px solid var(--border-default)', backgroundColor: 'var(--bg-subtle)' }}>
+                                                    <th className="p-3 font-semibold" style={{ color: 'var(--text-secondary)' }}>Paciente</th>
+                                                    <th className="p-3 font-semibold" style={{ color: 'var(--text-secondary)' }}>Procedimento/Ficha</th>
+                                                    <th className="p-3 font-semibold" style={{ color: 'var(--text-secondary)' }}>Data</th>
+                                                    <th className="p-3 font-semibold" style={{ color: 'var(--text-secondary)' }}>Status</th>
+                                                    <th className="p-3 font-semibold text-right" style={{ color: 'var(--text-secondary)' }}>Ação</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-gray-100 dark:divide-white/5">
-                                                {fichas.map(f => (
-                                                    <tr key={f.id} className="hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors">
-                                                        <td className="p-3 font-semibold text-petroleo dark:text-white">
+                                            <tbody>
+                                                {fichas.map((f, i) => (
+                                                    <tr
+                                                        key={f.id}
+                                                        className="transition-colors"
+                                                        style={{ borderBottom: i < fichas.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}
+                                                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-subtle)')}
+                                                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                                                    >
+                                                        <td className="p-3">
                                                             <div className="flex flex-col">
-                                                                <span>{f.contato.nome}</span>
-                                                                <span className="text-[9px] text-gray-500">{f.contato.telefone}</span>
+                                                                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{f.contato.nome}</span>
+                                                                <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{f.contato.telefone}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="p-3 text-acinzentado">{f.titulo}</td>
-                                                        <td className="p-3 text-gray-400">{new Date(f.dataAssinatura).toLocaleDateString('pt-BR')}</td>
+                                                        <td className="p-3" style={{ color: 'var(--text-secondary)' }}>{f.titulo}</td>
+                                                        <td className="p-3" style={{ color: 'var(--text-muted)' }}>{new Date(f.dataAssinatura).toLocaleDateString('pt-BR')}</td>
                                                         <td className="p-3">
-                                                            <span className="badge badge-success text-[9px] py-0.5">Assinado ✓</span>
+                                                            <span className="text-[9px] font-semibold px-2.5 py-1 rounded-lg"
+                                                                style={{ backgroundColor: 'rgba(6,214,160,0.1)', color: '#06D6A0' }}>
+                                                                Assinado ✓
+                                                            </span>
                                                         </td>
                                                         <td className="p-3 text-right">
-                                                            <button onClick={() => setViewFicha(f)} className="p-1.5 rounded-lg bg-petroleo/5 hover:bg-petroleo/10 text-petroleo dark:text-terracota dark:bg-[#D99773]/10 dark:hover:bg-[#D99773]/20 transition-all font-medium inline-flex items-center gap-1">
+                                                            <button
+                                                                onClick={() => setViewFicha(f)}
+                                                                className="px-2.5 py-1.5 rounded-lg text-[10px] font-medium inline-flex items-center gap-1 transition-all"
+                                                                style={{ backgroundColor: 'rgba(217,151,115,0.1)', color: '#D99773' }}
+                                                            >
                                                                 <Eye size={11} /> Ver
                                                             </button>
                                                         </td>
@@ -306,48 +353,72 @@ export default function AnamnesePage() {
                         </div>
                     </div>
 
-                    {/* Resumo lateral informativa */}
-                    <div className="space-y-6">
-                        <div className="glass-card p-6">
-                            <h3 className="font-bold text-sm text-petroleo dark:text-white flex items-center gap-1.5 mb-2">
-                                <ShieldCheck size={16} className="text-terracota" /> Validado Juridicamente
-                            </h3>
-                            <p className="text-[11px] text-acinzentado leading-relaxed mb-4">
-                                Cada formulário de anamnese respondido e assinado digitalmente gera uma trilha técnica criptográfica inalterável. Armazenamos logs de IP de preenchimento, navegador User-Agent, carimbo de data/hora UTC síncrono do servidor e geramos um hash **SHA-256** individual do payload para completa garantia legal.
-                            </p>
-                            <div className="p-3 bg-glacial dark:bg-white/5 rounded-xl border border-dashed" style={{ borderColor: 'var(--border-default)' }}>
-                                <p className="text-[9px] text-petroleo dark:text-gray-400 font-bold uppercase tracking-wider mb-1">Dica de Envio:</p>
-                                <p className="text-[10px] text-acinzentado leading-relaxed">
-                                    Vincule suas fichas de anamnese aos procedimentos adequados. A IARA se encarregará de ler o agendamento da cliente e disparar a mensagem com o link correspondente exatamente 24 horas antes da consulta.
+                    {/* Sidebar informativa */}
+                    <div className="space-y-4">
+                        <div className="relative rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                            {/* Glow top line */}
+                            <div className="absolute top-0 left-0 right-0 h-[2px]"
+                                style={{ background: 'linear-gradient(90deg, transparent, #D99773, #8B5CF6, transparent)' }} />
+
+                            <div className="p-6">
+                                <h3 className="font-bold text-sm flex items-center gap-1.5 mb-3" style={{ color: 'var(--text-primary)' }}>
+                                    <ShieldCheck size={16} style={{ color: '#D99773' }} /> Validado Juridicamente
+                                </h3>
+                                <p className="text-[11px] leading-relaxed mb-4" style={{ color: 'var(--text-muted)' }}>
+                                    Cada formulário respondido e assinado digitalmente gera uma trilha criptográfica inalterável. Armazenamos IP de preenchimento, User-Agent, carimbo UTC e geramos hash <strong>SHA-256</strong> individual.
                                 </p>
+                                <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px dashed var(--border-hover)' }}>
+                                    <p className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>Dica de Envio:</p>
+                                    <p className="text-[10px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                                        Vincule fichas aos procedimentos e a IARA dispara o link automaticamente 24h antes do atendimento.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Mini stats */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="rounded-2xl p-4 text-center" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                                <p className="text-2xl font-bold" style={{ color: '#D99773' }}>{modelos.length}</p>
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Modelos</p>
+                            </div>
+                            <div className="rounded-2xl p-4 text-center" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                                <p className="text-2xl font-bold" style={{ color: '#06D6A0' }}>{fichas.length}</p>
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Assinadas</p>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* ====== MODAL DE FORMULÁRIO (CRIAR/EDITAR) ====== */}
+            {/* ====== MODAL CRIAR/EDITAR ====== */}
             {modalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="glass-card w-full max-w-2xl max-h-[85vh] flex flex-col p-6 overflow-hidden">
-                        {/* Header */}
-                        <div className="flex justify-between items-center pb-4 border-b mb-4" style={{ borderColor: 'var(--border-default)' }}>
-                            <h2 className="font-bold text-sm text-petroleo dark:text-white flex items-center gap-1.5">
-                                <ClipboardList size={16} className="text-terracota" />
+                    <div className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl overflow-hidden"
+                        style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-hover)' }}>
+                        {/* Header modal */}
+                        <div className="flex justify-between items-center p-6" style={{ borderBottom: '1px solid var(--border-default)' }}>
+                            <h2 className="font-bold text-sm flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                                <ClipboardList size={16} style={{ color: '#D99773' }} />
                                 {editingModel ? 'Editar Modelo de Anamnese' : 'Novo Modelo de Anamnese'}
                             </h2>
-                            <button onClick={() => setModalOpen(false)} className="text-gray-400 hover:text-gray-200">
+                            <button onClick={() => setModalOpen(false)} className="p-1.5 rounded-lg transition-all"
+                                style={{ color: 'var(--text-muted)' }}
+                                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+                                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
                                 <X size={18} />
                             </button>
                         </div>
 
-                        {/* Content */}
-                        <div className="flex-1 overflow-y-auto space-y-5 pr-1 text-[11px]">
+                        {/* Content scrollável */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-5 text-[11px]">
                             {/* Título */}
                             <div>
-                                <label className="block font-bold text-petroleo dark:text-white mb-1.5">Título da Ficha de Anamnese:</label>
-                                <input 
-                                    type="text" 
+                                <label className="block font-bold mb-1.5" style={{ color: 'var(--text-primary)' }}>
+                                    Título da Ficha de Anamnese:
+                                </label>
+                                <input
+                                    type="text"
                                     value={titulo}
                                     onChange={(e) => setTitulo(e.target.value)}
                                     placeholder="Ex: Ficha de Anamnese - Botox e Preenchedores"
@@ -355,12 +426,15 @@ export default function AnamnesePage() {
                                 />
                             </div>
 
-                            {/* Procedimentos vinculados */}
+                            {/* Procedimentos */}
                             <div>
-                                <label className="block font-bold text-petroleo dark:text-white mb-1.5">Vincular a Procedimentos (Quando agendados, dispara esta ficha):</label>
-                                <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 bg-gray-50 dark:bg-white/5 rounded-xl border" style={{ borderColor: 'var(--border-default)' }}>
+                                <label className="block font-bold mb-1.5" style={{ color: 'var(--text-primary)' }}>
+                                    Vincular a Procedimentos:
+                                </label>
+                                <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-3 rounded-xl"
+                                    style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
                                     {procedimentos.length === 0 ? (
-                                        <p className="text-[10px] text-acinzentado italic">Nenhum procedimento cadastrado na clínica.</p>
+                                        <p className="text-[10px] italic" style={{ color: 'var(--text-muted)' }}>Nenhum procedimento cadastrado.</p>
                                     ) : (
                                         procedimentos.map(p => {
                                             const isSelected = selectedProcs.includes(p.id)
@@ -369,11 +443,16 @@ export default function AnamnesePage() {
                                                     key={p.id}
                                                     type="button"
                                                     onClick={() => handleProcToggle(p.id)}
-                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-semibold border cursor-pointer transition-all ${
-                                                        isSelected 
-                                                            ? 'bg-terracota border-terracota text-white' 
-                                                            : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-500 hover:opacity-85'
-                                                    }`}
+                                                    className="px-3 py-1.5 rounded-lg text-[10px] font-semibold border cursor-pointer transition-all"
+                                                    style={isSelected ? {
+                                                        backgroundColor: '#D99773',
+                                                        borderColor: '#D99773',
+                                                        color: '#fff'
+                                                    } : {
+                                                        backgroundColor: 'var(--bg-input)',
+                                                        borderColor: 'var(--border-default)',
+                                                        color: 'var(--text-secondary)'
+                                                    }}
                                                 >
                                                     {p.nome}
                                                 </button>
@@ -383,25 +462,23 @@ export default function AnamnesePage() {
                                 </div>
                             </div>
 
-                            {/* Envio configurações */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block font-bold text-petroleo dark:text-white mb-1.5">Enviar quanto tempo antes?</label>
-                                    <div className="flex items-center gap-2">
-                                        <input 
-                                            type="number" 
-                                            value={horasAntecedencia}
-                                            onChange={(e) => setHorasAntecedencia(Number(e.target.value))}
-                                            className="input-field w-20 py-2 text-center"
-                                        />
-                                        <span className="text-acinzentado">horas antes do agendamento</span>
-                                    </div>
-                                </div>
+                            {/* Horas antes */}
+                            <div className="flex items-center gap-3">
+                                <label className="font-bold" style={{ color: 'var(--text-primary)' }}>Enviar quanto tempo antes?</label>
+                                <input
+                                    type="number"
+                                    value={horasAntecedencia}
+                                    onChange={(e) => setHorasAntecedencia(Number(e.target.value))}
+                                    className="input-field w-20 py-2 text-center"
+                                />
+                                <span style={{ color: 'var(--text-muted)' }}>horas antes do agendamento</span>
                             </div>
 
-                            {/* Mensagem customizada */}
+                            {/* Mensagem WhatsApp */}
                             <div>
-                                <label className="block font-bold text-petroleo dark:text-white mb-1.5">Corpo da mensagem do WhatsApp:</label>
+                                <label className="block font-bold mb-1.5" style={{ color: 'var(--text-primary)' }}>
+                                    Corpo da mensagem do WhatsApp:
+                                </label>
                                 <textarea
                                     value={mensagemEnvio}
                                     onChange={(e) => setMensagemEnvio(e.target.value)}
@@ -409,17 +486,22 @@ export default function AnamnesePage() {
                                     className="input-field text-[11px]"
                                     placeholder="Ex: Olá {nome_cliente}! Por favor preencha sua ficha pelo link: {link_anamnese}"
                                 />
-                                <p className="text-[9px] text-acinzentado mt-1">Use a tag <strong>{"{nome_cliente}"}</strong> e <strong>{"{link_anamnese}"}</strong> para injeção automática de dados.</p>
+                                <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                                    Use <strong>{'{nome_cliente}'}</strong> e <strong>{'{link_anamnese}'}</strong> para injeção automática de dados.
+                                </p>
                             </div>
 
-                            {/* Perguntas Dinâmicas */}
+                            {/* Perguntas */}
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center">
-                                    <label className="block font-bold text-petroleo dark:text-white">Perguntas da Ficha ({perguntas.length})</label>
-                                    <button 
-                                        type="button" 
+                                    <label className="font-bold" style={{ color: 'var(--text-primary)' }}>
+                                        Perguntas da Ficha ({perguntas.length})
+                                    </label>
+                                    <button
+                                        type="button"
                                         onClick={handleAddQuestion}
-                                        className="text-[10px] text-terracota hover:underline flex items-center gap-1 font-semibold"
+                                        className="text-[10px] font-semibold flex items-center gap-1 transition-all"
+                                        style={{ color: '#D99773' }}
                                     >
                                         <Plus size={12} /> Adicionar Pergunta
                                     </button>
@@ -427,29 +509,31 @@ export default function AnamnesePage() {
 
                                 <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                                     {perguntas.map((q, idx) => (
-                                        <div key={q.id} className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border relative" style={{ borderColor: 'var(--border-default)' }}>
-                                            <button 
+                                        <div key={q.id} className="p-3 rounded-xl relative"
+                                            style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
+                                            <button
                                                 type="button"
                                                 onClick={() => handleRemoveQuestion(q.id)}
-                                                className="absolute top-2 right-2 text-red-500 hover:bg-red-500/5 p-1 rounded"
+                                                className="absolute top-2 right-2 p-1 rounded transition-all"
+                                                style={{ color: '#EF4444' }}
                                             >
                                                 <X size={12} />
                                             </button>
 
                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                 <div className="sm:col-span-2">
-                                                    <label className="block text-gray-500 mb-1">Pergunta {idx + 1}:</label>
-                                                    <input 
-                                                        type="text" 
+                                                    <label className="block mb-1" style={{ color: 'var(--text-muted)' }}>Pergunta {idx + 1}:</label>
+                                                    <input
+                                                        type="text"
                                                         value={q.label}
                                                         onChange={(e) => handleQuestionChange(q.id, 'label', e.target.value)}
-                                                        placeholder="Ex: Sofre de alguma doença crônica ou cardíaca?"
+                                                        placeholder="Ex: Sofre de alguma doença crônica?"
                                                         className="input-field py-1 text-[10px]"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-gray-500 mb-1">Tipo de Resposta:</label>
-                                                    <select 
+                                                    <label className="block mb-1" style={{ color: 'var(--text-muted)' }}>Tipo:</label>
+                                                    <select
                                                         value={q.tipo}
                                                         onChange={(e: any) => handleQuestionChange(q.id, 'tipo', e.target.value)}
                                                         className="input-field py-1 text-[10px]"
@@ -462,12 +546,11 @@ export default function AnamnesePage() {
                                                 </div>
                                             </div>
 
-                                            {/* Se for múltipla escolha, permitir adicionar opções */}
                                             {q.tipo === 'multipla_escolha' && (
                                                 <div className="mt-3">
-                                                    <label className="block text-gray-500 mb-1">Opções (separadas por vírgula):</label>
-                                                    <input 
-                                                        type="text" 
+                                                    <label className="block mb-1" style={{ color: 'var(--text-muted)' }}>Opções (separadas por vírgula):</label>
+                                                    <input
+                                                        type="text"
                                                         value={q.opcoes?.join(', ') || ''}
                                                         onChange={(e) => handleQuestionChange(q.id, 'opcoes', e.target.value.split(',').map(s => s.trim()))}
                                                         placeholder="Opção A, Opção B, Opção C"
@@ -477,14 +560,16 @@ export default function AnamnesePage() {
                                             )}
 
                                             <div className="mt-3 flex items-center gap-1.5">
-                                                <input 
-                                                    type="checkbox" 
-                                                    id={`req-${q.id}`} 
+                                                <input
+                                                    type="checkbox"
+                                                    id={`req-${q.id}`}
                                                     checked={q.obrigatorio}
                                                     onChange={(e) => handleQuestionChange(q.id, 'obrigatorio', e.target.checked)}
-                                                    className="w-3.5 h-3.5 border rounded"
+                                                    className="w-3.5 h-3.5 rounded"
                                                 />
-                                                <label htmlFor={`req-${q.id}`} className="text-gray-500 font-semibold cursor-pointer">Resposta obrigatória</label>
+                                                <label htmlFor={`req-${q.id}`} className="font-semibold cursor-pointer" style={{ color: 'var(--text-muted)' }}>
+                                                    Resposta obrigatória
+                                                </label>
                                             </div>
                                         </div>
                                     ))}
@@ -492,8 +577,8 @@ export default function AnamnesePage() {
                             </div>
                         </div>
 
-                        {/* Footer */}
-                        <div className="flex justify-end gap-2 pt-4 border-t mt-4" style={{ borderColor: 'var(--border-default)' }}>
+                        {/* Footer modal */}
+                        <div className="flex justify-end gap-2 p-6" style={{ borderTop: '1px solid var(--border-default)' }}>
                             <button onClick={() => setModalOpen(false)} className="btn-secondary py-2 px-4 text-[11px]">
                                 Cancelar
                             </button>
@@ -505,75 +590,89 @@ export default function AnamnesePage() {
                 </div>
             )}
 
-            {/* ====== MODAL DE VISUALIZAÇÃO DE FICHA PREENCHIDA (AUDITORIA) ====== */}
+            {/* ====== MODAL VISUALIZAÇÃO DE FICHA PREENCHIDA ====== */}
             {viewFicha && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="glass-card w-full max-w-2xl max-h-[85vh] flex flex-col p-6 overflow-hidden">
+                    <div className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl overflow-hidden"
+                        style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-hover)' }}>
                         {/* Header */}
-                        <div className="flex justify-between items-center pb-4 border-b mb-4" style={{ borderColor: 'var(--border-default)' }}>
+                        <div className="flex justify-between items-center p-6" style={{ borderBottom: '1px solid var(--border-default)' }}>
                             <div>
-                                <h2 className="font-bold text-sm text-petroleo dark:text-white flex items-center gap-1.5">
+                                <h2 className="font-bold text-sm flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
                                     <ShieldCheck size={16} className="text-green-500" />
                                     Auditoria de Prontuário Assinado
                                 </h2>
-                                <p className="text-[10px] text-gray-500 mt-0.5">Paciente: {viewFicha.contato.nome} ({viewFicha.contato.telefone})</p>
+                                <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                    Paciente: {viewFicha.contato.nome} ({viewFicha.contato.telefone})
+                                </p>
                             </div>
-                            <button onClick={() => setViewFicha(null)} className="text-gray-400 hover:text-gray-200">
+                            <button onClick={() => setViewFicha(null)} className="p-1.5 rounded-lg transition-all"
+                                style={{ color: 'var(--text-muted)' }}>
                                 <X size={18} />
                             </button>
                         </div>
 
                         {/* Content */}
-                        <div className="flex-1 overflow-y-auto space-y-6 pr-1 text-[11px]">
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-[11px]">
                             {/* Respostas */}
                             <div>
-                                <h3 className="font-bold text-petroleo dark:text-white mb-2 pb-1 border-b" style={{ borderColor: 'var(--border-subtle)' }}>Perguntas & Respostas</h3>
-                                <div className="space-y-3 bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border" style={{ borderColor: 'var(--border-default)' }}>
+                                <h3 className="font-bold mb-2 pb-1" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)' }}>
+                                    Perguntas & Respostas
+                                </h3>
+                                <div className="space-y-3 p-4 rounded-2xl" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
                                     {Object.entries(viewFicha.respostas).map(([label, valor]) => (
-                                        <div key={label} className="pb-2 border-b last:border-0" style={{ borderColor: 'var(--border-subtle)' }}>
-                                            <p className="text-gray-500 font-bold mb-1">{label}</p>
-                                            <p className="text-petroleo dark:text-white text-xs">{String(valor) || <span className="italic text-gray-400">Sem resposta</span>}</p>
+                                        <div key={label} className="pb-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                                            <p className="font-bold mb-1" style={{ color: 'var(--text-secondary)' }}>{label}</p>
+                                            <p className="text-xs" style={{ color: 'var(--text-primary)' }}>
+                                                {String(valor) || <span className="italic" style={{ color: 'var(--text-muted)' }}>Sem resposta</span>}
+                                            </p>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* Assinatura Desenho */}
+                            {/* Assinatura */}
                             <div>
-                                <h3 className="font-bold text-petroleo dark:text-white mb-2 pb-1 border-b" style={{ borderColor: 'var(--border-subtle)' }}>Assinatura do Paciente</h3>
-                                <div className="flex items-center justify-center p-4 bg-white rounded-2xl border" style={{ borderColor: 'var(--border-default)' }}>
+                                <h3 className="font-bold mb-2 pb-1" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)' }}>
+                                    Assinatura do Paciente
+                                </h3>
+                                <div className="flex items-center justify-center p-4 rounded-2xl bg-white" style={{ border: '1px solid var(--border-default)' }}>
                                     {viewFicha.assinaturaPng ? (
-                                        <img src={viewFicha.assinaturaPng} alt="Assinatura Digital" className="max-h-24 object-contain invert-0" />
+                                        <img src={viewFicha.assinaturaPng} alt="Assinatura Digital" className="max-h-24 object-contain" />
                                     ) : (
-                                        <span className="italic text-gray-400">Assinatura indisponível</span>
+                                        <span className="italic" style={{ color: 'var(--text-muted)' }}>Assinatura indisponível</span>
                                     )}
                                 </div>
                             </div>
 
-                            {/* Selo e Rastro Jurídico */}
+                            {/* Trilha jurídica */}
                             <div>
-                                <h3 className="font-bold text-petroleo dark:text-white mb-2 pb-1 border-b" style={{ borderColor: 'var(--border-subtle)' }}>Evidências Legais de Integridade</h3>
-                                <div className="p-4 bg-petroleo/5 dark:bg-white/5 rounded-2xl border space-y-2 border-dashed" style={{ borderColor: 'var(--border-hover)' }}>
+                                <h3 className="font-bold mb-2 pb-1" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)' }}>
+                                    Evidências Legais de Integridade
+                                </h3>
+                                <div className="p-4 rounded-2xl space-y-2" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px dashed var(--border-hover)' }}>
                                     <div className="grid grid-cols-2 gap-2 text-[10px]">
-                                        <p className="text-gray-400">Endereço IP de origem:</p>
-                                        <p className="text-petroleo dark:text-white font-semibold text-right">{viewFicha.ipOrigem}</p>
-                                        
-                                        <p className="text-gray-400">Data e Hora exata UTC:</p>
-                                        <p className="text-petroleo dark:text-white font-semibold text-right">{new Date(viewFicha.dataAssinatura).toUTCString()}</p>
-                                        
-                                        <p className="text-gray-400">Navegador e Dispositivo (UA):</p>
-                                        <p className="text-petroleo dark:text-white font-semibold text-right truncate max-w-[180px] self-end">{viewFicha.userAgent}</p>
+                                        <p style={{ color: 'var(--text-muted)' }}>Endereço IP de origem:</p>
+                                        <p className="font-semibold text-right" style={{ color: 'var(--text-primary)' }}>{viewFicha.ipOrigem}</p>
+
+                                        <p style={{ color: 'var(--text-muted)' }}>Data e Hora exata UTC:</p>
+                                        <p className="font-semibold text-right" style={{ color: 'var(--text-primary)' }}>{new Date(viewFicha.dataAssinatura).toUTCString()}</p>
+
+                                        <p style={{ color: 'var(--text-muted)' }}>Navegador e Dispositivo (UA):</p>
+                                        <p className="font-semibold text-right truncate max-w-[180px] self-end" style={{ color: 'var(--text-primary)' }}>{viewFicha.userAgent}</p>
                                     </div>
-                                    <div className="pt-2 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-                                        <p className="text-gray-400 mb-1">Hash de Integridade Criptográfica (SHA-256):</p>
-                                        <p className="text-terracota font-mono text-[9px] break-all bg-black/10 dark:bg-black/30 p-2 rounded-xl border border-black/15">{viewFicha.hashIntegridade}</p>
+                                    <div className="pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                                        <p className="mb-1" style={{ color: 'var(--text-muted)' }}>Hash de Integridade Criptográfica (SHA-256):</p>
+                                        <p className="font-mono text-[9px] break-all p-2 rounded-xl" style={{ color: '#D99773', backgroundColor: 'rgba(0,0,0,0.15)', border: '1px solid rgba(217,151,115,0.2)' }}>
+                                            {viewFicha.hashIntegridade}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Footer */}
-                        <div className="flex justify-end gap-2 pt-4 border-t mt-4" style={{ borderColor: 'var(--border-default)' }}>
+                        <div className="flex justify-end p-6" style={{ borderTop: '1px solid var(--border-default)' }}>
                             <button onClick={() => setViewFicha(null)} className="btn-secondary py-2 px-4 text-[11px]">
                                 Fechar Auditoria
                             </button>
