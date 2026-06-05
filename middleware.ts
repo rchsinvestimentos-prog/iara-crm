@@ -72,33 +72,17 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-        '/dashboard/:path*',
-        '/conversas/:path*',
-        '/habilidades/:path*',
-        '/configuracoes/:path*',
-        '/plano/:path*',
-        '/admin/:path*',
-        '/login',
-        '/clinicas/:path*',
-        '/cofre/:path*',
-        '/diagnostico/:path*',
-        '/feedback/:path*',
-        '/financeiro/:path*',
-        '/logs/:path*',
-        // Rotas que estavam desprotegidas (fix auditoria)
-        '/crm/:path*',
-        '/campanhas/:path*',
-        '/simulador/:path*',
-        '/midia/:path*',
-        '/instancias/:path*',
-        '/melhorar-iara/:path*',
-        '/instagram/:path*',
-        '/indicacoes/:path*',
-        '/historico-creditos/:path*',
-        '/features/:path*',
-        '/agenda/:path*',
-        '/templates/:path*',
-        '/contatos/:path*',
-        '/secretaria/:path*',
+        /*
+         * Protege todas as rotas por padrão, EXCETO as que começam com:
+         * - _next/static (Arquivos estáticos do Next)
+         * - _next/image (Otimização de imagens do Next)
+         * - favicon.ico, sitemap.xml, robots.txt (Arquivos de metadados)
+         * - Arquivos de imagem genéricos (.png, .jpg, .svg, etc)
+         * E as seguintes APIs PÚBLICAS:
+         * - api/agendamento-publico
+         * - api/auth
+         * - api/webhook
+         */
+        '/((?!_next/static|_next/image|api/agendamento-publico|api/auth|api/webhook|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }

@@ -16,100 +16,99 @@ datasource db {
 // ============================================
 
 model Clinica {
-  id                   Int       @id @default(autoincrement())
-  uuid                 String?   @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  nome                 String?
-  email                String?   @unique
-  telefone             String?
-  senha                String?
-  role                 String?   @default("cliente")
-  parentId             Int?      @map("parent_id")
-  aceiteTermos         DateTime? @map("aceite_termos")
-  
-  // Plano e créditos
-  plano                String?
-  nivel                Int       @default(1)
-  status               String?   @default("ativo")
-  creditosMensais      Int?      @default(1000) @map("creditos_mensais")
-  creditosDisponiveis  Int?      @default(1000) @map("creditos_disponiveis")
-  totalAtendimentos    Int?      @default(0) @map("total_atendimentos")
-  tokenAtivacao        String?   @map("token_ativacao")
-  proximaRenovacao     DateTime? @map("proxima_renovacao")
-  
-  // Clínica
-  nomeClinica          String?   @map("nome_clinica")
-  endereco             String?
-  
-  // Assistente
-  nomeAssistente       String?   @default("Iara") @map("nome_assistente")
-  personalidadeVoz     String?   @map("personalidade_voz")
-  vozAssistente        String?   @map("voz_assistente")
-  tomAtendimento       String?   @map("tom_atendimento")
-  
-  // Horários — Detalhados (texto livre: "08:00 às 18:00")
-  horarioSemana        String?   @map("horario_semana") @db.VarChar(50)
-  almocoSemana         String?   @map("almoco_semana") @db.VarChar(50)
-  atendeSabado         Boolean?  @default(false) @map("atende_sabado")
-  horarioSabado        String?   @map("horario_sabado") @db.VarChar(50)
-  almocoSabado         String?   @map("almoco_sabado") @db.VarChar(50)
-  atendeDomingo        Boolean?  @default(false) @map("atende_domingo")
-  horarioDomingo       String?   @map("horario_domingo") @db.VarChar(50)
-  almocoDomingo        String?   @map("almoco_domingo") @db.VarChar(50)
-  atendeFeriado        Boolean?  @default(false) @map("atende_feriado")
-  horarioFeriado       String?   @map("horario_feriado") @db.VarChar(50)
-  almocoFeriado        String?   @map("almoco_feriado") @db.VarChar(50)
-  intervaloAtendimento Int?      @default(15) @map("intervalo_atendimento")
-  antecedenciaMinima   String?   @map("antecedencia_minima") @db.VarChar(200)
-  
-  // Descontos
-  aceitaDescontos      Boolean?  @default(false) @map("aceita_descontos")
-  descontoMaximo       Int?      @default(0) @map("desconto_maximo")
-  
-  // WhatsApp / Evolution
-  evolutionInstance    String?   @map("evolution_instance")
-  whatsappClinica      String?   @map("whatsapp_clinica")
-  whatsappDoutora      String?   @map("whatsapp_doutora")
-  nomeDoutora          String?   @map("nome_doutora") @db.VarChar(200)
-  tratamentoDoutora    String?   @map("tratamento_doutora") @default("Pelo nome") @db.VarChar(50)
-  evolutionApikey      String?   @map("evolution_apikey")
-  
-  // Aprendizado
-  aprendizadoContinuo  String?   @map("aprendizado_continuo")
-  
-  // Diferenciais
-  diferenciais         String?
-  daCursos             Boolean?  @default(false) @map("da_cursos")
-  
-  // Atendimento (personalidade da IA)
-  humor                String?   @db.VarChar(50)
-  emojis               String?   @db.VarChar(50)
-  fraseDespedida       String?   @map("fraseDespedida") @db.VarChar(200)
-  funcionalidades      String?
-  feedbacks            String?
-  modoIA               String?   @default("secretaria") @map("modo_ia") @db.VarChar(30)
-  estiloAtendimento    String?   @default("direta") @map("estilo_atendimento") @db.VarChar(20)
-  sempreLigada         Boolean?  @default(true) @map("sempre_ligada")
-  blacklist            String?   @map("blacklist")
-  mensagemAniversario  String?   @map("mensagem_aniversario")
-  mensagemForaHorario  String?   @map("mensagem_fora_horario")
-  diasAtendimento      String?   @map("dias_atendimento")
+  id           Int       @id @default(autoincrement())
+  uuid         String?   @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome         String?
+  email        String?   @unique
+  telefone     String?
+  senha        String?
+  role         String?   @default("cliente")
+  parentId     Int?      @map("parent_id")
+  aceiteTermos DateTime? @map("aceite_termos")
 
-  
+  // Plano e créditos
+  plano               String?
+  nivel               Int       @default(1)
+  status              String?   @default("ativo")
+  creditosMensais     Int?      @default(1000) @map("creditos_mensais")
+  creditosDisponiveis Int?      @default(1000) @map("creditos_disponiveis")
+  totalAtendimentos   Int?      @default(0) @map("total_atendimentos")
+  tokenAtivacao       String?   @map("token_ativacao")
+  proximaRenovacao    DateTime? @map("proxima_renovacao")
+
+  // Clínica
+  nomeClinica String? @map("nome_clinica")
+  endereco    String?
+
+  // Assistente
+  nomeAssistente   String? @default("Iara") @map("nome_assistente")
+  personalidadeVoz String? @map("personalidade_voz")
+  vozAssistente    String? @map("voz_assistente")
+  tomAtendimento   String? @map("tom_atendimento")
+
+  // Horários — Detalhados (texto livre: "08:00 às 18:00")
+  horarioSemana        String?  @map("horario_semana") @db.VarChar(50)
+  almocoSemana         String?  @map("almoco_semana") @db.VarChar(50)
+  atendeSabado         Boolean? @default(false) @map("atende_sabado")
+  horarioSabado        String?  @map("horario_sabado") @db.VarChar(50)
+  almocoSabado         String?  @map("almoco_sabado") @db.VarChar(50)
+  atendeDomingo        Boolean? @default(false) @map("atende_domingo")
+  horarioDomingo       String?  @map("horario_domingo") @db.VarChar(50)
+  almocoDomingo        String?  @map("almoco_domingo") @db.VarChar(50)
+  atendeFeriado        Boolean? @default(false) @map("atende_feriado")
+  horarioFeriado       String?  @map("horario_feriado") @db.VarChar(50)
+  almocoFeriado        String?  @map("almoco_feriado") @db.VarChar(50)
+  intervaloAtendimento Int?     @default(15) @map("intervalo_atendimento")
+  antecedenciaMinima   String?  @map("antecedencia_minima") @db.VarChar(200)
+
+  // Descontos
+  aceitaDescontos Boolean? @default(false) @map("aceita_descontos")
+  descontoMaximo  Int?     @default(0) @map("desconto_maximo")
+
+  // WhatsApp / Evolution
+  evolutionInstance String? @map("evolution_instance")
+  whatsappClinica   String? @map("whatsapp_clinica")
+  whatsappDoutora   String? @map("whatsapp_doutora")
+  nomeDoutora       String? @map("nome_doutora") @db.VarChar(200)
+  tratamentoDoutora String? @default("Pelo nome") @map("tratamento_doutora") @db.VarChar(50)
+  evolutionApikey   String? @map("evolution_apikey")
+
+  // Aprendizado
+  aprendizadoContinuo String? @map("aprendizado_continuo")
+
+  // Diferenciais
+  diferenciais String?
+  daCursos     Boolean? @default(false) @map("da_cursos")
+
+  // Atendimento (personalidade da IA)
+  humor               String?  @db.VarChar(50)
+  emojis              String?  @db.VarChar(50)
+  fraseDespedida      String?  @map("fraseDespedida") @db.VarChar(200)
+  funcionalidades     String?
+  feedbacks           String?
+  modoIA              String?  @default("secretaria") @map("modo_ia") @db.VarChar(30)
+  estiloAtendimento   String?  @default("direta") @map("estilo_atendimento") @db.VarChar(20)
+  sempreLigada        Boolean? @default(true) @map("sempre_ligada")
+  blacklist           String?  @map("blacklist")
+  mensagemAniversario String?  @map("mensagem_aniversario")
+  mensagemForaHorario String?  @map("mensagem_fora_horario")
+  diasAtendimento     String?  @map("dias_atendimento")
+
   // Internacionalização
-  idioma               String?   @default("pt-BR") @db.VarChar(5)
-  pais                 String?   @default("BR") @db.VarChar(2)
-  moeda                String?   @default("BRL") @db.VarChar(3)
-  timezone             String?   @default("America/Sao_Paulo") @db.VarChar(40)
-  canalPrincipal       String?   @default("whatsapp") @map("canal_principal") @db.VarChar(20)
-  
+  idioma         String? @default("pt-BR") @db.VarChar(5)
+  pais           String? @default("BR") @db.VarChar(2)
+  moeda          String? @default("BRL") @db.VarChar(3)
+  timezone       String? @default("America/Sao_Paulo") @db.VarChar(40)
+  canalPrincipal String? @default("whatsapp") @map("canal_principal") @db.VarChar(20)
+
   // Twilio
-  telefoneTwilio       String?   @map("telefone_twilio") @db.VarChar(20)
-  twilioSid            String?   @map("twilio_sid") @db.VarChar(50)
-  
+  telefoneTwilio String? @map("telefone_twilio") @db.VarChar(20)
+  twilioSid      String? @map("twilio_sid") @db.VarChar(50)
+
   // Instâncias
-  maxInstanciasWhatsapp  Int?    @default(1) @map("max_instancias_whatsapp")
-  maxInstanciasInstagram Int?    @default(0) @map("max_instancias_instagram")
-  
+  maxInstanciasWhatsapp  Int? @default(1) @map("max_instancias_whatsapp")
+  maxInstanciasInstagram Int? @default(0) @map("max_instancias_instagram")
+
   // Google Calendar
   googleCalendarToken        String?   @map("google_calendar_token")
   googleCalendarRefreshToken String?   @map("google_calendar_refresh_token")
@@ -117,17 +116,17 @@ model Clinica {
   googleTokenExpires         DateTime? @map("google_token_expires")
 
   // Apple Calendar (CalDAV)
-  appleCalendarEmail         String?   @map("apple_calendar_email") @db.VarChar(200)
-  appleCalendarPassword      String?   @map("apple_calendar_password")
-  appleCalendarUrl           String?   @map("apple_calendar_url")
-  calendarProvider           String?   @default("google") @map("calendar_provider") @db.VarChar(20)
-  
+  appleCalendarEmail    String? @map("apple_calendar_email") @db.VarChar(200)
+  appleCalendarPassword String? @map("apple_calendar_password")
+  appleCalendarUrl      String? @map("apple_calendar_url")
+  calendarProvider      String? @default("google") @map("calendar_provider") @db.VarChar(20)
+
   // Mídia
-  avatarFotos          Json?     @default("[]") @map("avatar_fotos") @db.JsonB
-  avatarVideo          String?   @map("avatar_video")
-  paletaCores          Json?     @map("paleta_cores") @db.JsonB
-  vozClonada           String?   @map("voz_clonada")
-  
+  avatarFotos Json?   @default("[]") @map("avatar_fotos") @db.JsonB
+  avatarVideo String? @map("avatar_video")
+  paletaCores Json?   @map("paleta_cores") @db.JsonB
+  vozClonada  String? @map("voz_clonada")
+
   // Personalização VIP
   faqPersonalizado     Json?     @default("[]") @map("faq_personalizado") @db.JsonB
   cuidadosPos          String?   @map("cuidados_pos")
@@ -137,24 +136,28 @@ model Clinica {
   linkMaps             String?   @map("link_maps") @db.VarChar(500)
   redesSociais         Json?     @default("{}") @map("redes_sociais") @db.JsonB
   mensagemBoasVindas   String?   @map("mensagem_boas_vindas")
-  
+
   // Datas
-  createdAt            DateTime? @default(now()) @map("created_at")
-  updatedAt            DateTime? @default(now()) @map("updated_at")
-  
+  createdAt DateTime? @default(now()) @map("created_at")
+  updatedAt DateTime? @default(now()) @map("updated_at")
+
   // JSON configs
-  configuracoes        Json?     @default("{}") @db.JsonB
-  integracoes          Json?     @default("{}") @db.JsonB
+  configuracoes Json? @default("{}") @db.JsonB
+  integracoes   Json? @default("{}") @db.JsonB
 
   // Relations
-  contatos             Contato[]
-  crmColunas           CrmColuna[]
-  campanhas            Campanha[]
-  usoFeatures          UsoFeature[]
-  profissionais        Profissional[]
-  avaliacoes           Avaliacao[]
-  agendamentos         Agendamento[]
-  
+  contatos      Contato[]
+  crmColunas    CrmColuna[]
+  campanhas     Campanha[]
+  usoFeatures   UsoFeature[]
+  profissionais Profissional[]
+  avaliacoes    Avaliacao[]
+  agendamentos  Agendamento[]
+
+  @@index([evolutionInstance])
+  @@index([tokenAtivacao])
+  @@index([email])
+  @@index([telefone])
   @@map("users")
 }
 
@@ -163,29 +166,29 @@ model Clinica {
 // ============================================
 
 model Profissional {
-  id                   String    @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId            Int       @map("clinica_id")
-  nome                 String    @db.VarChar(200)
-  tratamento           String?   @db.VarChar(50)  // Dra., Dr., Nutri, pelo nome, outro
-  bio                  String?   @db.Text
-  especialidade        String?   @db.VarChar(200)
-  diferenciais         String?   @db.Text
-  whatsapp             String?   @db.VarChar(30)
+  id            String  @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId     Int     @map("clinica_id")
+  nome          String  @db.VarChar(200)
+  tratamento    String? @db.VarChar(50) // Dra., Dr., Nutri, pelo nome, outro
+  bio           String? @db.Text
+  especialidade String? @db.VarChar(200)
+  diferenciais  String? @db.Text
+  whatsapp      String? @db.VarChar(30)
 
   // Cursos e redes
-  cursos               Json?     @default("[]") @db.JsonB    // [{nome, instituicao, ano}]
-  redesSociais         Json?     @default("{}") @map("redes_sociais_prof") @db.JsonB  // {instagram, tiktok, youtube, linkedin}
+  cursos       Json? @default("[]") @db.JsonB // [{nome, instituicao, ano}]
+  redesSociais Json? @default("{}") @map("redes_sociais_prof") @db.JsonB // {instagram, tiktok, youtube, linkedin}
 
   // Horários (herda da clínica se null)
-  horarioSemana        String?   @map("horario_semana") @db.VarChar(50)
-  almocoSemana         String?   @map("almoco_semana") @db.VarChar(50)
-  atendeSabado         Boolean?  @map("atende_sabado")
-  horarioSabado        String?   @map("horario_sabado") @db.VarChar(50)
-  almocoSabado         String?   @map("almoco_sabado") @db.VarChar(50)
-  atendeDomingo        Boolean?  @map("atende_domingo")
-  horarioDomingo       String?   @map("horario_domingo") @db.VarChar(50)
-  almocoDomingo        String?   @map("almoco_domingo") @db.VarChar(50)
-  intervaloAtendimento Int?      @map("intervalo_atendimento")
+  horarioSemana        String?  @map("horario_semana") @db.VarChar(50)
+  almocoSemana         String?  @map("almoco_semana") @db.VarChar(50)
+  atendeSabado         Boolean? @map("atende_sabado")
+  horarioSabado        String?  @map("horario_sabado") @db.VarChar(50)
+  almocoSabado         String?  @map("almoco_sabado") @db.VarChar(50)
+  atendeDomingo        Boolean? @map("atende_domingo")
+  horarioDomingo       String?  @map("horario_domingo") @db.VarChar(50)
+  almocoDomingo        String?  @map("almoco_domingo") @db.VarChar(50)
+  intervaloAtendimento Int?     @map("intervalo_atendimento")
 
   // Google Calendar
   googleCalendarToken        String?   @map("google_calendar_token")
@@ -194,41 +197,41 @@ model Profissional {
   googleTokenExpires         DateTime? @map("google_token_expires")
 
   // Apple Calendar (CalDAV)
-  appleCalendarEmail         String?   @map("apple_calendar_email") @db.VarChar(200)
-  appleCalendarPassword      String?   @map("apple_calendar_password")
-  appleCalendarUrl           String?   @map("apple_calendar_url")
-  calendarProvider           String?   @default("google") @map("calendar_provider") @db.VarChar(20)
+  appleCalendarEmail    String? @map("apple_calendar_email") @db.VarChar(200)
+  appleCalendarPassword String? @map("apple_calendar_password")
+  appleCalendarUrl      String? @map("apple_calendar_url")
+  calendarProvider      String? @default("google") @map("calendar_provider") @db.VarChar(20)
 
   // Férias/Folgas — [{inicio, fim, motivo}]
-  ausencias            Json?     @default("[]") @db.JsonB
+  ausencias Json? @default("[]") @db.JsonB
 
   // Auth (login da profissional)
-  email                String?   @unique @db.VarChar(200)
-  senhaHash            String?   @map("senha_hash")
-  magicToken           String?   @map("magic_token") @db.VarChar(100)
-  magicTokenExpires    DateTime? @map("magic_token_expires")
+  email             String?   @unique @db.VarChar(200)
+  senhaHash         String?   @map("senha_hash")
+  magicToken        String?   @map("magic_token") @db.VarChar(100)
+  magicTokenExpires DateTime? @map("magic_token_expires")
 
   // Termos & Disclaimer
-  termosAceitos        DateTime? @map("termos_aceitos")
-  disclaimerPosAceito  Boolean   @default(false) @map("disclaimer_pos_aceito")
+  termosAceitos         DateTime? @map("termos_aceitos")
+  disclaimerPosAceito   Boolean   @default(false) @map("disclaimer_pos_aceito")
   disclaimerPosAceitoEm DateTime? @map("disclaimer_pos_aceito_em")
 
   // Link público de agendamento
-  linkAgendamento      String?   @unique @map("link_agendamento") @db.VarChar(100)
-  linkConfig           Json?     @default("{}") @map("link_config") @db.JsonB
-  fotoUrl              String?   @map("foto_url") @db.VarChar(500)
-  chavePix             String?   @map("chave_pix") @db.VarChar(200)
-  linkPagamento        String?   @map("link_pagamento") @db.VarChar(500)
+  linkAgendamento String? @unique @map("link_agendamento") @db.VarChar(100)
+  linkConfig      Json?   @default("{}") @map("link_config") @db.JsonB
+  fotoUrl         String? @map("foto_url") @db.VarChar(500)
+  chavePix        String? @map("chave_pix") @db.VarChar(200)
+  linkPagamento   String? @map("link_pagamento") @db.VarChar(500)
 
   // Controle
-  isDono               Boolean   @default(false) @map("is_dono")
-  ativo                Boolean   @default(true)
-  ordem                Int       @default(0)
-  createdAt            DateTime  @default(now()) @map("created_at")
+  isDono    Boolean  @default(false) @map("is_dono")
+  ativo     Boolean  @default(true)
+  ordem     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
 
-  clinica              Clinica   @relation(fields: [clinicaId], references: [id])
-  procedimentos        Procedimento[]
-  agendamentos         Agendamento[]
+  clinica       Clinica        @relation(fields: [clinicaId], references: [id])
+  procedimentos Procedimento[]
+  agendamentos  Agendamento[]
 
   @@index([clinicaId])
   @@map("profissionais")
@@ -239,20 +242,20 @@ model Profissional {
 // ============================================
 
 model Curso {
-  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId       String
-  profissionalId  String?  @map("profissional_id")
-  nome            String
-  modalidade  String   @default("presencial") @db.VarChar(20)
-  valor       Float    @default(0)
-  duracao     String?  @db.VarChar(50)
-  vagas       Int?
-  desconto    Int      @default(0)
-  parcelas    String?  @db.VarChar(50)
-  descricao   String?
-  link        String?  @db.VarChar(500)
-  ativo       Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id             String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId      String
+  profissionalId String?  @map("profissional_id")
+  nome           String
+  modalidade     String   @default("presencial") @db.VarChar(20)
+  valor          Float    @default(0)
+  duracao        String?  @db.VarChar(50)
+  vagas          Int?
+  desconto       Int      @default(0)
+  parcelas       String?  @db.VarChar(50)
+  descricao      String?
+  link           String?  @db.VarChar(500)
+  ativo          Boolean  @default(true)
+  createdAt      DateTime @default(now())
 
   @@index([clinicaId])
   @@map("cursos")
@@ -263,23 +266,23 @@ model Curso {
 // ============================================
 
 model Procedimento {
-  id              Int            @id @default(autoincrement())
-  clinicaId       Int?           @map("user_id")
-  profissionalId  String?        @map("profissional_id")
-  nome            String         @db.VarChar(255)
-  valor           Decimal        @default(0) @map("preco_normal") @db.Decimal
-  desconto        Decimal        @default(0) @map("preco_minimo") @db.Decimal
-  parcelas        Int?           @map("parcelamento_padrao")
-  duracao         Int?           @map("duracao_minutos")
-  descricao       String?        @db.Text
-  valorMin        Decimal?       @map("valor_min") @db.Decimal
-  valorMax        Decimal?       @map("valor_max") @db.Decimal
-  posProcedimento String?        @map("pos_procedimento") @db.Text  // Cuidados pós-procedimento
-  profissionalIds Json?          @default("[]") @map("profissional_ids") @db.JsonB  // Array de IDs de profissionais que realizam
-  ativo           Boolean?       @default(true)
-  createdAt       DateTime?      @default(now()) @map("created_at")
+  id              Int       @id @default(autoincrement())
+  clinicaId       Int?      @map("user_id")
+  profissionalId  String?   @map("profissional_id")
+  nome            String    @db.VarChar(255)
+  valor           Decimal   @default(0) @map("preco_normal") @db.Decimal
+  desconto        Decimal   @default(0) @map("preco_minimo") @db.Decimal
+  parcelas        Int?      @map("parcelamento_padrao")
+  duracao         Int?      @map("duracao_minutos")
+  descricao       String?   @db.Text
+  valorMin        Decimal?  @map("valor_min") @db.Decimal
+  valorMax        Decimal?  @map("valor_max") @db.Decimal
+  posProcedimento String?   @map("pos_procedimento") @db.Text // Cuidados pós-procedimento
+  profissionalIds Json?     @default("[]") @map("profissional_ids") @db.JsonB // Array de IDs de profissionais que realizam
+  ativo           Boolean?  @default(true)
+  createdAt       DateTime? @default(now()) @map("created_at")
 
-  profissional    Profissional?  @relation(fields: [profissionalId], references: [id])
+  profissional Profissional? @relation(fields: [profissionalId], references: [id])
 
   @@index([clinicaId])
   @@index([profissionalId])
@@ -291,10 +294,10 @@ model Procedimento {
 // ============================================
 
 model Promocao {
-  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId       String
-  profissionalId  String?  @map("profissional_id")
-  nome            String
+  id             String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId      String
+  profissionalId String?  @map("profissional_id")
+  nome           String
   descricao      String?
   instrucaoIara  String?
   tipoDesconto   String   @default("percentual") @db.VarChar(20)
@@ -304,7 +307,7 @@ model Promocao {
   ativo          Boolean  @default(true)
   createdAt      DateTime @default(now())
 
-  procedimentos  PromocaoProcedimento[]
+  procedimentos PromocaoProcedimento[]
 
   @@index([clinicaId])
   @@index([dataInicio, dataFim])
@@ -312,11 +315,11 @@ model Promocao {
 }
 
 model PromocaoProcedimento {
-  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
-  promocaoId      String
-  procedimentoId  String
+  id             String @id @default(dbgenerated("gen_random_uuid()::text"))
+  promocaoId     String
+  procedimentoId String
 
-  promocao        Promocao @relation(fields: [promocaoId], references: [id], onDelete: Cascade)
+  promocao Promocao @relation(fields: [promocaoId], references: [id], onDelete: Cascade)
 
   @@unique([promocaoId, procedimentoId])
   @@map("promocao_procedimentos")
@@ -327,28 +330,28 @@ model PromocaoProcedimento {
 // ============================================
 
 model Combo {
-  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId       String
-  profissionalId  String?  @map("profissional_id")
-  nome            String
+  id             String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId      String
+  profissionalId String?  @map("profissional_id")
+  nome           String
   descricao      String?
   valorOriginal  Float    @default(0)
   valorCombo     Float    @default(0)
   ativo          Boolean  @default(true)
   createdAt      DateTime @default(now())
 
-  procedimentos  ComboProcedimento[]
+  procedimentos ComboProcedimento[]
 
   @@index([clinicaId])
   @@map("combos")
 }
 
 model ComboProcedimento {
-  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
-  comboId         String
-  procedimentoId  String
+  id             String @id @default(dbgenerated("gen_random_uuid()::text"))
+  comboId        String
+  procedimentoId String
 
-  combo           Combo @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  combo Combo @relation(fields: [comboId], references: [id], onDelete: Cascade)
 
   @@unique([comboId, procedimentoId])
   @@map("combo_procedimentos")
@@ -359,15 +362,15 @@ model ComboProcedimento {
 // ============================================
 
 model AdminUser {
-  id        Int       @id @default(autoincrement())
-  nome      String    @db.VarChar(100)
-  email     String    @unique @db.VarChar(200)
+  id        Int      @id @default(autoincrement())
+  nome      String   @db.VarChar(100)
+  email     String   @unique @db.VarChar(200)
   senha     String
-  role      String    @default("visualizador") @db.VarChar(30)
-  ativo     Boolean   @default(true)
-  avatarUrl String?   @map("avatar_url")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @default(now()) @map("updated_at")
+  role      String   @default("visualizador") @db.VarChar(30)
+  ativo     Boolean  @default(true)
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
 
   @@map("admin_users")
 }
@@ -377,14 +380,14 @@ model AdminUser {
 // ============================================
 
 model CrmColuna {
-  id        String  @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId Int     @map("clinica_id")
+  id        String @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId Int    @map("clinica_id")
   nome      String
   slug      String
-  cor       String  @default("#D99773")
-  ordem     Int     @default(0)
-  
-  clinica   Clinica @relation(fields: [clinicaId], references: [id])
+  cor       String @default("#D99773")
+  ordem     Int    @default(0)
+
+  clinica Clinica @relation(fields: [clinicaId], references: [id])
 
   @@unique([clinicaId, slug])
   @@index([clinicaId])
@@ -418,7 +421,7 @@ model Contato {
   createdAt       DateTime? @default(now()) @map("created_at")
   updatedAt       DateTime? @default(now()) @map("updated_at")
 
-  clinica         Clinica?  @relation(fields: [clinicaId], references: [id])
+  clinica Clinica? @relation(fields: [clinicaId], references: [id])
 
   @@unique([clinicaId, telefone])
   @@index([clinicaId, etapa])
@@ -430,33 +433,33 @@ model Contato {
 // ============================================
 
 model Campanha {
-  id          String    @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId   Int       @map("clinica_id")
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId   Int      @map("clinica_id")
   nome        String
-  mensagem    String    @db.Text
-  filtroEtapa String?   @map("filtro_etapa")
-  status      String    @default("rascunho")
-  totalEnvios Int       @default(0) @map("total_envios")
-  totalErros  Int       @default(0) @map("total_erros")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  mensagem    String   @db.Text
+  filtroEtapa String?  @map("filtro_etapa")
+  status      String   @default("rascunho")
+  totalEnvios Int      @default(0) @map("total_envios")
+  totalErros  Int      @default(0) @map("total_erros")
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  clinica     Clinica   @relation(fields: [clinicaId], references: [id])
-  envios      CampanhaEnvio[]
+  clinica Clinica         @relation(fields: [clinicaId], references: [id])
+  envios  CampanhaEnvio[]
 
   @@index([clinicaId])
   @@map("campanhas")
 }
 
 model CampanhaEnvio {
-  id          String    @id @default(dbgenerated("gen_random_uuid()::text"))
-  campanhaId  String    @map("campanha_id")
-  telefone    String
-  nome        String?
-  status      String    @default("pendente")
-  enviadoEm   DateTime? @map("enviado_em")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id         String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  campanhaId String    @map("campanha_id")
+  telefone   String
+  nome       String?
+  status     String    @default("pendente")
+  enviadoEm  DateTime? @map("enviado_em")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
-  campanha    Campanha  @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
+  campanha Campanha @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
 
   @@index([campanhaId])
   @@map("campanha_envios")
@@ -467,13 +470,13 @@ model CampanhaEnvio {
 // ============================================
 
 model UsoFeature {
-  id        String  @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId Int     @map("clinica_id")
-  feature   String  @db.VarChar(50)
-  mesAno    String  @map("mes_ano") @db.VarChar(7)
-  usado     Int     @default(0)
+  id        String @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId Int    @map("clinica_id")
+  feature   String @db.VarChar(50)
+  mesAno    String @map("mes_ano") @db.VarChar(7)
+  usado     Int    @default(0)
 
-  clinica   Clinica @relation(fields: [clinicaId], references: [id])
+  clinica Clinica @relation(fields: [clinicaId], references: [id])
 
   @@unique([clinicaId, feature, mesAno])
   @@index([clinicaId])
@@ -499,7 +502,7 @@ model Avaliacao {
   contatoId           Int?     @map("contato_id")
   telefone            String   @db.VarChar(50)
   nome                String?  @db.VarChar(200)
-  nota                Int      // 1-5
+  nota                Int // 1-5
   comentario          String?  @db.Text
   googleReviewEnviado Boolean  @default(false) @map("google_review_enviado")
   createdAt           DateTime @default(now()) @map("created_at")
@@ -515,41 +518,43 @@ model Avaliacao {
 // ============================================
 
 model Agendamento {
-  id              String    @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId       Int       @map("clinica_id")
-  profissionalId  String    @map("profissional_id")
+  id             String @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId      Int    @map("clinica_id")
+  profissionalId String @map("profissional_id")
 
   // Paciente
-  nomePaciente    String    @map("nome_paciente") @db.VarChar(200)
-  telefone        String    @db.VarChar(30)
-  contatoId       Int?      @map("contato_id")  // Link com CRM
+  nomePaciente String @map("nome_paciente") @db.VarChar(200)
+  telefone     String @db.VarChar(30)
+  contatoId    Int?   @map("contato_id") // Link com CRM
 
   // Agendamento
-  procedimento    String    @db.VarChar(255)
-  data            DateTime
-  horario         String    @db.VarChar(10)  // "09:30"
-  duracao         Int       @default(30)     // minutos
-  valor           Decimal?  @db.Decimal
+  procedimento String   @db.VarChar(255)
+  data         DateTime
+  horario      String   @db.VarChar(10) // "09:30"
+  horarioInicio DateTime? @map("horario_inicio")
+  horarioFim   DateTime? @map("horario_fim")
+  duracao      Int      @default(30) // minutos
+  valor        Decimal? @db.Decimal
 
   // Status: pendente | confirmado | realizado | cancelado | reagendado | noshow
-  status          String    @default("pendente") @db.VarChar(20)
-  observacao      String?   @db.Text
+  status     String  @default("pendente") @db.VarChar(20)
+  observacao String? @db.Text
 
   // Origens: painel | link_publico | whatsapp | google
-  origem          String    @default("painel") @db.VarChar(20)
+  origem String @default("painel") @db.VarChar(20)
 
   // Google Calendar sync
-  googleEventId   String?   @map("google_event_id") @db.VarChar(200)
+  googleEventId String? @map("google_event_id") @db.VarChar(200)
 
   // PIX
-  pixPago         Boolean   @default(false) @map("pix_pago")
+  pixPago Boolean @default(false) @map("pix_pago")
 
   // Controle
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  clinica         Clinica       @relation(fields: [clinicaId], references: [id])
-  profissional    Profissional  @relation(fields: [profissionalId], references: [id])
+  clinica      Clinica      @relation(fields: [clinicaId], references: [id])
+  profissional Profissional @relation(fields: [profissionalId], references: [id])
 
   @@index([clinicaId])
   @@index([profissionalId])
@@ -562,7 +567,7 @@ model ModeloAnamnese {
   id                String   @id @default(dbgenerated("gen_random_uuid()::text"))
   clinicaId         Int      @map("clinica_id")
   titulo            String
-  perguntas         Json     // JSON com as perguntas dinâmicas [{tipo, label, opcoes, obrigatorio}]
+  perguntas         Json // JSON com as perguntas dinâmicas [{tipo, label, opcoes, obrigatorio}]
   procedimentoIds   Json?    @default("[]") @map("procedimento_ids")
   mensagemEnvio     String?  @map("mensagem_envio") @db.Text
   horasAntecedencia Int?     @default(24) @map("horas_antecedencia")
@@ -588,20 +593,39 @@ model FollowUpConfig {
 }
 
 model FichaPreenchida {
-  id              String   @id @default(dbgenerated("gen_random_uuid()::text"))
-  clinicaId       Int      @map("clinica_id")
-  contatoId       Int      @map("contato_id")
-  titulo          String
-  respostas       Json     // Respostas do formulário {perguntaId: resposta}
-  
+  id        String @id @default(dbgenerated("gen_random_uuid()::text"))
+  clinicaId Int    @map("clinica_id")
+  contatoId Int    @map("contato_id")
+  titulo    String
+  respostas Json // Respostas do formulário {perguntaId: resposta}
+
   // Trilha de Evidências Criptográficas (Validade Jurídica)
   assinaturaPng   String   @map("assinatura_png") @db.Text // Desenho em Base64
   dataAssinatura  DateTime @default(now()) @map("data_assinatura")
   ipOrigem        String   @map("ip_origem") @db.VarChar(50)
   userAgent       String   @map("user_agent") @db.VarChar(500)
   hashIntegridade String   @map("hash_integridade") @db.VarChar(64) // SHA-256 Hash
-  
-  createdAt       DateTime @default(now()) @map("created_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("fichas_preenchidas")
+}
+
+// ============================================
+// Fila de Cron Jobs (Lotes e Workers)
+// ============================================
+
+model FilaCron {
+  id           String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  tipo         String   @db.VarChar(50) // ex: 'lembrete', 'nps', 'followup'
+  payload      Json     @db.JsonB       // Dados a serem processados
+  status       String   @default("pendente") @db.VarChar(20) // pendente, processando, concluido, erro
+  tentativas   Int      @default(0)
+  erro         String?  @db.Text
+  agendadoPara DateTime @default(now()) @map("agendado_para")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([status, agendadoPara])
+  @@map("fila_cron")
 }
