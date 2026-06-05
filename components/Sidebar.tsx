@@ -29,11 +29,15 @@ import {
   Link2,
   Clock,
   UserCheck,
+  ChevronUp,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useTheme } from './ThemeProvider'
 import SeletorIdioma from './SeletorIdioma'
 import dynamic from 'next/dynamic'
+import UserMenuDropdown from './UserMenuDropdown'
+import TrocarSenhaModal from './TrocarSenhaModal'
+import FotoPerfilModal from './FotoPerfilModal'
 
 interface ClinicaItem {
   id: number
@@ -57,6 +61,10 @@ export default function Sidebar() {
   const [clinicas, setClinicas] = useState<ClinicaItem[]>([])
   const [clinicaAtiva, setClinicaAtiva] = useState<number | null>(null)
   const [showClinicaDropdown, setShowClinicaDropdown] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showTrocarSenha, setShowTrocarSenha] = useState(false)
+  const [showFotoPerfil, setShowFotoPerfil] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const isDark = theme === 'dark'
 
   // Buscar plano da clínica
@@ -69,6 +77,7 @@ export default function Sidebar() {
         const nomes: Record<number, string> = { 1: 'Essencial', 2: 'Pro', 3: 'Premium' }
         setNomePlano(nomes[Math.min(3, Number(data?.nivel))] || 'Essencial')
         if (data?.id) setClinicaAtiva(Number(data.id))
+        if (data?.fotoUrl) setAvatarUrl(data.fotoUrl)
       })
       .catch(() => { })
   }, [])
@@ -391,6 +400,62 @@ export default function Sidebar() {
         <div className="px-3 pb-4 pt-2" style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.06)'}` }}>
           <SeletorIdioma />
 
+          {/* ── Botão do usuário (abre menu) ── */}
+          <div className="relative mb-2">
+            <button
+              id="user-menu-btn"
+              onClick={() => setShowUserMenu(v => !v)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group"
+              style={{
+                backgroundColor: showUserMenu
+                  ? (isDark ? 'rgba(217,151,115,0.08)' : 'rgba(15,76,97,0.06)')
+                  : 'transparent',
+                border: `1px solid ${showUserMenu
+                  ? (isDark ? 'rgba(217,151,115,0.2)' : 'rgba(15,76,97,0.12)')
+                  : 'transparent'}`,
+              }}
+            >
+              {/* Avatar */}
+              <div
+                className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center font-bold text-white text-[11px] flex-shrink-0"
+                style={{
+                  background: 'linear-gradient(135deg, #D99773, #0F4C61)',
+                  boxShadow: '0 2px 8px rgba(217,151,115,0.25)',
+                }}
+              >
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <User size={15} />
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-[11px] font-semibold truncate" style={{ color: isDark ? '#E5E7EB' : '#0F4C61' }}>
+                  {(session?.user as any)?.name || session?.user?.email || 'Minha conta'}
+                </p>
+                <p className="text-[9px]" style={{ color: isDark ? '#4B5563' : '#94A3B8' }}>Configurações da conta</p>
+              </div>
+
+              <ChevronUp
+                size={12}
+                className={`transition-transform ${showUserMenu ? '' : 'rotate-180'}`}
+                style={{ color: isDark ? '#4B5563' : '#94A3B8' }}
+              />
+            </button>
+
+            {/* Dropdown do usuário */}
+            {showUserMenu && (
+              <UserMenuDropdown
+                onClose={() => setShowUserMenu(false)}
+                onOpenTrocarSenha={() => setShowTrocarSenha(true)}
+                onOpenFotoPerfil={() => setShowFotoPerfil(true)}
+                avatarUrl={avatarUrl}
+              />
+            )}
+          </div>
+
           {/* Clinic Selector — não mostrar para profissional */}
           {!isProfissional && <div className="relative">
             <button
@@ -444,6 +509,18 @@ export default function Sidebar() {
             <span>Sair</span>
           </button>
         </div>
+
+        {/* ── Modais globais ── */}
+        <TrocarSenhaModal
+          isOpen={showTrocarSenha}
+          onClose={() => setShowTrocarSenha(false)}
+        />
+        <FotoPerfilModal
+          isOpen={showFotoPerfil}
+          onClose={() => setShowFotoPerfil(false)}
+          currentAvatarUrl={avatarUrl}
+          onAvatarUpdated={(url) => setAvatarUrl(url || null)}
+        />
       </aside>
     </>
   )
