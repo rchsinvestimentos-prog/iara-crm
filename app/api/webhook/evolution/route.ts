@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json()
 
         // Log mínimo para diagnóstico
-        const webhookEvent = body.event || ''
+        const webhookEvent = String(body.event || '').toLowerCase().replace(/_/g, '.')
         const webhookInstance = body.instance || body.instanceName || ''
 
         // LOG PERSISTENTE — registrar CADA webhook que chega
