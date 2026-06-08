@@ -88,15 +88,15 @@ export async function GET(request: NextRequest) {
 
     // Últimas interações
     const ultimasMsgs = await prisma.$queryRawUnsafe(`
-        SELECT telefone, tipo, mensagem, created_at 
-        FROM mensagens_processadas 
+        SELECT telefone_cliente as telefone, role as tipo, content as mensagem, created_at 
+        FROM historico_conversas 
         WHERE user_id = $1 
         ORDER BY created_at DESC LIMIT 20
     `, parseInt(clinicaId)) as any[]
 
     // Procedimentos
     const procedimentos = await prisma.$queryRawUnsafe(`
-        SELECT nome, preco FROM procedimentos 
+        SELECT nome, preco_normal as preco FROM procedimentos 
         WHERE user_id = $1
     `, parseInt(clinicaId)) as any[]
 
