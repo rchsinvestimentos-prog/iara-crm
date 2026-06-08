@@ -83,6 +83,6 @@ export const config = {
          * - api/auth
          * - api/webhook
          */
-        '/((?!_next/static|_next/image|api/agendamento-publico|api/auth|api/webhook|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|api/agendamento-publico|api/auth|api/webhook|api/debug|api/admin/diagnostico|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }
