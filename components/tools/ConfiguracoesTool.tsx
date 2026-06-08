@@ -14,6 +14,16 @@ interface Procedimento {
     parcelas: string | null
     duracao: string | null
     descricao: string | null
+    profissionalIds?: string[]
+    profissionaisInfo?: { id: string; nome: string; tratamento: string | null }[]
+}
+
+interface Profissional {
+    id: string
+    nome: string
+    tratamento: string | null
+    ativo: boolean
+    isDono: boolean
 }
 
 interface Curso {
@@ -183,8 +193,9 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
     const [procedimentos, setProcedimentos] = useState<Procedimento[]>([])
     const [editandoProc, setEditandoProc] = useState<string | null>(null)
     const [novoProc, setNovoProc] = useState(false)
-    const [formProc, setFormProc] = useState<Procedimento>({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '' })
+    const [formProc, setFormProc] = useState<Procedimento>({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '', profissionalIds: [] })
     const [savingProc, setSavingProc] = useState(false)
+    const [profissionais, setProfissionais] = useState<Profissional[]>([])
 
     // ---- Cursos ----
     const [daCursos, setDaCursos] = useState(false)
@@ -237,12 +248,13 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
 
     const loadData = useCallback(async () => {
         try {
-            const [clinicaRes, procRes, cursoRes, promoRes, comboRes] = await Promise.all([
+            const [clinicaRes, procRes, cursoRes, promoRes, comboRes, profsRes] = await Promise.all([
                 fetch('/api/clinica'),
                 fetch('/api/procedimentos'),
                 fetch('/api/cursos'),
                 fetch('/api/promocoes'),
                 fetch('/api/combos'),
+                fetch('/api/clinica/profissionais'),
             ])
 
             if (clinicaRes.ok) {
@@ -327,6 +339,10 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
             if (cursoRes.ok) setCursos(await cursoRes.json())
             if (promoRes.ok) setPromocoes(await promoRes.json())
             if (comboRes.ok) setCombos(await comboRes.json())
+            if (profsRes && profsRes.ok) {
+                const profsData = await profsRes.json()
+                setProfissionais(profsData.profissionais || [])
+            }
         } catch (err) {
             console.error('Erro ao carregar configurações:', err)
         } finally {
@@ -392,6 +408,9 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                 body: JSON.stringify(payload),
             })
             if (res.ok) {
+                if (bloco === 'dados') {
+                    await fetch('/api/clinica/profissionais/sync-titular', { method: 'POST' }).catch(() => {})
+                }
                 setSavedBloco(bloco)
                 setTimeout(() => setSavedBloco(null), 3000)
             }
@@ -444,6 +463,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                 }),
             })
             if (res.ok) {
+                await fetch('/api/clinica/profissionais/sync-titular', { method: 'POST' }).catch(() => {})
                 setSaved(true)
                 setTimeout(() => setSaved(false), 3000)
             }
@@ -469,6 +489,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                 parcelas: formProc.parcelas ? Number(formProc.parcelas) : null,
                 duracao: formProc.duracao ? Number(formProc.duracao) : 0,
                 descricao: formProc.descricao || null,
+                profissionalIds: formProc.profissionalIds || [],
             }
 
             console.log('[salvarProc] enviando:', method, payload)
@@ -484,7 +505,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                 if (procRes.ok) setProcedimentos(await procRes.json())
                 setEditandoProc(null)
                 setNovoProc(false)
-                setFormProc({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '' })
+                setFormProc({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '', profissionalIds: [] })
             } else {
                 const errData = await res.json().catch(() => ({}))
                 console.error('[salvarProc] Erro API:', res.status, errData)
@@ -509,7 +530,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
 
     const editarProc = (p: Procedimento) => {
         setEditandoProc(p.id)
-        setFormProc({ ...p, parcelas: p.parcelas || '', duracao: p.duracao || '', descricao: p.descricao || '' })
+        setFormProc({ ...p, parcelas: p.parcelas || '', duracao: p.duracao || '', descricao: p.descricao || '', profissionalIds: p.profissionalIds || [] })
         setNovoProc(true)
     }
 
@@ -1011,7 +1032,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>💉 Procedimentos ({procedimentos.length})</h3>
                     <button
-                        onClick={() => { setNovoProc(true); setEditandoProc(null); setFormProc({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '' }) }}
+                        onClick={() => { setNovoProc(true); setEditandoProc(null); setFormProc({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '', profissionalIds: [] }) }}
                         className="text-[11px] font-medium px-3 py-1.5 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1.5"
                     >
                         <Plus size={12} /> Adicionar
@@ -1060,6 +1081,35 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                                     placeholder="Ex: Técnica fio a fio com pigmentos importados. Resultado natural que dura até 18 meses. Ideal para quem tem falhas ou quer redesenhar..."
                                 />
                             </div>
+                            <div className="col-span-2">
+                                <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>👩‍⚕️ Quem realiza este procedimento?</label>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                    {profissionais.length === 0 ? (
+                                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Nenhum profissional cadastrado nas configurações de equipe.</p>
+                                    ) : (
+                                        profissionais.map((prof) => {
+                                            const isChecked = formProc.profissionalIds?.includes(String(prof.id))
+                                            return (
+                                                <button
+                                                    key={prof.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const currentIds = formProc.profissionalIds || []
+                                                        const newIds = currentIds.includes(String(prof.id))
+                                                            ? currentIds.filter(id => id !== String(prof.id))
+                                                            : [...currentIds, String(prof.id)]
+                                                        setFormProc({ ...formProc, profissionalIds: newIds })
+                                                    }}
+                                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all ${isChecked ? 'bg-[#D99773]/20 text-[#D99773] border border-[#D99773]/30' : 'border hover:opacity-80'}`}
+                                                    style={!isChecked ? { color: 'var(--text-muted)', borderColor: 'var(--border-default)' } : {}}
+                                                >
+                                                    {prof.tratamento ? `${prof.tratamento} ` : ''}{prof.nome}
+                                                </button>
+                                            )
+                                        })
+                                    )}
+                                </div>
+                            </div>
                             <div className="flex gap-2">
                                 <button onClick={salvarProc} disabled={savingProc} className="text-[11px] font-medium px-4 py-2 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1.5 disabled:opacity-50">
                                     {savingProc ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Salvar
@@ -1089,6 +1139,16 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                                         {p.parcelas && <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>💳 {p.parcelas}</span>}
                                     </div>
                                     {p.descricao && <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>📋 {p.descricao}</p>}
+                                    {p.profissionaisInfo && p.profissionaisInfo.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-1.5 items-center">
+                                            <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>Realizado por:</span>
+                                            {p.profissionaisInfo.map((pr: any) => (
+                                                <span key={pr.id} className="text-[9px] px-1.5 py-0.5 rounded-md bg-[#0F4C61]/10 text-[#0F4C61] dark:bg-[#D99773]/10 dark:text-[#D99773] font-medium">
+                                                    {pr.tratamento ? `${pr.tratamento} ` : ''}{pr.nome}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                                 <button onClick={() => editarProc(p)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}>
                                     <Edit3 size={13} />

@@ -333,7 +333,45 @@ export async function processarAgendamentos(
         }
 
         if (!profissionalId) {
-            console.error('[Calendar] ❌ Nenhum profissional encontrado para agendar')
+            // Tentar auto-criar titular da clínica antes de falhar
+            try {
+                console.log(`[Calendar] ⚠️ Nenhum profissional ativo encontrado para clínica ${clinicaId}. Tentando auto-criar titular...`)
+                const c = await prisma.clinica.findUnique({
+                    where: { id: clinicaId },
+                    select: { nomeDoutora: true, tratamentoDoutora: true, whatsappClinica: true, whatsappDoutora: true, nome: true }
+                })
+                if (c) {
+                    const nome = c.nomeDoutora || c.nome || 'Dona da Clínica'
+                    const tratamento = c.tratamentoDoutora || 'Dra.'
+                    const whatsapp = c.whatsappDoutora || c.whatsappClinica || null
+                    
+                    const result = await prisma.$queryRawUnsafe<any[]>(
+                        `INSERT INTO profissionais (
+                            id, clinica_id, nome, tratamento, whatsapp,
+                            is_dono, ativo, ordem, created_at,
+                            cursos, redes_sociais_prof, ausencias
+                        ) VALUES (
+                            gen_random_uuid()::text, $1, $2, $3, $4,
+                            true, true, 0, NOW(),
+                            '[]'::jsonb, '{}'::jsonb, '[]'::jsonb
+                        ) RETURNING id`,
+                        clinicaId,
+                        nome,
+                        tratamento,
+                        whatsapp
+                    )
+                    profissionalId = result[0]?.id || null
+                    if (profissionalId) {
+                        console.log(`[Calendar] ✅ Titular auto-criada com sucesso: ${profissionalId}`)
+                    }
+                }
+            } catch (syncErr) {
+                console.error('[Calendar] ❌ Erro ao auto-criar titular da clínica:', syncErr)
+            }
+        }
+
+        if (!profissionalId) {
+            console.error('[Calendar] ❌ Erro fatal: Nenhum profissional encontrado para agendar na clínica', clinicaId)
             respostaLimpa = respostaLimpa.replace(match[0], '')
             continue
         }
