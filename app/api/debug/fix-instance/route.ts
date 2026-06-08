@@ -8,18 +8,6 @@ export async function GET() {
     try {
         const instanceName = 'iara_9_whatsapp_1774729726353'
         const userId = 9
-        
-        // Step 0: Ensure agendamentos_v2 has the new columns
-        try {
-            await prisma.$executeRawUnsafe(`
-                ALTER TABLE agendamentos_v2 
-                ADD COLUMN IF NOT EXISTS horario_inicio TIMESTAMP,
-                ADD COLUMN IF NOT EXISTS horario_fim TIMESTAMP
-            `)
-            results.push({ step: '0_alter_table', success: true, message: 'agendamentos_v2 columns checked/created' })
-        } catch (alterErr: any) {
-            results.push({ step: '0_alter_table', success: false, error: alterErr.message })
-        }
 
         // Step 1: Check if instance exists in instancias_clinica
         const existing = await prisma.$queryRaw`
