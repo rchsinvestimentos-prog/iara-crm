@@ -129,6 +129,6 @@ export async function POST(request: NextRequest) {
         })
     } catch (err: any) {
         console.error('[POST /api/anamnese/enviar] Erro:', err)
-        return NextResponse.json({ error: 'Erro interno ao processar envio' }, { status: 500 })
+        return NextResponse.json({ error: `Erro interno ao processar envio: ${err.message || String(err)}` }, { status: 500 })
     }
 }
