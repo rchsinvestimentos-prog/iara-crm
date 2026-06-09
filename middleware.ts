@@ -22,8 +22,7 @@ export async function middleware(request: NextRequest) {
         '/a/',
         '/agendar/',
         '/anamnese/',
-        '/api/anamnese/publico/',
-        '/api/setup-db'
+        '/api/anamnese/publico/'
     ]
     if (publicPaths.some(p => pathname.startsWith(p))) {
         if (pathname === '/login' && token) {
