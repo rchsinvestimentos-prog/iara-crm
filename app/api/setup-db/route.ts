@@ -291,6 +291,81 @@ export async function GET() {
       results.push(`⚠️ Apple Calendar cols (profissionais): ${e.message?.slice(0, 80)}`)
     }
 
+    // ============================================
+    // TABELA: modelos_anamnese
+    // ============================================
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "modelos_anamnese" (
+          "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+          "clinica_id" INTEGER NOT NULL,
+          "titulo" TEXT NOT NULL,
+          "perguntas" JSONB NOT NULL,
+          "procedimento_ids" JSONB DEFAULT '[]',
+          "mensagem_envio" TEXT,
+          "horas_antecedencia" INTEGER DEFAULT 24,
+          "ativo" BOOLEAN NOT NULL DEFAULT true,
+          "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "modelos_anamnese_pkey" PRIMARY KEY ("id")
+        )
+      `)
+      results.push('✅ Tabela modelos_anamnese garantida')
+    } catch (e: any) {
+      results.push(`⚠️ modelos_anamnese: ${e.message?.slice(0, 80)}`)
+    }
+
+    // ============================================
+    // TABELA: fichas_preenchidas
+    // ============================================
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "fichas_preenchidas" (
+          "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+          "clinica_id" INTEGER NOT NULL,
+          "contato_id" INTEGER NOT NULL,
+          "titulo" TEXT NOT NULL,
+          "respostas" JSONB NOT NULL,
+          "assinatura_png" TEXT NOT NULL,
+          "data_signature" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
+          "data_assinatura" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "ip_origem" VARCHAR(50) NOT NULL,
+          "user_agent" VARCHAR(500) NOT NULL,
+          "hash_integridade" VARCHAR(64) NOT NULL,
+          "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "fichas_preenchidas_pkey" PRIMARY KEY ("id")
+        )
+      `)
+      results.push('✅ Tabela fichas_preenchidas garantida')
+    } catch (e: any) {
+      results.push(`⚠️ fichas_preenchidas: ${e.message?.slice(0, 80)}`)
+    }
+
+    // ============================================
+    // TABELA: follow_up_configs
+    // ============================================
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "follow_up_configs" (
+          "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+          "clinica_id" INTEGER NOT NULL,
+          "tipo" VARCHAR(50) NOT NULL,
+          "ativo" BOOLEAN NOT NULL DEFAULT true,
+          "mensagem" TEXT NOT NULL,
+          "dias_delay" INTEGER,
+          "procedimento_ids" JSONB DEFAULT '[]',
+          "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "follow_up_configs_pkey" PRIMARY KEY ("id")
+        )
+      `)
+      await prisma.$executeRawUnsafe(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "follow_up_configs_clinica_id_tipo_key" ON "follow_up_configs"("clinica_id", "tipo")
+      `)
+      results.push('✅ Tabela follow_up_configs garantida')
+    } catch (e: any) {
+      results.push(`⚠️ follow_up_configs: ${e.message?.slice(0, 80)}`)
+    }
+
     return NextResponse.json({ success: true, results })
   } catch (error: any) {
     console.error('Setup DB error:', error)
