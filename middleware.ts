@@ -16,7 +16,14 @@ export async function middleware(request: NextRequest) {
     const isAdmin = isAdminSubdomain(host)
 
     // ─── Rotas públicas — não proteger ───
-    const publicPaths = ['/login', '/api/auth']
+    const publicPaths = [
+        '/login',
+        '/api/auth',
+        '/a/',
+        '/agendar/',
+        '/anamnese/',
+        '/api/anamnese/publico/'
+    ]
     if (publicPaths.some(p => pathname.startsWith(p))) {
         if (pathname === '/login' && token) {
             // Admin logado no subdomain admin → vai pro /admin
