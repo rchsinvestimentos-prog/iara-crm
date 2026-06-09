@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { 
     Stethoscope, Plus, ClipboardList, Eye, Trash2, Edit2, 
-    ShieldCheck, X, Save
+    ShieldCheck, X, Save, Send, Copy, Check, MessageSquare
 } from 'lucide-react'
 
 interface Pergunta {
@@ -61,6 +61,21 @@ export default function AnamnesePage() {
     const [horasAntecedencia, setHorasAntecedencia] = useState(24)
 
     const [viewFicha, setViewFicha] = useState<FichaPreenchida | null>(null)
+
+    // Envio manual de Ficha
+    const [sendModalOpen, setSendModalOpen] = useState(false)
+    const [sendModel, setSendModel] = useState<ModeloAnamnese | null>(null)
+    const [sendPhone, setSendPhone] = useState('')
+    const [sendName, setSendName] = useState('')
+    const [sendCustomMsg, setSendCustomMsg] = useState('')
+    const [sendLoading, setSendLoading] = useState(false)
+    const [copied, setCopied] = useState(false)
+    
+    // CRM Search State
+    const [crmSearch, setCrmSearch] = useState('')
+    const [crmContatos, setCrmContatos] = useState<any[]>([])
+    const [selectedContatoId, setSelectedContatoId] = useState<number | null>(null)
+    const [searchingContatos, setSearchingContatos] = useState(false)
 
     const loadData = async () => {
         setLoading(true)
@@ -160,6 +175,97 @@ export default function AnamnesePage() {
             if (res.ok) loadData()
         } catch {
             alert('Erro ao excluir.')
+        }
+    }
+
+    // CRM Search Debounce Hook
+    useEffect(() => {
+        if (!crmSearch.trim()) {
+            setCrmContatos([])
+            return
+        }
+        const delayDebounceFn = setTimeout(async () => {
+            setSearchingContatos(true)
+            try {
+                const res = await fetch(`/api/contatos?busca=${encodeURIComponent(crmSearch)}`)
+                const data = await res.json()
+                if (data.contatos) {
+                    setCrmContatos(data.contatos)
+                }
+            } catch (err) {
+                console.error('Erro ao buscar contatos:', err)
+            } finally {
+                setSearchingContatos(false)
+            }
+        }, 300)
+
+        return () => clearTimeout(delayDebounceFn)
+    }, [crmSearch])
+
+    const handleSelectContato = (c: any) => {
+        setSelectedContatoId(c.id)
+        setSendName(c.nome || '')
+        setSendPhone(c.telefone || '')
+        setCrmSearch('')
+        setCrmContatos([])
+    }
+
+    const handleOpenSend = (modelo: ModeloAnamnese) => {
+        setSendModel(modelo)
+        setSendPhone('')
+        setSendName('')
+        setSelectedContatoId(null)
+        setCrmSearch('')
+        setSendCustomMsg(modelo.mensagemEnvio || 'Olá, {nome_cliente}! Falta pouco para o seu atendimento. Por favor, preencha sua Ficha de Anamnese pelo link seguro: {link_anamnese}')
+        setSendModalOpen(true)
+    }
+
+    const handleSendAction = async (method: 'whatsapp_web' | 'iara' | 'copy_link') => {
+        if (!sendPhone.trim()) return alert('Insira um número de WhatsApp de destino.')
+        
+        setSendLoading(true)
+        try {
+            const body = {
+                modeloId: sendModel?.id,
+                contatoId: selectedContatoId,
+                nome: sendName,
+                telefone: sendPhone,
+                mensagemCustomizada: sendCustomMsg
+            }
+
+            const res = await fetch('/api/anamnese/enviar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            })
+
+            const data = await res.json()
+            if (!res.ok) {
+                throw new Error(data.error || 'Erro ao preparar link de anamnese.')
+            }
+
+            if (method === 'copy_link') {
+                navigator.clipboard.writeText(data.linkAnamnese)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+                alert('Link copiado com sucesso!')
+            } else if (method === 'whatsapp_web') {
+                const text = encodeURIComponent(data.mensagemFormatada)
+                const phone = sendPhone.replace(/\D/g, '')
+                const whatsNumber = phone.startsWith('55') ? phone : `55${phone}`
+                window.open(`https://api.whatsapp.com/send?phone=${whatsNumber}&text=${text}`, '_blank')
+            } else if (method === 'iara') {
+                if (data.enviadoIA) {
+                    alert('Ficha enviada com sucesso através do WhatsApp conectado da IARA!')
+                    setSendModalOpen(false)
+                } else {
+                    alert(`Falha ao disparar automático: ${data.erroIA || 'Erro desconhecido.'}\n\nVocê ainda pode clicar em "Enviar via WhatsApp Web" para enviar manualmente.`)
+                }
+            }
+        } catch (err: any) {
+            alert(err.message || 'Erro de conexão.')
+        } finally {
+            setSendLoading(false)
         }
     }
 
@@ -266,8 +372,16 @@ export default function AnamnesePage() {
 
                                         <div className="flex justify-end gap-2 pt-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
                                             <button
+                                                onClick={() => handleOpenSend(m)}
+                                                className="p-2 rounded-lg transition-all cursor-pointer hover:opacity-85"
+                                                style={{ backgroundColor: 'rgba(217,151,115,0.12)', color: '#D99773' }}
+                                                title="Enviar Ficha de Anamnese"
+                                            >
+                                                <Send size={13} />
+                                            </button>
+                                            <button
                                                 onClick={() => handleOpenEdit(m)}
-                                                className="p-2 rounded-lg transition-all"
+                                                className="p-2 rounded-lg transition-all cursor-pointer hover:opacity-85"
                                                 style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}
                                                 title="Editar"
                                             >
@@ -275,7 +389,7 @@ export default function AnamnesePage() {
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteModel(m.id)}
-                                                className="p-2 rounded-lg transition-all"
+                                                className="p-2 rounded-lg transition-all cursor-pointer hover:opacity-85"
                                                 style={{ backgroundColor: 'rgba(239,68,68,0.07)', color: '#EF4444' }}
                                                 title="Excluir"
                                             >
@@ -677,6 +791,159 @@ export default function AnamnesePage() {
                         <div className="flex justify-end p-6" style={{ borderTop: '1px solid var(--border-default)' }}>
                             <button onClick={() => setViewFicha(null)} className="btn-secondary py-2 px-4 text-[11px]">
                                 Fechar Auditoria
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ====== MODAL DE ENVIO DE FICHA ====== */}
+            {sendModalOpen && sendModel && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="w-full max-w-md flex flex-col rounded-2xl overflow-hidden"
+                        style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-hover)' }}>
+                        {/* Header */}
+                        <div className="flex justify-between items-center p-5" style={{ borderBottom: '1px solid var(--border-default)' }}>
+                            <h2 className="font-bold text-sm flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                                <MessageSquare size={16} style={{ color: '#D99773' }} />
+                                Enviar Ficha de Anamnese
+                            </h2>
+                            <button onClick={() => setSendModalOpen(false)} className="p-1.5 rounded-lg transition-all"
+                                style={{ color: 'var(--text-muted)' }}
+                                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+                                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-5 space-y-4 text-[11px] overflow-y-auto max-h-[70vh]">
+                            {/* Buscar do CRM */}
+                            <div>
+                                <label className="block font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                                    Buscar Paciente no CRM (Opcional):
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={crmSearch}
+                                        onChange={(e) => setCrmSearch(e.target.value)}
+                                        placeholder="Digite nome ou telefone para buscar..."
+                                        className="input-field py-1.5 text-[10px]"
+                                    />
+                                    {searchingContatos && (
+                                        <div className="absolute right-2 top-2">
+                                            <div className="w-3.5 h-3.5 border-2 border-t-transparent border-[#D99773] rounded-full animate-spin" />
+                                        </div>
+                                    )}
+                                    
+                                    {crmContatos.length > 0 && (
+                                        <div className="absolute left-0 right-0 top-full mt-1 max-h-36 overflow-y-auto rounded-xl shadow-lg z-20 border border-slate-200 dark:border-white/10"
+                                            style={{ backgroundColor: 'var(--bg-card)' }}>
+                                            {crmContatos.map(c => (
+                                                <button
+                                                    key={c.id}
+                                                    type="button"
+                                                    onClick={() => handleSelectContato(c)}
+                                                    className="w-full text-left p-2.5 hover:bg-slate-100 dark:hover:bg-white/5 border-b last:border-0 dark:border-white/5 text-[10px] block transition-colors cursor-pointer"
+                                                >
+                                                    <span className="font-bold block" style={{ color: 'var(--text-primary)' }}>{c.nome}</span>
+                                                    <span style={{ color: 'var(--text-muted)' }}>{c.telefone}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="flex items-center gap-2 text-[9px] text-slate-400 my-2 uppercase font-bold tracking-wider">
+                                <div className="flex-1 h-[1px] bg-slate-200 dark:bg-white/10" />
+                                Dados de Envio
+                                <div className="flex-1 h-[1px] bg-slate-200 dark:bg-white/10" />
+                            </div>
+
+                            {/* Nome do paciente */}
+                            <div>
+                                <label className="block font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                                    Nome do Paciente:
+                                </label>
+                                <input
+                                    type="text"
+                                    value={sendName}
+                                    onChange={(e) => setSendName(e.target.value)}
+                                    placeholder="Ex: Maria da Silva"
+                                    className="input-field py-1.5 text-[10px]"
+                                />
+                            </div>
+
+                            {/* WhatsApp de destino */}
+                            <div>
+                                <label className="block font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                                    WhatsApp de Destino (DDI + DDD + Número):
+                                </label>
+                                <input
+                                    type="text"
+                                    value={sendPhone}
+                                    onChange={(e) => setSendPhone(e.target.value)}
+                                    placeholder="Ex: 5511999999999"
+                                    className="input-field py-1.5 text-[10px]"
+                                />
+                                <span className="text-[9px] text-slate-400 mt-0.5 block">Não inclua traços ou parênteses, apenas números.</span>
+                            </div>
+
+                            {/* Corpo da mensagem */}
+                            <div>
+                                <label className="block font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                                    Mensagem do WhatsApp (Editável):
+                                </label>
+                                <textarea
+                                    value={sendCustomMsg}
+                                    onChange={(e) => setSendCustomMsg(e.target.value)}
+                                    rows={4}
+                                    className="input-field text-[10px] p-2.5 font-sans"
+                                    placeholder="Mensagem de envio..."
+                                />
+                                <p className="text-[9px] mt-1 text-slate-400">
+                                    Mantenha as tags <strong>{'{nome_cliente}'}</strong> e <strong>{'{link_anamnese}'}</strong> para injeção automática de dados.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex flex-col gap-2 p-5" style={{ borderTop: '1px solid var(--border-default)', backgroundColor: 'var(--bg-subtle)' }}>
+                            <div className="flex justify-between gap-2">
+                                <button
+                                    onClick={() => setSendModalOpen(false)}
+                                    className="btn-secondary py-2 px-3 text-[10px] cursor-pointer"
+                                >
+                                    Cancelar
+                                </button>
+                                
+                                <button
+                                    onClick={() => handleSendAction('copy_link')}
+                                    disabled={sendLoading}
+                                    className="btn-secondary py-2 px-3 text-[10px] flex items-center gap-1 hover:bg-[#D99773]/10 cursor-pointer"
+                                >
+                                    <Copy size={12} /> Copiar Link
+                                </button>
+                            </div>
+
+                            <button
+                                onClick={() => handleSendAction('whatsapp_web')}
+                                disabled={sendLoading}
+                                className="btn-primary w-full py-2.5 px-4 text-[10px] flex items-center justify-center gap-1.5 cursor-pointer"
+                                style={{ backgroundColor: '#25D366', borderColor: '#25D366', color: '#fff' }}
+                            >
+                                <Send size={12} /> Enviar via WhatsApp Web (Manual)
+                            </button>
+
+                            <button
+                                onClick={() => handleSendAction('iara')}
+                                disabled={sendLoading}
+                                className="btn-primary w-full py-2.5 px-4 text-[10px] flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                                <MessageSquare size={12} /> Disparar Automático com a Iara
                             </button>
                         </div>
                     </div>
