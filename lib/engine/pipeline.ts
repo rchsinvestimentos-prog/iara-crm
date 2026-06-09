@@ -33,6 +33,8 @@ import type { MensagemRecebida, DadosClinica, ProfissionalAtivo, Funcionalidades
 import { parseFuncionalidades } from './types'
 import { prisma } from '@/lib/prisma'
 import { createHash } from 'crypto'
+import * as fs from 'fs'
+import * as path from 'path'
 
 // ============================================
 // HELPER: Emoji-safe — respeita config da clínica
@@ -250,6 +252,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
 
     let textoMensagem = msg.mensagem
     let tipoEntrada: 'text' | 'audio' = msg.tipoMensagem === 'audio' ? 'audio' : 'text'
+    let incomingAudioUrl: string | null = null
 
     if (msg.tipoMensagem === 'audio') {
         // ================================================
@@ -282,6 +285,8 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         }
 
         if (audioData) {
+            // Salvar o arquivo de áudio recebido fisicamente
+            incomingAudioUrl = await audio.saveAudioFile(audioData, 'incoming')
             const transcricao = await audio.transcribeAudio(audioData)
             if (transcricao) {
                 textoMensagem = `[ÁUDIO RECEBIDO E TRANSCRITO PARA VOCÊ]: ${transcricao}`
@@ -396,7 +401,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     if (cacheHit) {
         console.log(`[Pipeline] 💰 Cache hit! Economizando IA.`)
         // Usa resposta cacheada mas ainda envia e salva
-        await finalizarResposta(clinica, msg, cacheHit, textoMensagem, tipoEntrada, startTime, true)
+        await finalizarResposta(clinica, msg, cacheHit, textoMensagem, tipoEntrada, startTime, true, incomingAudioUrl)
         return
     }
 
@@ -466,7 +471,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // ================================================
     // 12-15. FINALIZAR (enviar, salvar, descontar)
     // ================================================
-    await finalizarResposta(clinica, msg, respostaFinal, textoMensagem, tipoEntrada, startTime, false)
+    await finalizarResposta(clinica, msg, respostaFinal, textoMensagem, tipoEntrada, startTime, false, incomingAudioUrl)
     await logPipeline('SENT', `resposta enviada para ${msg.telefone}`)
     } catch (err: any) {
         await logPipeline('ERROR', `FALHA NO PIPELINE: ${err.message || err}\n${(err.stack || '').slice(0,200)}`)
@@ -486,15 +491,20 @@ async function finalizarResposta(
     textoMensagemOriginal: string,
     tipoEntrada: 'text' | 'audio',
     startTime: number,
-    fromCache: boolean
+    fromCache: boolean,
+    incomingAudioUrl?: string | null
 ) {
     // Determinar saída (respeita toggle responder_audio)
     const funcsLocal = parseFuncionalidades(clinica.funcionalidades)
     const configSaida = audio.determineOutputType(clinica, tipoEntrada === 'audio', funcsLocal.responder_audio)
 
     let audioBase64Resposta: string | null = null
+    let outgoingAudioUrl: string | null = null
     if (configSaida.tipoSaida === 'audio') {
         audioBase64Resposta = await audio.generateTTS(respostaTexto, configSaida)
+        if (audioBase64Resposta) {
+            outgoingAudioUrl = await audio.saveAudioFile(audioBase64Resposta, 'outgoing')
+        }
     }
 
     // Enviar
@@ -512,8 +522,8 @@ async function finalizarResposta(
 
     // Salvar no histórico
     await Promise.all([
-        memory.saveToHistory(clinica.id, msg.telefone, 'user', textoMensagemOriginal, msg.pushName),
-        memory.saveToHistory(clinica.id, msg.telefone, 'assistant', respostaTexto),
+        memory.saveToHistory(clinica.id, msg.telefone, 'user', textoMensagemOriginal, msg.pushName, incomingAudioUrl || undefined),
+        memory.saveToHistory(clinica.id, msg.telefone, 'assistant', respostaTexto, undefined, outgoingAudioUrl || undefined),
     ])
 
     // Descontar crédito
@@ -632,7 +642,6 @@ async function checkPausa(userId: number, telefone: string): Promise<boolean> {
 
 async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): Promise<void> {
     const nomeCliente = msg.pushName || 'Cliente'
-    const nomeIA = clinica.nomeAssistente || 'Iara'
     const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
 
     // Label amigável por tipo
@@ -642,11 +651,71 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
 
     const tipoEmoji = msg.tipoMensagem === 'document' ? '📄' : '📸'
 
-    // 1. Avisa a cliente que recebeu (SEM pausar)
+    // 1. Encontrar ou criar o contato no banco de dados para obter seu ID
+    let contato = await prisma.contato.findFirst({
+        where: { clinicaId: clinica.id, telefone: msg.telefone }
+    })
+    if (!contato) {
+        contato = await prisma.contato.create({
+            data: {
+                clinicaId: clinica.id,
+                telefone: msg.telefone,
+                nome: msg.pushName || 'Paciente Novo'
+            }
+        })
+    }
+
+    // 2. Baixar e salvar o arquivo de mídia localmente no public/uploads/media
+    let mediaUrl: string | null = null
+    try {
+        console.log(`[Pipeline] 📥 Baixando mídia do tipo ${msg.tipoMensagem}...`)
+        const base64 = await audio.downloadAudioFromEvolution(
+            msg.instancia, msg.requestId, clinica.evolutionApikey || undefined, msg.rawMessage
+        )
+        if (base64) {
+            const ext = msg.tipoMensagem === 'image' ? 'jpg' : msg.tipoMensagem === 'video' ? 'mp4' : 'pdf'
+            const filename = `media_${msg.requestId || Date.now()}.${ext}`
+            const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'media')
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true })
+            }
+            fs.writeFileSync(path.join(uploadDir, filename), Buffer.from(base64, 'base64'))
+            mediaUrl = `/uploads/media/${filename}`
+            console.log(`[Pipeline] ✅ Mídia salva localmente: ${mediaUrl}`)
+        }
+    } catch (err) {
+        console.error('[Pipeline] Erro ao baixar/salvar mídia da Evolution:', err)
+    }
+
+    // 3. Registrar a mídia na tabela MidiaContato
+    if (mediaUrl) {
+        try {
+            await prisma.midiaContato.create({
+                data: {
+                    contatoId: contato.id,
+                    clinicaId: clinica.id,
+                    tipo: msg.tipoMensagem === 'image' ? 'imagem' : 'documento',
+                    url: mediaUrl,
+                    titulo: msg.tipoMensagem === 'image' ? 'Foto enviada pela cliente' : 'Documento enviado pela cliente',
+                    anotacoes: 'Recebido via WhatsApp'
+                }
+            })
+            console.log(`[Pipeline] ✅ Mídia gravada no prontuário do contato ID ${contato.id}`)
+        } catch (err) {
+            console.error('[Pipeline] Erro ao gravar MidiaContato no banco:', err)
+        }
+    }
+
+    // 4. Pausar a IA temporariamente por 120 minutos sob motivo 'triagem_pendente'
+    await pausarConversa(clinica.id, msg.telefone, 120, 'triagem_pendente')
+
+    // 5. Avisa a cliente que recebeu
     await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, `Recebi ${msg.tipoMensagem === 'document' ? 'seu documento' : 'sua ' + tipoLabel}! ✨ Já encaminhei agora mesmo pra Doutora dar uma olhada. Assim que ela ver, já te damos um retorno, tá? 😊`))
 
-    // 2. Alerta a Dra E profissionais no WhatsApp pessoal
-    const alertaMensagem = `${tipoEmoji} *${nomeCliente}* mandou ${msg.tipoMensagem === 'document' ? 'um documento' : (msg.tipoMensagem === 'image' ? 'uma foto' : 'um vídeo')}${msg.tipoMensagem === 'document' && msg.mensagem ? ' (' + msg.mensagem + ')' : ''}\n📱 ${msg.telefone}\n\nDra, abra o WhatsApp da clínica pra ver.\n\n*O que eu faço?*\n\n1️⃣ *Me mande a resposta* — escreva ou mande áudio com o que devo dizer. Eu adapto e te mostro antes de enviar.\n\n2️⃣ *"Eu assumo"* — responda direto à cliente que eu pauso 3h.\n\n3️⃣ *"${nomeIA} lembre em X min"* — aviso a cliente que a Dra tá analisando e volto depois.`
+    // 6. Alerta a Dra e profissionais no WhatsApp com o link direto de triagem
+    const panelUrl = process.env.NEXTAUTH_URL || 'https://app.iara.click'
+    const linkTriage = `${panelUrl}/clientes?contatoId=${contato.id}&triage=true`
+    const alertaMensagem = `${tipoEmoji} *${nomeCliente}* mandou ${msg.tipoMensagem === 'document' ? 'um documento' : (msg.tipoMensagem === 'image' ? 'uma foto' : 'um vídeo')}${msg.tipoMensagem === 'document' && msg.mensagem ? ' (' + msg.mensagem + ')' : ''}\n📱 ${msg.telefone}\n\nDra, clique no link abaixo para analisar a foto, ouvir os últimos áudios e responder à cliente:\n🔗 ${linkTriage}`
 
     // Tentar alertar profissionais primeiro, fallback para whatsappDoutora
     const profissionais = await buscarProfissionais(clinica.id)
@@ -670,17 +739,17 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
         )
     }
 
-    // 3. Salvar no histórico (NÃO pausa — a Dra decide)
+    // 7. Salvar no histórico
     await memory.saveToHistory(clinica.id, msg.telefone, 'user', `[${msg.tipoMensagem.toUpperCase()} ENVIADO]`, msg.pushName)
 
-    // 4. Log
+    // 8. Log
     await logger.logEvent(clinica.id, 'midia_recebida', {
         telefone: msg.telefone,
         tipo: msg.tipoMensagem,
         pushName: msg.pushName,
     })
 
-    console.log(`[Pipeline] ${tipoEmoji} Mídia (${tipoLabel}) de ${nomeCliente} → Profissionais alertados (sem pausa automática)`)
+    console.log(`[Pipeline] ${tipoEmoji} Mídia (${tipoLabel}) de ${nomeCliente} → Profissionais alertados e IA pausada para triagem`)
 }
 
 // ============================================

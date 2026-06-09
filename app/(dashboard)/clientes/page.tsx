@@ -28,6 +28,7 @@ interface Contato {
     retornoEnviado: boolean | null
     iaPausada: boolean
     resumoClinico: string | null
+    emTriagem?: boolean
 }
 
 interface TimelineEvent {
@@ -52,6 +53,7 @@ interface ChatMessage {
     role: 'user' | 'assistant'
     content: string
     pushName: string | null
+    audioUrl?: string | null
     data: string
 }
 
@@ -102,6 +104,10 @@ export default function ClientesPage() {
     const [tempNotes, setTempNotes] = useState('')
     const [savingNotes, setSavingNotes] = useState(false)
 
+    // Triage state
+    const [triageInput, setTriageInput] = useState('')
+    const [triageLoading, setTriageLoading] = useState(false)
+
     // Load list
     const loadContatos = async () => {
         setLoading(true)
@@ -142,9 +148,9 @@ export default function ClientesPage() {
     }, [busca])
 
     // Load single contact timeline & history details
-    const loadContatoDetails = async (c: Contato) => {
+    const loadContatoDetails = async (c: Contato, initialTab?: 'prontuario' | 'timeline' | 'chat' | 'galeria') => {
         setDetailLoading(true)
-        setActiveTab('prontuario')
+        setActiveTab(initialTab || 'prontuario')
         setShowAddProc(false)
         setShowScheduler(false)
         try {
@@ -153,11 +159,68 @@ export default function ClientesPage() {
             if (data.timeline) setTimeline(data.timeline)
             if (data.fichas) setFichas(data.fichas)
             if (data.midias) setMidias(data.midias)
-            if (data.contato) setActiveContato(data.contato)
+            if (data.contato) {
+                setActiveContato({
+                    ...data.contato,
+                    emTriagem: data.emTriagem
+                })
+            }
         } catch (err) {
             console.error('Erro ao carregar detalhes do paciente:', err)
         } finally {
             setDetailLoading(false)
+        }
+    }
+
+    // Auto-open contact from URL params (triage link)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        const contatoIdParam = params.get('contatoId')
+        const triageParam = params.get('triage')
+        if (contatoIdParam) {
+            const cId = Number(contatoIdParam)
+            loadContatoDetails({ id: cId } as Contato, triageParam === 'true' ? 'chat' : 'prontuario')
+        }
+    }, [])
+
+    // Handler for triage actions
+    const handleTriageAction = async (action: 'responder' | 'lembrar' | 'assumir', minutos?: number) => {
+        if (!activeContato) return
+        if (action === 'responder' && !triageInput.trim()) return alert('Digite a instrução para a IARA responder.')
+
+        setTriageLoading(true)
+        try {
+            const res = await fetch(`/api/contatos/${activeContato.id}/triagem`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action,
+                    mensagem: triageInput,
+                    minutos
+                })
+            })
+            if (res.ok) {
+                if (action === 'responder') {
+                    setTriageInput('')
+                    alert('Resposta enviada com sucesso!')
+                    loadChatHistory(activeContato.telefone)
+                    loadContatoDetails(activeContato, 'chat')
+                } else if (action === 'lembrar') {
+                    alert('Lembrete agendado! A triagem foi adiada.')
+                    setActiveContato(null)
+                } else if (action === 'assumir') {
+                    alert('Você assumiu o atendimento. O robô foi pausado por 3 horas.')
+                    setActiveContato(prev => prev ? { ...prev, emTriagem: false, iaPausada: true } : null)
+                    loadContatoDetails(activeContato, 'chat')
+                }
+            } else {
+                const err = await res.json()
+                alert(err.error || 'Erro ao realizar ação de triagem.')
+            }
+        } catch {
+            alert('Erro de conexão ao realizar ação.')
+        } finally {
+            setTriageLoading(false)
         }
     }
 
@@ -744,6 +807,88 @@ export default function ClientesPage() {
                                     {/* TABA: CHAT WHATSAPP */}
                                     {activeTab === 'chat' && (
                                         <div className="space-y-4 animate-fade-in flex flex-col h-[55vh] overflow-hidden">
+                                            
+                                            {/* Triage card */}
+                                            {activeContato?.emTriagem && (
+                                                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3 flex-shrink-0">
+                                                    <div className="flex justify-between items-start">
+                                                        <h4 className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 text-[10px] uppercase tracking-wider">
+                                                            <AlertCircle size={12} /> Aguardando Ação da Dona (Triagem de Mídia)
+                                                        </h4>
+                                                    </div>
+                                                    
+                                                    {midias[0] && (
+                                                        <div className="flex gap-3 p-2 bg-white/5 rounded-xl border border-white/5">
+                                                            {midias[0].tipo === 'imagem' || midias[0].tipo === 'imagem' ? (
+                                                                <img 
+                                                                    src={midias[0].url} 
+                                                                    alt="Foto para triagem" 
+                                                                    className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                                                    onClick={() => window.open(midias[0].url, '_blank')}
+                                                                />
+                                                            ) : (
+                                                                <div className="w-16 h-16 bg-white/5 rounded-lg flex items-center justify-center text-gray-400">
+                                                                    <FileText size={20} />
+                                                                </div>
+                                                            )}
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="font-semibold text-petroleo dark:text-white truncate">
+                                                                    {midias[0].titulo || 'Mídia recebida'}
+                                                                </p>
+                                                                <p className="text-[9px] text-gray-400 mt-0.5">
+                                                                    Enviada em {new Date(midias[0].createdAt).toLocaleString('pt-BR')}
+                                                                </p>
+                                                                <a 
+                                                                    href={midias[0].url} 
+                                                                    download
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="text-[9px] text-terracota hover:underline font-bold mt-1 inline-block"
+                                                                >
+                                                                    Visualizar / Baixar mídia
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="space-y-2">
+                                                        <textarea
+                                                            value={triageInput}
+                                                            onChange={(e) => setTriageInput(e.target.value)}
+                                                            placeholder="Escreva a resposta ou instrução (ex: 'Diz que tá ótimo e que pode agendar o retorno'). A IARA vai formatar de forma carinhosa no tom da clínica."
+                                                            className="input-field text-[11px] h-12"
+                                                        />
+                                                        
+                                                        <div className="flex flex-wrap gap-2 justify-between items-center">
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => handleTriageAction('lembrar', 30)}
+                                                                    disabled={triageLoading}
+                                                                    className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer"
+                                                                >
+                                                                    <Clock size={10} /> Me lembre em 30 min
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleTriageAction('assumir')}
+                                                                    disabled={triageLoading}
+                                                                    className="px-2 py-1 rounded-lg bg-[#0F4C61]/10 hover:bg-[#0F4C61]/20 border border-[#0F4C61]/30 text-petroleo dark:text-[#0F4C61] font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer"
+                                                                >
+                                                                    <User size={10} /> Deixa que eu assumo
+                                                                </button>
+                                                            </div>
+                                                            
+                                                            <button
+                                                                onClick={() => handleTriageAction('responder')}
+                                                                disabled={triageLoading || !triageInput.trim()}
+                                                                className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                                                            >
+                                                                {triageLoading ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />} Enviar via IARA
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             {/* Chat messaging window */}
                                             <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-[#0B0F19]/50 rounded-2xl border space-y-3 flex flex-col">
                                                 {chatLoading ? (
@@ -768,7 +913,10 @@ export default function ClientesPage() {
                                                                         : 'bg-[#D99773] text-white self-end font-medium'
                                                                 }`}
                                                             >
-                                                                <p>{m.content}</p>
+                                                                {m.content && <p>{m.content}</p>}
+                                                                {m.audioUrl && (
+                                                                    <audio controls src={m.audioUrl} className="mt-2 max-w-full h-8 outline-none" />
+                                                                )}
                                                                 <p className="text-[8px] text-right mt-1 opacity-70">
                                                                     {new Date(m.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                                                 </p>

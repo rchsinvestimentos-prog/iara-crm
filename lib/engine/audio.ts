@@ -10,6 +10,8 @@
 // - P3+ (Designer/Audiovisual): ElevenLabs com voz clonada da Dra
 
 import type { DadosClinica, ConfigSaida } from './types'
+import * as fs from 'fs'
+import * as path from 'path'
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ''
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || ''
@@ -422,4 +424,33 @@ export async function generateTTS(
     }
 
     return generateTTS_OpenAI(textoProcessado, config.voiceId || 'nova')
+}
+
+/**
+ * Salva um áudio em base64 no disco local (/public/uploads/audios/) e retorna a URL pública.
+ */
+export async function saveAudioFile(
+    base64Data: string,
+    prefix: string
+): Promise<string | null> {
+    try {
+        if (!base64Data) return null
+        
+        // Remover possível cabeçalho do dataURI (data:audio/mp3;base64,...)
+        const cleanBase64 = base64Data.replace(/^data:audio\/\w+;base64,/, '')
+        
+        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'audios')
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true })
+        }
+        
+        const filename = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`
+        const filepath = path.join(uploadDir, filename)
+        
+        await fs.promises.writeFile(filepath, Buffer.from(cleanBase64, 'base64'))
+        return `/uploads/audios/${filename}`
+    } catch (err) {
+        console.error('[Audio] Erro ao salvar arquivo de áudio:', err)
+        return null
+    }
 }

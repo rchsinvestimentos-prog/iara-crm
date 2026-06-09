@@ -120,20 +120,25 @@ export async function getConversationHistory(
     clinicaId: number,
     telefone: string,
     limit: number = 30
-): Promise<{ role: string; content: string }[]> {
+): Promise<{ role: string; content: string; audioUrl?: string | null }[]> {
     try {
         const result = await prisma.$queryRaw<{
             role: string
             content: string
+            audio_url: string | null
         }[]>`
-      SELECT role, content
+      SELECT role, content, audio_url
       FROM historico_conversas
       WHERE user_id = ${clinicaId}
         AND telefone_cliente = ${telefone}
       ORDER BY created_at DESC
       LIMIT ${limit}
     `
-        return result || []
+        return (result || []).map(r => ({
+            role: r.role,
+            content: r.content,
+            audioUrl: r.audio_url
+        }))
     } catch {
         return []
     }
@@ -153,6 +158,7 @@ async function ensureHistoricoTable(): Promise<void> {
             content TEXT,
             push_name VARCHAR(200),
             origem VARCHAR(30) DEFAULT 'whatsapp',
+            audio_url VARCHAR(500),
             created_at TIMESTAMPTZ DEFAULT NOW()
         )
     `)
@@ -163,6 +169,9 @@ async function ensureHistoricoTable(): Promise<void> {
     } catch { /* já existe */ }
     try {
         await prisma.$executeRawUnsafe(`ALTER TABLE historico_conversas ADD COLUMN IF NOT EXISTS origem VARCHAR(30) DEFAULT 'whatsapp'`)
+    } catch { /* já existe */ }
+    try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE historico_conversas ADD COLUMN IF NOT EXISTS audio_url VARCHAR(500)`)
     } catch { /* já existe */ }
     await prisma.$executeRawUnsafe(`
         CREATE INDEX IF NOT EXISTS idx_historico_user_tel
@@ -179,12 +188,13 @@ export async function saveToHistory(
     telefone: string,
     role: 'user' | 'assistant',
     content: string,
-    pushName?: string
+    pushName?: string,
+    audioUrl?: string
 ): Promise<void> {
     try {
         await prisma.$executeRaw`
-      INSERT INTO historico_conversas (user_id, telefone_cliente, role, content, push_name, origem, created_at)
-      VALUES (${clinicaId}, ${telefone}, ${role}, ${content}, ${pushName || null}, ${role === 'user' ? 'cliente' : 'ia'}, NOW())
+      INSERT INTO historico_conversas (user_id, telefone_cliente, role, content, push_name, origem, audio_url, created_at)
+      VALUES (${clinicaId}, ${telefone}, ${role}, ${content}, ${pushName || null}, ${role === 'user' ? 'cliente' : 'ia'}, ${audioUrl || null}, NOW())
     `
     } catch (firstErr: any) {
         // Se falhou por tabela ou coluna inexistente, corrige o schema e tenta de novo
@@ -195,8 +205,8 @@ export async function saveToHistory(
                 await ensureHistoricoTable()
                 // Retry após corrigir o schema
                 await prisma.$executeRaw`
-                    INSERT INTO historico_conversas (user_id, telefone_cliente, role, content, push_name, origem, created_at)
-                    VALUES (${clinicaId}, ${telefone}, ${role}, ${content}, ${pushName || null}, ${role === 'user' ? 'cliente' : 'ia'}, NOW())
+                    INSERT INTO historico_conversas (user_id, telefone_cliente, role, content, push_name, origem, audio_url, created_at)
+                    VALUES (${clinicaId}, ${telefone}, ${role}, ${content}, ${pushName || null}, ${role === 'user' ? 'cliente' : 'ia'}, ${audioUrl || null}, NOW())
                 `
                 console.log('[Memory] ✅ Schema corrigido e mensagem salva com sucesso.')
             } catch (retryErr) {

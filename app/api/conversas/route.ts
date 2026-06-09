@@ -18,6 +18,7 @@ interface MensagemRow {
     content: string
     push_name: string | null
     origem: string | null
+    audio_url: string | null
     created_at: string
 }
 
@@ -33,12 +34,14 @@ async function ensureHistoricoTable() {
                 content TEXT,
                 push_name VARCHAR(200),
                 origem VARCHAR(30) DEFAULT 'whatsapp',
+                audio_url VARCHAR(500),
                 created_at TIMESTAMPTZ DEFAULT NOW()
             )
         `)
-        // Corrigir tabelas antigas que não têm push_name e origem
+        // Corrigir tabelas antigas que não têm push_name, origem e audio_url
         await prisma.$executeRawUnsafe(`ALTER TABLE historico_conversas ADD COLUMN IF NOT EXISTS push_name VARCHAR(200)`)
         await prisma.$executeRawUnsafe(`ALTER TABLE historico_conversas ADD COLUMN IF NOT EXISTS origem VARCHAR(30) DEFAULT 'whatsapp'`)
+        await prisma.$executeRawUnsafe(`ALTER TABLE historico_conversas ADD COLUMN IF NOT EXISTS audio_url VARCHAR(500)`)
     } catch { /* silenciar se já existir */ }
 }
 
@@ -67,6 +70,7 @@ export async function GET(request: Request) {
                     COALESCE(content, '') as content,
                     push_name,
                     origem,
+                    audio_url,
                     created_at
                 FROM historico_conversas
                 WHERE user_id = ${clinicaId}
@@ -83,6 +87,7 @@ export async function GET(request: Request) {
                     content: m.content,
                     pushName: m.push_name,
                     origem: m.origem,
+                    audioUrl: m.audio_url,
                     data: m.created_at,
                 })),
             })
