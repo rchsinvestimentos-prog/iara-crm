@@ -144,7 +144,9 @@ export default function AnamnesePage() {
                 setModalOpen(false)
                 loadData()
             } else {
-                alert('Erro ao salvar ficha.')
+                const errData = await res.json().catch(() => null)
+                const detailStr = errData?.details || errData?.error || 'Erro desconhecido.'
+                alert(`Erro ao salvar ficha: ${detailStr}`)
             }
         } catch {
             alert('Erro de conexão ao salvar.')

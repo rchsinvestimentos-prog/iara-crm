@@ -122,12 +122,12 @@ export async function POST(request: NextRequest) {
 
             return NextResponse.json({ ok: true, modelo: created })
         }
-    } catch (err) {
+    } catch (err: any) {
         if (err instanceof z.ZodError) {
-            return NextResponse.json({ error: 'Dados inválidos', details: err.issues }, { status: 400 })
+            return NextResponse.json({ error: 'Dados inválidos', details: JSON.stringify(err.issues) }, { status: 400 })
         }
         console.error('[POST /api/anamnese] Erro:', err)
-        return NextResponse.json({ error: 'Erro ao salvar modelo de anamnese' }, { status: 500 })
+        return NextResponse.json({ error: 'Erro ao salvar modelo de anamnese', details: err.message || String(err) }, { status: 500 })
     }
 }
 
