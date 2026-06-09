@@ -153,6 +153,7 @@ model Clinica {
   profissionais Profissional[]
   avaliacoes    Avaliacao[]
   agendamentos  Agendamento[]
+  midias        MidiaContato[]
 
   @@index([evolutionInstance])
   @@index([tokenAtivacao])
@@ -422,10 +423,34 @@ model Contato {
   updatedAt       DateTime? @default(now()) @map("updated_at")
 
   clinica Clinica? @relation(fields: [clinicaId], references: [id])
+  midias  MidiaContato[]
 
   @@unique([clinicaId, telefone])
   @@index([clinicaId, etapa])
   @@map("contatos")
+}
+
+// ============================================
+// CRM — Mídias e Fotos do Contato
+// ============================================
+
+model MidiaContato {
+  id          String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  contatoId   Int      @map("contato_id")
+  clinicaId   Int      @map("clinica_id")
+  tipo        String   @default("imagem") @db.VarChar(20) // imagem, documento, etc
+  url         String   @db.Text
+  thumbnailUrl String? @map("thumbnail_url") @db.Text
+  titulo      String?  @db.VarChar(255)
+  anotacoes   String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  contato     Contato  @relation(fields: [contatoId], references: [id], onDelete: Cascade)
+  clinica     Clinica  @relation(fields: [clinicaId], references: [id], onDelete: Cascade)
+
+  @@index([contatoId])
+  @@index([clinicaId])
+  @@map("midia_contatos")
 }
 
 // ============================================

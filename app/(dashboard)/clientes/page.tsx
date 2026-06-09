@@ -5,8 +5,10 @@ import {
     Users, Search, Filter, ClipboardList, Stethoscope, 
     MessageSquare, Clock, ShieldCheck, User, Calendar, Plus, 
     Trash2, Edit, Save, X, ArrowRight, Loader2, Play, Pause,
-    Activity, FileText, Send, CheckCircle2, ChevronRight, MessageCircle, AlertCircle
+    Activity, FileText, Send, CheckCircle2, ChevronRight, MessageCircle, AlertCircle, Image as ImageIcon
 } from 'lucide-react'
+import ImageAnnotator from '@/components/ImageAnnotator'
+import CertificadoAssinatura from '@/components/CertificadoAssinatura'
 
 interface Contato {
     id: number
@@ -65,8 +67,14 @@ export default function ClientesPage() {
     // CRM details drawer/modal
     const [activeContato, setActiveContato] = useState<Contato | null>(null)
     const [timeline, setTimeline] = useState<TimelineEvent[]>([])
+    const [fichas, setFichas] = useState<any[]>([])
+    const [midias, setMidias] = useState<any[]>([])
     const [detailLoading, setDetailLoading] = useState(false)
-    const [activeTab, setActiveTab] = useState<'prontuario' | 'timeline' | 'chat'>('prontuario')
+    const [activeTab, setActiveTab] = useState<'prontuario' | 'timeline' | 'chat' | 'galeria'>('prontuario')
+
+    // Modals
+    const [showImageAnnotator, setShowImageAnnotator] = useState(false)
+    const [selectedFicha, setSelectedFicha] = useState<any>(null)
 
     // Add manual procedure form
     const [showAddProc, setShowAddProc] = useState(false)
@@ -140,9 +148,11 @@ export default function ClientesPage() {
         setShowAddProc(false)
         setShowScheduler(false)
         try {
-            const res = await fetch(`/api/contatos/${c.id}/details`)
+            const res = await fetch(`/api/contatos/${c.id}/detalhes`)
             const data = await res.json()
             if (data.timeline) setTimeline(data.timeline)
+            if (data.fichas) setFichas(data.fichas)
+            if (data.midias) setMidias(data.midias)
             if (data.contato) setActiveContato(data.contato)
         } catch (err) {
             console.error('Erro ao carregar detalhes do paciente:', err)
@@ -315,12 +325,37 @@ export default function ClientesPage() {
         }
     }
 
-    // Generate anamnese link
     const handleGenerateAnamneseLink = (modeloId: string) => {
         if (!activeContato) return
         const link = `${window.location.origin}/anamnese/${modeloId}?contatoId=${activeContato.id}`
         navigator.clipboard.writeText(link)
         alert('Link da Ficha copiado para a Área de Transferência! Compartilhe pelo WhatsApp com a paciente.')
+    }
+
+    const handleSaveMedia = async (base64Image: string, mediaTitle?: string, mediaNotes?: string) => {
+        if (!activeContato) return
+        try {
+            const res = await fetch(`/api/contatos/${activeContato.id}/midia`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url: base64Image,
+                    tipo: 'imagem',
+                    titulo: mediaTitle,
+                    anotacoes: mediaNotes
+                })
+            })
+            if (res.ok) {
+                const data = await res.json()
+                setMidias(prev => [data.midia, ...prev])
+                setShowImageAnnotator(false)
+            } else {
+                alert('Erro ao salvar mídia no prontuário.')
+            }
+        } catch (err) {
+            console.error(err)
+            alert('Erro de conexão ao salvar mídia.')
+        }
     }
 
     return (
@@ -490,7 +525,7 @@ export default function ClientesPage() {
 
                             {/* Tabs Navigation */}
                             <div className="flex gap-1 p-1 bg-gray-100 dark:bg-white/5 rounded-xl">
-                                {(['prontuario', 'timeline', 'chat'] as const).map(tab => (
+                                {(['prontuario', 'timeline', 'chat', 'galeria'] as const).map(tab => (
                                     <button
                                         key={tab}
                                         onClick={() => setActiveTab(tab)}
@@ -500,7 +535,7 @@ export default function ClientesPage() {
                                                 : 'text-gray-400 hover:text-gray-200'
                                         }`}
                                     >
-                                        {tab === 'prontuario' ? 'Ficha Médica' : tab === 'timeline' ? 'Linha do Tempo' : 'Chat WhatsApp'}
+                                        {tab === 'prontuario' ? 'Ficha Médica' : tab === 'timeline' ? 'Linha do Tempo' : tab === 'chat' ? 'Chat WhatsApp' : 'Galeria & Documentos'}
                                     </button>
                                 ))}
                             </div>
@@ -813,11 +848,96 @@ export default function ClientesPage() {
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* TABA: GALERIA E DOCUMENTOS */}
+                                    {activeTab === 'galeria' && (
+                                        <div className="space-y-6 animate-fade-in">
+                                            <div className="flex justify-between items-center">
+                                                <h3 className="font-bold text-petroleo dark:text-white">Galeria de Mídias e Fotos</h3>
+                                                <button
+                                                    onClick={() => setShowImageAnnotator(true)}
+                                                    className="px-2.5 py-1 rounded-xl bg-petroleo hover:bg-petroleo-light text-white font-bold text-[10px] flex items-center gap-1 transition-all cursor-pointer"
+                                                >
+                                                    <ImageIcon size={11} /> Nova Foto/Anotação
+                                                </button>
+                                            </div>
+
+                                            {midias.length === 0 ? (
+                                                <div className="p-8 text-center bg-gray-50 dark:bg-white/5 rounded-2xl border">
+                                                    <ImageIcon size={24} className="mx-auto text-gray-400 mb-2" />
+                                                    <p className="text-gray-400">Nenhuma foto ou anotação registrada ainda.</p>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                                    {midias.map(midia => (
+                                                        <div key={midia.id} className="relative group rounded-xl overflow-hidden border dark:border-white/10 aspect-square bg-gray-100 dark:bg-[#0B0F19]">
+                                                            <img 
+                                                                src={midia.url} 
+                                                                alt={midia.titulo || 'Mídia do paciente'} 
+                                                                className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                                                            />
+                                                            <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+                                                                <p className="text-white font-bold text-[9px] truncate">{midia.titulo || 'Sem título'}</p>
+                                                                <p className="text-white/70 text-[8px] truncate">{new Date(midia.createdAt).toLocaleDateString('pt-BR')}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            <div className="pt-6 border-t dark:border-white/10">
+                                                <h3 className="font-bold text-petroleo dark:text-white mb-4">Documentos e Fichas Assinadas</h3>
+                                                
+                                                {fichas.length === 0 ? (
+                                                    <div className="p-8 text-center bg-gray-50 dark:bg-white/5 rounded-2xl border">
+                                                        <FileText size={24} className="mx-auto text-gray-400 mb-2" />
+                                                        <p className="text-gray-400">Nenhuma ficha assinada por esta cliente.</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-3">
+                                                        {fichas.map(ficha => (
+                                                            <div 
+                                                                key={ficha.id} 
+                                                                className="p-3 bg-white dark:bg-white/5 rounded-xl border dark:border-white/10 flex items-center justify-between hover:border-[#D99773] transition-colors cursor-pointer"
+                                                                onClick={() => setSelectedFicha(ficha)}
+                                                            >
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="p-2 bg-green-50 dark:bg-green-500/10 rounded-lg text-green-600">
+                                                                        <ShieldCheck size={16} />
+                                                                    </div>
+                                                                    <div>
+                                                                        <h4 className="font-bold text-petroleo dark:text-gray-200 text-xs">{ficha.titulo}</h4>
+                                                                        <p className="text-[9px] text-gray-500">Assinado em {new Date(ficha.dataAssinatura).toLocaleDateString('pt-BR')}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <ChevronRight size={14} className="text-gray-400" />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* MODALS */}
+            {showImageAnnotator && (
+                <ImageAnnotator 
+                    onClose={() => setShowImageAnnotator(false)}
+                    onSave={handleSaveMedia}
+                />
+            )}
+
+            {selectedFicha && (
+                <CertificadoAssinatura 
+                    ficha={selectedFicha}
+                    onClose={() => setSelectedFicha(null)}
+                />
             )}
         </div>
     )

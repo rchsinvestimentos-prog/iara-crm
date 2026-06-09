@@ -46,6 +46,12 @@ export async function GET(
             orderBy: { dataAssinatura: 'desc' }
         })
 
+        // 3.5. Buscar mídias do paciente (fotos, desenhos)
+        const midias = await prisma.midiaContato.findMany({
+            where: { contatoId, clinicaId: cid },
+            orderBy: { createdAt: 'desc' }
+        })
+
         // 4. Montar a linha do tempo enriquecida
         // Unir agendamentos e fichas assinadas em ordem cronológica
         const timeline: any[] = []
@@ -84,7 +90,8 @@ export async function GET(
             contato,
             timeline,
             fichas,
-            agendamentos
+            agendamentos,
+            midias
         })
     } catch (err) {
         console.error('[GET /api/contatos/[id]/detalhes] Erro:', err)
