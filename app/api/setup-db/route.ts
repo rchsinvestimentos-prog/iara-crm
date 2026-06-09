@@ -366,6 +366,19 @@ export async function GET() {
       results.push(`⚠️ follow_up_configs: ${e.message?.slice(0, 80)}`)
     }
 
+    // ============================================
+    // COLUNAS: contatos (ia_pausada, resumo_clinico, etc)
+    // ============================================
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "ia_pausada" BOOLEAN DEFAULT false`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "resumo_clinico" TEXT`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "foto_url" TEXT`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "tags" TEXT[] DEFAULT '{}'`)
+      results.push('✅ Colunas adicionais em contatos garantidas')
+    } catch (e: any) {
+      results.push(`⚠️ Colunas adicionais em contatos: ${e.message?.slice(0, 80)}`)
+    }
+
     return NextResponse.json({ success: true, results })
   } catch (error: any) {
     console.error('Setup DB error:', error)
