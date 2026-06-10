@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { 
     Stethoscope, Plus, ClipboardList, Eye, Trash2, Edit2, 
-    ShieldCheck, X, Save, Send, Copy, Check, MessageSquare
+    ShieldCheck, X, Save, Send, Copy, Check, MessageSquare, Download
 } from 'lucide-react'
 
 interface Pergunta {
@@ -344,6 +344,42 @@ export default function AnamnesePage() {
         )
     }
 
+    const handleExportCSV = () => {
+        if (fichas.length === 0) return alert('Nenhuma ficha disponível para exportação.')
+        
+        const headers = ['Paciente', 'Telefone', 'Documento/Ficha', 'Data Assinatura', 'IP Origem', 'Dispositivo', 'Hash SHA-256', 'Respostas']
+        const rows = fichas.map(f => {
+            const respostasFormatadas = Object.entries(f.respostas || {})
+                .map(([q, r]) => `${q}: ${Array.isArray(r) ? r.join(', ') : r}`)
+                .join(' | ')
+            return [
+                `"${f.contato.nome.replace(/"/g, '""')}"`,
+                `"${f.contato.telefone.replace(/"/g, '""')}"`,
+                `"${f.titulo.replace(/"/g, '""')}"`,
+                `"${new Date(f.dataAssinatura).toLocaleString('pt-BR')}"`,
+                `"${f.ipOrigem.replace(/"/g, '""')}"`,
+                `"${f.userAgent.replace(/"/g, '""')}"`,
+                `"${f.hashIntegridade.replace(/"/g, '""')}"`,
+                `"${respostasFormatadas.replace(/"/g, '""')}"`
+            ]
+        })
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+        ].join('\n')
+
+        const blob = new Blob([`\ufeff${csvContent}`], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.setAttribute('href', url)
+        link.setAttribute('download', `backup_anamneses_${new Date().toISOString().split('T')[0]}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
     return (
         <div className="space-y-8 max-w-6xl mx-auto animate-fade-in">
             {/* Background orbs — mesmo padrão do dashboard */}
@@ -472,11 +508,22 @@ export default function AnamnesePage() {
 
                         {/* Fichas respondidas */}
                         <div className="pt-4">
-                            <div className="flex items-center gap-2 mb-4">
-                                <ShieldCheck size={16} className="text-green-500" />
-                                <h2 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
-                                    Auditoria Jurídica: Assinaturas Recebidas ({fichas.length})
-                                </h2>
+                            <div className="flex justify-between items-center mb-4">
+                                <div className="flex items-center gap-2">
+                                    <ShieldCheck size={16} className="text-green-500" />
+                                    <h2 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                                        Auditoria Jurídica: Assinaturas Recebidas ({fichas.length})
+                                    </h2>
+                                </div>
+                                {fichas.length > 0 && (
+                                    <button
+                                        onClick={handleExportCSV}
+                                        className="py-1.5 px-3 rounded-lg text-[10px] font-semibold flex items-center gap-1.5 transition-all hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer border dark:border-white/10"
+                                        style={{ color: 'var(--text-secondary)' }}
+                                    >
+                                        <Download size={12} /> Exportar Backup (CSV)
+                                    </button>
+                                )}
                             </div>
 
                             {fichas.length === 0 ? (
