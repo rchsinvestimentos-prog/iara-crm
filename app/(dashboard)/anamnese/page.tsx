@@ -70,6 +70,7 @@ export default function AnamnesePage() {
     const [sendCustomMsg, setSendCustomMsg] = useState('')
     const [sendLoading, setSendLoading] = useState(false)
     const [copied, setCopied] = useState(false)
+    const [selectedDdi, setSelectedDdi] = useState('+55')
     
     // CRM Search State
     const [crmSearch, setCrmSearch] = useState('')
@@ -205,7 +206,29 @@ export default function AnamnesePage() {
     const handleSelectContato = (c: any) => {
         setSelectedContatoId(c.id)
         setSendName(c.nome || '')
-        setSendPhone(c.telefone || '')
+        
+        // Tratar telefone do CRM (separar DDI se possível)
+        let phone = c.telefone || ''
+        if (phone.startsWith('55') && phone.length >= 11) {
+            setSelectedDdi('+55')
+            phone = phone.substring(2)
+        } else if (phone.startsWith('351') && phone.length >= 11) {
+            setSelectedDdi('+351')
+            phone = phone.substring(3)
+        } else if (phone.startsWith('1') && phone.length >= 10) {
+            setSelectedDdi('+1')
+            phone = phone.substring(1)
+        } else if (phone.startsWith('34') && phone.length >= 11) {
+            setSelectedDdi('+34')
+            phone = phone.substring(2)
+        } else {
+            setSelectedDdi('+55')
+            if (phone.startsWith('55')) {
+                phone = phone.substring(2)
+            }
+        }
+        
+        setSendPhone(phone)
         setCrmSearch('')
         setCrmContatos([])
     }
@@ -216,6 +239,7 @@ export default function AnamnesePage() {
         setSendName('')
         setSelectedContatoId(null)
         setCrmSearch('')
+        setSelectedDdi('+55')
         setSendCustomMsg(modelo.mensagemEnvio || 'Olá, {nome_cliente}! Falta pouco para o seu atendimento. Por favor, preencha sua Ficha de Anamnese pelo link seguro: {link_anamnese}')
         setSendModalOpen(true)
     }
@@ -225,11 +249,19 @@ export default function AnamnesePage() {
         
         setSendLoading(true)
         try {
+            const ddiNumber = selectedDdi.replace(/\D/g, '')
+            let phoneToSubmit = sendPhone.replace(/\D/g, '')
+            
+            // Se o telefone digitado não começar com o DDI correspondente, concatenamos
+            if (!phoneToSubmit.startsWith(ddiNumber)) {
+                phoneToSubmit = `${ddiNumber}${phoneToSubmit}`
+            }
+
             const body = {
                 modeloId: sendModel?.id,
                 contatoId: selectedContatoId,
                 nome: sendName,
-                telefone: sendPhone,
+                telefone: phoneToSubmit,
                 mensagemCustomizada: sendCustomMsg
             }
 
@@ -880,16 +912,38 @@ export default function AnamnesePage() {
                             {/* WhatsApp de destino */}
                             <div>
                                 <label className="block font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-                                    WhatsApp de Destino (DDI + DDD + Número):
+                                    WhatsApp de Destino:
                                 </label>
-                                <input
-                                    type="text"
-                                    value={sendPhone}
-                                    onChange={(e) => setSendPhone(e.target.value)}
-                                    placeholder="Ex: 5511999999999"
-                                    className="input-field py-1.5 text-[10px]"
-                                />
-                                <span className="text-[9px] text-slate-400 mt-0.5 block">Não inclua traços ou parênteses, apenas números.</span>
+                                <div className="flex gap-1.5">
+                                    {/* Dropdown DDI */}
+                                    <select
+                                        value={selectedDdi}
+                                        onChange={(e) => setSelectedDdi(e.target.value)}
+                                        className="py-1.5 px-2.5 text-[10px] rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-black/20 focus:outline-none focus:border-[#D99773] text-slate-700 dark:text-slate-200 cursor-pointer"
+                                        style={{ width: '88px' }}
+                                    >
+                                        <option value="+55">🇧🇷 +55</option>
+                                        <option value="+351">🇵🇹 +351</option>
+                                        <option value="+1">🇺🇸 +1</option>
+                                        <option value="+34">🇪🇸 +34</option>
+                                        <option value="+54">🇦🇷 +54</option>
+                                        <option value="+39">🇮🇹 +39</option>
+                                        <option value="+44">🇬🇧 +44</option>
+                                    </select>
+                                    
+                                    {/* Input Telefone */}
+                                    <input
+                                        type="text"
+                                        value={sendPhone}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, '')
+                                            setSendPhone(val)
+                                        }}
+                                        placeholder="Ex: 41999999999"
+                                        className="input-field flex-1 py-1.5 text-[10px]"
+                                    />
+                                </div>
+                                <span className="text-[9px] text-slate-400 mt-1 block">Digite apenas o DDD e o número (ex: 41991981913).</span>
                             </div>
 
                             {/* Corpo da mensagem */}
