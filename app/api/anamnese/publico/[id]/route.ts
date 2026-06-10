@@ -27,6 +27,7 @@ export async function GET(
                 titulo: true,
                 perguntas: true,
                 clinicaId: true,
+                ativo: true,
             }
         })
 
