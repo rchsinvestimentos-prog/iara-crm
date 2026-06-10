@@ -109,7 +109,11 @@ export async function POST(request: NextRequest) {
                 } else {
                     const txt = await evoRes.text()
                     console.error('[Evolution API Anamnese Send] Erro:', txt)
-                    erroIA = `Instância respondeu com erro: ${txt.slice(0, 100)}`
+                    if (txt.includes('Connection Closed') || txt.includes('closed') || txt.includes('disconnected') || txt.includes('not connected')) {
+                        erroIA = 'O WhatsApp (Iara) da clínica está desconectado. Por favor, acesse o menu "WhatsApp" na barra lateral e reconecte seu número para realizar disparos automáticos.'
+                    } else {
+                        erroIA = `Instância respondeu com erro: ${txt.slice(0, 100)}`
+                    }
                 }
             } catch (err: any) {
                 console.error('[Evolution API Anamnese Send] Falha de conexão:', err)

@@ -919,8 +919,13 @@ export default function AnamnesePage() {
                                     <select
                                         value={selectedDdi}
                                         onChange={(e) => setSelectedDdi(e.target.value)}
-                                        className="py-1.5 px-2.5 text-[10px] rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-black/20 focus:outline-none focus:border-[#D99773] text-slate-700 dark:text-slate-200 cursor-pointer"
-                                        style={{ width: '88px' }}
+                                        className="py-1.5 px-2.5 text-[10px] rounded-xl border focus:outline-none focus:border-[#D99773] cursor-pointer"
+                                        style={{ 
+                                            width: '88px',
+                                            backgroundColor: 'var(--bg-input)',
+                                            color: 'var(--text-primary)',
+                                            borderColor: 'var(--border-default)'
+                                        }}
                                     >
                                         <option value="+55">🇧🇷 +55</option>
                                         <option value="+351">🇵🇹 +351</option>
