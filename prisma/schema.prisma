@@ -626,6 +626,7 @@ model FichaPreenchida {
 
   // Trilha de Evidências Criptográficas (Validade Jurídica)
   assinaturaPng   String   @map("assinatura_png") @db.Text // Desenho em Base64
+  selfiePng       String?  @map("selfie_png") @db.Text // Selfie do paciente em Base64
   dataAssinatura  DateTime @default(now()) @map("data_assinatura")
   ipOrigem        String   @map("ip_origem") @db.VarChar(50)
   userAgent       String   @map("user_agent") @db.VarChar(500)

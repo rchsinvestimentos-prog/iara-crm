@@ -30,6 +30,7 @@ interface FichaPreenchida {
     contatoId: number
     respostas: Record<string, any>
     assinaturaPng: string
+    selfiePng?: string | null
     dataAssinatura: string
     ipOrigem: string
     userAgent: string
@@ -815,17 +816,33 @@ export default function AnamnesePage() {
                                 </div>
                             </div>
 
-                            {/* Assinatura */}
-                            <div>
-                                <h3 className="font-bold mb-2 pb-1" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)' }}>
-                                    Assinatura do Paciente
-                                </h3>
-                                <div className="flex items-center justify-center p-4 rounded-2xl bg-white" style={{ border: '1px solid var(--border-default)' }}>
-                                    {viewFicha.assinaturaPng ? (
-                                        <img src={viewFicha.assinaturaPng} alt="Assinatura Digital" className="max-h-24 object-contain" />
-                                    ) : (
-                                        <span className="italic" style={{ color: 'var(--text-muted)' }}>Assinatura indisponível</span>
-                                    )}
+                            {/* Selfie & Assinatura */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <h3 className="font-bold mb-2 pb-1" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)' }}>
+                                        Foto do Paciente (Selfie)
+                                    </h3>
+                                    <div className="flex items-center justify-center p-4 rounded-2xl bg-white h-32" style={{ border: '1px solid var(--border-default)' }}>
+                                        {viewFicha.selfiePng ? (
+                                            <div className="w-24 h-24 rounded-full overflow-hidden border border-slate-200">
+                                                <img src={viewFicha.selfiePng} alt="Selfie de Validação" className="w-full h-full object-cover" />
+                                            </div>
+                                        ) : (
+                                            <span className="italic" style={{ color: 'var(--text-muted)' }}>Selfie indisponível</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="font-bold mb-2 pb-1" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)' }}>
+                                        Assinatura do Paciente
+                                    </h3>
+                                    <div className="flex items-center justify-center p-4 rounded-2xl bg-white h-32" style={{ border: '1px solid var(--border-default)' }}>
+                                        {viewFicha.assinaturaPng ? (
+                                            <img src={viewFicha.assinaturaPng} alt="Assinatura Digital" className="max-h-24 object-contain" />
+                                        ) : (
+                                            <span className="italic" style={{ color: 'var(--text-muted)' }}>Assinatura indisponível</span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 

@@ -11,6 +11,7 @@ interface FichaData {
     userAgent: string
     hashIntegridade: string
     assinaturaPng: string
+    selfiePng?: string | null
     respostas: any
 }
 
@@ -88,21 +89,31 @@ export default function CertificadoAssinatura({ ficha, onClose }: CertificadoAss
                                 </div>
                             </div>
 
-                            <div className="flex flex-col items-center justify-center border-l dark:border-white/10 print:border-gray-200 pl-6">
-                                <span className="font-bold text-sm mb-2 text-petroleo dark:text-gray-200 print:text-black">Assinatura Digital</span>
-                                {ficha.assinaturaPng ? (
-                                    <img src={ficha.assinaturaPng} alt="Assinatura" className="max-h-24 object-contain filter dark:invert print:invert-0" />
-                                ) : (
-                                    <div className="h-24 flex items-center justify-center text-gray-400 italic text-xs">Sem rubrica</div>
+                            <div className="flex flex-col sm:flex-row items-center justify-around gap-6 border-l dark:border-white/10 print:border-gray-200 pl-6 w-full">
+                                {ficha.selfiePng && (
+                                    <div className="flex flex-col items-center">
+                                        <span className="font-bold text-xs mb-2 text-petroleo dark:text-gray-200 print:text-black">Foto do Paciente (Selfie)</span>
+                                        <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#D99773] shadow-md flex items-center justify-center bg-gray-100">
+                                            <img src={ficha.selfiePng} alt="Selfie de confirmação" className="w-full h-full object-cover" />
+                                        </div>
+                                    </div>
                                 )}
-                                <div className="mt-4 flex items-center gap-1 text-[10px] font-bold text-green-600 uppercase tracking-widest bg-green-50 dark:bg-green-500/10 print:bg-white px-3 py-1 rounded-full border border-green-200 dark:border-green-500/30">
-                                    <CheckCircle2 size={12} /> Autenticado
+                                <div className="flex flex-col items-center">
+                                    <span className="font-bold text-xs mb-2 text-petroleo dark:text-gray-200 print:text-black">Assinatura Digital</span>
+                                    {ficha.assinaturaPng ? (
+                                        <img src={ficha.assinaturaPng} alt="Assinatura" className="max-h-20 object-contain filter dark:invert print:invert-0" />
+                                    ) : (
+                                        <div className="h-20 flex items-center justify-center text-gray-400 italic text-xs">Sem rubrica</div>
+                                    )}
+                                    <div className="mt-2 flex items-center gap-1 text-[9px] font-bold text-green-600 uppercase tracking-widest bg-green-50 dark:bg-green-500/10 print:bg-white px-2.5 py-0.5 rounded-full border border-green-200 dark:border-green-500/30">
+                                        <CheckCircle2 size={10} /> Autenticado
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         
                         <p className="text-[9px] text-gray-400 dark:text-gray-500 print:text-gray-500 mt-6 text-center leading-relaxed">
-                            Este documento foi assinado eletronicamente. As evidências técnicas coletadas (IP, Data, Geometria da Assinatura e Criptografia Hash) garantem sua integridade e autoria, possuindo validade jurídica conforme a legislação vigente sobre assinaturas eletrônicas.
+                            Este documento foi assinado eletronicamente. As evidências técnicas coletadas (IP, Data, Geometria da Assinatura, Selfie de Validação e Criptografia Hash) garantem sua integridade e autoria, possuindo validade jurídica conforme a legislação vigente sobre assinaturas eletrônicas.
                         </p>
                     </div>
                 </div>

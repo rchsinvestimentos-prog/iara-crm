@@ -8,6 +8,7 @@ const SubmitAnamneseSchema = z.object({
     contatoId: z.number().int(),
     respostas: z.record(z.string(), z.any()), // {perguntaId: resposta}
     assinaturaPng: z.string(), // Base64 da assinatura
+    selfiePng: z.string().optional(), // Selfie do paciente em Base64
     pdfBase64: z.string().optional(), // PDF em base64 opcional enviado pelo client
 })
 
@@ -96,6 +97,7 @@ export async function POST(
             contatoId: validated.contatoId,
             respostas: validated.respostas,
             assinaturaPng: validated.assinaturaPng,
+            selfiePng: validated.selfiePng || '',
             ipOrigem,
             userAgent,
             dataAssinatura: dataAssinatura.toISOString(),
@@ -110,6 +112,7 @@ export async function POST(
                 titulo: modelo.titulo,
                 respostas: validated.respostas as any,
                 assinaturaPng: validated.assinaturaPng,
+                selfiePng: validated.selfiePng || null,
                 ipOrigem: ipOrigem.substring(0, 50),
                 userAgent: userAgent.substring(0, 500),
                 hashIntegridade,

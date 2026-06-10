@@ -326,6 +326,7 @@ export async function GET() {
           "titulo" TEXT NOT NULL,
           "respostas" JSONB NOT NULL,
           "assinatura_png" TEXT NOT NULL,
+          "selfie_png" TEXT,
           "data_signature" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
           "data_assinatura" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "ip_origem" VARCHAR(50) NOT NULL,
@@ -335,7 +336,10 @@ export async function GET() {
           CONSTRAINT "fichas_preenchidas_pkey" PRIMARY KEY ("id")
         )
       `)
-      results.push('✅ Tabela fichas_preenchidas garantida')
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE "fichas_preenchidas" ADD COLUMN IF NOT EXISTS "selfie_png" TEXT;
+      `)
+      results.push('✅ Tabela fichas_preenchidas garantida (com selfie)')
     } catch (e: any) {
       results.push(`⚠️ fichas_preenchidas: ${e.message?.slice(0, 80)}`)
     }
