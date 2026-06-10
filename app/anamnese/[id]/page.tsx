@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
-import { ShieldCheck, FileText, CheckCircle2, ChevronRight, AlertCircle, RefreshCw, Sparkles, Send, Camera, Smartphone, X } from 'lucide-react'
+import { ShieldCheck, FileText, CheckCircle2, ChevronRight, AlertCircle, RefreshCw, Sparkles, Send, Camera, Smartphone, X, Printer } from 'lucide-react'
 
 interface Pergunta {
     id: string
@@ -49,6 +49,7 @@ export default function PublicAnamnesePage() {
 
     // Selfie
     const [selfiePng, setSelfiePng] = useState<string>('')
+    const [viewReceipt, setViewReceipt] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
     const [cameraActive, setCameraActive] = useState(false)
     const [currentUrl, setCurrentUrl] = useState('')
@@ -404,6 +405,105 @@ export default function PublicAnamnesePage() {
         )
     }
 
+    if (success && viewReceipt) {
+        return (
+            <div className="min-h-screen bg-slate-50 dark:bg-[#090D16] text-slate-800 dark:text-slate-200 py-8 px-4 flex flex-col items-center print:bg-white print:text-black print:p-0">
+                <div className="max-w-2xl w-full space-y-6 relative z-10 print:max-w-none print:shadow-none print:border-none">
+                    {/* Header Actions (hidden on print) */}
+                    <div className="flex justify-between items-center bg-white dark:bg-[#0F172A] p-4 rounded-2xl border dark:border-white/10 shadow-sm print:hidden">
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Comprovante de Preenchimento</span>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => window.print()}
+                                className="py-1.5 px-3 rounded-xl bg-[#D99773] hover:bg-[#C08160] text-white text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                            >
+                                <Printer size={12} /> Imprimir / PDF
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setViewReceipt(false)}
+                                className="py-1.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 text-[10px] font-bold hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                            >
+                                Voltar
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Document Receipt */}
+                    <div className="bg-white dark:bg-[#0F172A] print:bg-white rounded-3xl shadow-xl border dark:border-white/10 p-6 sm:p-8 space-y-6 print:p-0 print:border-none print:shadow-none">
+                        <div className="text-center space-y-2 border-b pb-6 dark:border-white/5 print:border-slate-200">
+                            {clinica?.avatar && (
+                                <img src={clinica.avatar} alt={clinica.nome} className="w-12 h-12 rounded-full mx-auto object-cover print:hidden" />
+                            )}
+                            <h2 className="text-[10px] uppercase tracking-wider font-bold text-[#D99773]">{clinica?.nome}</h2>
+                            <h1 className="text-lg font-bold text-slate-900 dark:text-white print:text-black uppercase">{modelo?.titulo}</h1>
+                            <p className="text-[10px] text-slate-400">Prontuário assinado eletronicamente pelo paciente.</p>
+                        </div>
+
+                        {/* Respostas */}
+                        <div className="space-y-4">
+                            {modelo?.perguntas.map((q) => {
+                                const resp = respostas[q.label]
+                                return (
+                                    <div key={q.id} className="p-3 bg-slate-50 dark:bg-black/10 print:bg-white rounded-xl border dark:border-white/5 print:border-slate-100">
+                                        <p className="font-bold text-[10px] text-slate-700 dark:text-slate-300 print:text-black">{q.label}</p>
+                                        <p className="text-xs text-slate-600 dark:text-slate-400 print:text-black mt-1">
+                                            {Array.isArray(resp) ? resp.join(', ') : (resp || <span className="italic">Sem resposta</span>)}
+                                        </p>
+                                    </div>
+                                )
+                            })}
+                        </div>
+
+                        {/* Selo Jurídico */}
+                        <div className="mt-8 border-2 border-[#D99773] rounded-2xl p-5 bg-orange-50/20 dark:bg-[#D99773]/5 print:bg-white break-inside-avoid">
+                            <div className="flex items-center gap-1.5 text-[#D99773] font-bold text-[11px] mb-4">
+                                <ShieldCheck size={14} /> Certificado de Validade Jurídica
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2 text-[10px] text-slate-500 dark:text-slate-400 print:text-slate-700">
+                                    <div>
+                                        <span className="font-bold block text-slate-700 dark:text-slate-300 print:text-black">Preenchido em:</span>
+                                        {new Date().toLocaleString('pt-BR')}
+                                    </div>
+                                    <div>
+                                        <span className="font-bold block text-slate-700 dark:text-slate-300 print:text-black">Endereço IP:</span>
+                                        Registrado na trilha de auditoria
+                                    </div>
+                                    <div>
+                                        <span className="font-bold block text-slate-700 dark:text-slate-300 print:text-black">Hash SHA-256:</span>
+                                        <code className="font-mono text-[9px] break-all">{hash}</code>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row items-center justify-around gap-4 border-l dark:border-white/5 print:border-slate-200 pl-4">
+                                    {selfiePng && (
+                                        <div className="flex flex-col items-center">
+                                            <span className="font-bold text-[9px] mb-1.5 text-slate-700 dark:text-slate-300 print:text-black">Foto (Selfie)</span>
+                                            <div className="w-16 h-16 rounded-full overflow-hidden border border-[#D99773]">
+                                                <img src={selfiePng} alt="Selfie" className="w-full h-full object-cover" />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="flex flex-col items-center">
+                                        <span className="font-bold text-[9px] mb-1.5 text-slate-700 dark:text-slate-300 print:text-black">Assinatura</span>
+                                        {canvasRef.current ? (
+                                            <img src={canvasRef.current.toDataURL('image/png')} alt="Assinatura" className="max-h-16 object-contain filter dark:invert print:invert-0" />
+                                        ) : (
+                                            <div className="text-[9px] italic text-slate-400">Assinatura</div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     if (success) {
         return (
             <div className="min-h-screen bg-slate-50 dark:bg-[#090D16] flex items-center justify-center p-4">
@@ -434,6 +534,16 @@ export default function PublicAnamnesePage() {
                                 </code>
                             </div>
                         </div>
+                    </div>
+
+                    <div className="flex justify-center pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setViewReceipt(true)}
+                            className="py-2.5 px-5 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                            <FileText size={14} className="text-[#D99773]" /> Visualizar / Salvar PDF
+                        </button>
                     </div>
 
                     <p className="text-[10px] text-slate-400">
