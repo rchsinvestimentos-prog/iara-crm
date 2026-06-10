@@ -48,7 +48,7 @@ export default function CertificadoAssinatura({ ficha, onClose }: CertificadoAss
                 <div className="p-8 space-y-8 print:p-0">
                     <div className="text-center space-y-2 border-b pb-6 dark:border-white/10">
                         <h1 className="text-2xl font-bold uppercase tracking-wider">{ficha.titulo}</h1>
-                        <p className="text-sm text-gray-500 print:text-gray-700">Preenchido em: {new Date(ficha.dataAssinatura).toLocaleString('pt-BR')}</p>
+                        <p className="text-sm text-gray-500 print:text-gray-700">Preenchido em: {new Date(ficha.dataAssinatura).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
                     </div>
 
                     {/* Respostas da Ficha */}
@@ -71,7 +71,7 @@ export default function CertificadoAssinatura({ ficha, onClose }: CertificadoAss
                             <div className="space-y-3 text-xs text-gray-600 dark:text-gray-400 print:text-gray-800">
                                 <div>
                                     <span className="font-bold block text-petroleo dark:text-gray-200 print:text-black">Data e Hora da Assinatura:</span>
-                                    {new Date(ficha.dataAssinatura).toLocaleString('pt-BR')}
+                                    {new Date(ficha.dataAssinatura).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                                 </div>
                                 <div>
                                     <span className="font-bold block text-petroleo dark:text-gray-200 print:text-black">Endereço IP de Origem:</span>

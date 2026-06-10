@@ -903,8 +903,15 @@ export default function AnamnesePage() {
                                         <p style={{ color: 'var(--text-muted)' }}>Endereço IP de origem:</p>
                                         <p className="font-semibold text-right" style={{ color: 'var(--text-primary)' }}>{viewFicha.ipOrigem}</p>
 
-                                        <p style={{ color: 'var(--text-muted)' }}>Data e Hora exata UTC:</p>
-                                        <p className="font-semibold text-right" style={{ color: 'var(--text-primary)' }}>{new Date(viewFicha.dataAssinatura).toUTCString()}</p>
+                                        <p style={{ color: 'var(--text-muted)' }}>Data e Hora (Brasília):</p>
+                                        <p className="font-semibold text-right" style={{ color: 'var(--text-primary)' }}>
+                                            {new Date(viewFicha.dataAssinatura).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                                        </p>
+
+                                        <p style={{ color: 'var(--text-muted)' }}>Auditoria Criptográfica (UTC):</p>
+                                        <p className="font-semibold text-right font-mono text-[9px]" style={{ color: 'var(--text-primary)' }}>
+                                            {new Date(viewFicha.dataAssinatura).toUTCString()}
+                                        </p>
 
                                         <p style={{ color: 'var(--text-muted)' }}>Navegador e Dispositivo (UA):</p>
                                         <p className="font-semibold text-right truncate max-w-[180px] self-end" style={{ color: 'var(--text-primary)' }}>{viewFicha.userAgent}</p>

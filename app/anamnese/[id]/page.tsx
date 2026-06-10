@@ -466,7 +466,7 @@ export default function PublicAnamnesePage() {
                                 <div className="space-y-2 text-[10px] text-slate-500 dark:text-slate-400 print:text-slate-700">
                                     <div>
                                         <span className="font-bold block text-slate-700 dark:text-slate-300 print:text-black">Preenchido em:</span>
-                                        {new Date().toLocaleString('pt-BR')}
+                                        {new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                                     </div>
                                     <div>
                                         <span className="font-bold block text-slate-700 dark:text-slate-300 print:text-black">Endereço IP:</span>
