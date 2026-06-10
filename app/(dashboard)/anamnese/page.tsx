@@ -277,10 +277,46 @@ export default function AnamnesePage() {
             }
 
             if (method === 'copy_link') {
-                navigator.clipboard.writeText(data.linkAnamnese)
-                setCopied(true)
-                setTimeout(() => setCopied(false), 2000)
-                alert('Link copiado com sucesso!')
+                const link = data.linkAnamnese
+                const fallbackCopyText = (text: string) => {
+                    try {
+                        const textArea = document.createElement("textarea")
+                        textArea.value = text
+                        textArea.style.position = "fixed"
+                        textArea.style.left = "-9999px"
+                        textArea.style.top = "0"
+                        document.body.appendChild(textArea)
+                        textArea.focus()
+                        textArea.select()
+                        const successful = document.execCommand('copy')
+                        document.body.removeChild(textArea)
+                        if (successful) {
+                            setCopied(true)
+                            setTimeout(() => setCopied(false), 2000)
+                            alert('Link copiado com sucesso!')
+                        } else {
+                            window.prompt('Não foi possível copiar automaticamente. Copie o link abaixo:', text)
+                        }
+                    } catch (err) {
+                        console.error('Erro no fallback de cópia:', err)
+                        window.prompt('Não foi possível copiar automaticamente. Copie o link abaixo:', text)
+                    }
+                }
+
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(link)
+                        .then(() => {
+                            setCopied(true)
+                            setTimeout(() => setCopied(false), 2000)
+                            alert('Link copiado com sucesso!')
+                        })
+                        .catch((err) => {
+                            console.error('Erro ao copiar com clipboard API, usando fallback:', err)
+                            fallbackCopyText(link)
+                        })
+                } else {
+                    fallbackCopyText(link)
+                }
             } else if (method === 'whatsapp_web') {
                 const text = encodeURIComponent(data.mensagemFormatada)
                 const phone = sendPhone.replace(/\D/g, '')
