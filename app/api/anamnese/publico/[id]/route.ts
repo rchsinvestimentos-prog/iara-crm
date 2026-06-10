@@ -6,7 +6,7 @@ import crypto from 'crypto'
 
 const SubmitAnamneseSchema = z.object({
     contatoId: z.number().int(),
-    respostas: z.record(z.any()), // {perguntaId: resposta}
+    respostas: z.record(z.string(), z.any()), // {perguntaId: resposta}
     assinaturaPng: z.string(), // Base64 da assinatura
     pdfBase64: z.string().optional(), // PDF em base64 opcional enviado pelo client
 })
