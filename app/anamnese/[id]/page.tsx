@@ -491,7 +491,8 @@ export default function PublicAnamnesePage() {
                                 onTouchStart={startDrawing}
                                 onTouchMove={draw}
                                 onTouchEnd={stopDrawing}
-                                className="w-full h-40 cursor-crosshair block"
+                                className="w-full h-40 cursor-crosshair block touch-none"
+                                style={{ touchAction: 'none' }}
                             />
                             {hasSigned && (
                                 <button
