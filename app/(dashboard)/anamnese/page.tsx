@@ -986,7 +986,14 @@ export default function AnamnesePage() {
                             </button>
 
                             {/* Disclaimer Explicativo */}
-                            <p className="text-[9px] text-slate-400 leading-relaxed text-center px-2 py-1 bg-slate-100 dark:bg-black/20 rounded-lg border dark:border-white/5">
+                            <p 
+                                className="text-[9px] leading-relaxed text-center px-3 py-2 rounded-lg border"
+                                style={{ 
+                                    color: 'var(--text-secondary)', 
+                                    backgroundColor: 'var(--bg-subtle)', 
+                                    borderColor: 'var(--border-default)' 
+                                }}
+                            >
                                 💡 <strong>Como funciona?</strong> O disparo automático envia direto em segundo plano pelo WhatsApp da clínica. Se a Iara estiver desconectada ou se preferir enviar de outro celular, use a opção manual (WhatsApp Web).
                             </p>
 
