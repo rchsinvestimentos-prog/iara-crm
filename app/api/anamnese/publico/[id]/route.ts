@@ -144,6 +144,6 @@ export async function POST(
             return NextResponse.json({ error: 'Dados inválidos', details: err.issues }, { status: 400 })
         }
         console.error('[POST /api/anamnese/publico/[id]] Erro:', err)
-        return NextResponse.json({ error: 'Erro interno ao salvar prontuário' }, { status: 500 })
+        return NextResponse.json({ error: `Erro interno ao salvar prontuário: ${err.message || String(err)}` }, { status: 500 })
     }
 }
