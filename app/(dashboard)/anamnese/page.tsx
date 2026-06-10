@@ -911,8 +911,33 @@ export default function AnamnesePage() {
                         </div>
 
                         {/* Footer */}
-                        <div className="flex flex-col gap-2 p-5" style={{ borderTop: '1px solid var(--border-default)', backgroundColor: 'var(--bg-subtle)' }}>
-                            <div className="flex justify-between gap-2">
+                        <div className="flex flex-col gap-2.5 p-5" style={{ borderTop: '1px solid var(--border-default)', backgroundColor: 'var(--bg-subtle)' }}>
+                            {/* Botão de Disparo Automático (Principal) */}
+                            <button
+                                onClick={() => handleSendAction('iara')}
+                                disabled={sendLoading}
+                                className="btn-primary w-full py-2.5 px-4 text-[10px] font-bold flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-95"
+                            >
+                                <MessageSquare size={12} /> Disparar Automático com a Iara (Recomendado)
+                            </button>
+
+                            {/* Botão de Envio Manual via Link (Secundário) */}
+                            <button
+                                onClick={() => handleSendAction('whatsapp_web')}
+                                disabled={sendLoading}
+                                className="btn-primary w-full py-2.5 px-4 text-[10px] font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                                style={{ backgroundColor: '#25D366', borderColor: '#25D366', color: '#fff' }}
+                            >
+                                <Send size={12} /> Enviar via WhatsApp Web (Manual com Link)
+                            </button>
+
+                            {/* Disclaimer Explicativo */}
+                            <p className="text-[9px] text-slate-400 leading-relaxed text-center px-2 py-1 bg-slate-100 dark:bg-black/20 rounded-lg border dark:border-white/5">
+                                💡 <strong>Como funciona?</strong> O disparo automático envia direto em segundo plano pelo WhatsApp da clínica. Se a Iara estiver desconectada ou se preferir enviar de outro celular, use a opção manual (WhatsApp Web).
+                            </p>
+
+                            {/* Ações de Apoio */}
+                            <div className="flex justify-between gap-2 pt-1.5">
                                 <button
                                     onClick={() => setSendModalOpen(false)}
                                     className="btn-secondary py-2 px-3 text-[10px] cursor-pointer"
@@ -928,23 +953,6 @@ export default function AnamnesePage() {
                                     <Copy size={12} /> Copiar Link
                                 </button>
                             </div>
-
-                            <button
-                                onClick={() => handleSendAction('whatsapp_web')}
-                                disabled={sendLoading}
-                                className="btn-primary w-full py-2.5 px-4 text-[10px] flex items-center justify-center gap-1.5 cursor-pointer"
-                                style={{ backgroundColor: '#25D366', borderColor: '#25D366', color: '#fff' }}
-                            >
-                                <Send size={12} /> Enviar via WhatsApp Web (Manual)
-                            </button>
-
-                            <button
-                                onClick={() => handleSendAction('iara')}
-                                disabled={sendLoading}
-                                className="btn-primary w-full py-2.5 px-4 text-[10px] flex items-center justify-center gap-1.5 cursor-pointer"
-                            >
-                                <MessageSquare size={12} /> Disparar Automático com a Iara
-                            </button>
                         </div>
                     </div>
                 </div>
