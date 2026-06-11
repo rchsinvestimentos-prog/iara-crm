@@ -5,7 +5,8 @@ import {
     Users, Search, Filter, ClipboardList, Stethoscope, 
     MessageSquare, Clock, ShieldCheck, User, Calendar, Plus, 
     Trash2, Edit, Save, X, ArrowRight, Loader2, Play, Pause,
-    Activity, FileText, Send, CheckCircle2, ChevronRight, MessageCircle, AlertCircle, Image as ImageIcon
+    Activity, FileText, Send, CheckCircle2, ChevronRight, MessageCircle, AlertCircle, Image as ImageIcon,
+    ToggleLeft, ToggleRight
 } from 'lucide-react'
 import ImageAnnotator from '@/components/ImageAnnotator'
 import CertificadoAssinatura from '@/components/CertificadoAssinatura'
