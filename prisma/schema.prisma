@@ -419,11 +419,13 @@ model Contato {
   fotoUrl         String?   @map("foto_url") @db.Text
   iaPausada       Boolean   @default(false) @map("ia_pausada")
   resumoClinico   String?   @map("resumo_clinico") @db.Text
+  pacotes         Json?     @default("[]") @db.JsonB
   createdAt       DateTime? @default(now()) @map("created_at")
   updatedAt       DateTime? @default(now()) @map("updated_at")
 
   clinica Clinica? @relation(fields: [clinicaId], references: [id])
   midias  MidiaContato[]
+  marcacoes MarcacaoEstetica[]
 
   @@unique([clinicaId, telefone])
   @@index([clinicaId, etapa])
@@ -655,3 +657,19 @@ model FilaCron {
   @@index([status, agendadoPara])
   @@map("fila_cron")
 }
+
+model MarcacaoEstetica {
+  id        String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  contatoId Int      @map("contato_id")
+  clinicaId Int      @map("clinica_id")
+  data      DateTime @default(now()) @map("data_marcacao")
+  titulo    String?  @db.VarChar(255)
+  pontos    Json     // Mapeamento: [{x, y, tipo, quantidade, notas}]
+  modelo    String   @default("face") @db.VarChar(50) // 'face', 'corpo_frente', 'corpo_verso'
+  createdAt DateTime @default(now()) @map("created_at")
+
+  contato   Contato  @relation(fields: [contatoId], references: [id], onDelete: Cascade)
+
+  @@map("marcacoes_esteticas")
+}
+

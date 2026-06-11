@@ -52,6 +52,12 @@ export async function GET(
             orderBy: { createdAt: 'desc' }
         })
 
+        // 3.55. Buscar marcações estéticas (Face/Body Map)
+        const marcacoes = await prisma.marcacaoEstetica.findMany({
+            where: { contatoId, clinicaId: cid },
+            orderBy: { createdAt: 'desc' }
+        })
+
         // 4. Montar a linha do tempo enriquecida
         // Unir agendamentos e fichas assinadas em ordem cronológica
         const timeline: any[] = []
@@ -107,7 +113,8 @@ export async function GET(
             timeline,
             fichas,
             agendamentos,
-            midias
+            midias,
+            marcacoes
         })
     } catch (err) {
         console.error('[GET /api/contatos/[id]/detalhes] Erro:', err)

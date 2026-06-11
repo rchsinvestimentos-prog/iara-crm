@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
                 etapa: etapa || undefined,
                 iaPausada: body.iaPausada !== undefined ? body.iaPausada : undefined,
                 resumoClinico: body.resumoClinico || undefined,
+                pacotes: body.pacotes !== undefined ? body.pacotes : undefined,
                 updatedAt: new Date(),
             },
             create: {
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
                 tags: tags || [],
                 iaPausada: body.iaPausada !== undefined ? body.iaPausada : false,
                 resumoClinico: body.resumoClinico || null,
+                pacotes: body.pacotes !== undefined ? body.pacotes : [],
             },
         })
 
