@@ -84,14 +84,19 @@ export async function GET(
         })
 
         // 3.6. Verificar se o contato está em triagem
-        const triageStatus = await prisma.$queryRaw<any[]>`
-            SELECT motivo, status_conversa.pausa_ate FROM status_conversa 
-            WHERE telefone_cliente = ${contato.telefone} AND user_id = ${cid}
-            LIMIT 1
-        `
-        const emTriagem = triageStatus.length > 0 && 
-                          triageStatus[0].motivo === 'triagem_pendente' && 
-                          new Date() < new Date(triageStatus[0].pausa_ate)
+        let emTriagem = false
+        try {
+            const triageStatus = await prisma.$queryRaw<any[]>`
+                SELECT motivo, status_conversa.pausa_ate FROM status_conversa 
+                WHERE telefone_cliente = ${contato.telefone} AND user_id = ${cid}
+                LIMIT 1
+            `
+            emTriagem = triageStatus.length > 0 && 
+                        triageStatus[0].motivo === 'triagem_pendente' && 
+                        new Date() < new Date(triageStatus[0].pausa_ate)
+        } catch (triageErr) {
+            console.error('[GET /api/contatos/[id]/detalhes] Erro ao buscar triagem:', triageErr)
+        }
 
         // Ordenar do mais novo para o mais antigo
         timeline.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
