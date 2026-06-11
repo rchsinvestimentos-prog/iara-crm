@@ -150,6 +150,7 @@ export default function ClientesPage() {
 
     // Load single contact timeline & history details
     const loadContatoDetails = async (c: Contato, initialTab?: 'prontuario' | 'timeline' | 'chat' | 'galeria') => {
+        setActiveContato(c)
         setDetailLoading(true)
         setActiveTab(initialTab || 'prontuario')
         setShowAddProc(false)
