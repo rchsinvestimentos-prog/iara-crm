@@ -13,6 +13,7 @@ import {
     getCalendarTokensForProfissional,
     createCalendarEventForProfissional,
     createCalendarEvent,
+    deleteCalendarEventForProfissional,
 } from '@/lib/google-calendar'
 import {
     createAppleCalendarEvent,
@@ -391,9 +392,27 @@ export async function processarAgendamentos(
         const startDateTime = `${agendamento.data}T${agendamento.hora}:00${tzOffset}`
         const endDate = new Date(`${agendamento.data}T${agendamento.hora}:00${tzOffset}`)
         endDate.setMinutes(endDate.getMinutes() + agendamento.duracao)
-        const endHH = String(endDate.getHours()).padStart(2, '0')
-        const endMM = String(endDate.getMinutes()).padStart(2, '0')
-        const endDateTime = `${agendamento.data}T${endHH}:${endMM}:00${tzOffset}`
+
+        // Formatar data de término respeitando o timezone da clínica para evitar erros de fuso/virada de dia
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: tz,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hourCycle: 'h23',
+        })
+        const parts = formatter.formatToParts(endDate)
+        const y = parts.find(p => p.type === 'year')?.value || '1970'
+        const m = parts.find(p => p.type === 'month')?.value || '01'
+        const d = parts.find(p => p.type === 'day')?.value || '01'
+        const h = parts.find(p => p.type === 'hour')?.value || '00'
+        const min = parts.find(p => p.type === 'minute')?.value || '00'
+        const sec = parts.find(p => p.type === 'second')?.value || '00'
+
+        const endDateTime = `${y}-${m}-${d}T${h}:${min}:${sec}${tzOffset}`
 
         try {
             // =========================================
@@ -413,29 +432,31 @@ export async function processarAgendamentos(
                 })
 
                 if (agendamentosAnteriores.length > 0) {
-                    console.log(`[Calendar] 🔄 Reagendamento detectado: cancelando ${agendamentosAnteriores.length} agendamento(s) anterior(es)`)
+                    console.log(`[Calendar] 🔄 Reagendamento detectado: removendo ${agendamentosAnteriores.length} agendamento(s) anterior(es)`)
                     
                     for (const ant of agendamentosAnteriores) {
-                        // Cancelar no banco
-                        await prisma.agendamento.update({
+                        // Excluir no banco para que não apareça na agenda/painel
+                        await prisma.agendamento.delete({
                             where: { id: ant.id },
-                            data: { status: 'reagendado' },
                         })
-                        console.log(`[Calendar] ❌ Agendamento #${ant.id} (${ant.procedimento} ${ant.horario}) → reagendado`)
+                        console.log(`[Calendar] ❌ Agendamento #${ant.id} (${ant.procedimento} ${ant.horario}) → excluído`)
 
-                        // Cancelar no Google Calendar se existir
+                        // Cancelar no Google/Apple Calendar se existir
                         if (ant.googleEventId && ant.profissionalId) {
                             try {
-                                const tokens = await getCalendarTokensForProfissional(ant.profissionalId)
-                                if (tokens?.accessToken) {
-                                    await fetch(`https://www.googleapis.com/calendar/v3/calendars/${tokens.calendarId || 'primary'}/events/${ant.googleEventId}`, {
-                                        method: 'DELETE',
-                                        headers: { Authorization: `Bearer ${tokens.accessToken}` },
-                                    })
-                                    console.log(`[Calendar] ❌ Google Calendar: evento ${ant.googleEventId} cancelado`)
+                                if (calProvider === 'apple' && clinica.appleCalendarEmail && clinica.appleCalendarPassword) {
+                                    const appleCredentials: AppleCalendarCredentials = {
+                                        email: clinica.appleCalendarEmail,
+                                        appPassword: clinica.appleCalendarPassword,
+                                        calendarUrl: clinica.appleCalendarUrl || undefined,
+                                    }
+                                    await deleteAppleCalendarEvent(appleCredentials, ant.googleEventId)
+                                } else {
+                                    await deleteCalendarEventForProfissional(ant.profissionalId, ant.googleEventId)
                                 }
+                                console.log(`[Calendar] ❌ Calendário Externo: evento ${ant.googleEventId} removido`)
                             } catch (gcErr) {
-                                console.warn(`[Calendar] ⚠️ Falha ao cancelar evento Google: ${(gcErr as any).message}`)
+                                console.warn(`[Calendar] ⚠️ Falha ao remover evento no calendário externo: ${(gcErr as any).message}`)
                             }
                         }
                     }
