@@ -416,6 +416,11 @@ export async function processarAgendamentos(
 
         try {
             // =========================================
+            // Determinar provedor de calendário externo
+            // =========================================
+            const calProvider = clinica.calendarProvider || 'google'
+
+            // =========================================
             // PASSO 0: CANCELAR AGENDAMENTOS ANTERIORES (reagendamento)
             // =========================================
             // Se a cliente já tem agendamento futuro confirmado/pendente,
@@ -467,7 +472,6 @@ export async function processarAgendamentos(
             // WRITE 1: Calendário Externo (Google ou Apple)
             // =========================================
             let googleEventId: string | null = null
-            const calProvider = clinica.calendarProvider || 'google'
 
             // Verificar toggle google_calendar (funciona para ambos provedores)
             const funcsCalendar = parseFuncionalidades(clinica.funcionalidades)
@@ -482,7 +486,7 @@ export async function processarAgendamentos(
                         }
 
                         const eventUid = `iara-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-                        const [endH, endM] = [endHH, endMM]
+                        const [endH, endM] = [h, min]
 
                         const appleResult = await createAppleCalendarEvent(appleCredentials, {
                             uid: eventUid,
