@@ -415,7 +415,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // Debug: logar tamanho do histórico e dados carregados
     await logPipeline('CONTEXT', `historico=${historico.length} procs=${procedimentosRaw.length} profs=${profissionaisRaw.length} cursos=${cursosAtivos.length} combos=${combosAtivos.length} feedbacks=${feedbacks.length} memoria=${memoriaCliente ? 'sim' : 'nao'} config.diferenciais=${!!(clinica as any).diferenciais}`)
 
-    const systemPrompt = aiEngine.buildSystemPrompt({
+    const systemPrompt = aiEngine.buildSystemPromptPartes({
         clinica,
         mensagem: textoMensagem,
         pushName: msg.pushName,

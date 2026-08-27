@@ -414,6 +414,11 @@ export async function generateTTS(
     const textoProcessado = prepareTextForTTS(texto)
     console.log(`[TTS] Texto processado: "${textoProcessado.slice(0, 80)}..."`)
 
+    // Contabiliza o custo de voz: na ElevenLabs 1 caractere = 1 crédito, e o
+    // crédito é o item mais caro por clínica. Somar 'chars' do mês responde
+    // qual plano da ElevenLabs a operação realmente exige.
+    console.log(`[TTS] 💰 voz: provedor=${config.provedorVoz} chars=${textoProcessado.length}`)
+
     if (config.provedorVoz === 'elevenlabs' && config.voiceId) {
         // Tenta ElevenLabs primeiro
         const audio = await generateTTS_ElevenLabs(textoProcessado, config.voiceId)

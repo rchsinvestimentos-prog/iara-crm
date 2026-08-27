@@ -47,8 +47,13 @@ interface PromptContext {
  * Junta tudo: identidade + procedimentos + feedbacks + memória
  * + cofre (leis, arsenal, roteiro) + como falar.
  * Obs: Histórico agora é passado diretamente na array de mensagens da API.
+ *
+ * Devolve DUAS partes:
+ *  - estavel: idêntico entre mensagens da mesma clínica → vai pro cache da Anthropic
+ *  - volatil: muda a cada conversa (memória, agenda, nome) → fora do cache
+ * Quem só quer o texto inteiro usa buildSystemPrompt() logo abaixo.
  */
-export function buildSystemPrompt(ctx: PromptContext): string {
+export function buildSystemPromptPartes(ctx: PromptContext): { estavel: string; volatil: string } {
     const { clinica, mensagem, pushName, tipoEntrada, procedimentos, feedbacks, memoria, agendaContext, profissionais, cursosAtivos, combosAtivos } = ctx
 
     const nivel = clinica.nivel || 1
@@ -398,11 +403,13 @@ Alguns procedimentos têm preço variável (faixa de/até). Para esses:
     // --- Regra anti-cumprimento-repetitivo ---
     const historico = ctx.historico || []
     const temHistorico = historico.length > 0
-    // A regra precisa estar NO INÍCIO do prompt para máxima compliance
+    // A regra precisa estar NO INÍCIO do prompt para máxima compliance.
+    // Sem valores variáveis aqui: o topo do prompt precisa ser idêntico entre
+    // mensagens para o cache da Anthropic aproveitar o prefixo (ver callClaude).
     const regraHistorico = temHistorico
         ? `\n🚨🚨🚨 REGRA #0 — PRIORIDADE MÁXIMA — LEIA ANTES DE TUDO:
-VOCÊS JÁ ESTÃO NO MEIO DE UMA CONVERSA (${historico.length} mensagens trocadas).
-PROIBIDO começar sua resposta com "Oi", "Olá", "Oi ${ctx.pushName}", "Tudo bem?", ou qualquer saudação.
+VOCÊS JÁ ESTÃO NO MEIO DE UMA CONVERSA EM ANDAMENTO.
+PROIBIDO começar sua resposta com "Oi", "Olá", "Oi [nome da cliente]", "Tudo bem?", ou qualquer saudação.
 PROIBIDO se apresentar ("Sou a ${clinica.nomeAssistente || 'IARA'}..."). A cliente JÁ sabe quem você é.
 Comece direto respondendo o que a cliente pediu. Sem saudação. Sem apresentação.
 EXCEÇÃO ÚNICA: se a cliente mandou uma saudação ("oi", "boa tarde"), responda com no máximo "Oi!" e vá direto ao ponto.
@@ -481,7 +488,7 @@ ${configDonaLinhas.join('\n')}
 🚨🚨🚨 FIM DAS INSTRUÇÕES DA DONA — PRIORIDADE MÁXIMA 🚨🚨🚨`
         : ''
 
-    return `${roleDesc}
+    const estavel = `${roleDesc}
 ${regraHistorico}
 🎯 SUA META #1: AGENDAR. Toda conversa deve caminhar para um agendamento.
 
@@ -506,8 +513,8 @@ ${escopoTexto}
   → "Tem alguma referência de como gostaria que ficasse?"
 - Essa pergunta ajuda a personalizar a resposta e mostrar cuidado.
 - NÃO faça mais do que 1 pergunta por mensagem.
-${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${memoriaTexto}${sobreClinicaTexto}${configTomTexto}
-${linhaProf}${horarioContext}${agendaTexto}${cursosTexto}${combosTexto}${cofreLeisFinais}
+${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${sobreClinicaTexto}${configTomTexto}
+${linhaProf}${horarioContext}${cursosTexto}${combosTexto}${cofreLeisFinais}
 
 ${funcs.vendas_7_passos ? cofreRoteiroFinal : '(Método de vendas desativado pela clínica — foque em informar preços e agendar diretamente.)'}
 
@@ -516,10 +523,21 @@ ${cofreObjecoesFinal}
 ${comoFalarFinal}
 NÃO VÁ DIRETO PARA A SONDAGEM. Primeiro, acolhimento. Siga PASSO A PASSO, uma mensagem por vez.
 EXCEÇÃO: Se a cliente quer AGENDAR e já sabe o que quer, é FECHAMENTO — não enrole.
+${configDonaTexto}`
+
+    // Tudo que muda de conversa para conversa fica aqui, DEPOIS do trecho cacheado.
+    const volatil = `${memoriaTexto}${agendaTexto}
 NOME DA CLIENTE COM QUEM VOCÊ ESTÁ FALANDO AGORA: ${nomeCliente}
 ${tipoEntrada === 'audio' ? `\n🎤 REGRA DE ÁUDIO: Sua resposta será convertida em VOZ. Escreva TODAS as palavras POR EXTENSO:\n- NUNCA use: HRS, h, min, Dra., Dr., nº, R$, %, etc.\n- Escreva: "horas", "minutos", "Doutora", "Doutor", "número", "reais", "por cento"\n- Escreva números de telefone dígito por dígito\n- NÃO use emojis (eles não são falados)\n` : ''}
-${temHistorico ? `\n🔁 LEMBRETE FINAL: NÃO comece com "Oi" — esta conversa já está em andamento.` : ''}
-${configDonaTexto}`
+${temHistorico ? `\n🔁 LEMBRETE FINAL: NÃO comece com "Oi" — esta conversa já está em andamento.` : ''}`
+
+    return { estavel, volatil }
+}
+
+/** Texto completo do prompt — mesma saída de sempre, para quem não usa cache. */
+export function buildSystemPrompt(ctx: PromptContext): string {
+    const p = buildSystemPromptPartes(ctx)
+    return p.estavel + p.volatil
 }
 
 // ============================================
@@ -532,7 +550,7 @@ ${configDonaTexto}`
  * Retentativa: Claude tenta 3x, depois cai pro GPT.
  */
 export async function callAI(
-    systemPrompt: string,
+    systemPrompt: string | { estavel: string; volatil: string },
     mensagemUsuario: string,
     modelOverride?: string,
     historico?: { role: string; content: string }[],
@@ -557,7 +575,10 @@ export async function callAI(
     // 2. Fallback pro GPT-4o-mini
     console.log('[AI] ⚠️ Fallback para GPT-4o-mini')
     try {
-        const resposta = await callGPT(systemPrompt, mensagemUsuario, historico, tipoEntrada)
+        const systemTexto = typeof systemPrompt === 'string'
+            ? systemPrompt
+            : systemPrompt.estavel + systemPrompt.volatil
+        const resposta = await callGPT(systemTexto, mensagemUsuario, historico, tipoEntrada)
         if (resposta) {
             return { texto: resposta, modelo: 'gpt-4o-mini', fallback: true }
         }
@@ -594,7 +615,7 @@ function prepararMensagens(mensagemOriginal: string, historico?: { role: string;
 }
 
 async function callClaude(
-    system: string,
+    system: string | { estavel: string; volatil: string },
     message: string,
     model: string,
     historico?: { role: string; content: string }[],
@@ -603,6 +624,16 @@ async function callClaude(
     if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY não configurada')
 
     const messages = prepararMensagens(message, historico, tipoEntrada)
+
+    // O trecho estável (identidade, catálogo, cofre) é igual em toda mensagem da
+    // mesma clínica. Marcado com cache_control, a Anthropic cobra 10% dele nas
+    // leituras seguintes. O trecho volátil fica fora do cache, depois do corte.
+    const systemBlocks = typeof system === 'string'
+        ? system
+        : [
+            { type: 'text', text: system.estavel, cache_control: { type: 'ephemeral' } },
+            { type: 'text', text: system.volatil },
+        ]
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -615,7 +646,7 @@ async function callClaude(
             model,
             max_tokens: 800,
             temperature: 0.5,
-            system,
+            system: systemBlocks,
             messages,
         }),
         signal: AbortSignal.timeout(45000),
@@ -627,6 +658,15 @@ async function callClaude(
     }
 
     const data = await res.json()
+
+    // Registra o aproveitamento do cache para dar pra medir em produção.
+    // 'lido' alto = economia real acontecendo; sempre 0 = prefixo mudando à toa.
+    const u = data?.usage
+    if (u) {
+        const lido = u.cache_read_input_tokens ?? 0
+        const gravado = u.cache_creation_input_tokens ?? 0
+        console.log(`[AI] 💾 cache: lido=${lido} gravado=${gravado} cheio=${u.input_tokens ?? 0} saida=${u.output_tokens ?? 0}`)
+    }
 
     // Claude retorna: { content: [{ type: "text", text: "..." }] }
     if (Array.isArray(data.content)) {
