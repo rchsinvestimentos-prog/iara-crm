@@ -123,6 +123,7 @@ async function dispararAutomacoesAsync(params: AutomacaoParams) {
     : 'Profissional'
   const tz = clinica?.timezone || 'America/Sao_Paulo'
   const profSlug = (profissional?.linkConfig as any)?.slug || null
+  const baseUrl = process.env.NEXTAUTH_URL || 'https://app.iara.click'
 
   const normalizar = (tel: string) => {
     const limpo = tel.replace(/\D/g, '')
@@ -143,7 +144,7 @@ async function dispararAutomacoesAsync(params: AutomacaoParams) {
       `🗓 *Data:* ${dataBR} às ${horario}`,
       `👩‍⚕️ *Profissional:* ${nomeProfissional}`,
       ``,
-      profSlug ? `🔗 *Link de gerenciamento:* https://iara.click/a/${profSlug}/agendamento/${agendamentoId}` : '',
+      profSlug ? `🔗 *Link de gerenciamento:* ${baseUrl}/a/${profSlug}/agendamento/${agendamentoId}` : '',
       ``,
       `_Agendamento feito pelo link público da ${clinica.nomeAssistente || 'IARA'}._`,
     ].join('\n')
@@ -169,7 +170,7 @@ async function dispararAutomacoesAsync(params: AutomacaoParams) {
         `💉 *Procedimento:* ${procedimento}`,
         `🗓 *Data:* ${dataBR} às ${horario}`,
         ``,
-        profSlug ? `🔗 *Remarcar/Cancelar:* https://iara.click/a/${profSlug}/agendamento/${agendamentoId}` : '',
+        profSlug ? `🔗 *Remarcar/Cancelar:* ${baseUrl}/a/${profSlug}/agendamento/${agendamentoId}` : '',
         ``,
         `_Agendamento feito pelo seu link público._`,
       ].join('\n')
@@ -204,14 +205,8 @@ async function dispararAutomacoesAsync(params: AutomacaoParams) {
 
     if (evento?.id) {
       // Salvar googleEventId no agendamento
-      await prisma.agendamento.updateMany({
-        where: {
-          clinicaId,
-          profissionalId,
-          horario,
-          data: dateObj,
-          nomePaciente,
-        },
+      await prisma.agendamento.update({
+        where: { id: agendamentoId },
         data: { googleEventId: evento.id },
       })
       console.log(`[Reservar] 📆 Google Calendar: evento criado (${evento.id})`)
