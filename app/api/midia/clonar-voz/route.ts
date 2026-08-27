@@ -12,11 +12,11 @@ export async function POST(request: NextRequest) {
 
         const clinica = await prisma.clinica.findUnique({
             where: { id: clinicaId },
-            select: { plano: true, nome: true },
+            select: { nivel: true, nome: true },
         })
 
-        if (!clinica || clinica.plano < 3) {
-            return NextResponse.json({ error: 'Voz clonada disponível a partir do Plano Designer (3)', planoAtual: clinica?.plano }, { status: 403 })
+        if (!clinica || clinica.nivel < 3) {
+            return NextResponse.json({ error: 'Voz clonada disponível a partir do plano Premium', planoAtual: clinica?.nivel }, { status: 403 })
         }
 
         const formData = await request.formData()

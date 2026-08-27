@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { AVATAR_VIDEO_HABILITADO } from '@/lib/planos'
 
 // POST /api/midia/clonar-avatar — Envia vídeo para HeyGen e cria avatar
 export async function POST(request: NextRequest) {
@@ -10,14 +11,16 @@ export async function POST(request: NextRequest) {
         const clinicaId = await getClinicaId(session)
         if (!clinicaId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
+        if (!AVATAR_VIDEO_HABILITADO) {
+            return NextResponse.json({ error: 'Avatar em vídeo indisponível no momento' }, { status: 403 })
+        }
+
         const clinica = await prisma.clinica.findUnique({
             where: { id: clinicaId },
-            select: { plano: true, nome: true },
+            select: { nivel: true, nome: true },
         })
 
-        if (!clinica || clinica.plano < 4) {
-            return NextResponse.json({ error: 'Avatar em vídeo disponível apenas no Plano Audiovisual (4)', planoAtual: clinica?.plano }, { status: 403 })
-        }
+        if (!clinica) return NextResponse.json({ error: 'Clínica não encontrada' }, { status: 404 })
 
         const formData = await request.formData()
         const video = formData.get('video') as File

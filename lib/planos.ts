@@ -60,6 +60,15 @@ export type PlanoInfo = typeof PLANOS[PlanoKey]
 
 export const MAX_NIVEL = 3
 
+// ============================================
+// RECURSOS DESLIGADOS
+// ============================================
+// Estes recursos exigiam um "Plano 4" que nunca existiu (MAX_NIVEL = 3),
+// entao ficavam travados para 100% dos clientes, inclusive os Premium.
+// Ficam escondidos ate haver uma decisao de plano. Para religar: true.
+export const AVATAR_VIDEO_HABILITADO = false
+export const CAMPANHAS_HABILITADAS = false
+
 // Aliases (compatibilidade com nomes antigos do banco/Hotmart)
 export const PLAN_ALIASES: Record<string, PlanoKey> = {
     // Nomes atuais

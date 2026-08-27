@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
+import { AVATAR_VIDEO_HABILITADO } from '@/lib/planos'
 
 // Diretório de uploads — montado como volume Docker em produção
 const UPLOADS_DIR = process.env.UPLOADS_DIR || '/app/uploads'
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
 
         const clinica = await prisma.clinica.findUnique({
             where: { id: clinicaId },
-            select: { plano: true, nome: true },
+            select: { nivel: true, nome: true },
         })
         if (!clinica) return NextResponse.json({ error: 'Clínica não encontrada' }, { status: 404 })
 
@@ -44,11 +45,11 @@ export async function POST(request: NextRequest) {
         }
 
         // Validar plano
-        if (tipo === 'audio' && clinica.plano < 3) {
-            return NextResponse.json({ error: 'Upload de áudio para clonagem disponível no Plano 3+' }, { status: 403 })
+        if (tipo === 'audio' && clinica.nivel < 3) {
+            return NextResponse.json({ error: 'Upload de áudio para clonagem disponível no plano Premium' }, { status: 403 })
         }
-        if (tipo === 'video' && clinica.plano < 4) {
-            return NextResponse.json({ error: 'Upload de vídeo para avatar disponível no Plano 4' }, { status: 403 })
+        if (tipo === 'video' && !AVATAR_VIDEO_HABILITADO) {
+            return NextResponse.json({ error: 'Upload de vídeo indisponível no momento' }, { status: 403 })
         }
 
         // Criar diretório da clínica

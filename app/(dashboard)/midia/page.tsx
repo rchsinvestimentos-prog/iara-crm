@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Upload, Mic, Video, Image, Loader2, Lock, ChevronRight, CheckCircle2, Sparkles, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
+import { AVATAR_VIDEO_HABILITADO } from '@/lib/planos'
 
 type Tipo = 'foto' | 'audio' | 'video'
 
@@ -121,7 +122,7 @@ export default function MidiaPage() {
     const tabs: { id: Tipo; label: string; icon: typeof Image; planoMin: number }[] = [
         { id: 'foto', label: 'Fotos', icon: Image, planoMin: 1 },
         { id: 'audio', label: 'Voz', icon: Mic, planoMin: 3 },
-        { id: 'video', label: 'Avatar', icon: Video, planoMin: 4 },
+        ...(AVATAR_VIDEO_HABILITADO ? [{ id: 'video' as Tipo, label: 'Avatar', icon: Video, planoMin: 3 }] : []),
     ]
 
     if (loading) {
@@ -141,11 +142,11 @@ export default function MidiaPage() {
             </div>
 
             {/* Status cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className={`grid grid-cols-1 gap-3 ${AVATAR_VIDEO_HABILITADO ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
                 {[
                     { label: 'Fotos', ok: true, desc: 'Todos os planos', icon: '📸' },
                     { label: 'Voz Clonada', ok: temVoz, desc: plano >= 3 ? (temVoz ? 'ElevenLabs ativo ✓' : 'Disponível — envie áudio') : 'Plano 3+', icon: '🎤', locked: plano < 3 },
-                    { label: 'Avatar Vídeo', ok: temAvatar, desc: plano >= 4 ? (temAvatar ? 'HeyGen ativo ✓' : 'Disponível — envie vídeo') : 'Plano 4', icon: '🎬', locked: plano < 4 },
+                    ...(AVATAR_VIDEO_HABILITADO ? [{ label: 'Avatar Vídeo', ok: temAvatar, desc: temAvatar ? 'HeyGen ativo ✓' : 'Disponível — envie vídeo', icon: '🎬', locked: false }] : []),
                 ].map(card => (
                     <div key={card.label} className="p-4 rounded-xl flex items-center gap-3" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                         <span className="text-2xl">{card.icon}</span>
@@ -257,11 +258,11 @@ export default function MidiaPage() {
             )}
 
             {/* Locked upgrade CTA */}
-            {((tab === 'audio' && plano < 3) || (tab === 'video' && plano < 4)) && (
+            {tab === 'audio' && plano < 3 && (
                 <div className="rounded-xl p-6 text-center" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                     <Lock size={32} className="mx-auto mb-3 opacity-20" style={{ color: 'var(--text-muted)' }} />
                     <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
-                        {tab === 'audio' ? 'Clonagem de voz disponível no Plano Designer (3)' : 'Avatar em vídeo disponível no Plano Audiovisual (4)'}
+                        Clonagem de voz disponível no plano Premium
                     </p>
                     <Link href="/plano" className="inline-flex items-center gap-1 text-sm font-semibold text-[#D99773]">
                         Fazer Upgrade <ChevronRight size={14} />
@@ -312,7 +313,7 @@ export default function MidiaPage() {
                 <p>Seus arquivos são armazenados no servidor da IARA em pasta exclusiva da sua clínica. Nenhum dado é compartilhado entre clínicas.</p>
                 <p>• Fotos: usadas para posts e portfólio IA</p>
                 <p>• Áudio (Plano 3): enviado para ElevenLabs para clonar sua voz</p>
-                <p>• Vídeo (Plano 4): enviado para HeyGen para criar seu avatar</p>
+                {AVATAR_VIDEO_HABILITADO && <p>• Vídeo: enviado para HeyGen para criar seu avatar</p>}
             </div>
         </div>
     )

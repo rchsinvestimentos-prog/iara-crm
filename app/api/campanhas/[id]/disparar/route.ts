@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { CAMPANHAS_HABILITADAS } from '@/lib/planos'
 
 // POST /api/campanhas/[id]/disparar — Inicia envio dos messages da campanha
 export async function POST(_request: NextRequest, { params }: { params: { id: string } }) {
@@ -10,12 +11,16 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
         const clinicaId = await getClinicaId(session)
         if (!clinicaId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
+        if (!CAMPANHAS_HABILITADAS) {
+            return NextResponse.json({ error: 'Disparo de campanhas indisponível no momento' }, { status: 403 })
+        }
+
         const clinica = await prisma.clinica.findUnique({
             where: { id: clinicaId },
             select: { nivel: true, evolutionInstance: true, evolutionApikey: true },
         })
-        if (!clinica || clinica.nivel < 4) {
-            return NextResponse.json({ error: 'Recurso exclusivo do Plano 4' }, { status: 403 })
+        if (!clinica) {
+            return NextResponse.json({ error: 'Clínica não encontrada' }, { status: 404 })
         }
 
         const campanha = await prisma.campanha.findFirst({
