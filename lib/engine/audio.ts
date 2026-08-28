@@ -494,7 +494,7 @@ function prepareTextForTTS(
     // genéricas abaixo não teriam como adivinhar.
     //
     // A troca respeita limite de palavra e ignora maiúscula/minúscula, para
-    // pegar "Schuster", "schuster" e "SCHUSTER" sem casar dentro de outra
+    // pegar "peeling", "Peeling" e "PEELING" sem casar dentro de outra
     // palavra maior.
     let base = texto
     for (const p of pronuncias || []) {

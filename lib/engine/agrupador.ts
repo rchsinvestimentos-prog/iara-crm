@@ -10,12 +10,18 @@
 // relógio reinicia. Quando ele finalmente vence, tudo que chegou vira uma
 // pergunta só e a IARA responde uma vez, já sabendo o assunto inteiro.
 //
-// Áudio não passa por aqui: é transcrito no pipeline, custa dinheiro por
-// chamada e costuma vir como pensamento completo. Se houver texto esperando
-// quando um áudio chega, o texto é despachado antes para não ficar órfão.
+// Áudio entra no mesmo lote. A paciente pica o áudio como pica o texto: manda
+// três notas de voz seguidas. Como o pipeline só transcreve uma mensagem por
+// vez, cada áudio é transcrito aqui na chegada e entra no lote já como texto —
+// o lote inteiro vira uma pergunta só, e a IARA responde falando, porque a
+// pergunta foi falada.
+//
+// Foto, vídeo e documento seguem direto: têm tratamento próprio no pipeline.
 
 import { prisma } from '@/lib/prisma'
+import { parseFuncionalidades } from './types'
 import type { MensagemRecebida } from './types'
+import * as audio from './audio'
 
 /** Quanto esperar depois da última mensagem. */
 const ESPERA_PADRAO_S = 30
@@ -47,9 +53,18 @@ async function garantirTabela(): Promise<void> {
             texto TEXT NOT NULL,
             push_name VARCHAR(200),
             request_id VARCHAR(200),
+            veio_de_audio BOOLEAN DEFAULT FALSE,
+            audio_url VARCHAR(500),
             criado_em TIMESTAMPTZ DEFAULT NOW()
         )
     `)
+    // Colunas novas em bancos que já tinham a tabela
+    for (const alter of [
+        `ALTER TABLE mensagens_pendentes ADD COLUMN IF NOT EXISTS veio_de_audio BOOLEAN DEFAULT FALSE`,
+        `ALTER TABLE mensagens_pendentes ADD COLUMN IF NOT EXISTS audio_url VARCHAR(500)`,
+    ]) {
+        try { await prisma.$executeRawUnsafe(alter) } catch { /* já existe */ }
+    }
     await prisma.$executeRawUnsafe(`
         CREATE INDEX IF NOT EXISTS idx_pendentes_conversa
         ON mensagens_pendentes (instancia, telefone, criado_em)
@@ -73,6 +88,46 @@ async function esperaDaClinica(instancia: string): Promise<number> {
 }
 
 /**
+ * Baixa e transcreve um áudio para ele poder entrar no lote como texto.
+ *
+ * Devolve null quando a clínica desligou a transcrição ou quando não foi
+ * possível ouvir — nesses casos o pipeline assume, porque é ele que sabe
+ * responder à paciente que não deu para escutar.
+ */
+async function transcreverParaOLote(
+    msg: MensagemRecebida
+): Promise<{ texto: string; audioUrl: string | null } | null> {
+    try {
+        const clinica = await prisma.clinica.findFirst({
+            where: { evolutionInstance: msg.instancia },
+            select: { funcionalidades: true, evolutionApikey: true },
+        })
+        if (!clinica) return null
+
+        const funcs = parseFuncionalidades(clinica.funcionalidades as string | null)
+        if (!funcs.transcrever_audio) return null
+
+        let dados = msg.audioBase64
+        if (!dados) {
+            dados = await audio.downloadAudioFromEvolution(
+                msg.instancia, msg.requestId, clinica.evolutionApikey || undefined, msg.rawMessage
+            ) || undefined
+        }
+        if (!dados) return null
+
+        const audioUrl = await audio.saveAudioFile(dados, 'incoming')
+        const transcricao = await audio.transcribeAudio(dados)
+        if (!transcricao) return null
+
+        console.log(`[Agrupador] 🎤 áudio transcrito: "${transcricao.slice(0, 60)}..."`)
+        return { texto: transcricao, audioUrl }
+    } catch (err) {
+        console.error('[Agrupador] Erro ao transcrever para o lote:', err)
+        return null
+    }
+}
+
+/**
  * Recebe uma mensagem e decide quando ela vira resposta.
  *
  * @param msg       mensagem crua vinda do webhook
@@ -82,9 +137,10 @@ export async function receber(
     msg: MensagemRecebida,
     despachar: (m: MensagemRecebida) => void
 ): Promise<void> {
-    // Áudio e mídia seguem direto. Antes, despacha o texto que já esperava,
-    // senão ele ficaria pendurado atrás de um áudio que não passa por aqui.
-    if (msg.tipoMensagem !== 'text') {
+    // Foto, vídeo e documento têm tratamento próprio no pipeline e seguem
+    // direto. Antes, o texto que já esperava é despachado, senão ficaria
+    // pendurado atrás de uma mídia que não passa pelo lote.
+    if (msg.tipoMensagem !== 'text' && msg.tipoMensagem !== 'audio') {
         await liberar(chaveDe(msg), msg.instancia, msg.telefone, despachar)
         despachar(msg)
         return
@@ -96,13 +152,31 @@ export async function receber(
         return
     }
 
+    // Áudio precisa virar texto antes de entrar no lote: o pipeline transcreve
+    // uma mensagem por vez, e o lote junta várias.
+    let texto = msg.mensagem
+    let audioUrl: string | null = null
+
+    if (msg.tipoMensagem === 'audio') {
+        const transcrito = await transcreverParaOLote(msg)
+        if (!transcrito) {
+            // Não deu para ouvir. Manda a mensagem crua para o pipeline, que
+            // sabe avisar a paciente do jeito certo.
+            await liberar(chaveDe(msg), msg.instancia, msg.telefone, despachar)
+            despachar(msg)
+            return
+        }
+        texto = transcrito.texto
+        audioUrl = transcrito.audioUrl
+    }
+
     const chave = chaveDe(msg)
 
     try {
         await garantirTabela()
         await prisma.$executeRaw`
-            INSERT INTO mensagens_pendentes (instancia, telefone, texto, push_name, request_id, criado_em)
-            VALUES (${msg.instancia}, ${msg.telefone}, ${msg.mensagem}, ${msg.pushName || null}, ${msg.requestId}, NOW())
+            INSERT INTO mensagens_pendentes (instancia, telefone, texto, push_name, request_id, veio_de_audio, audio_url, criado_em)
+            VALUES (${msg.instancia}, ${msg.telefone}, ${texto}, ${msg.pushName || null}, ${msg.requestId}, ${msg.tipoMensagem === 'audio'}, ${audioUrl}, NOW())
         `
     } catch (err) {
         // Sem onde guardar, é melhor responder na hora do que engolir a
@@ -154,14 +228,20 @@ export async function liberar(
         lotes.delete(chave)
     }
 
-    let linhas: { texto: string; push_name: string | null; request_id: string | null }[]
+    let linhas: {
+        texto: string
+        push_name: string | null
+        request_id: string | null
+        veio_de_audio: boolean | null
+        audio_url: string | null
+    }[]
     try {
         // DELETE ... RETURNING numa tacada: duas execuções simultâneas não
         // pegam as mesmas linhas, então a paciente não recebe resposta dobrada.
         linhas = await prisma.$queryRaw`
             DELETE FROM mensagens_pendentes
             WHERE instancia = ${instancia} AND telefone = ${telefone}
-            RETURNING texto, push_name, request_id
+            RETURNING texto, push_name, request_id, veio_de_audio, audio_url
         `
     } catch (err) {
         console.error('[Agrupador] Erro ao ler pendências:', err)
@@ -170,19 +250,25 @@ export async function liberar(
 
     if (!linhas || linhas.length === 0) return
 
-    const textos = linhas.map(l => l.texto).filter(Boolean)
-    const juntas = textos.join('\n')
+    const juntas = linhas.map(l => l.texto).filter(Boolean).join('\n')
+
+    // Basta um áudio no lote para a resposta sair falada: a paciente escolheu
+    // o canal da voz em algum momento da sequência.
+    const houveAudio = linhas.some(l => l.veio_de_audio)
+    const primeiroAudio = linhas.find(l => l.audio_url)?.audio_url || undefined
 
     if (linhas.length > 1) {
-        console.log(`[Agrupador] 📦 ${telefone}: ${linhas.length} mensagens viraram uma só`)
+        console.log(`[Agrupador] 📦 ${telefone}: ${linhas.length} mensagens viraram uma só${houveAudio ? ' (com áudio)' : ''}`)
     }
 
     despachar({
         telefone,
         instancia,
         pushName: molde?.pushName || linhas[linhas.length - 1]?.push_name || undefined,
-        mensagem: juntas,
+        mensagem: houveAudio ? `[ÁUDIO RECEBIDO E TRANSCRITO PARA VOCÊ]: ${juntas}` : juntas,
         tipoMensagem: 'text',
+        entradaFoiAudio: houveAudio,
+        audioUrlRecebido: primeiroAudio,
         requestId: linhas[linhas.length - 1]?.request_id || `lote-${Date.now()}`,
         canal: molde?.canal || 'whatsapp',
         timestamp: Date.now(),

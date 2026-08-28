@@ -229,7 +229,9 @@ export default function VozTool() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    texto: `A ${escrita.trim()} é uma das nossas especialidades.`,
+                    // Só a palavra: quem está ajustando a pronúncia quer ouvir
+                    // ela isolada, não enterrada no meio de uma frase.
+                    texto: escrita.trim(),
                     pronuncias: [{ escrita: escrita.trim(), falada: falada.trim() }],
                 }),
             })
@@ -555,7 +557,7 @@ export default function VozTool() {
                     </div>
                 </div>
                 <p className="text-[10px] text-gray-400 mb-3">
-                    Escreva do jeito que se fala, não do jeito certo. Ex.: <strong>Schuster</strong> → <strong>Chúster</strong>
+                    Escreva do jeito que se fala, não do jeito certo. Ex.: <strong>peeling</strong> → <strong>pílin</strong>
                 </p>
 
                 <div className="flex gap-2">

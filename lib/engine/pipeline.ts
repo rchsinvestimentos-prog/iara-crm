@@ -252,8 +252,11 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     }
 
     let textoMensagem = msg.mensagem
-    let tipoEntrada: 'text' | 'audio' = msg.tipoMensagem === 'audio' ? 'audio' : 'text'
-    let incomingAudioUrl: string | null = null
+    // entradaFoiAudio: o agrupador já transcreveu os áudios do lote e mandou o
+    // texto pronto. A pergunta continua sendo falada, então a resposta sai em
+    // voz — só a transcrição aconteceu antes, e não aqui.
+    let tipoEntrada: 'text' | 'audio' = (msg.tipoMensagem === 'audio' || msg.entradaFoiAudio) ? 'audio' : 'text'
+    let incomingAudioUrl: string | null = msg.audioUrlRecebido || null
 
     if (msg.tipoMensagem === 'audio') {
         // ================================================

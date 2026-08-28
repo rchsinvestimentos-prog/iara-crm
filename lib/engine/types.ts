@@ -20,6 +20,15 @@ export interface MensagemRecebida {
     audioBase64?: string
     /** Original webhook payload from Evolution API */
     rawMessage?: any
+    /**
+     * A pergunta chegou por voz, mesmo que 'mensagem' já venha transcrita.
+     *
+     * Usado pelo agrupador: ele transcreve os áudios do lote e manda o texto
+     * junto, mas a IARA precisa saber que deve responder falando.
+     */
+    entradaFoiAudio?: boolean
+    /** URL do áudio recebido, quando o agrupador já baixou e guardou. */
+    audioUrlRecebido?: string
     /** ID único do request (pra rastreio) */
     requestId: string
     /** Canal de origem */
@@ -215,7 +224,7 @@ export interface ConfigSaida {
     /**
      * Palavras que a clínica ensinou a IARA a pronunciar.
      * 'escrita' é como aparece no texto; 'falada' é o que vai para a voz.
-     * Ex.: { escrita: 'Schuster', falada: 'Chúster' }
+     * Ex.: { escrita: 'peeling', falada: 'pílin' }
      */
     pronuncias?: { escrita: string; falada: string }[]
 }
