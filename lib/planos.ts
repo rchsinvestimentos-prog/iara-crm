@@ -1,9 +1,12 @@
 // ============================================
 // PLANOS IARA v2 — 3 Níveis (Foco: Agendamento)
 // ============================================
-// P1 Essencial:  R$97  / $27 / €27   — 1000 créditos
-// P2 Pro:        R$197 / $47 / €47   — 3000 créditos
-// P3 Premium:    R$297 / $67 / €67   — 5000 créditos
+// P1 Essencial:  R$197 / $47 / €47   — 600 conversas
+// P2 Pro:        R$297 / $67 / €67   — 1.200 conversas
+// P3 Premium:    R$497 / $99 / €99   — 2.500 conversas
+//
+// Os créditos batem com os tetos de lib/feature-limits.ts: uma conversa tem
+// cerca de 6 mensagens, e o teto lá é contado em mensagens.
 //
 // Limites de features: lib/feature-limits.ts
 //
@@ -15,45 +18,86 @@ export const PLANOS = {
         nivel: 1,
         nome: 'Essencial',
         hotmart: 'Secretaria',
-        creditos: 1000,
+        creditos: 3600,
+        conversas: 600,
         whatsapps: 1,
         instagrams: 0,
         idiomas: ['pt-BR'],
         vozClonada: false,
         equipe: false,
         multiClinica: false,
-        precos: { brl: 97, usd: 27, eur: 27 },
-        precosAnuais: { brl: 77, usd: 22, eur: 22 },
+        precos: { brl: 197, usd: 47, eur: 47 },
+        precosAnuais: { brl: 157, usd: 37, eur: 37 },
     },
     pro: {
         nivel: 2,
         nome: 'Pro',
         hotmart: 'Estrategista',
-        creditos: 3000,
+        creditos: 7200,
+        conversas: 1200,
         whatsapps: 1,
         instagrams: 1,
         idiomas: ['pt-BR', 'pt-PT', 'en-US', 'es'],
         vozClonada: false,
         equipe: false,
         multiClinica: false,
-        precos: { brl: 197, usd: 47, eur: 47 },
-        precosAnuais: { brl: 157, usd: 37, eur: 37 },
+        precos: { brl: 297, usd: 67, eur: 67 },
+        precosAnuais: { brl: 237, usd: 54, eur: 54 },
     },
     premium: {
         nivel: 3,
         nome: 'Premium',
         hotmart: 'Designer',
-        creditos: 5000,
+        creditos: 15000,
+        conversas: 2500,
         whatsapps: 2,
         instagrams: 1,
         idiomas: ['pt-BR', 'pt-PT', 'en-US', 'es'],
         vozClonada: true,
         equipe: true,
         multiClinica: true,
-        precos: { brl: 297, usd: 67, eur: 67 },
-        precosAnuais: { brl: 237, usd: 54, eur: 54 },
+        precos: { brl: 497, usd: 99, eur: 99 },
+        precosAnuais: { brl: 397, usd: 79, eur: 79 },
     },
 } as const
+
+// ============================================
+// PACOTES ADICIONAIS
+// ============================================
+// Vendidos soltos, somados a qualquer plano. Não dependem do nível: quem
+// está no Essencial pode comprar clonagem de voz.
+//
+// A chave grava em configuracoes da clínica (pacote_voz_realista,
+// pacote_clonagem), que é o que lib/engine/audio.ts consulta.
+
+export const PACOTES = {
+    voz_realista: {
+        nome: 'Voz Realista',
+        chave: 'pacote_voz_realista',
+        preco: 97,
+        cota: { audiosRealistas: 150 },
+        resumo: 'Vozes do catálogo da ElevenLabs, indistinguíveis de gente falando.',
+        beneficios: [
+            '12 vozes brasileiras ultra realistas',
+            '150 áudios por mês na voz premium',
+            'Depois da cota, volta para a voz padrão sem parar',
+        ],
+    },
+    clonagem: {
+        nome: 'Clonagem de Voz',
+        chave: 'pacote_clonagem',
+        preco: 147,
+        cota: {},
+        resumo: 'A IARA atende com a voz da própria profissional.',
+        beneficios: [
+            'A sua voz atendendo por você',
+            'Regravação sempre que quiser',
+            'Inclui as vozes realistas do catálogo',
+        ],
+    },
+} as const
+
+export type PacoteKey = keyof typeof PACOTES
 
 export type PlanoKey = keyof typeof PLANOS
 export type PlanoInfo = typeof PLANOS[PlanoKey]
