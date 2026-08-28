@@ -91,6 +91,7 @@ export const config = {
          * - api/auth
          * - api/webhook
          * - api/cron/
+         * - api/pagamentos/webhook/  (avisos do Asaas e do Assiny)
          * - vozes/   (amostras de voz do catálogo, em public/vozes)
          *
          * api/cron precisa ficar fora daqui: quem chama é o cron-job.org, que
@@ -99,13 +100,18 @@ export const config = {
          * motivo de os crons aparecerem como falha e serem desativados.
          * Elas não ficam abertas: cada rota confere CRON_SECRET por conta.
          * A barra final é proposital — sem ela, um /api/cronometro futuro
-         * escaparia da proteção por casar o prefixo.
+         * escaparia da proteção por casar o prefixo. Vale o mesmo para os
+         * webhooks de pagamento: só /api/pagamentos/webhook/ é liberado, e
+         * não /api/pagamentos inteiro, onde vai ficar o checkout — esse
+         * precisa de sessão para saber qual clínica está comprando.
+         *
+         * Cada webhook confere o próprio token e devolve 401 sem ele.
          *
          * vozes/ são as demonstrações do catálogo, iguais para todo mundo —
          * não têm nada de clínica nem de paciente. Áudio de paciente é servido
          * por /api/uploads, que continua protegido. Por isso a liberação é da
          * pasta e não da extensão .mp3: liberar a extensão abriria os uploads.
          */
-        '/((?!_next/static|_next/image|api/agendamento-publico|api/auth|api/webhook|api/cron/|vozes/|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|api/agendamento-publico|api/auth|api/webhook|api/cron/|api/pagamentos/webhook/|vozes/|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }
