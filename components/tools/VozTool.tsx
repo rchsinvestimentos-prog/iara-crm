@@ -4,12 +4,20 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Mic, Play, Pause, Check, RefreshCw, Volume2, Lock, Crown, Sparkles, Radio, Square, Headphones, Loader2 } from 'lucide-react'
 
 // ============================================
-// VOZES DIGITAIS (OpenAI TTS) — Plano 1+
+// VOZES PADRÃO (Azure pt-BR) — inclusas em todos os planos
 // ============================================
+// Substituíram as três da OpenAI, que tinham sotaque de quem aprendeu
+// português. Custam praticamente o mesmo (R$0,026 contra R$0,025 por áudio).
+// A voz masculina do catálogo foi deixada de fora: a IARA é assistente mulher.
+//
+// 'preview' aponta para um arquivo estático em public/vozes/. Tocar direto
+// dali é instantâneo e não gasta API — antes cada clique gerava um áudio novo.
 const vozesTTS = [
-    { id: 'nova', nome: 'Nova', desc: 'Jovem, animada e acolhedora', tom: 'Alegre' },
-    { id: 'shimmer', nome: 'Shimmer', desc: 'Suave, sofisticada e elegante', tom: 'Premium' },
-    { id: 'alloy', nome: 'Alloy', desc: 'Equilibrada, profissional e clara', tom: 'Neutro' },
+    { id: 'pt-BR-FranciscaNeural', nome: 'Francisca', desc: 'Acolhedora e natural — a mais parecida com recepcionista', tom: 'Acolhedora', preview: '/vozes/francisca.mp3' },
+    { id: 'pt-BR-ThalitaNeural', nome: 'Thalita', desc: 'Jovem e simpática, ritmo mais leve', tom: 'Jovem', preview: '/vozes/thalita.mp3' },
+    { id: 'pt-BR-BrendaNeural', nome: 'Brenda', desc: 'Calma e clara, boa para explicar procedimento', tom: 'Clara', preview: '/vozes/brenda.mp3' },
+    { id: 'pt-BR-LeilaNeural', nome: 'Leila', desc: 'Madura e segura, transmite autoridade', tom: 'Autoridade', preview: '/vozes/leila.mp3' },
+    { id: 'pt-BR-YaraNeural', nome: 'Yara', desc: 'Doce e próxima', tom: 'Doce', preview: '/vozes/yara.mp3' },
 ]
 
 // ============================================
@@ -35,8 +43,13 @@ type TipoVoz = 'tts' | 'ultra' | 'clone'
 export default function VozTool() {
     const [nivel, setNivel] = useState(1)
     const [tipoVozAtiva, setTipoVozAtiva] = useState<TipoVoz>('tts')
-    const [vozTTSSelecionada, setVozTTSSelecionada] = useState('nova')
+    const [vozTTSSelecionada, setVozTTSSelecionada] = useState('pt-BR-FranciscaNeural')
     const [vozUltraSelecionada, setVozUltraSelecionada] = useState('7eUAxNOneHxqfyRS77mW')
+    // Os pacotes de voz são vendidos soltos, não vêm com o plano — por isso a
+    // liberação olha configuracoes, não o nível.
+    const [temPacoteRealista, setTemPacoteRealista] = useState(false)
+    const [temPacoteClonagem, setTemPacoteClonagem] = useState(false)
+    const [ofertaAberta, setOfertaAberta] = useState<null | 'realista' | 'clonagem'>(null)
     const [salvando, setSalvando] = useState(false)
     const [salvo, setSalvo] = useState(false)
 
@@ -57,20 +70,21 @@ export default function VozTool() {
     useEffect(() => {
         fetch('/api/stats')
             .then(r => r.json())
-            .then(data => {
-                setNivel(data?.plano || 1)
-                if (data?.vozClonada && data?.plano >= 3) setTipoVozAtiva('clone')
-                else if (data?.plano >= 2) setTipoVozAtiva('ultra')
-            })
+            .then(data => setNivel(data?.plano || 1))
             .catch(() => { })
 
-        // Carregar a voz salva (está em configuracoes)
+        // Carregar a voz salva e os pacotes contratados (tudo em configuracoes)
         fetch('/api/clinica')
             .then(r => r.json())
             .then(data => {
                 const cfg = data?.configuracoes || {}
-                if (cfg.tipo_voz_ativa) setTipoVozAtiva(cfg.tipo_voz_ativa)
-                if (cfg.openai_voice_id) setVozTTSSelecionada(cfg.openai_voice_id)
+                setTemPacoteRealista(!!cfg.pacote_voz_realista)
+                setTemPacoteClonagem(!!cfg.pacote_clonagem)
+
+                // 'tts' e 'ultra' são os nomes antigos, de antes dos pacotes.
+                const LEGADO: Record<string, TipoVoz> = { tts: 'tts', ultra: 'ultra' }
+                if (cfg.tipo_voz_ativa) setTipoVozAtiva(LEGADO[cfg.tipo_voz_ativa] || cfg.tipo_voz_ativa)
+                if (cfg.azure_voice_id) setVozTTSSelecionada(cfg.azure_voice_id)
                 if (cfg.eleven_voice_id) setVozUltraSelecionada(cfg.eleven_voice_id)
             })
             .catch(() => { })
@@ -86,7 +100,7 @@ export default function VozTool() {
     // ============================================
     // PLAY — Gera TTS (OpenAI ou ElevenLabs) e toca
     // ============================================
-    const playVoice = useCallback(async (voiceId: string, key: string, tipo: 'tts' | 'elevenlabs' = 'tts') => {
+    const playVoice = useCallback(async (voiceId: string, key: string, tipo: 'tts' | 'elevenlabs' = 'tts', arquivo?: string) => {
         if (tocando === key) {
             audioRef.current?.pause()
             setTocando(null)
@@ -94,6 +108,17 @@ export default function VozTool() {
         }
 
         if (audioRef.current) audioRef.current.pause()
+
+        // Voz padrão: o áudio já está pronto em public/vozes/, toca na hora e
+        // sem chamar API nenhuma.
+        if (arquivo) {
+            const audio = new Audio(arquivo)
+            audioRef.current = audio
+            setTocando(key)
+            audio.onended = () => setTocando(null)
+            audio.play().catch(() => setTocando(null))
+            return
+        }
 
         // Cache hit
         if (audioCache.current[key]) {
@@ -185,6 +210,11 @@ export default function VozTool() {
     // SALVAR
     // ============================================
     const salvarVoz = async () => {
+        // Escolheu voz realista ou clonagem sem ter o pacote: em vez de salvar
+        // uma configuração que a IARA vai ignorar, mostra a oferta.
+        if (tipoVozAtiva === 'ultra' && !podeAtivarUltra) { setOfertaAberta('realista'); return }
+        if (tipoVozAtiva === 'clone' && !podeAtivarClone) { setOfertaAberta('clonagem'); return }
+
         setSalvando(true)
         try {
             const vozNome = tipoVozAtiva === 'tts'
@@ -200,8 +230,8 @@ export default function VozTool() {
             }
 
             if (tipoVozAtiva === 'tts') {
-                // OpenAI TTS — audio.ts lê cfg.openai_voice_id
-                cfgUpdate.openai_voice_id = vozTTSSelecionada
+                // Voz padrão (Azure) — audio.ts lê cfg.azure_voice_id
+                cfgUpdate.azure_voice_id = vozTTSSelecionada
             } else if (tipoVozAtiva === 'ultra') {
                 // ElevenLabs — audio.ts lê cfg.eleven_voice_id
                 cfgUpdate.eleven_voice_id = vozUltraSelecionada
@@ -229,8 +259,10 @@ export default function VozTool() {
         setSalvando(false)
     }
 
-    const podeAtivarUltra = nivel >= 2
-    const podeAtivarClone = nivel >= 3
+    // Antes era nivel >= 2 e nivel >= 3. Agora são pacotes avulsos: qualquer
+    // plano pode comprar qualquer um, e nenhum plano dá acesso sozinho.
+    const podeAtivarUltra = temPacoteRealista
+    const podeAtivarClone = temPacoteClonagem
     const formatTime = (s: number) => `0:${String(s).padStart(2, '0')}`
 
     // Helper: play button
@@ -319,7 +351,7 @@ export default function VozTool() {
                                 : 'bg-gray-50 border-2 border-transparent hover:border-gray-200'
                                 }`}
                         >
-                            <div onClick={(e) => { e.stopPropagation(); playVoice(voz.id, `tts-${voz.id}`, 'tts') }}>
+                            <div onClick={(e) => { e.stopPropagation(); playVoice(voz.id, `tts-${voz.id}`, 'tts', voz.preview) }}>
                                 <PlayBtn voiceKey={`tts-${voz.id}`} loading={carregando === `tts-${voz.id}`} playing={tocando === `tts-${voz.id}`} color="#0F4C61" />
                             </div>
                             <div className="flex-1 text-left">
@@ -354,8 +386,11 @@ export default function VozTool() {
                     {vozesUltra.map(voz => (
                         <div
                             key={voz.id}
-                            onClick={() => { if (podeAtivarUltra) { setVozUltraSelecionada(voz.id); setTipoVozAtiva('ultra') } }}
-                            className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${podeAtivarUltra ? 'cursor-pointer' : ''} ${podeAtivarUltra && vozUltraSelecionada === voz.id && tipoVozAtiva === 'ultra'
+                            onClick={() => {
+                                if (podeAtivarUltra) { setVozUltraSelecionada(voz.id); setTipoVozAtiva('ultra') }
+                                else { setVozUltraSelecionada(voz.id); setOfertaAberta('realista') }
+                            }}
+                            className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer ${podeAtivarUltra && vozUltraSelecionada === voz.id && tipoVozAtiva === 'ultra'
                                 ? 'bg-[#D99773]/5 border-2 border-[#D99773]'
                                 : 'bg-gray-50 border-2 border-transparent hover:border-gray-200'
                                 }`}
@@ -382,11 +417,81 @@ export default function VozTool() {
                             <p className="text-[9px] text-gray-400">Suas clientes não vão perceber que é IA</p>
                         </div>
                         <a href="/plano" className="text-[10px] font-medium px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center gap-1">
-                            <Crown size={10} /> Upgrade
+                            <Crown size={10} /> Ativar
                         </a>
                     </div>
                 )}
             </div>
+
+            {/* ============================================ */}
+            {/* OFERTA — aparece ao tentar usar voz de pacote */}
+            {/* ============================================ */}
+            {/* A clínica ouve todas as vozes à vontade; a trava só chega quando
+                ela tenta usar. É aqui que a vontade já está criada — ela acabou
+                de ouvir a diferença — então a oferta vem no lugar de um clique
+                que simplesmente não fazia nada. */}
+            {ofertaAberta && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    style={{ backgroundColor: 'rgba(8,20,26,0.55)' }}
+                    onClick={() => setOfertaAberta(null)}
+                >
+                    <div
+                        className="w-full max-w-sm rounded-2xl p-6 flex flex-col gap-4 bg-white"
+                        style={{ border: '1px solid var(--border-default)' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="flex items-start gap-3">
+                            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                                style={{ backgroundColor: 'rgba(217,151,115,0.15)' }}>
+                                <Sparkles size={19} style={{ color: '#D99773' }} />
+                            </div>
+                            <div>
+                                <h3 className="text-[16px] font-bold text-gray-800 leading-tight">
+                                    {ofertaAberta === 'realista'
+                                        ? 'Essa voz pode ser a da sua clínica'
+                                        : 'Sua própria voz atendendo por você'}
+                                </h3>
+                                <p className="text-[12px] text-gray-500 mt-1 leading-relaxed">
+                                    {ofertaAberta === 'realista'
+                                        ? 'Você acabou de ouvir a diferença. Suas clientes não percebem que é IA.'
+                                        : 'A IARA aprende a sua voz e atende com ela. A cliente sente que falou com você.'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="rounded-xl p-4" style={{ backgroundColor: 'rgba(217,151,115,0.08)', border: '1px solid rgba(217,151,115,0.25)' }}>
+                            <div className="flex items-baseline gap-2 mb-2">
+                                <span className="text-[26px] font-bold text-[#D99773]">
+                                    {ofertaAberta === 'realista' ? 'R$ 97' : 'R$ 147'}
+                                </span>
+                                <span className="text-[12px] text-gray-500">por mês</span>
+                            </div>
+                            <p className="text-[11.5px] text-gray-600 leading-relaxed">
+                                {ofertaAberta === 'realista'
+                                    ? 'Some ao seu plano atual, seja ele qual for. Cancela quando quiser.'
+                                    : 'Some ao seu plano atual. Inclui a clonagem e a troca de voz sempre que quiser.'}
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <a
+                                href="/plano"
+                                className="w-full py-3 rounded-xl text-[14px] font-semibold text-white text-center"
+                                style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)' }}
+                            >
+                                Quero ativar
+                            </a>
+                            <button
+                                onClick={() => setOfertaAberta(null)}
+                                className="w-full py-2 text-[12.5px] font-medium text-gray-400 hover:text-gray-600"
+                            >
+                                Agora não
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

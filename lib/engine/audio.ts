@@ -237,7 +237,12 @@ export function determineOutputType(
     const vozClonadaId = cfg.voice_id_clonada || clinica.vozClonada || null
     const temPacoteRealista = !!cfg.pacote_voz_realista
     const temPacoteClonagem = !!cfg.pacote_clonagem
-    const escolha = cfg.tipo_voz_ativa || (temPacoteClonagem ? 'clone' : temPacoteRealista ? 'realista' : 'padrao')
+    // Compatibilidade: clínicas configuradas antes desta mudança têm 'tts' e
+    // 'ultra' gravados. Sem esta tradução elas cairiam todas no padrão e quem
+    // pagou pela voz realista perderia a voz de um deploy para o outro.
+    const LEGADO: Record<string, string> = { tts: 'padrao', ultra: 'realista' }
+    const salvo = cfg.tipo_voz_ativa ? (LEGADO[cfg.tipo_voz_ativa] || cfg.tipo_voz_ativa) : null
+    const escolha = salvo || (temPacoteClonagem ? 'clone' : temPacoteRealista ? 'realista' : 'padrao')
 
     // -----------------------------------------------
     // CLONAGEM — voz da própria doutora, via Fish Audio
