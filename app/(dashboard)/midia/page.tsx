@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Upload, Mic, Video, Image, Loader2, Lock, ChevronRight, CheckCircle2, Sparkles, Trash2, X } from 'lucide-react'
+import { Upload, Mic, Video, Image, Loader2, Lock, ChevronRight, CheckCircle2, Sparkles, Trash2, X, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { AVATAR_VIDEO_HABILITADO } from '@/lib/planos'
 
@@ -232,6 +232,40 @@ export default function MidiaPage() {
                 </div>
             )}
 
+            {/* ============ Aviso antes de clonar a voz ============ */}
+            {/* Com a voz da doutora, a paciente assume que está falando com ela.
+                Se a IARA continuar se apresentando pelo nome, a conversa fica
+                incoerente — voz de uma pessoa, nome de outra. O ajuste que
+                resolve já existe: Atendimento → Modo IA. */}
+            {tab === 'audio' && arquivos.length > 0 && (
+                <div className="rounded-xl p-4 flex gap-3" style={{
+                    backgroundColor: 'rgba(217,151,115,0.10)',
+                    border: '1px solid rgba(217,151,115,0.35)',
+                }}>
+                    <AlertTriangle size={17} className="flex-shrink-0 mt-0.5" style={{ color: '#D99773' }} />
+                    <div className="flex flex-col gap-2">
+                        <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            Antes de clonar: ajuste como a IARA se apresenta
+                        </p>
+                        <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                            Com a sua voz, a paciente vai achar que está falando com você.
+                            Se a IARA continuar dizendo <em>&quot;oi, sou a IARA, assistente da clínica&quot;</em>,
+                            a conversa fica estranha — a voz é sua, mas o nome é de outra pessoa.
+                        </p>
+                        <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                            <strong style={{ color: 'var(--text-primary)' }}>Recomendação:</strong> vá em{' '}
+                            <strong style={{ color: '#D99773' }}>Atendimento → Modo de Operação</strong> e
+                            escolha <strong style={{ color: '#D99773' }}>Modo IA</strong>. Assim ela responde
+                            direto, sem se apresentar.
+                        </p>
+                        <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                            Mesmo com a sua voz, quem responde é a IARA. Assuma a conversa
+                            pessoalmente quando a paciente pedir algo que só você pode responder.
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* Clone buttons */}
             {tab === 'audio' && arquivos.length > 0 && (
                 <button
@@ -241,7 +275,7 @@ export default function MidiaPage() {
                     style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)' }}
                 >
                     {clonando === 'voz' ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-                    {temVoz ? 'Reclonar Voz (ElevenLabs)' : 'Clonar Minha Voz (ElevenLabs)'}
+                    {temVoz ? 'Reclonar Minha Voz' : 'Clonar Minha Voz'}
                 </button>
             )}
 
@@ -312,7 +346,7 @@ export default function MidiaPage() {
                 <p><strong style={{ color: 'var(--text-primary)' }}>📁 Onde seus arquivos ficam salvos?</strong></p>
                 <p>Seus arquivos são armazenados no servidor da IARA em pasta exclusiva da sua clínica. Nenhum dado é compartilhado entre clínicas.</p>
                 <p>• Fotos: usadas para posts e portfólio IA</p>
-                <p>• Áudio (Plano 3): enviado para ElevenLabs para clonar sua voz</p>
+                <p>• Áudio: enviado para o Fish Audio para clonar sua voz</p>
                 {AVATAR_VIDEO_HABILITADO && <p>• Vídeo: enviado para HeyGen para criar seu avatar</p>}
             </div>
         </div>

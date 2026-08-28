@@ -84,6 +84,25 @@ export async function registrarMensagem(clinica: DadosClinica): Promise<void> {
     }
 }
 
+/**
+ * Ainda há cota do pacote de voz realista (ElevenLabs) neste mês?
+ *
+ * Ao contrário das outras, esta cota NUNCA bloqueia o atendimento — quando
+ * acaba, a voz volta para a Azure. Por isso ela não olha o COTA_MODO.
+ */
+export async function podeGerarVozRealista(clinica: DadosClinica): Promise<boolean> {
+    const r = await checkFeature(clinica.id, clinica.nivel || 1, 'audiosRealistas')
+    if (!r.permitido) {
+        console.log(`[Quota] 🎙️ Clínica ${clinica.id} usou a cota de voz realista (${r.usado}/${r.limite}) — voz volta para a Azure`)
+    }
+    return r.permitido
+}
+
+/** Registra um áudio de voz realista consumido. */
+export async function registrarVozRealista(clinica: DadosClinica): Promise<void> {
+    await incrementFeature(clinica.id, 'audiosRealistas', 1)
+}
+
 /** Registra um áudio gerado. */
 export async function registrarAudio(clinica: DadosClinica): Promise<void> {
     await incrementFeature(clinica.id, 'audiosIA', 1)

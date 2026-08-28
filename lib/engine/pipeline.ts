@@ -513,7 +513,10 @@ async function finalizarResposta(
 ) {
     // Determinar saída (respeita toggle responder_audio)
     const funcsLocal = parseFuncionalidades(clinica.funcionalidades)
-    let configSaida = audio.determineOutputType(clinica, tipoEntrada === 'audio', funcsLocal.responder_audio)
+    // A cota da voz realista é consultada antes de escolher o provedor: se
+    // acabou, determineOutputType já devolve a Azure em vez da ElevenLabs.
+    const cotaRealista = await quota.podeGerarVozRealista(clinica)
+    let configSaida = audio.determineOutputType(clinica, tipoEntrada === 'audio', funcsLocal.responder_audio, cotaRealista)
 
     // TETO DE ÁUDIOS — voz é o item mais caro por mensagem. Estourou o teto,
     // ela continua atendendo, só que por texto. Nada quebra para a paciente.
@@ -529,7 +532,11 @@ async function finalizarResposta(
     let outgoingAudioUrl: string | null = null
     if (configSaida.tipoSaida === 'audio') {
         audioBase64Resposta = await audio.generateTTS(respostaTexto, configSaida)
-        if (audioBase64Resposta) await quota.registrarAudio(clinica)
+        if (audioBase64Resposta) {
+            await quota.registrarAudio(clinica)
+            // A voz realista tem cota própria por ser ~10x mais cara que a Azure.
+            if (configSaida.provedorVoz === 'elevenlabs') await quota.registrarVozRealista(clinica)
+        }
         if (audioBase64Resposta) {
             outgoingAudioUrl = await audio.saveAudioFile(audioBase64Resposta, 'outgoing')
         }

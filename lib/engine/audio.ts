@@ -208,7 +208,8 @@ export async function downloadAudioFromEvolution(
 export function determineOutputType(
     clinica: DadosClinica,
     clienteEnviouAudio: boolean,
-    responderAudioAtivo: boolean = true
+    responderAudioAtivo: boolean = true,
+    cotaRealistaDisponivel: boolean = true
 ): ConfigSaida {
     // Se não veio áudio, responde com texto
     if (!clienteEnviouAudio) {
@@ -221,47 +222,60 @@ export function determineOutputType(
         return { tipoSaida: 'text', provedorVoz: null, voiceId: null }
     }
 
-    const nivel = clinica.nivel || 1
     const cfg = (clinica.configuracoes as any) || {}
 
     // -----------------------------------------------
-    // Lê as preferências salvas pelo VozTool
+    // Preferências salvas pelo VozTool.
+    //
+    // Os dois pacotes são independentes do plano: qualquer clínica pode
+    // comprar qualquer um. Antes isso era amarrado ao nível, o que deixava
+    // o Premium sem clonagem se ela não tivesse pago o pacote, e obrigava
+    // quem só queria voz bonita a subir de plano.
     // -----------------------------------------------
-    const tipoVozAtiva = cfg.tipo_voz_ativa || (nivel >= 3 && clinica.vozClonada ? 'clone' : nivel >= 2 ? 'ultra' : 'tts')
-    const openaiVoiceId = cfg.openai_voice_id || 'nova'
+    const azureVoiceId = cfg.azure_voice_id || VOZ_AZURE_PADRAO
     const elevenVoiceId = cfg.eleven_voice_id || null
-    const voiceClonada = cfg.voice_id_clonada || clinica.vozClonada || null
-
-    console.log(`[Audio] 🎙️ Tipo voz: ${tipoVozAtiva} | nivel: ${nivel}`)
+    const vozClonadaId = cfg.voice_id_clonada || clinica.vozClonada || null
+    const temPacoteRealista = !!cfg.pacote_voz_realista
+    const temPacoteClonagem = !!cfg.pacote_clonagem
+    const escolha = cfg.tipo_voz_ativa || (temPacoteClonagem ? 'clone' : temPacoteRealista ? 'realista' : 'padrao')
 
     // -----------------------------------------------
-    // CLONE (Plano 3+)
+    // CLONAGEM — voz da própria doutora, via Fish Audio
     // -----------------------------------------------
-    if (tipoVozAtiva === 'clone' && nivel >= 3 && voiceClonada) {
-        return { tipoSaida: 'audio', provedorVoz: 'elevenlabs', voiceId: voiceClonada }
+    if (escolha === 'clone' && temPacoteClonagem && vozClonadaId) {
+        console.log('[Audio] 🎙️ voz: clone (Fish Audio)')
+        return { tipoSaida: 'audio', provedorVoz: 'fish', voiceId: vozClonadaId }
     }
 
     // -----------------------------------------------
-    // ULTRA - ElevenLabs (Plano 2+)
+    // VOZ REALISTA — catálogo da ElevenLabs, pacote de R$97
+    //
+    // Tem cota própria porque custa ~10x a Azure por áudio. Quando acaba,
+    // cai para a Azure em vez de parar: a cliente continua ouvindo uma voz
+    // boa, só não a premium. Ninguém fica sem resposta por causa de cota.
     // -----------------------------------------------
-    if (tipoVozAtiva === 'ultra' && nivel >= 2) {
-        if (elevenVoiceId) {
+    if (escolha === 'realista' && temPacoteRealista && elevenVoiceId) {
+        if (cotaRealistaDisponivel) {
+            console.log('[Audio] 🎙️ voz: realista (ElevenLabs)')
             return { tipoSaida: 'audio', provedorVoz: 'elevenlabs', voiceId: elevenVoiceId }
         }
-        // Sem voice_id ElevenLabs configurado → fallback OpenAI
-        console.log('[Audio] ⚠️ Ultra selecionado mas sem eleven_voice_id → fallback OpenAI')
-        return { tipoSaida: 'audio', provedorVoz: 'openai_tts', voiceId: openaiVoiceId }
+        console.log('[Audio] 🎙️ cota de voz realista esgotada no mês — usando Azure')
     }
 
     // -----------------------------------------------
-    // TTS - OpenAI (todos os planos)
+    // PADRÃO — Azure, incluída em todos os planos
     // -----------------------------------------------
-    return { tipoSaida: 'audio', provedorVoz: 'openai_tts', voiceId: openaiVoiceId }
+    console.log(`[Audio] 🎙️ voz: padrão (Azure ${azureVoiceId})`)
+    return { tipoSaida: 'audio', provedorVoz: 'azure', voiceId: azureVoiceId }
 }
-
 
 /**
  * Gera áudio a partir de texto usando OpenAI TTS.
+ *
+ * Não é mais a voz padrão — virou o último recurso da cadeia de reserva.
+ * Soa como leitura de robô em português; ficou só para o caso de Azure,
+ * ElevenLabs e Fish estarem todas fora do ar ao mesmo tempo.
+ *
  * Retorna: áudio em base64 (mp3)
  */
 export async function generateTTS_OpenAI(
@@ -297,6 +311,123 @@ export async function generateTTS_OpenAI(
 
     } catch (err) {
         console.error('[TTS-OpenAI] Erro:', err)
+        return null
+    }
+}
+
+/**
+ * Vozes brasileiras da Azure disponíveis para escolha no painel.
+ * São as neurais pt-BR que soam melhor em atendimento — evitei as de
+ * locução/telejornal, que ficam artificiais numa conversa de WhatsApp.
+ */
+export const VOZES_AZURE = [
+    { id: 'pt-BR-FranciscaNeural', nome: 'Francisca', desc: 'Acolhedora e natural — a mais próxima de uma recepcionista' },
+    { id: 'pt-BR-ThalitaNeural',   nome: 'Thalita',   desc: 'Jovem e simpática, ritmo mais leve' },
+    { id: 'pt-BR-BrendaNeural',    nome: 'Brenda',    desc: 'Calma e clara, boa para explicar procedimento' },
+    { id: 'pt-BR-LeilaNeural',     nome: 'Leila',     desc: 'Madura e segura, transmite autoridade' },
+    { id: 'pt-BR-YaraNeural',      nome: 'Yara',      desc: 'Doce e próxima' },
+    { id: 'pt-BR-AntonioNeural',   nome: 'Antônio',   desc: 'Masculina, cordial' },
+] as const
+
+export const VOZ_AZURE_PADRAO = 'pt-BR-FranciscaNeural'
+
+/**
+ * Gera áudio com a Azure (voz padrão de todos os planos).
+ *
+ * Custa quase o mesmo da OpenAI e soa muito melhor em português: a OpenAI
+ * lê com sotaque de quem aprendeu, a Azure fala como brasileira. Os
+ * primeiros 500 mil caracteres do mês são gratuitos na conta da Azure.
+ */
+export async function generateTTS_Azure(
+    texto: string,
+    voiceId: string
+): Promise<string | null> {
+    const key = process.env.AZURE_SPEECH_KEY
+    const regiao = process.env.AZURE_SPEECH_REGION || 'brazilsouth'
+    if (!key) {
+        console.warn('[TTS-Azure] AZURE_SPEECH_KEY não configurada')
+        return null
+    }
+
+    // A Azure fala SSML. Escapa o texto para não quebrar o XML com & ou <.
+    const escapado = texto
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+
+    const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="pt-BR">`
+        + `<voice name="${voiceId}"><prosody rate="+4%">${escapado}</prosody></voice></speak>`
+
+    try {
+        const res = await fetch(`https://${regiao}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+            method: 'POST',
+            headers: {
+                'Ocp-Apim-Subscription-Key': key,
+                'Content-Type': 'application/ssml+xml',
+                'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+                'User-Agent': 'IARA',
+            },
+            body: ssml,
+            signal: AbortSignal.timeout(30000),
+        })
+
+        if (!res.ok) {
+            console.error(`[TTS-Azure] ❌ HTTP ${res.status}:`, (await res.text()).slice(0, 200))
+            return null
+        }
+
+        const buffer = Buffer.from(await res.arrayBuffer())
+        console.log(`[TTS-Azure] ✅ Áudio gerado (${(buffer.length / 1024).toFixed(0)}KB)`)
+        return buffer.toString('base64')
+    } catch (err) {
+        console.error('[TTS-Azure] Erro:', err)
+        return null
+    }
+}
+
+/**
+ * Gera áudio com o Fish Audio (pacote de clonagem de voz).
+ *
+ * Escolhido no lugar da ElevenLabs para clonagem porque cobra por uso e não
+ * limita quantas vozes clonadas a conta pode ter. Na ElevenLabs as vagas de
+ * clone são contadas por plano, e a conta ficava negativa a partir da sexta
+ * clínica — ver o documento "Quanto Custa a IARA".
+ *
+ * O reference_id é o modelo de voz criado quando a doutora enviou o áudio dela.
+ */
+export async function generateTTS_Fish(
+    texto: string,
+    voiceId: string
+): Promise<string | null> {
+    const key = process.env.FISH_AUDIO_API_KEY
+    if (!key) {
+        console.warn('[TTS-Fish] FISH_AUDIO_API_KEY não configurada')
+        return null
+    }
+
+    try {
+        const res = await fetch('https://api.fish.audio/v1/tts', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${key}`,
+                'Content-Type': 'application/json',
+                model: 's1',
+            },
+            body: JSON.stringify({ text: texto, reference_id: voiceId, format: 'mp3' }),
+            signal: AbortSignal.timeout(45000),
+        })
+
+        if (!res.ok) {
+            console.error(`[TTS-Fish] ❌ HTTP ${res.status}:`, (await res.text()).slice(0, 200))
+            return null
+        }
+
+        const buffer = Buffer.from(await res.arrayBuffer())
+        console.log(`[TTS-Fish] ✅ Áudio gerado (${(buffer.length / 1024).toFixed(0)}KB)`)
+        return buffer.toString('base64')
+    } catch (err) {
+        console.error('[TTS-Fish] Erro:', err)
         return null
     }
 }
@@ -419,12 +550,37 @@ export async function generateTTS(
     // qual plano da ElevenLabs a operação realmente exige.
     console.log(`[TTS] 💰 voz: provedor=${config.provedorVoz} chars=${textoProcessado.length}`)
 
+    // Cadeia de reserva: provedor escolhido → Azure → OpenAI.
+    //
+    // A Azure fica no meio porque soa bem e é barata: se o pacote premium
+    // falhar, a paciente ouve uma voz brasileira decente em vez da leitura
+    // robótica. A OpenAI só entra se até a Azure estiver fora do ar.
+    //
+    // Antes a queda era direto para a OpenAI e ninguém era avisado — foi
+    // assim que clínicas pagando pelos planos 2 e 3 ficaram meses com a voz
+    // robótica depois que a chave da ElevenLabs foi revogada.
+    const azureId = VOZ_AZURE_PADRAO
+
+    if (config.provedorVoz === 'fish' && config.voiceId) {
+        const audio = await generateTTS_Fish(textoProcessado, config.voiceId)
+        if (audio) return audio
+        console.warn('[TTS] ⚠️ Clonagem (Fish) falhou → caindo para Azure')
+        return (await generateTTS_Azure(textoProcessado, azureId))
+            ?? generateTTS_OpenAI(textoProcessado, 'nova')
+    }
+
     if (config.provedorVoz === 'elevenlabs' && config.voiceId) {
-        // Tenta ElevenLabs primeiro
         const audio = await generateTTS_ElevenLabs(textoProcessado, config.voiceId)
         if (audio) return audio
-        // Fallback pro OpenAI
-        console.log('[TTS] Fallback ElevenLabs → OpenAI')
+        console.warn('[TTS] ⚠️ Voz realista (ElevenLabs) falhou → caindo para Azure')
+        return (await generateTTS_Azure(textoProcessado, azureId))
+            ?? generateTTS_OpenAI(textoProcessado, 'nova')
+    }
+
+    if (config.provedorVoz === 'azure') {
+        const audio = await generateTTS_Azure(textoProcessado, config.voiceId || azureId)
+        if (audio) return audio
+        console.warn('[TTS] ⚠️ Azure falhou → caindo para OpenAI')
         return generateTTS_OpenAI(textoProcessado, 'nova')
     }
 

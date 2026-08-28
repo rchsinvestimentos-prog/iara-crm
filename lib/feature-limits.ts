@@ -21,23 +21,33 @@ import { prisma } from '@/lib/prisma'
 //
 // 600 conversas são 20 por dia — acima do uso real esperado (15/dia),
 // então o teto protege o caso extremo sem incomodar o uso normal.
+//
+// audiosRealistas é a cota do pacote "voz realista" (+R$97) e vale 150 em
+// todos os níveis, porque o pacote é vendido solto, independente do plano.
+// O número sai da conta: a ElevenLabs custa ~R$0,27 por áudio contra
+// R$0,026 da Azure, e o pacote empata em 296 áudios. Em 150 sobra 41% de
+// margem. Estourando a cota, a voz cai para a Azure — a clínica não fica
+// sem áudio, só sai da voz premium até virar o mês.
 // ------------------------------------------------------------------
 export const FEATURE_LIMITS: Record<number, Record<string, number>> = {
     // P1 Essencial
     1: {
         campanhaContatos: 30,
+        audiosRealistas: 150,
         mensagensIA: 3600,
         audiosIA: 100,
     },
     // P2 Pro
     2: {
         campanhaContatos: 100,
+        audiosRealistas: 150,
         mensagensIA: 7200,
         audiosIA: 300,
     },
     // P3 Premium
     3: {
         campanhaContatos: -1,
+        audiosRealistas: 150,
         mensagensIA: 15000,
         audiosIA: 600,
     },

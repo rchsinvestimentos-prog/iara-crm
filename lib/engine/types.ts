@@ -197,7 +197,13 @@ export interface RespostaIA {
 /** Tipo de saída (texto ou áudio) */
 export interface ConfigSaida {
     tipoSaida: 'text' | 'audio'
-    provedorVoz: 'openai_tts' | 'elevenlabs' | null
+    /**
+     * azure      — voz padrão, incluída em todos os planos
+     * elevenlabs — pacote "voz realista" (+R$97), tem cota própria
+     * fish       — pacote "clonagem de voz" (+R$147), voz da própria doutora
+     * openai_tts — só como último recurso, se os outros falharem
+     */
+    provedorVoz: 'azure' | 'elevenlabs' | 'fish' | 'openai_tts' | null
     voiceId: string | null
 }
 
