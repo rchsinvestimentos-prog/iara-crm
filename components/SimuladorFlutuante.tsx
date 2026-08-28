@@ -11,19 +11,31 @@
 // a configuração salva da clínica — ou seja, exatamente como a IARA responde
 // para as pacientes, com a voz e tudo.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MessageCircle } from 'lucide-react'
 import SimulatorDrawer from './tools/SimulatorDrawer'
 
 export default function SimuladorFlutuante() {
     const [aberto, setAberto] = useState(false)
 
+    // O botão usa o nome que a clínica deu à assistente. Se ela batizou de
+    // "Nicole", o menu e o botão precisam dizer Nicole — chamar de IARA no
+    // botão e de Nicole no resto do painel confunde a profissional.
+    const [nomeIA, setNomeIA] = useState('')
+
+    useEffect(() => {
+        fetch('/api/clinica')
+            .then(r => r.json())
+            .then(d => { if (d?.nomeAssistente) setNomeIA(d.nomeAssistente) })
+            .catch(() => { })
+    }, [])
+
     return (
         <>
             {!aberto && (
                 <button
                     onClick={() => setAberto(true)}
-                    aria-label="Testar a IARA"
+                    aria-label={`Testar ${nomeIA || 'a IARA'}`}
                     className="fixed z-40 flex items-center gap-2 rounded-full shadow-lg transition-transform hover:scale-105"
                     style={{
                         right: 20,
@@ -37,11 +49,11 @@ export default function SimuladorFlutuante() {
                     }}
                 >
                     <MessageCircle size={17} />
-                    <span className="text-[13px] font-semibold">Testar a IARA</span>
+                    <span className="text-[13px] font-semibold">Testar {nomeIA || 'a IARA'}</span>
                 </button>
             )}
 
-            <SimulatorDrawer isOpen={aberto} onClose={() => setAberto(false)} />
+            <SimulatorDrawer isOpen={aberto} onClose={() => setAberto(false)} nomeIA={nomeIA} />
         </>
     )
 }

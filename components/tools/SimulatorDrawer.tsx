@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Volume2, MicOff, X, Sparkles, Loader2, Bot, User } from 'lucide-react'
+import { Send, Volume2, MicOff, X, Sparkles, Loader2, Bot, User, Mic, Square } from 'lucide-react'
 
 type SimMsg = {
     role: 'user' | 'assistant'
@@ -10,6 +10,8 @@ type SimMsg = {
 interface SimulatorDrawerProps {
     isOpen: boolean
     onClose: () => void
+    /** Nome da assistente escolhido pela clínica, quando não há config em edição. */
+    nomeIA?: string
     /**
      * Configuração ainda não salva, para testar antes de gravar.
      *
@@ -28,7 +30,9 @@ interface SimulatorDrawerProps {
     }
 }
 
-export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDrawerProps) {
+export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: SimulatorDrawerProps) {
+    // Em edição, vale o nome que está sendo digitado; fora dela, o salvo.
+    const nomeAssistente = config?.nomeIA || nomeIA || 'IARA'
     const [simInput, setSimInput] = useState('')
     const [simHistory, setSimHistory] = useState<SimMsg[]>([])
     const [simLoading, setSimLoading] = useState(false)
@@ -36,6 +40,16 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
     // melhor, e assim não é preciso conectar um WhatsApp para testar.
     const [simAudio, setSimAudio] = useState(true)
     const simEndRef = useRef<HTMLDivElement>(null)
+
+    // Gravar e mandar áudio, como a paciente faz no WhatsApp. Testa também a
+    // compreensão: sotaque e nome de procedimento mal pronunciado só aparecem
+    // como problema quando se fala, não quando se digita.
+    const [gravando, setGravando] = useState(false)
+    const [transcrevendo, setTranscrevendo] = useState(false)
+    const [segundos, setSegundos] = useState(0)
+    const gravadorRef = useRef<MediaRecorder | null>(null)
+    const pedacosRef = useRef<Blob[]>([])
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
     // Scroll to bottom when history changes
     useEffect(() => {
@@ -49,17 +63,18 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
         if (isOpen && simHistory.length === 0) {
             setSimHistory([{
                 role: 'assistant',
-                content: `Olá! Eu sou a ${config?.nomeIA || 'IARA'}. Faça um teste simulando uma cliente me chamando no WhatsApp.`
+                content: `Olá! Eu sou a ${nomeAssistente}. Faça um teste simulando uma cliente me chamando no WhatsApp.`
             }])
         }
-    }, [isOpen, config?.nomeIA])
+    }, [isOpen, nomeAssistente])
 
     if (!isOpen) return null
 
-    const sendSimulation = async () => {
-        if (!simInput.trim() || simLoading) return
+    const sendSimulation = async (textoDireto?: string) => {
+        const texto = (textoDireto ?? simInput).trim()
+        if (!texto || simLoading) return
 
-        const userMsg: SimMsg = { role: 'user', content: simInput.trim() }
+        const userMsg: SimMsg = { role: 'user', content: texto }
         const newHistory = [...simHistory, userMsg]
         setSimHistory(newHistory)
         setSimInput('')
@@ -111,6 +126,68 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
         }
     }
 
+    // ============================================
+    // GRAVAR ÁUDIO — igual a paciente faz no WhatsApp
+    // ============================================
+    const iniciarGravacao = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            const gravador = new MediaRecorder(stream)
+            gravadorRef.current = gravador
+            pedacosRef.current = []
+
+            gravador.ondataavailable = e => { if (e.data.size > 0) pedacosRef.current.push(e.data) }
+
+            gravador.onstop = async () => {
+                stream.getTracks().forEach(t => t.stop())
+                const blob = new Blob(pedacosRef.current, { type: gravador.mimeType || 'audio/webm' })
+                if (blob.size < 1000) return   // clique sem fala
+
+                setTranscrevendo(true)
+                try {
+                    const base64 = await new Promise<string>((ok, erro) => {
+                        const fr = new FileReader()
+                        fr.onload = () => ok(String(fr.result).split(',')[1] || '')
+                        fr.onerror = erro
+                        fr.readAsDataURL(blob)
+                    })
+                    const res = await fetch('/api/voz/transcrever', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ audioBase64: base64 }),
+                    })
+                    const data = await res.json()
+                    if (data.texto) sendSimulation(data.texto)
+                    else setSimHistory(prev => [...prev, { role: 'assistant', content: `❌ ${data.error || 'Não consegui entender o áudio.'}` }])
+                } catch {
+                    setSimHistory(prev => [...prev, { role: 'assistant', content: '❌ Erro ao enviar o áudio.' }])
+                } finally {
+                    setTranscrevendo(false)
+                }
+            }
+
+            gravador.start()
+            setGravando(true)
+            setSegundos(0)
+            timerRef.current = setInterval(() => {
+                setSegundos(prev => {
+                    if (prev >= 60) { pararGravacao(); return 60 }   // teto de 1 minuto
+                    return prev + 1
+                })
+            }, 1000)
+        } catch {
+            alert('Permita o acesso ao microfone para gravar.')
+        }
+    }
+
+    const pararGravacao = () => {
+        if (gravadorRef.current && gravadorRef.current.state !== 'inactive') {
+            gravadorRef.current.stop()
+        }
+        setGravando(false)
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    }
+
     const playAudio = (base64: string) => {
         try {
             const audio = new Audio(`data:audio/mpeg;base64,${base64}`)
@@ -141,7 +218,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
                         </div>
                         <div>
                             <h3 className="font-semibold text-[14px]" style={{ color: 'var(--text-primary)' }}>
-                                Simulador IARA
+                                Simulador · {nomeAssistente}
                             </h3>
                             <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                                 {config
@@ -168,7 +245,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
                                     <div className="flex items-center gap-1.5 mb-1.5 opacity-70">
                                         {isUser ? <User size={12} /> : <Bot size={12} />}
                                         <span className="text-[10px] font-medium uppercase tracking-wider">
-                                            {isUser ? 'Você (Cliente)' : config?.nomeIA || 'IARA'}
+                                            {isUser ? 'Você (Cliente)' : nomeAssistente}
                                         </span>
                                     </div>
                                     <p className={`text-[13px] whitespace-pre-wrap`} style={!isUser ? { color: 'var(--text-primary)' } : undefined}>
@@ -229,16 +306,40 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
                                 style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-subtle)' }}
                             />
                             <button
-                                onClick={sendSimulation}
+                                onClick={() => sendSimulation()}
                                 disabled={!simInput.trim() || simLoading}
                                 className="absolute right-2 bottom-2 p-2 rounded-xl bg-[#0F4C61] text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0d4052] transition-colors"
                             >
                                 {simLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                             </button>
                         </div>
+
+                        {/* Gravar e mandar áudio, como a paciente faz */}
+                        <button
+                            onClick={gravando ? pararGravacao : iniciarGravacao}
+                            disabled={simLoading || transcrevendo}
+                            title={gravando ? 'Parar e enviar' : 'Gravar um áudio'}
+                            className="flex-shrink-0 flex items-center gap-2 rounded-full transition-all disabled:opacity-50"
+                            style={{
+                                padding: gravando ? '10px 14px' : '11px',
+                                background: gravando ? '#EF4444' : 'var(--bg-subtle)',
+                                color: gravando ? '#fff' : 'var(--text-muted)',
+                                border: 'none',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            {transcrevendo
+                                ? <Loader2 size={16} className="animate-spin" />
+                                : gravando
+                                    ? <><Square size={13} /><span className="text-[12px] font-semibold tabular-nums">{segundos}s</span></>
+                                    : <Mic size={16} />}
+                        </button>
                     </div>
                     <p className="text-[10px] text-center mt-3" style={{ color: 'var(--text-muted)' }}>
-                        {simAudio ? 'O áudio será gerado consumindo créditos da API.' : 'O áudio está desativado na simulação.'}
+                        {transcrevendo ? 'Entendendo o que você falou...'
+                            : gravando ? 'Gravando — clique no quadrado para enviar'
+                                : simAudio ? 'Digite ou grave um áudio. A resposta vem em voz.'
+                                    : 'O áudio está desativado na simulação.'}
                     </p>
                 </div>
             </div>
