@@ -15,6 +15,24 @@ import type { DadosClinica } from './types'
 /** Percentual a partir do qual a dona recebe o primeiro aviso. */
 const AVISO_EM = 0.8
 
+/**
+ * Modo da cota.
+ *
+ * 'aviso'    — conta e avisa, mas NUNCA corta. É o padrão.
+ * 'bloqueio' — corta ao bater o teto.
+ *
+ * Começa em 'aviso' de propósito. Os tetos em feature-limits.ts saíram de
+ * estimativa de uso, não de medição — e já existem clínicas pagando. Cortar
+ * uma clínica no meio do mês por causa de um número que eu chutei é pior do
+ * que pagar alguns reais a mais de IA.
+ *
+ * Depois de um mês contando, os registros [AI] 💾 dizem o uso real de cada
+ * clínica. Aí os tetos viram números medidos e isto passa para 'bloqueio'
+ * pela variável de ambiente COTA_MODO, sem precisar de deploy.
+ */
+const MODO: 'aviso' | 'bloqueio' =
+    process.env.COTA_MODO === 'bloqueio' ? 'bloqueio' : 'aviso'
+
 type Resultado = {
     permitido: boolean
     usado: number
@@ -30,12 +48,20 @@ type Resultado = {
  */
 export async function podeResponder(clinica: DadosClinica): Promise<Resultado> {
     const r = await checkFeature(clinica.id, clinica.nivel || 1, 'mensagensIA')
+    if (MODO === 'aviso' && !r.permitido) {
+        console.warn(`[Quota] ⚠️ Clínica ${clinica.id} passou do teto de mensagens (${r.usado}/${r.limite}) — seguindo assim mesmo, modo aviso`)
+        return { permitido: true, usado: r.usado, limite: r.limite, restante: 0 }
+    }
     return { permitido: r.permitido, usado: r.usado, limite: r.limite, restante: r.restante }
 }
 
 /** A clínica ainda pode gerar um áudio neste mês? */
 export async function podeGerarAudio(clinica: DadosClinica): Promise<Resultado> {
     const r = await checkFeature(clinica.id, clinica.nivel || 1, 'audiosIA')
+    if (MODO === 'aviso' && !r.permitido) {
+        console.warn(`[Quota] ⚠️ Clínica ${clinica.id} passou do teto de áudios (${r.usado}/${r.limite}) — seguindo assim mesmo, modo aviso`)
+        return { permitido: true, usado: r.usado, limite: r.limite, restante: 0 }
+    }
     return { permitido: r.permitido, usado: r.usado, limite: r.limite, restante: r.restante }
 }
 
