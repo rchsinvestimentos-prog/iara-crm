@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import SomentePro from '@/components/SomentePro'
 import { 
     Stethoscope, Plus, ClipboardList, Eye, Trash2, Edit2, 
     ShieldCheck, X, Save, Send, Copy, Check, MessageSquare, Download
@@ -381,6 +382,17 @@ export default function AnamnesePage() {
     }
 
     return (
+        <SomentePro
+            nomeFeature="Ficha de Anamnese"
+            descricao="Envie a ficha por link, a paciente preenche e assina pelo celular, e fica guardada com data, IP e assinatura digital."
+            beneficios={[
+                "Ficha preenchida e assinada pelo celular",
+                "Envio por link do WhatsApp",
+                "Assinatura digital com validade",
+                "Modelos por procedimento",
+                "Backup automático no Google Drive",
+            ]}
+        >
         <div className="space-y-8 max-w-6xl mx-auto animate-fade-in">
             {/* Background orbs — mesmo padrão do dashboard */}
             <div className="fixed top-20 -left-40 w-80 h-80 rounded-full blur-[120px] pointer-events-none" style={{ backgroundColor: 'var(--orb-1)' }} />
@@ -1130,6 +1142,6 @@ export default function AnamnesePage() {
                     </div>
                 </div>
             )}
-        </div>
+        </div></SomentePro>
     )
 }

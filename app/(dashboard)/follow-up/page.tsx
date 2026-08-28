@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import SomentePro from '@/components/SomentePro'
 import { 
     Clock, Save, ToggleLeft, ToggleRight, MessageSquare, HelpCircle,
     Crown, Sparkles, Star, Gem, Check, ArrowRight, Loader2, Play
@@ -158,6 +159,17 @@ export default function FollowUpPage() {
     }
 
     return (
+        <SomentePro
+            nomeFeature="Follow UP Automático"
+            descricao="A IARA acompanha sozinha depois do procedimento: pós de 24h, retorno de 30 dias, 3 e 6 meses."
+            beneficios={[
+                "Pós-procedimento em 24 horas",
+                "Retornos de 30 dias, 3 e 6 meses",
+                "Mensagens personalizadas por procedimento",
+                "Pedido de avaliação no Google",
+                "Resgate de quem sumiu",
+            ]}
+        >
         <div className="space-y-8 max-w-4xl mx-auto animate-fade-in text-[11px]">
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -402,6 +414,6 @@ export default function FollowUpPage() {
                     </div>
                 </div>
             )}
-        </div>
+        </div></SomentePro>
     )
 }

@@ -371,10 +371,16 @@ export default function Sidebar() {
                   <CreditCard size={17} strokeWidth={1.8} />
                   <span>Meu Plano</span>
                 </Link>
-                {isTester && (
+                {/* Anamnese, Clientes, Follow UP e Integração de Agenda ficaram
+                    meses só para contas de teste: as telas funcionavam, mas
+                    nenhuma clínica tinha como chegar nelas. Agora entram a
+                    partir do plano Pro. A conta de teste continua vendo tudo. */}
+                {(isTester || planoAtual >= 2) && (
                   <>
                     <div className="flex items-center gap-2 px-3 mb-2 mt-4">
-                      <span className="text-[10px] font-semibold uppercase tracking-widest text-[#D99773]">Novos Recursos 🧪</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-[#D99773]">
+                        {isTester && planoAtual < 2 ? 'Novos Recursos 🧪' : 'Recursos Pro'}
+                      </span>
                       <div className="flex-1 h-px bg-white/5" />
                     </div>
                     <Link href="/anamnese" className={linkClass('/anamnese')}>
@@ -389,10 +395,9 @@ export default function Sidebar() {
                       <UserCheck size={17} strokeWidth={1.8} />
                       <span>Clientes</span>
                     </Link>
-                    <Link href="/integracoes-agenda" className={linkClass('/integracoes-agenda')}>
-                      <Link2 size={17} strokeWidth={1.8} />
-                      <span>Integração de Agenda</span>
-                    </Link>
+                    {/* O link para /integracoes-agenda foi removido: a página nunca
+                        existiu e dava 404. A conexão com Google e Apple Calendar
+                        fica na tela de Conexões. */}
                   </>
                 )}
               </div>

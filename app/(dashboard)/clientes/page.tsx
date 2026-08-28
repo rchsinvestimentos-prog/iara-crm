@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import SomentePro from '@/components/SomentePro'
 import { 
     Users, Search, Filter, ClipboardList, Stethoscope, 
     MessageSquare, Clock, ShieldCheck, User, Calendar, Plus, 
@@ -658,6 +659,17 @@ export default function ClientesPage() {
     }
 
     return (
+        <SomentePro
+            nomeFeature="Ficha da Paciente"
+            descricao="Histórico completo de cada paciente: procedimentos, fotos de antes e depois, anotações e marcações na imagem."
+            beneficios={[
+                "Histórico de procedimentos por paciente",
+                "Fotos de antes e depois",
+                "Marcação na foto para planejar",
+                "Anotações clínicas",
+                "Anamneses assinadas no mesmo lugar",
+            ]}
+        >
         <div className="space-y-8 max-w-6xl mx-auto animate-fade-in text-[11px] relative">
             
             {/* Main CRM Header */}
@@ -1942,7 +1954,7 @@ export default function ClientesPage() {
                     onClose={() => setSelectedFicha(null)}
                 />
             )}
-        </div>
+        </div></SomentePro>
     )
 }
 
