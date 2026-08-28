@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
                         clinicaId: clinica.id,
                         updatedAt: { gte: h48atras },
                         etapa: { notIn: ['bloqueado', 'atendida'] },
-                        telefone: { not: null },
+                        telefone: { not: '' },
                     },
                     select: { id: true, nome: true, telefone: true },
                     take: 15, // Limite por clínica

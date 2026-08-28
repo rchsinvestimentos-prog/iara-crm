@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
             select: {
                 id: true, nomeClinica: true, nomeAssistente: true,
                 evolutionInstance: true, evolutionApikey: true,
-                configuracoes: true, telefoneDra: true,
+                configuracoes: true, whatsappDoutora: true,
             },
         })
 
@@ -68,13 +68,13 @@ export async function GET(request: NextRequest) {
 
                 if (anivMes.length > 0) {
                     // Lista VIP para a Dra
-                    if (anivConfig.listaVipMensal && (clinica as any).telefoneDra) {
+                    if (anivConfig.listaVipMensal && clinica.whatsappDoutora) {
                         const lista = anivMes.map(c => {
                             const d = new Date(c.dataNascimento!)
                             return `• ${c.nome} — dia ${d.getDate()}`
                         }).join('\n')
                         const msgVip = `👑 Lista VIP — Aniversariantes de ${mesNome(mesHoje)}\n\n${lista}\n\nTotal: ${anivMes.length} aniversariante(s) 🎂`
-                        await enviarMsg(clinica, (clinica as any).telefoneDra, msgVip)
+                        await enviarMsg(clinica, clinica.whatsappDoutora, msgVip)
                     }
 
                     // Aviso mensal para cada aniversariante

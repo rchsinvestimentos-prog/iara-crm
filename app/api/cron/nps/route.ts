@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         const agendamentos = await prisma.agendamento.findMany({
             where: {
                 status: 'confirmado',
-                telefone: { not: null },
+                telefone: { not: '' },
                 data: {
                     gte: anteontem,
                     lte: ontem,
@@ -43,8 +43,7 @@ export async function GET(request: NextRequest) {
                         id: true,
                         nomeClinica: true,
                         nomeAssistente: true,
-                        instanceName: true,
-                        whatsappStatus: true,
+                        evolutionInstance: true,
                         status: true,
                         configuracoes: true,
                         // Link Google Maps/Review — salvo em configuracoes
@@ -60,7 +59,8 @@ export async function GET(request: NextRequest) {
         for (const agend of agendamentos) {
             const clinica = agend.clinica
             if (!clinica || clinica.status !== 'ativo') { pulados++; continue }
-            if (!clinica.instanceName || clinica.whatsappStatus !== 'open') { pulados++; continue }
+            const cfgClinica = (clinica.configuracoes as any) || {}
+            if (!clinica.evolutionInstance || cfgClinica.whatsappStatus !== 'open') { pulados++; continue }
             if (!agend.telefone) { pulados++; continue }
 
             // Verificar se NPS já foi enviado (guarda em configuracoes.npsEnviados[])
@@ -80,7 +80,7 @@ Passando rapidinho pra saber como foi sua experiência ontem! 💛
 De 0 a 10, como você avalia nosso atendimento?${linkGoogle ? `\n\nSe puder também deixar uma avaliaçãozinha no Google, ajuda muito a gente! ⭐\n${linkGoogle}` : ''}`
 
             try {
-                const res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${clinica.instanceName}`, {
+                const res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${clinica.evolutionInstance}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
