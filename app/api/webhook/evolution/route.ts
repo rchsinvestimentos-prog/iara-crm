@@ -17,6 +17,7 @@ import { randomUUID } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { autoCaptureCRM } from '@/lib/auto-capture'
 import { processMessage } from '@/lib/engine'
+import * as agrupador from '@/lib/engine/agrupador'
 import type { MensagemRecebida } from '@/lib/engine'
 import { ensureWebhook } from '@/lib/engine/webhook-sync'
 
@@ -279,9 +280,18 @@ export async function POST(request: NextRequest) {
             rawMessage: data  // Full object with key + message (Evolution API needs this)
         }
 
-        // Processa de forma assíncrona (não bloqueia o webhook)
-        processMessage(mensagem).catch((err) => {
-            console.error('[Webhook] ❌ Erro no pipeline:', err)
+        // Passa pelo agrupador antes de processar: mensagem picada espera alguns
+        // segundos para virar uma pergunta só, em vez de gerar várias respostas
+        // soltas. Áudio e mídia seguem direto.
+        const despachar = (m: typeof mensagem) => {
+            processMessage(m).catch((err) => {
+                console.error('[Webhook] ❌ Erro no pipeline:', err)
+            })
+        }
+
+        agrupador.receber(mensagem, despachar).catch((err) => {
+            console.error('[Webhook] ❌ Erro no agrupador, processando direto:', err)
+            despachar(mensagem)
         })
 
         return NextResponse.json({ ok: true, requestId: mensagem.requestId })
