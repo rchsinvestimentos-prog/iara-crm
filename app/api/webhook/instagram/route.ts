@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { MODELO_PADRAO } from '@/lib/engine/ai-engine'
 import crypto from 'crypto'
 
 const META_VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || 'iara_instagram_2026'
@@ -417,7 +418,7 @@ ${historico ? `\nHistórico:\n${historico}` : ''}`
             const res = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
                 headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-                body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 200, system: sys, messages: [{ role: 'user', content: mensagem }] }),
+                body: JSON.stringify({ model: MODELO_PADRAO, max_tokens: 200, system: sys, messages: [{ role: 'user', content: mensagem }] }),
             })
             if (res.ok) { const d = await res.json(); return d.content?.[0]?.text || '' }
         } catch { }

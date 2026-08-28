@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { MODELO_PADRAO } from '@/lib/engine/ai-engine'
 import { buildSystemPrompt } from '@/lib/engine/ai-engine'
 import { checkRateLimit } from '@/lib/rate-limiter'
 import { getAgendaContext } from '@/lib/engine/calendar'
@@ -189,7 +190,7 @@ export async function POST(request: NextRequest) {
                     'anthropic-version': '2023-06-01',
                 },
                 body: JSON.stringify({
-                    model: 'claude-sonnet-4-5',
+                    model: MODELO_PADRAO,
                     max_tokens: 500,
                     system: systemPrompt,
                     messages: [

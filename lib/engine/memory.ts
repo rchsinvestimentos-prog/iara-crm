@@ -23,12 +23,19 @@ export async function getClientMemory(
         })
 
         if (contato) {
-            // Buscar todos os agendamentos já realizados (concluídos) do paciente
+            // Procedimentos concluídos nos últimos 12 meses. O corte existe por
+            // custo: essa lista vai no prompt a cada mensagem e é cobrada por
+            // inteiro (não entra no cache, porque muda de paciente pra paciente).
+            const dozeMesesAtras = new Date()
+            dozeMesesAtras.setMonth(dozeMesesAtras.getMonth() - 12)
+
             const agendamentosConcluidos = await prisma.agendamento.findMany({
                 where: {
                     contatoId: contato.id,
-                    status: 'realizado'
+                    status: 'realizado',
+                    data: { gte: dozeMesesAtras }
                 },
+                take: 20,
                 orderBy: { data: 'desc' },
                 select: {
                     data: true,
@@ -41,13 +48,20 @@ export async function getClientMemory(
                 `${new Date(a.data).toLocaleDateString('pt-BR')}: ${a.procedimento}${a.observacao ? ` (${a.observacao})` : ''}`
             )
 
-            // Compilar um prompt unificado super rico em informações para injetar na IA
+            // Compilar um prompt unificado super rico em informações para injetar na IA.
+            //
+            // São três fontes diferentes e a ordem importa: o que a profissional
+            // escreveu vale mais que o que a IARA deduziu sozinha, então o resumo
+            // automático vem por último e identificado como tal.
             let resumoGeral = ''
             if (contato.resumoClinico) {
-                resumoGeral += `### HISTÓRICO E DIÁLOGO (MEMÓRIA DA IA):\n${contato.resumoClinico}\n\n`
+                resumoGeral += `### RESUMO CLÍNICO (escrito pela profissional):\n${contato.resumoClinico}\n\n`
             }
             if (contato.notas) {
                 resumoGeral += `### ANOTAÇÕES CLÍNICAS DO PROFISSIONAL:\n${contato.notas}\n\n`
+            }
+            if (contato.memoriaIA) {
+                resumoGeral += `### O QUE VOCÊ JÁ APRENDEU SOBRE ELA EM CONVERSAS ANTERIORES:\n${contato.memoriaIA}\n\n`
             }
             if (procedimentosList.length > 0) {
                 resumoGeral += `### HISTÓRICO DE PROCEDIMENTOS CONCLUÍDOS:\n` + procedimentosList.map(p => `- ${p}`).join('\n')

@@ -545,7 +545,21 @@ export function buildSystemPrompt(ctx: PromptContext): string {
 // ============================================
 
 /**
- * Chama Claude Sonnet (principal) com fallback pra GPT-4o-mini.
+ * Modelo padrão da IARA.
+ *
+ * Haiku custa cerca de 1/3 do Sonnet por conversa (R$ 0,069 contra R$ 0,208
+ * medidos com o cache de 1h ligado). Essa diferença é o que mantém a margem
+ * positiva nos planos com teto — no Sonnet, os planos Pro e Premium fechavam
+ * no negativo. Ver o cálculo em scratch/ ou no documento "Quanto Custa a IARA".
+ *
+ * Duas saídas se a qualidade não segurar:
+ *  - uma clínica só: gravar `modelo_sonnet` em configuracoes (já suportado);
+ *  - todas de uma vez: MODELO_IA_PADRAO no ambiente, sem precisar de deploy.
+ */
+export const MODELO_PADRAO = process.env.MODELO_IA_PADRAO || 'claude-haiku-4-5-20251001'
+
+/**
+ * Chama o Claude (principal) com fallback pra GPT-4o-mini.
  * 
  * Retentativa: Claude tenta 3x, depois cai pro GPT.
  */
@@ -557,8 +571,8 @@ export async function callAI(
     tipoEntrada?: 'text' | 'audio'
 ): Promise<RespostaIA> {
 
-    // 1. Tentar Claude Sonnet
-    const modelo = modelOverride || 'claude-sonnet-4-5'
+    // 1. Tentar Claude (Haiku por padrão, Sonnet se a clínica pedir)
+    const modelo = modelOverride || MODELO_PADRAO
 
     for (let tentativa = 1; tentativa <= 3; tentativa++) {
         try {
@@ -628,10 +642,21 @@ async function callClaude(
     // O trecho estável (identidade, catálogo, cofre) é igual em toda mensagem da
     // mesma clínica. Marcado com cache_control, a Anthropic cobra 10% dele nas
     // leituras seguintes. O trecho volátil fica fora do cache, depois do corte.
+    //
+    // ttl '1h' em vez do padrão de 5 minutos: gravar custa 2x em vez de 1,25x,
+    // mas cada leitura reinicia o relógio de graça. Numa clínica que recebe uma
+    // conversa a cada ~40 min, o cache de 5 min morria entre as pacientes e era
+    // regravado o dia todo; com 1h ele sobrevive aos intervalos do expediente.
+    // Se o log [AI] 💾 mostrar 'gravado' alto mesmo assim, a clínica é parada
+    // demais para a janela maior e vale voltar para o padrão (remover o ttl).
     const systemBlocks = typeof system === 'string'
         ? system
         : [
-            { type: 'text', text: system.estavel, cache_control: { type: 'ephemeral' } },
+            {
+                type: 'text',
+                text: system.estavel,
+                cache_control: { type: 'ephemeral', ttl: '1h' },
+            },
             { type: 'text', text: system.volatil },
         ]
 

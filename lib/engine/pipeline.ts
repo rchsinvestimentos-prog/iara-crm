@@ -23,6 +23,7 @@
 import * as catraca from './catraca'
 import * as audio from './audio'
 import * as memory from './memory'
+import * as quota from './quota'
 import * as calendar from './calendar'
 import * as aiEngine from './ai-engine'
 import * as sender from './sender'
@@ -432,7 +433,19 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         combosAtivos,
     })
 
-    await logPipeline('AI_CALL', `chamando IA... modelo=${(clinica.configuracoes as any)?.modelo_sonnet || 'default'}`)
+    // ------------------------------------------------
+    // TETO DO PLANO — checado aqui, depois do cache.
+    // Resposta que veio do cache não custa IA, então não consome cota.
+    // ------------------------------------------------
+    const cota = await quota.podeResponder(clinica)
+    if (!cota.permitido) {
+        await logPipeline('COTA_ESTOURADA', `usado=${cota.usado} limite=${cota.limite}`)
+        console.warn(`[Pipeline] 🛑 Clínica ${clinica.id} bateu o teto de mensagens (${cota.usado}/${cota.limite})`)
+        await quota.tratarEstouro(clinica, msg.telefone)
+        return
+    }
+
+    await logPipeline('AI_CALL', `chamando IA... modelo=${(clinica.configuracoes as any)?.modelo_sonnet || 'default'} cota=${cota.usado}/${cota.limite}`)
     const resposta = await aiEngine.callAI(
         systemPrompt,
         textoMensagem,
@@ -451,6 +464,10 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     }
     
     await logPipeline('AI_OK', `resposta=${resposta.texto.slice(0,80)} modelo=${resposta.modelo}`)
+
+    // Só desconta da cota depois que a IA respondeu de verdade — uma falha
+    // de API não pode consumir a mensagem que o cliente pagou.
+    await quota.registrarMensagem(clinica)
 
     // ================================================
     // 11. SALVAR NO CACHE
@@ -496,12 +513,23 @@ async function finalizarResposta(
 ) {
     // Determinar saída (respeita toggle responder_audio)
     const funcsLocal = parseFuncionalidades(clinica.funcionalidades)
-    const configSaida = audio.determineOutputType(clinica, tipoEntrada === 'audio', funcsLocal.responder_audio)
+    let configSaida = audio.determineOutputType(clinica, tipoEntrada === 'audio', funcsLocal.responder_audio)
+
+    // TETO DE ÁUDIOS — voz é o item mais caro por mensagem. Estourou o teto,
+    // ela continua atendendo, só que por texto. Nada quebra para a paciente.
+    if (configSaida.tipoSaida === 'audio') {
+        const cotaAudio = await quota.podeGerarAudio(clinica)
+        if (!cotaAudio.permitido) {
+            console.warn(`[Pipeline] 🔇 Clínica ${clinica.id} bateu o teto de áudios (${cotaAudio.usado}/${cotaAudio.limite}) — respondendo por texto`)
+            configSaida = { tipoSaida: 'text', provedorVoz: null, voiceId: null }
+        }
+    }
 
     let audioBase64Resposta: string | null = null
     let outgoingAudioUrl: string | null = null
     if (configSaida.tipoSaida === 'audio') {
         audioBase64Resposta = await audio.generateTTS(respostaTexto, configSaida)
+        if (audioBase64Resposta) await quota.registrarAudio(clinica)
         if (audioBase64Resposta) {
             outgoingAudioUrl = await audio.saveAudioFile(audioBase64Resposta, 'outgoing')
         }
@@ -675,12 +703,16 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
         if (base64) {
             const ext = msg.tipoMensagem === 'image' ? 'jpg' : msg.tipoMensagem === 'video' ? 'mp4' : 'pdf'
             const filename = `media_${msg.requestId || Date.now()}.${ext}`
-            const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'media')
+            // Grava no volume persistente (mesmo lugar do upload pelo painel).
+            // public/ vive na imagem do contêiner e é descartado a cada deploy —
+            // salvar ali fazia a foto da paciente sumir na próxima publicação.
+            const uploadsRoot = process.env.UPLOADS_DIR || '/app/uploads'
+            const uploadDir = path.join(uploadsRoot, String(clinica.id), 'media')
             if (!fs.existsSync(uploadDir)) {
                 fs.mkdirSync(uploadDir, { recursive: true })
             }
             fs.writeFileSync(path.join(uploadDir, filename), Buffer.from(base64, 'base64'))
-            mediaUrl = `/uploads/media/${filename}`
+            mediaUrl = `/api/uploads/${clinica.id}/media/${filename}`
             console.log(`[Pipeline] ✅ Mídia salva localmente: ${mediaUrl}`)
         }
     } catch (err) {

@@ -24,14 +24,36 @@ export async function GET(request: NextRequest) {
         const resultados: any = {}
 
         // 1. Histórico de conversas > 90 dias
+        //
+        // Só apaga o que o cron de memória (/api/cron/memoria) já transformou
+        // em resumo. Antes disso a conversa era apagada e o aprendizado sobre a
+        // paciente ia junto — o que ela contou sumia para sempre aos 90 dias.
         try {
             const limite90dias = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
             const r = await prisma.$executeRaw`
-                DELETE FROM historico_conversas 
-                WHERE created_at < ${limite90dias}::timestamp
+                DELETE FROM historico_conversas h
+                WHERE h.created_at < ${limite90dias}::timestamp
+                  AND EXISTS (
+                        SELECT 1 FROM memoria_resumos m
+                        WHERE m.clinica_id = h.user_id
+                          AND m.telefone_cliente = h.telefone_cliente
+                          AND m.resumido_ate >= h.created_at
+                  )
             `
             resultados.historicoRemovido = r
         } catch { resultados.historicoRemovido = 'tabela não encontrada' }
+
+        // 1b. Rede de segurança: se por algum motivo o cron de memória parar,
+        // a conversa não pode ficar acumulando para sempre. Aos 180 dias sai
+        // de qualquer jeito, resumida ou não.
+        try {
+            const limite180dias = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString()
+            const r = await prisma.$executeRaw`
+                DELETE FROM historico_conversas
+                WHERE created_at < ${limite180dias}::timestamp
+            `
+            resultados.historicoRemovidoLimiteMaximo = r
+        } catch { resultados.historicoRemovidoLimiteMaximo = 'tabela não encontrada' }
 
         // 2. Uso de features > 3 meses
         try {

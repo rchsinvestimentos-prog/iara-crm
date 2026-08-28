@@ -5,12 +5,13 @@
 // Conversa com a Dra, sugere ideias, e executa ações
 // via tool_use (Claude) / function calling (GPT fallback).
 //
-// MOTOR PRINCIPAL: Claude Sonnet (Anthropic) — mesmo padrão do ai-engine.ts
+// MOTOR PRINCIPAL: mesmo modelo do ai-engine.ts (MODELO_PADRAO, hoje Haiku).
 // FALLBACK: GPT-4o (OpenAI) — só se Claude falhar 3x
 //
 // Funciona via WhatsApp (isDoutora) e Painel (chat).
 
 import { prisma } from '@/lib/prisma'
+import { MODELO_PADRAO } from '@/lib/engine/ai-engine'
 import { saveDraMessage, getDraHistoryForPrompt } from './dra-memory'
 import { AGENT_TOOLS_CLAUDE, AGENT_TOOLS_OPENAI, executeTool } from './dra-tools'
 import { classifyIntent, type ClassifiedIntent } from './intent-classifier'
@@ -223,7 +224,7 @@ async function callClaudeAgent(
 ): Promise<{ texto: string; modelo: string; fallback: boolean } | null> {
     if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY não configurada')
 
-    const modelo = 'claude-sonnet-4-5'
+    const modelo = MODELO_PADRAO
 
     // Montar mensagens no formato Claude
     const messages: any[] = [

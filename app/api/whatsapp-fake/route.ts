@@ -18,6 +18,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { randomUUID } from 'crypto'
 import { prisma } from '@/lib/prisma'
+import { MODELO_PADRAO } from '@/lib/engine/ai-engine'
 import { buildSystemPrompt } from '@/lib/engine/ai-engine'
 import { transcribeAudio, determineOutputType, generateTTS } from '@/lib/engine/audio'
 import { checkAccess } from '@/lib/engine/catraca'
@@ -339,7 +340,7 @@ export async function POST(request: NextRequest) {
                             'anthropic-version': '2023-06-01',
                         },
                         body: JSON.stringify({
-                            model: 'claude-sonnet-4-20250514',
+                            model: MODELO_PADRAO,
                             max_tokens: 600,
                             system: systemPrompt,
                             messages: [
@@ -538,7 +539,7 @@ export async function POST(request: NextRequest) {
             plano: nivel,
             iaUsada: clienteEnviouImagem
                 ? (process.env.ANTHROPIC_API_KEY ? 'claude-vision' : 'gpt-4o-vision')
-                : (process.env.ANTHROPIC_API_KEY ? 'claude-sonnet' : 'gpt-4o-mini'),
+                : (process.env.ANTHROPIC_API_KEY ? MODELO_PADRAO : 'gpt-4o-mini'),
         })
 
     } catch (err: any) {
