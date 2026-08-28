@@ -144,7 +144,9 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
                                 Simulador IARA
                             </h3>
                             <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                                Teste suas configurações (não salvas)
+                                {config
+                                    ? 'Teste suas configurações (não salvas)'
+                                    : 'Responde igual ao WhatsApp, com o que está salvo'}
                             </p>
                         </div>
                     </div>

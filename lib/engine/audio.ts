@@ -232,6 +232,7 @@ export function determineOutputType(
     // o Premium sem clonagem se ela não tivesse pago o pacote, e obrigava
     // quem só queria voz bonita a subir de plano.
     // -----------------------------------------------
+    const pronuncias = Array.isArray(cfg.pronuncias) ? cfg.pronuncias : []
     const azureVoiceId = cfg.azure_voice_id || VOZ_AZURE_PADRAO
     const elevenVoiceId = cfg.eleven_voice_id || null
     const vozClonadaId = cfg.voice_id_clonada || clinica.vozClonada || null
@@ -249,7 +250,7 @@ export function determineOutputType(
     // -----------------------------------------------
     if (escolha === 'clone' && temPacoteClonagem && vozClonadaId) {
         console.log('[Audio] 🎙️ voz: clone (Fish Audio)')
-        return { tipoSaida: 'audio', provedorVoz: 'fish', voiceId: vozClonadaId }
+        return { tipoSaida: 'audio', provedorVoz: 'fish', voiceId: vozClonadaId, pronuncias }
     }
 
     // -----------------------------------------------
@@ -262,7 +263,7 @@ export function determineOutputType(
     if (escolha === 'realista' && temPacoteRealista && elevenVoiceId) {
         if (cotaRealistaDisponivel) {
             console.log('[Audio] 🎙️ voz: realista (ElevenLabs)')
-            return { tipoSaida: 'audio', provedorVoz: 'elevenlabs', voiceId: elevenVoiceId }
+            return { tipoSaida: 'audio', provedorVoz: 'elevenlabs', voiceId: elevenVoiceId, pronuncias }
         }
         console.log('[Audio] 🎙️ cota de voz realista esgotada no mês — usando Azure')
     }
@@ -271,7 +272,7 @@ export function determineOutputType(
     // PADRÃO — Azure, incluída em todos os planos
     // -----------------------------------------------
     console.log(`[Audio] 🎙️ voz: padrão (Azure ${azureVoiceId})`)
-    return { tipoSaida: 'audio', provedorVoz: 'azure', voiceId: azureVoiceId }
+    return { tipoSaida: 'audio', provedorVoz: 'azure', voiceId: azureVoiceId, pronuncias }
 }
 
 /**
@@ -484,8 +485,32 @@ export async function generateTTS_ElevenLabs(
  * Pré-processa texto antes de enviar ao TTS.
  * Expande abreviações, remove emojis, normaliza números para pronunça natural.
  */
-function prepareTextForTTS(texto: string): string {
-    return texto
+function prepareTextForTTS(
+    texto: string,
+    pronuncias?: { escrita: string; falada: string }[]
+): string {
+    // As pronúncias da clínica vêm primeiro: são nomes próprios (marca da
+    // clínica, nome de procedimento, sobrenome da profissional) que as regras
+    // genéricas abaixo não teriam como adivinhar.
+    //
+    // A troca respeita limite de palavra e ignora maiúscula/minúscula, para
+    // pegar "Schuster", "schuster" e "SCHUSTER" sem casar dentro de outra
+    // palavra maior.
+    let base = texto
+    for (const p of pronuncias || []) {
+        const escrita = (p?.escrita || '').trim()
+        const falada = (p?.falada || '').trim()
+        if (!escrita || !falada) continue
+        const escapada = escrita.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        try {
+            base = base.replace(new RegExp(`\\b${escapada}\\b`, 'gi'), falada)
+        } catch {
+            // Palavra com caractere estranho que quebrou o padrão — ignora essa
+            // e segue com as outras, em vez de derrubar o áudio inteiro.
+        }
+    }
+
+    return base
         // Asteriscos de formatação WhatsApp (negrito)
         .replace(/\*/g, '')
         // Horas: "15hrs" → "15 horas", "15h" → "15 horas", "15h30" → "15 horas e 30"
@@ -547,7 +572,7 @@ export async function generateTTS(
     if (config.tipoSaida !== 'audio' || !config.provedorVoz) return null
 
     // Pré-processar texto para pronunça natural
-    const textoProcessado = prepareTextForTTS(texto)
+    const textoProcessado = prepareTextForTTS(texto, config.pronuncias)
     console.log(`[TTS] Texto processado: "${textoProcessado.slice(0, 80)}..."`)
 
     // Contabiliza o custo de voz: na ElevenLabs 1 caractere = 1 crédito, e o

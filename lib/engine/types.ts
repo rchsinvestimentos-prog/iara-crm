@@ -212,6 +212,12 @@ export interface ConfigSaida {
      */
     provedorVoz: 'azure' | 'elevenlabs' | 'fish' | 'openai_tts' | null
     voiceId: string | null
+    /**
+     * Palavras que a clínica ensinou a IARA a pronunciar.
+     * 'escrita' é como aparece no texto; 'falada' é o que vai para a voz.
+     * Ex.: { escrita: 'Schuster', falada: 'Chúster' }
+     */
+    pronuncias?: { escrita: string; falada: string }[]
 }
 
 /** Log de evento */

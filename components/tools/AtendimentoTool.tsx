@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { MessageCircle, Plus, Trash2, Save, Sparkles, Shield, ToggleLeft, ToggleRight, Loader2, Check, Bot, Clock, Ban, Cake, MessageSquareText, Pencil, X } from 'lucide-react'
-import SimulatorDrawer from './SimulatorDrawer'
 import VozTool from './VozTool'
 
 // Funcionalidades que a IARA pode fazer — a Dra liga/desliga
@@ -708,30 +707,10 @@ export default function AtendimentoTool() {
 
             <VozTool />
 
-            {/* Testar IARA Floating Button */}
-            <button
-                onClick={() => setSimOpen(true)}
-                className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 rounded-full text-white font-semibold shadow-2xl hover:-translate-y-1 transition-all"
-                style={{ background: 'linear-gradient(135deg, #0F4C61, #1a6e8b)' }}
-            >
-                <Bot size={18} />
-                <span className="hidden sm:inline">Testar {nomeIA || 'IARA'}</span>
-            </button>
-
-            {/* Drawer do Simulador */}
-            <SimulatorDrawer
-                isOpen={simOpen}
-                onClose={() => setSimOpen(false)}
-                config={{
-                    nomeIA,
-                    humor,
-                    tom,
-                    emojis,
-                    fraseFavorita,
-                    feedbacks,
-                    funcionalidades: funcionalidades.reduce((acc, f) => ({ ...acc, [f.id]: f.ativo }), {})
-                }}
-            />
+            {/* O botão de testar saiu daqui: agora é o flutuante do layout, que
+                aparece em qualquer tela. Os dois juntos ficavam empilhados no
+                mesmo canto. O de fora usa a configuração salva, então é preciso
+                salvar antes de ouvir o efeito de uma mudança. */}
         </div>
     )
 }

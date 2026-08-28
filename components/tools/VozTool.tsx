@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Mic, Play, Pause, Check, RefreshCw, Volume2, Lock, Crown, Sparkles, Radio, Square, Headphones, Loader2 } from 'lucide-react'
+import { Mic, Play, Pause, Check, RefreshCw, Volume2, Lock, Crown, Sparkles, Radio, Square, Headphones, Loader2, X } from 'lucide-react'
 
 // ============================================
 // VOZES PADRÃO (Azure pt-BR) — inclusas em todos os planos
@@ -50,6 +50,16 @@ export default function VozTool() {
     const [temPacoteRealista, setTemPacoteRealista] = useState(false)
     const [temPacoteClonagem, setTemPacoteClonagem] = useState(false)
     const [ofertaAberta, setOfertaAberta] = useState<null | 'realista' | 'clonagem'>(null)
+
+    // Dicionário de pronúncia da clínica: nomes próprios que a IARA leria
+    // errado (marca da clínica, nome de procedimento, sobrenome). As regras
+    // gerais de leitura — horas, valores, Dra. — continuam como estavam.
+    const [pronuncias, setPronuncias] = useState<{ escrita: string; falada: string }[]>([])
+    const [novaEscrita, setNovaEscrita] = useState('')
+    const [novaFalada, setNovaFalada] = useState('')
+    const [testandoPronuncia, setTestandoPronuncia] = useState(false)
+    const [salvandoPronuncias, setSalvandoPronuncias] = useState(false)
+    const [pronunciasSalvas, setPronunciasSalvas] = useState(false)
     const [salvando, setSalvando] = useState(false)
     const [salvo, setSalvo] = useState(false)
 
@@ -86,6 +96,7 @@ export default function VozTool() {
                 if (cfg.tipo_voz_ativa) setTipoVozAtiva(LEGADO[cfg.tipo_voz_ativa] || cfg.tipo_voz_ativa)
                 if (cfg.azure_voice_id) setVozTTSSelecionada(cfg.azure_voice_id)
                 if (cfg.eleven_voice_id) setVozUltraSelecionada(cfg.eleven_voice_id)
+                if (Array.isArray(cfg.pronuncias)) setPronuncias(cfg.pronuncias)
             })
             .catch(() => { })
     }, [])
@@ -209,6 +220,59 @@ export default function VozTool() {
     // ============================================
     // SALVAR
     // ============================================
+    /** Fala a palavra do jeito cadastrado, antes de salvar. */
+    const ouvirPronuncia = async (escrita: string, falada: string) => {
+        if (!escrita.trim() || !falada.trim() || testandoPronuncia) return
+        setTestandoPronuncia(true)
+        try {
+            const res = await fetch('/api/voz/testar-pronuncia', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    texto: `A ${escrita.trim()} é uma das nossas especialidades.`,
+                    pronuncias: [{ escrita: escrita.trim(), falada: falada.trim() }],
+                }),
+            })
+            const data = await res.json()
+            if (data.audioBase64) {
+                if (audioRef.current) audioRef.current.pause()
+                const audio = new Audio(`data:audio/mp3;base64,${data.audioBase64}`)
+                audioRef.current = audio
+                audio.play().catch(() => { })
+            }
+        } catch { /* silencioso: o botão volta ao normal e a pessoa tenta de novo */ }
+        setTestandoPronuncia(false)
+    }
+
+    const adicionarPronuncia = () => {
+        const escrita = novaEscrita.trim()
+        const falada = novaFalada.trim()
+        if (!escrita || !falada) return
+        // Reescrever a mesma palavra substitui, em vez de duplicar
+        setPronuncias(prev => [...prev.filter(p => p.escrita.toLowerCase() !== escrita.toLowerCase()), { escrita, falada }])
+        setNovaEscrita('')
+        setNovaFalada('')
+        setPronunciasSalvas(false)
+    }
+
+    const salvarPronuncias = async () => {
+        setSalvandoPronuncias(true)
+        try {
+            const atual = await fetch('/api/clinica').then(r => r.json()).catch(() => ({}))
+            const cfg = { ...(atual?.configuracoes || {}), pronuncias }
+            const res = await fetch('/api/clinica', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ configuracoes: cfg }),
+            })
+            if (res.ok) {
+                setPronunciasSalvas(true)
+                setTimeout(() => setPronunciasSalvas(false), 3000)
+            }
+        } catch { /* mantém o botão disponível para tentar de novo */ }
+        setSalvandoPronuncias(false)
+    }
+
     const salvarVoz = async () => {
         // Escolheu voz realista ou clonagem sem ter o pacote: em vez de salvar
         // uma configuração que a IARA vai ignorar, mostra a oferta.
@@ -420,6 +484,111 @@ export default function VozTool() {
                             <Crown size={10} /> Ativar
                         </a>
                     </div>
+                )}
+            </div>
+
+            {/* ============================================ */}
+            {/* COMO A IARA FALA CERTAS PALAVRAS */}
+            {/* ============================================ */}
+            {/* Nomes próprios que nenhuma regra geral acerta: a marca da
+                clínica, um procedimento em inglês, o sobrenome da profissional.
+                Aqui a clínica escreve como quer ouvir, testa, e salva. */}
+            <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                <h3 className="text-[13px] font-semibold text-[#0F4C61] mb-1 flex items-center gap-2">
+                    <Headphones size={15} className="text-[#0F4C61]" />
+                    Como a IARA fala certas palavras
+                </h3>
+                <p className="text-[10px] text-gray-400 mb-4">
+                    Nome da clínica, procedimento em inglês, sobrenome — se a IARA lê errado, ensine aqui como deve soar.
+                </p>
+
+                {/* Lista do que já foi ensinado */}
+                {pronuncias.length > 0 && (
+                    <div className="space-y-2 mb-4">
+                        {pronuncias.map(p => (
+                            <div key={p.escrita} className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50">
+                                <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                                    <span className="text-[12px] font-medium text-gray-700">{p.escrita}</span>
+                                    <span className="text-[11px] text-gray-300">fala</span>
+                                    <span className="text-[12px] font-medium text-[#D99773]">{p.falada}</span>
+                                </div>
+                                <button
+                                    onClick={() => ouvirPronuncia(p.escrita, p.falada)}
+                                    disabled={testandoPronuncia}
+                                    title="Ouvir"
+                                    className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors"
+                                >
+                                    <Play size={13} className="text-[#0F4C61]" />
+                                </button>
+                                <button
+                                    onClick={() => { setPronuncias(prev => prev.filter(x => x.escrita !== p.escrita)); setPronunciasSalvas(false) }}
+                                    title="Remover"
+                                    className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-300 hover:text-red-400"
+                                >
+                                    <X size={13} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Ensinar uma palavra nova */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                    <div>
+                        <label className="text-[10px] text-gray-400 mb-1 block">Como se escreve</label>
+                        <input
+                            value={novaEscrita}
+                            onChange={e => setNovaEscrita(e.target.value)}
+                            placeholder="microblading"
+                            className="w-full px-3 py-2 rounded-xl text-[12px] bg-gray-50 border border-gray-200 focus:border-[#0F4C61] outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[10px] text-gray-400 mb-1 block">Como deve soar</label>
+                        <input
+                            value={novaFalada}
+                            onChange={e => setNovaFalada(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') adicionarPronuncia() }}
+                            placeholder="microbleidin"
+                            className="w-full px-3 py-2 rounded-xl text-[12px] bg-gray-50 border border-gray-200 focus:border-[#D99773] outline-none"
+                        />
+                    </div>
+                </div>
+                <p className="text-[10px] text-gray-400 mb-3">
+                    Escreva do jeito que se fala, não do jeito certo. Ex.: <strong>Schuster</strong> → <strong>Chúster</strong>
+                </p>
+
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => ouvirPronuncia(novaEscrita, novaFalada)}
+                        disabled={!novaEscrita.trim() || !novaFalada.trim() || testandoPronuncia}
+                        className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold border transition-colors disabled:opacity-40"
+                        style={{ borderColor: 'var(--border-default)', color: '#0F4C61' }}
+                    >
+                        {testandoPronuncia ? <Loader2 size={13} className="animate-spin" /> : <Volume2 size={13} />}
+                        Ouvir
+                    </button>
+                    <button
+                        onClick={adicionarPronuncia}
+                        disabled={!novaEscrita.trim() || !novaFalada.trim()}
+                        className="flex-1 px-4 py-2 rounded-xl text-[12px] font-semibold text-white disabled:opacity-40"
+                        style={{ background: 'linear-gradient(135deg, #0F4C61, #1a6e8b)' }}
+                    >
+                        Adicionar à lista
+                    </button>
+                </div>
+
+                {pronuncias.length > 0 && (
+                    <button
+                        onClick={salvarPronuncias}
+                        disabled={salvandoPronuncias}
+                        className="w-full mt-3 py-2.5 rounded-xl text-[12.5px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+                        style={{ background: pronunciasSalvas ? '#06D6A0' : 'linear-gradient(135deg, #D99773, #C07A55)' }}
+                    >
+                        {salvandoPronuncias ? <Loader2 size={14} className="animate-spin" />
+                            : pronunciasSalvas ? <Check size={14} /> : <Sparkles size={14} />}
+                        {pronunciasSalvas ? 'Salvo! A IARA já fala assim' : 'Salvar palavras'}
+                    </button>
                 )}
             </div>
 
