@@ -90,7 +90,16 @@ export const config = {
          * - api/agendamento-publico
          * - api/auth
          * - api/webhook
+         * - api/cron/
+         *
+         * api/cron precisa ficar fora daqui: quem chama é o cron-job.org, que
+         * não tem sessão. Sem esta exceção, toda execução agendada era
+         * redirecionada para /login com 307 e nunca chegava na rota — foi o
+         * motivo de os crons aparecerem como falha e serem desativados.
+         * Elas não ficam abertas: cada rota confere CRON_SECRET por conta.
+         * A barra final é proposital — sem ela, um /api/cronometro futuro
+         * escaparia da proteção por casar o prefixo.
          */
-        '/((?!_next/static|_next/image|api/agendamento-publico|api/auth|api/webhook|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|api/agendamento-publico|api/auth|api/webhook|api/cron/|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }
