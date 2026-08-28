@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { momentoDoPonto } from '@/lib/engine/horarios'
+import type { DadosClinica } from '@/lib/engine/types'
 
 const CRON_SECRET = process.env.CRON_SECRET || ''
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
@@ -23,7 +25,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const tipo = request.nextUrl.searchParams.get('tipo') || 'entrada'
+    // Sem ?tipo, cada clínica decide pelo próprio expediente — é o modo
+    // recomendado: um agendamento de hora em hora atende todas, cada uma no
+    // seu horário. Com ?tipo=entrada|saida, força o envio para todas de uma
+    // vez, como era antes (mantido para não quebrar agendamentos existentes).
+    const tipoForcado = request.nextUrl.searchParams.get('tipo') as 'entrada' | 'saida' | null
 
     try {
         const clinicas = await prisma.clinica.findMany({
@@ -36,11 +42,20 @@ export async function GET(request: NextRequest) {
                 evolutionApikey: true,
                 funcionalidades: true,
                 configuracoes: true,
+                // Tudo que momentoDoPonto precisa para acertar o horário desta
+                // clínica: o expediente de cada tipo de dia e o fuso dela.
                 horarioSemana: true,
+                horarioSabado: true,
+                horarioDomingo: true,
+                atendeSabado: true,
+                atendeDomingo: true,
+                timezone: true,
             },
         })
 
         let enviados = 0
+        let entradas = 0
+        let saidas = 0
         let pulados = 0
         let erros = 0
 
@@ -54,6 +69,11 @@ export async function GET(request: NextRequest) {
             } catch { /* default */ }
             // Este toggle é OFF por padrão
             if (funcs.horario_ponto !== true) { pulados++; continue }
+
+            // Qual mensagem cabe nesta clínica agora
+            const tipo = tipoForcado || momentoDoPonto(clinica as unknown as DadosClinica)
+            if (!tipo) { pulados++; continue }   // não é hora de abrir nem de fechar aqui
+            if (tipo === 'entrada') entradas++; else saidas++
 
             const config = (clinica.configuracoes as any) || {}
             if (config.whatsappStatus !== 'open') { pulados++; continue }
@@ -118,8 +138,9 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        console.log(`[PONTO-${tipo.toUpperCase()}] ✅ ${enviados} enviados | ${pulados} pulados | ${erros} erros`)
-        return NextResponse.json({ ok: true, tipo, enviados, pulados, erros })
+        const modo = tipoForcado || 'por horário de cada clínica'
+        console.log(`[PONTO] ✅ ${modo} — ${enviados} enviados (${entradas} clínicas abrindo, ${saidas} fechando) | ${pulados} pulados | ${erros} erros`)
+        return NextResponse.json({ ok: true, modo, enviados, clinicasAbrindo: entradas, clinicasFechando: saidas, pulados, erros })
     } catch (err: any) {
         console.error(`[PONTO] ❌ Erro geral:`, err)
         return NextResponse.json({ error: err.message }, { status: 500 })

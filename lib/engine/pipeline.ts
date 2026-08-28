@@ -32,6 +32,7 @@ import { processaDraMensagem } from '@/lib/agent/dra-agent'
 import { shouldRouteToAgent } from '@/lib/agent/intent-classifier'
 import type { MensagemRecebida, DadosClinica, ProfissionalAtivo, Funcionalidades } from './types'
 import { parseFuncionalidades } from './types'
+import { parseHorario } from './horarios'
 import { prisma } from '@/lib/prisma'
 import { createHash } from 'crypto'
 import * as fs from 'fs'
@@ -846,18 +847,6 @@ function checkBusinessHours(clinica: DadosClinica): HorarioCheck {
     }
 
     return { aberto: true, msgFechado: '', debugInfo: `${horaAtual.toFixed(1)} dentro de ${inicio}-${fim}` }
-}
-
-function parseHorario(texto: string): { inicio: number, fim: number } {
-    // Suporta: "08:00 às 18:00", "08:00 as 18:00", "8:00-18:00", "09:00 - 17:30"
-    const match = texto.match(/(\d{1,2}):(\d{2})\s*(?:às|as|a|-|–)\s*(\d{1,2}):(\d{2})/i)
-    if (match) {
-        return {
-            inicio: parseInt(match[1]) + parseInt(match[2]) / 60,
-            fim: parseInt(match[3]) + parseInt(match[4]) / 60,
-        }
-    }
-    return { inicio: 8, fim: 18 } // Fallback
 }
 
 function buildMsgFechado(clinica: DadosClinica, voltaQuando: string): string {
