@@ -67,6 +67,11 @@ export const MAX_NIVEL = 3
 // entao ficavam travados para 100% dos clientes, inclusive os Premium.
 // Ficam escondidos ate haver uma decisao de plano. Para religar: true.
 export const AVATAR_VIDEO_HABILITADO = false
+
+// O Instagram depende de aprovação da Meta para as permissões de mensagem,
+// que ainda não saiu. Enquanto isso o card aparece como "Em breve" em vez de
+// oferecer uma conexão que falha na hora de autorizar. Para religar: true.
+export const INSTAGRAM_HABILITADO = false
 export const CAMPANHAS_HABILITADAS = false
 
 // Aliases (compatibilidade com nomes antigos do banco/Hotmart)

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import UpgradeOverlay from '@/components/UpgradeOverlay';
+import { INSTAGRAM_HABILITADO } from '@/lib/planos';
 
 interface Instancia {
     id: number;
@@ -639,15 +640,25 @@ export default function ConexoesPage() {
                     <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>Instagram</h2>
+                            {!INSTAGRAM_HABILITADO && (
+                                <span style={{
+                                    background: '#eef2f7', color: '#64748b',
+                                    fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+                                    padding: '3px 9px', borderRadius: 999,
+                                    textTransform: 'uppercase' as const, whiteSpace: 'nowrap' as const
+                                }}>Em breve</span>
+                            )}
                         </div>
                         <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
-                            {temInstagram
-                                ? `${instagrams.length} conta${instagrams.length > 1 ? 's' : ''} conectada${instagrams.length > 1 ? 's' : ''}`
-                                : 'Conecte para a IARA responder DMs'
+                            {!INSTAGRAM_HABILITADO
+                                ? 'A IARA vai responder as DMs automaticamente'
+                                : temInstagram
+                                    ? `${instagrams.length} conta${instagrams.length > 1 ? 's' : ''} conectada${instagrams.length > 1 ? 's' : ''}`
+                                    : 'Conecte para a IARA responder DMs'
                             }
                         </p>
                     </div>
-                    {!temInstagram && podeAddInstagram && (
+                    {INSTAGRAM_HABILITADO && !temInstagram && podeAddInstagram && (
                         <button
                             onClick={conectarInstagram}
                             disabled={conectando}
@@ -683,7 +694,7 @@ export default function ConexoesPage() {
                                     {status.label}
                                 </div>
                             </div>
-                            {inst.status_conexao !== 'conectado' && (
+                            {INSTAGRAM_HABILITADO && inst.status_conexao !== 'conectado' && (
                                 <button
                                     onClick={async () => {
                                         try {

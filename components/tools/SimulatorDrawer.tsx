@@ -10,8 +10,14 @@ type SimMsg = {
 interface SimulatorDrawerProps {
     isOpen: boolean
     onClose: () => void
-    // Unsaved configuration to test
-    config: {
+    /**
+     * Configuração ainda não salva, para testar antes de gravar.
+     *
+     * Opcional: quando o simulador é aberto de fora da tela de Atendimento
+     * (pelo botão flutuante), não há nada em edição — aí ele roda com a
+     * configuração salva da clínica, que é o comportamento real da IARA.
+     */
+    config?: {
         nomeIA: string
         humor: string
         tom: string
@@ -26,7 +32,9 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
     const [simInput, setSimInput] = useState('')
     const [simHistory, setSimHistory] = useState<SimMsg[]>([])
     const [simLoading, setSimLoading] = useState(false)
-    const [simAudio, setSimAudio] = useState(false)
+    // Ligado por padrão: ouvir a voz é justamente o que o simulador tem de
+    // melhor, e assim não é preciso conectar um WhatsApp para testar.
+    const [simAudio, setSimAudio] = useState(true)
     const simEndRef = useRef<HTMLDivElement>(null)
 
     // Scroll to bottom when history changes
@@ -41,10 +49,10 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
         if (isOpen && simHistory.length === 0) {
             setSimHistory([{
                 role: 'assistant',
-                content: `Olá! Eu sou a ${config.nomeIA || 'IARA'}. Faça um teste simulando uma cliente me chamando no WhatsApp.`
+                content: `Olá! Eu sou a ${config?.nomeIA || 'IARA'}. Faça um teste simulando uma cliente me chamando no WhatsApp.`
             }])
         }
-    }, [isOpen, config.nomeIA])
+    }, [isOpen, config?.nomeIA])
 
     if (!isOpen) return null
 
@@ -75,7 +83,9 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
                     leadName: 'Cliente Teste',
                     history: historyForApi,
                     withAudio: simAudio,
-                    overrides: {
+                    // Sem config em edição, vai vazio: a API usa o que está
+                    // salvo, que é exatamente como a IARA responde de verdade.
+                    overrides: config ? {
                         nomeAssistente: config.nomeIA,
                         humor: config.humor,
                         tomAtendimento: config.tom,
@@ -83,7 +93,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
                         fraseDespedida: config.fraseFavorita,
                         feedbacks: config.feedbacks,
                         funcionalidades: JSON.stringify(config.funcionalidades)
-                    }
+                    } : {}
                 }),
             })
             const data = await res.json()
@@ -156,7 +166,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
                                     <div className="flex items-center gap-1.5 mb-1.5 opacity-70">
                                         {isUser ? <User size={12} /> : <Bot size={12} />}
                                         <span className="text-[10px] font-medium uppercase tracking-wider">
-                                            {isUser ? 'Você (Cliente)' : config.nomeIA || 'IARA'}
+                                            {isUser ? 'Você (Cliente)' : config?.nomeIA || 'IARA'}
                                         </span>
                                     </div>
                                     <p className={`text-[13px] whitespace-pre-wrap`} style={!isUser ? { color: 'var(--text-primary)' } : undefined}>
@@ -194,7 +204,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config }: SimulatorDr
                     <div className="flex items-end gap-2">
                         <button
                             onClick={() => setSimAudio(!simAudio)}
-                            title={simAudio ? 'Desativar áudio com ElevenLabs/OpenAI' : 'Ativar áudio com ElevenLabs/OpenAI'}
+                            title={simAudio ? 'Desativar resposta em áudio' : 'Ouvir a resposta na voz da sua IARA'}
                             className={`p-3 rounded-full flex-shrink-0 transition-colors ${simAudio ? 'bg-[#D99773] text-white hover:bg-[#c48766]' : 'hover:opacity-80'
                                 }`}
                             style={!simAudio ? { backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' } : undefined}

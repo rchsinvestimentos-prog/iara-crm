@@ -5,6 +5,7 @@ import { IdiomaProvider } from '@/components/IdiomaProvider'
 import TermosModal from '@/components/TermosModal'
 import TrocarSenhaModal from '@/components/TrocarSenhaModal'
 import TesterPlanSwitcher from '@/components/TesterPlanSwitcher'
+import SimuladorFlutuante from '@/components/SimuladorFlutuante'
 import { SessionProvider } from 'next-auth/react'
 import { useState, useEffect, Suspense } from 'react'
 import { usePathname } from 'next/navigation'
@@ -73,6 +74,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <TrocarSenhaModal />
             </Suspense>
             <TesterPlanSwitcher />
+
+            {/* Testar a IARA de qualquer tela — fora das páginas legais, que
+                são abertas e não têm clínica logada por trás. */}
+            {!isLegalPage && <SimuladorFlutuante />}
         </IdiomaProvider>
         </SessionProvider>
     )
