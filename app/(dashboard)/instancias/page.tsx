@@ -551,6 +551,65 @@ export default function ConexoesPage() {
                 )}
             </div>
 
+            {/* ============ WhatsApp Oficial — anúncio, ainda não conectável ============ */}
+            {/* Card informativo: a integração com a API oficial da Meta está sendo
+                construída. Fica visível para a clínica saber que vem, sem prometer
+                data. Quando a integração entrar, este bloco vira o card de conexão. */}
+            <div style={{
+                background: '#fff', borderRadius: 20, padding: '24px 28px',
+                border: '1px dashed #cbd5e1', marginBottom: 16,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                        width: 44, height: 44, borderRadius: 12,
+                        background: 'linear-gradient(135deg, #128C7E, #075E54)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 22, flexShrink: 0, opacity: 0.75
+                    }}>✅</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
+                            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>
+                                WhatsApp Oficial
+                            </h2>
+                            <span style={{
+                                background: '#eef2f7', color: '#64748b',
+                                fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+                                padding: '3px 9px', borderRadius: 999, textTransform: 'uppercase' as const,
+                                whiteSpace: 'nowrap' as const
+                            }}>Em breve</span>
+                        </div>
+                        <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
+                            Conexão direta com a Meta, com selo de empresa verificada
+                        </p>
+                    </div>
+                </div>
+
+                <div style={{
+                    marginTop: 18, paddingTop: 16, borderTop: '1px solid #f1f5f9',
+                    display: 'grid', gap: 10
+                }}>
+                    {[
+                        ['🛡️', 'Sem risco de bloqueio do número'],
+                        ['✅', 'Selo verde de empresa verificada no seu perfil'],
+                        ['📣', 'Envio de campanhas liberado pela própria Meta'],
+                    ].map(([icone, texto]) => (
+                        <div key={texto} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 15, flexShrink: 0 }}>{icone}</span>
+                            <span style={{ fontSize: 13.5, color: '#475569' }}>{texto}</span>
+                        </div>
+                    ))}
+                </div>
+
+                <p style={{
+                    margin: '16px 0 0', fontSize: 12.5, color: '#94a3b8', lineHeight: 1.5
+                }}>
+                    Estamos em processo de aprovação junto à Meta. Você não precisa fazer
+                    nada agora — sua conexão atual continua funcionando normalmente, e
+                    avisaremos assim que puder migrar.
+                </p>
+            </div>
+
             {/* ==================== Instagram ==================== */}
             <UpgradeOverlay
                 planoAtual={plano}
