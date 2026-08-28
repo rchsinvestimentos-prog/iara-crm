@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Mic, Play, Pause, Check, RefreshCw, Volume2, Lock, Crown, Sparkles, Radio, Square, Headphones, Loader2, X } from 'lucide-react'
+import CheckoutModal from '@/components/CheckoutModal'
+import { PACOTES } from '@/lib/planos'
 
 // ============================================
 // VOZES PADRÃO (Azure pt-BR) — inclusas em todos os planos
@@ -50,6 +52,7 @@ export default function VozTool() {
     const [temPacoteRealista, setTemPacoteRealista] = useState(false)
     const [temPacoteClonagem, setTemPacoteClonagem] = useState(false)
     const [ofertaAberta, setOfertaAberta] = useState<null | 'realista' | 'clonagem'>(null)
+    const [checkoutAberto, setCheckoutAberto] = useState(false)
 
     // Dicionário de pronúncia da clínica: nomes próprios que a IARA leria
     // errado (marca da clínica, nome de procedimento, sobrenome). As regras
@@ -646,13 +649,16 @@ export default function VozTool() {
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <a
-                                href="/plano"
+                            {/* Abre o checkout em vez de mandar para /plano, onde o
+                                pacote não existe — a clínica clicava em ativar e
+                                caía numa tela sem o que ela queria comprar. */}
+                            <button
+                                onClick={() => setCheckoutAberto(true)}
                                 className="w-full py-3 rounded-xl text-[14px] font-semibold text-white text-center"
                                 style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)' }}
                             >
                                 Quero ativar
-                            </a>
+                            </button>
                             <button
                                 onClick={() => setOfertaAberta(null)}
                                 className="w-full py-2 text-[12.5px] font-medium text-gray-400 hover:text-gray-600"
@@ -662,6 +668,18 @@ export default function VozTool() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Checkout do pacote que a clínica acabou de querer */}
+            {ofertaAberta && (
+                <CheckoutModal
+                    aberto={checkoutAberto}
+                    onClose={() => { setCheckoutAberto(false); setOfertaAberta(null) }}
+                    tipo="pacote"
+                    item={ofertaAberta === 'realista' ? 'voz_realista' : 'clonagem'}
+                    nome={ofertaAberta === 'realista' ? PACOTES.voz_realista.nome : PACOTES.clonagem.nome}
+                    preco={ofertaAberta === 'realista' ? PACOTES.voz_realista.preco : PACOTES.clonagem.preco}
+                />
             )}
         </div>
     )
