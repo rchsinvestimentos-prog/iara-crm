@@ -378,6 +378,19 @@ export async function GET() {
       await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "resumo_clinico" TEXT`)
       await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "foto_url" TEXT`)
       await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "tags" TEXT[] DEFAULT '{}'`)
+      // Colunas que existiam no schema.prisma mas nunca chegaram ao banco: o
+      // 'prisma db push' do boot roda com os erros escondidos (2>/dev/null),
+      // então a falha passa despercebida até uma rota quebrar em produção.
+      // Foi o que derrubou /api/cron/retornos com "column contatos.pacotes
+      // does not exist".
+      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "pacotes" JSONB DEFAULT '[]'::jsonb`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "memoria_ia" TEXT`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "cpf" VARCHAR(14)`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "data_nascimento" TIMESTAMPTZ`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "retorno_data" TIMESTAMPTZ`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "retorno_mensagem" TEXT`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "retorno_enviado" BOOLEAN DEFAULT false`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "ultimo_contato" TIMESTAMPTZ`)
       results.push('✅ Colunas adicionais em contatos garantidas')
     } catch (e: any) {
       results.push(`⚠️ Colunas adicionais em contatos: ${e.message?.slice(0, 80)}`)
