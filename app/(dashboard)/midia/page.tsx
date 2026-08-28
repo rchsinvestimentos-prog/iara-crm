@@ -69,7 +69,33 @@ export default function MidiaPage() {
         finally { setUploading(false) }
     }
 
+    // Confirmação antes de clonar. O aviso só aparece aqui, no momento do
+    // clique — deixá-lo fixo na tela antes disso fazia a clínica desistir de
+    // clonar antes mesmo de tentar.
+    const [confirmandoClone, setConfirmandoClone] = useState(false)
+    const [ajustandoModo, setAjustandoModo] = useState(false)
+    const [modoAjustado, setModoAjustado] = useState(false)
+
+    /** Liga o Modo IA sem sair da tela: a IARA passa a responder sem se apresentar. */
+    const ativarModoIA = async () => {
+        setAjustandoModo(true)
+        try {
+            const r = await fetch('/api/clinica', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ modoIA: 'ia_pura' }),
+            })
+            if (r.ok) setModoAjustado(true)
+            else setMsg('❌ Não consegui alterar a configuração. Tente por Atendimento → Modo de Operação.')
+        } catch {
+            setMsg('❌ Não consegui alterar a configuração. Tente por Atendimento → Modo de Operação.')
+        } finally {
+            setAjustandoModo(false)
+        }
+    }
+
     const clonarVoz = async () => {
+        setConfirmandoClone(false)
         if (arquivos.length === 0) { setMsg('Envie um áudio primeiro'); return }
         setClonando('voz')
         try {
@@ -232,44 +258,10 @@ export default function MidiaPage() {
                 </div>
             )}
 
-            {/* ============ Aviso antes de clonar a voz ============ */}
-            {/* Com a voz da doutora, a paciente assume que está falando com ela.
-                Se a IARA continuar se apresentando pelo nome, a conversa fica
-                incoerente — voz de uma pessoa, nome de outra. O ajuste que
-                resolve já existe: Atendimento → Modo IA. */}
-            {tab === 'audio' && arquivos.length > 0 && (
-                <div className="rounded-xl p-4 flex gap-3" style={{
-                    backgroundColor: 'rgba(217,151,115,0.10)',
-                    border: '1px solid rgba(217,151,115,0.35)',
-                }}>
-                    <AlertTriangle size={17} className="flex-shrink-0 mt-0.5" style={{ color: '#D99773' }} />
-                    <div className="flex flex-col gap-2">
-                        <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                            Antes de clonar: ajuste como a IARA se apresenta
-                        </p>
-                        <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                            Com a sua voz, a paciente vai achar que está falando com você.
-                            Se a IARA continuar dizendo <em>&quot;oi, sou a IARA, assistente da clínica&quot;</em>,
-                            a conversa fica estranha — a voz é sua, mas o nome é de outra pessoa.
-                        </p>
-                        <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                            <strong style={{ color: 'var(--text-primary)' }}>Recomendação:</strong> vá em{' '}
-                            <strong style={{ color: '#D99773' }}>Atendimento → Modo de Operação</strong> e
-                            escolha <strong style={{ color: '#D99773' }}>Modo IA</strong>. Assim ela responde
-                            direto, sem se apresentar.
-                        </p>
-                        <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                            Mesmo com a sua voz, quem responde é a IARA. Assuma a conversa
-                            pessoalmente quando a paciente pedir algo que só você pode responder.
-                        </p>
-                    </div>
-                </div>
-            )}
-
             {/* Clone buttons */}
             {tab === 'audio' && arquivos.length > 0 && (
                 <button
-                    onClick={clonarVoz}
+                    onClick={() => setConfirmandoClone(true)}
                     disabled={!!clonando}
                     className="w-full py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
                     style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)' }}
@@ -349,6 +341,89 @@ export default function MidiaPage() {
                 <p>• Áudio: enviado para o Fish Audio para clonar sua voz</p>
                 {AVATAR_VIDEO_HABILITADO && <p>• Vídeo: enviado para HeyGen para criar seu avatar</p>}
             </div>
+
+            {/* ============ Confirmação antes de clonar a voz ============ */}
+            {/* Com a voz da doutora, a paciente assume que está falando com ela.
+                Se a IARA seguir se apresentando pelo próprio nome, a conversa
+                fica incoerente. O ajuste é feito aqui mesmo, num clique, para
+                não obrigar a clínica a sair da tela no meio do processo. */}
+            {confirmandoClone && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    style={{ backgroundColor: 'rgba(8,20,26,0.55)' }}
+                    onClick={() => setConfirmandoClone(false)}
+                >
+                    <div
+                        className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-4"
+                        style={{ backgroundColor: 'var(--bg-card, #fff)', border: '1px solid var(--border-default)' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                                style={{ backgroundColor: 'rgba(217,151,115,0.15)' }}>
+                                <Mic size={18} style={{ color: '#D99773' }} />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-[15px] font-bold" style={{ color: 'var(--text-primary)' }}>
+                                    Sua voz vai atender por você
+                                </h3>
+                                <p className="text-[12px] mt-1 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                                    A partir de agora a paciente vai ouvir a sua voz e achar que
+                                    está falando com você.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="rounded-xl p-4 flex flex-col gap-3"
+                            style={{ backgroundColor: 'rgba(217,151,115,0.08)', border: '1px solid rgba(217,151,115,0.25)' }}>
+                            <p className="text-[12.5px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                                Só falta um ajuste: hoje a IARA se apresenta dizendo o nome dela.
+                                Com a sua voz, isso soa estranho — a voz é sua, mas o nome é de
+                                outra pessoa. Melhor ela responder direto, sem se apresentar.
+                            </p>
+
+                            {modoAjustado ? (
+                                <div className="flex items-center gap-2 text-[12.5px] font-semibold" style={{ color: '#06D6A0' }}>
+                                    <CheckCircle2 size={15} />
+                                    Pronto! Agora ela responde direto, sem se apresentar.
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={ativarModoIA}
+                                    disabled={ajustandoModo}
+                                    className="w-full py-2.5 rounded-xl text-[13px] font-semibold text-white flex items-center justify-center gap-2"
+                                    style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)', opacity: ajustandoModo ? 0.6 : 1 }}
+                                >
+                                    {ajustandoModo ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                                    Ajustar para não se apresentar
+                                </button>
+                            )}
+                        </div>
+
+                        <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                            Mesmo com a sua voz, quem responde é a IARA. Assuma a conversa
+                            pessoalmente quando a paciente pedir algo que só você pode responder.
+                        </p>
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setConfirmandoClone(false)}
+                                className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
+                                style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={clonarVoz}
+                                className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white"
+                                style={{ background: 'linear-gradient(135deg, #0F4C61, #0A3845)' }}
+                            >
+                                Clonar minha voz
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

@@ -74,6 +74,13 @@ export interface DadosClinica {
     endereco: string | null
 
     // Personalização
+    /**
+     * 'secretaria' (padrão) — a IARA se apresenta pelo nome dela.
+     * 'ia_pura' — responde direto, sem se apresentar. É o modo recomendado
+     * para quem clonou a própria voz: com a voz da doutora, a IARA dizendo
+     * o próprio nome deixa a conversa incoerente.
+     */
+    modoIA: string | null
     humor: string | null
     emojis: string | null
     tomAtendimento: string | null

@@ -432,6 +432,21 @@ EXCEÇÃO ÚNICA: se a cliente mandou uma saudação ("oi", "boa tarde"), respon
 
     // --- Sanitizar emojis do cofre quando config diz 'nenhum' ---
     let cofreLeisFinais = cofre.leisImutaveis
+
+    // Modo IA: a clínica pediu que a IARA não se apresente.
+    //
+    // Não basta acrescentar a regra no topo — as LEIS do cofre autorizam
+    // explicitamente ("Na primeira vez, pode dizer 'Sou a X, secretária da
+    // Dra'"), e a permissão específica vence a proibição genérica. Medido:
+    // com a regra só no topo, ela continuava se apresentando quando a
+    // paciente perguntava "com quem eu falo?". Aqui a permissão é trocada
+    // pela proibição, dentro do mesmo bloco de regras absolutas.
+    if (clinica.modoIA === 'ia_pura') {
+        cofreLeisFinais = cofreLeisFinais.replace(
+            /Na primeira vez, pode dizer "Sou a [^"]*"\./,
+            'NUNCA diga seu nome nem que é secretária/assistente — responda direto, como se a própria profissional estivesse digitando.'
+        )
+    }
     let cofreRoteiroFinal = cofre.roteiroVendas
     let cofreObjecoesFinal = cofre.arsenalDeObjecoes
     let comoFalarFinal = labels.comoFalar
@@ -488,8 +503,17 @@ ${configDonaLinhas.join('\n')}
 🚨🚨🚨 FIM DAS INSTRUÇÕES DA DONA — PRIORIDADE MÁXIMA 🚨🚨🚨`
         : ''
 
+    // Modo de apresentação escolhido pela clínica em Atendimento.
+    // Fica no trecho estável do prompt: é por clínica e não muda entre
+    // mensagens, então entra no cache.
+    const regraApresentacao = clinica.modoIA === 'ia_pura'
+        ? `\n🔕 NÃO SE APRESENTE. Nunca diga seu nome, nunca diga que é assistente, secretária ou IA.
+Responda direto ao que a cliente perguntou, como se a própria profissional estivesse digitando.
+Se perguntarem quem é você, desconverse com naturalidade e volte ao assunto — sem mentir que é humana, mas sem se apresentar.\n`
+        : ''
+
     const estavel = `${roleDesc}
-${regraHistorico}
+${regraApresentacao}${regraHistorico}
 🎯 SUA META #1: AGENDAR. Toda conversa deve caminhar para um agendamento.
 
 ${escopoTexto}
