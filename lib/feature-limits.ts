@@ -7,20 +7,44 @@ import { prisma } from '@/lib/prisma'
 // IARA v2: foco em agendamento. Features de marketing removidas.
 // ==========================================
 
+// ------------------------------------------------------------------
+// mensagensIA e audiosIA são os tetos que garantem margem positiva.
+//
+// O custo da IARA sobe junto com o uso, a mensalidade não. Sem teto,
+// uma clínica movimentada consome sozinha a margem de várias outras.
+// Os números abaixo saem da conta de custo: uma conversa tem ~6
+// mensagens e custa ~R$ 0,069 no Haiku, um áudio custa ~R$ 0,025.
+//
+//   nível 1 — 600 conversas  (3.600 msgs) + 100 áudios → margem ~55%
+//   nível 2 — 1.200 conversas (7.200 msgs) + 300 áudios → margem ~49%
+//   nível 3 — 2.500 conversas (15.000 msgs) + 600 áudios → margem ~43%
+//
+// 600 conversas são 20 por dia — acima do uso real esperado (15/dia),
+// então o teto protege o caso extremo sem incomodar o uso normal.
+// ------------------------------------------------------------------
 export const FEATURE_LIMITS: Record<number, Record<string, number>> = {
     // P1 Essencial
     1: {
         campanhaContatos: 30,
+        mensagensIA: 3600,
+        audiosIA: 100,
     },
     // P2 Pro
     2: {
         campanhaContatos: 100,
+        mensagensIA: 7200,
+        audiosIA: 300,
     },
     // P3 Premium
     3: {
         campanhaContatos: -1,
+        mensagensIA: 15000,
+        audiosIA: 600,
     },
 }
+
+/** Quantas mensagens tem uma conversa típica — usado só para exibir na UI. */
+export const MSGS_POR_CONVERSA = 6
 
 /**
  * Retorna o mês atual no formato "2026-03"

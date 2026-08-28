@@ -9,7 +9,7 @@
 
 export { processMessage } from './pipeline'
 export { checkAccess, findClinicaByInstance, descontarCredito } from './catraca'
-export { buildSystemPrompt, buildSystemPromptPartes, callAI } from './ai-engine'
+export { buildSystemPrompt, buildSystemPromptPartes, callAI, MODELO_PADRAO } from './ai-engine'
 export { getCofrePadrao, getCofreParaClinica, getLabels } from './cofre'
 export { sendText, sendAudio, sendImage } from './sender'
 export { transcribeAudio, generateTTS, determineOutputType } from './audio'

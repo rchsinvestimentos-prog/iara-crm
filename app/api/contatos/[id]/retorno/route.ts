@@ -4,8 +4,9 @@ import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // POST /api/contatos/[id]/retorno — Agendar mensagem de retorno
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
     try {
+        const params = await context.params
         const session = await getServerSession(authOptions)
         const clinicaId = await getClinicaId(session)
         if (!clinicaId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         }
 
         const result = await prisma.contato.updateMany({
-            where: { id: params.id, clinicaId },
+            where: { id: parseInt(params.id), clinicaId },
             data: {
                 retornoData: new Date(data),
                 retornoMensagem: mensagem,
