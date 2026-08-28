@@ -92,6 +92,7 @@ export const config = {
          * - api/webhook
          * - api/cron/
          * - api/pagamentos/webhook/  (avisos do Asaas e do Assiny)
+         * - api/pagamentos/checkout-publico  (compra pela página de vendas)
          * - vozes/   (amostras de voz do catálogo, em public/vozes)
          *
          * api/cron precisa ficar fora daqui: quem chama é o cron-job.org, que
@@ -112,6 +113,6 @@ export const config = {
          * por /api/uploads, que continua protegido. Por isso a liberação é da
          * pasta e não da extensão .mp3: liberar a extensão abriria os uploads.
          */
-        '/((?!_next/static|_next/image|api/agendamento-publico|api/auth|api/webhook|api/cron/|api/pagamentos/webhook/|vozes/|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|api/agendamento-publico|api/auth|api/webhook|api/cron/|api/pagamentos/webhook/|api/pagamentos/checkout-publico|vozes/|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }

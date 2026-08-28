@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ativarCompra, suspenderCompra, registrarLog } from '@/lib/pagamentos/ativacao'
 import { acharReferencia } from '@/lib/pagamentos/referencia'
+import { buscarCliente } from '@/lib/pagamentos/asaas'
+import { acharOuCriarClinica } from '@/lib/pagamentos/conta'
 
 /**
  * POST /api/pagamentos/webhook/asaas
@@ -47,26 +49,58 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ ok: true, ignorado: 'sem referência' })
         }
 
+        // Compra pela página de vendas: clinicaId 0 significa que a conta ainda
+        // não existe. O e-mail vem do cadastro do cliente dentro do Asaas, e a
+        // conta é criada com credenciais enviadas — mesmo caminho do Assiny.
+        let clinicaId = ref.clinicaId
+        let contaCriada = false
+
+        if (clinicaId === 0 && LIBERA.has(evento)) {
+            const cliente = pagamento?.customer ? await buscarCliente(pagamento.customer) : null
+            if (!cliente?.email) {
+                await registrarLog({
+                    provedor: 'asaas', evento, idExterno: pagamento?.id, payload: corpo,
+                    resultado: 'compra sem conta e sem e-mail no cliente — liberar manualmente',
+                })
+                return NextResponse.json({ ok: true, ignorado: 'sem e-mail' })
+            }
+            const conta = await acharOuCriarClinica({
+                email: cliente.email,
+                nome: cliente.nome,
+                telefone: cliente.telefone,
+                planoInicial: ref.tipo === 'plano' ? (ref.item as any) : 'essencial',
+            })
+            clinicaId = conta.clinicaId
+            contaCriada = conta.criada
+        }
+
         if (LIBERA.has(evento)) {
             const r = await ativarCompra({
-                clinicaId: ref.clinicaId, tipo: ref.tipo, item: ref.item,
+                clinicaId, tipo: ref.tipo, item: ref.item,
                 provedor: 'asaas', idExterno: pagamento?.id,
                 valor: Number(pagamento?.value) || undefined,
                 proximaCobranca: pagamento?.dueDate ? new Date(pagamento.dueDate) : null,
             })
-            await registrarLog({ provedor: 'asaas', evento, idExterno: pagamento?.id, clinicaId: ref.clinicaId, payload: corpo, resultado: r.mensagem })
-            return NextResponse.json(r)
+            await registrarLog({
+                provedor: 'asaas', evento, idExterno: pagamento?.id, clinicaId, payload: corpo,
+                resultado: `${r.mensagem}${contaCriada ? ' (conta criada)' : ''}`,
+            })
+            return NextResponse.json({ ...r, contaCriada })
         }
 
         if (SUSPENDE.has(evento)) {
-            const r = await suspenderCompra({ clinicaId: ref.clinicaId, tipo: ref.tipo, item: ref.item, motivo: evento })
-            await registrarLog({ provedor: 'asaas', evento, idExterno: pagamento?.id, clinicaId: ref.clinicaId, payload: corpo, resultado: r.mensagem })
+            if (clinicaId === 0) {
+                await registrarLog({ provedor: 'asaas', evento, idExterno: pagamento?.id, payload: corpo, resultado: 'estorno de compra sem conta' })
+                return NextResponse.json({ ok: true, ignorado: 'sem conta' })
+            }
+            const r = await suspenderCompra({ clinicaId, tipo: ref.tipo, item: ref.item, motivo: evento })
+            await registrarLog({ provedor: 'asaas', evento, idExterno: pagamento?.id, clinicaId, payload: corpo, resultado: r.mensagem })
             return NextResponse.json(r)
         }
 
         // Os outros ~20 eventos são informativos (boleto visualizado, cobrança
         // criada). Ficam registrados, sem mexer no acesso da clínica.
-        await registrarLog({ provedor: 'asaas', evento, idExterno: pagamento?.id, clinicaId: ref.clinicaId, payload: corpo, resultado: 'evento informativo' })
+        await registrarLog({ provedor: 'asaas', evento, idExterno: pagamento?.id, clinicaId: clinicaId || undefined, payload: corpo, resultado: 'evento informativo' })
         return NextResponse.json({ ok: true, ignorado: evento })
 
     } catch (err: any) {

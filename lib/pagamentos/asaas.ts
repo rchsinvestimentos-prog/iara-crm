@@ -133,3 +133,21 @@ export async function assinaturaPix(dados: {
     })
     return { id: assinatura.id }
 }
+
+/**
+ * Dados do cliente no Asaas.
+ *
+ * Usado quando a compra veio da página de vendas: a cobrança não tem
+ * clínica associada ainda, e é pelo e-mail cadastrado aqui que a conta é
+ * criada quando o pagamento entra.
+ */
+export async function buscarCliente(clienteId: string): Promise<{ email: string; nome: string; telefone?: string } | null> {
+    try {
+        const c = await chamar(`/customers/${clienteId}`)
+        if (!c?.email) return null
+        return { email: c.email, nome: c.name || '', telefone: c.mobilePhone || c.phone || undefined }
+    } catch (err) {
+        console.error('[Asaas] Não consegui buscar o cliente:', (err as Error).message)
+        return null
+    }
+}

@@ -9,6 +9,10 @@
 // Formato: iara:<clinicaId>:<plano|pacote>:<item>
 //   iara:7:pacote:voz_realista
 //   iara:12:plano:premium
+//
+// clinicaId 0 significa "comprou pela página de vendas e ainda não tem
+// conta". Nesse caso o webhook busca o e-mail no cadastro do cliente dentro
+// do Asaas e cria a conta, igual faz o caminho do Assiny.
 
 export type Referencia = { clinicaId: number; tipo: 'plano' | 'pacote'; item: string }
 
