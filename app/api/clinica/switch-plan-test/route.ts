@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { nomeDoNivel } from '@/lib/planos'
 
 const SwitchPlanSchema = z.object({
     nivel: z.number().int().min(1).max(4),
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
             where: { id: clinicaId },
             data: {
                 nivel: validated.nivel,
-                plano: validated.nivel === 1 ? 'Essencial' : validated.nivel === 2 ? 'Pro' : validated.nivel === 3 ? 'Premium' : 'VIP/Unlimited',
+                plano: validated.nivel > 3 ? 'VIP/Unlimited' : nomeDoNivel(validated.nivel),
                 updatedAt: new Date(),
             },
             select: {

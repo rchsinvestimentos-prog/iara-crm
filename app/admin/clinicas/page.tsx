@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail, MoreHorizontal, KeyRound, Ban, Settings, Trash2, LogIn, CreditCard, ArrowUpDown, RefreshCw } from 'lucide-react'
+import { nomeDoNivel } from '@/lib/planos'
 
 interface Clinica {
     id: number
@@ -30,7 +31,8 @@ interface Clinica {
     aceite_termos: string | null
 }
 
-const planoNomes: Record<number, string> = { 1: 'Essencial', 2: 'Premium' }
+// Faltava o nível 3 aqui, e os nomes estavam desatualizados.
+const planoNomes: Record<number, string> = { 1: nomeDoNivel(1), 2: nomeDoNivel(2), 3: nomeDoNivel(3) }
 const planoCores: Record<number, string> = { 1: '#06D6A0', 2: '#D99773' }
 const statusCor: Record<string, string> = {
     ativo: 'bg-green-500/15 text-green-400',

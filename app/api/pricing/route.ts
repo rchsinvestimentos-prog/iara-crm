@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { nomeDoNivel } from '@/lib/planos'
 
 // Mapa de preços por país
 const PRECOS: Record<string, {
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
             planos: pricing.planos,
             idioma: pricing.idioma,
             flag: pricing.flag,
-            nomes: ['Essencial', 'Pro', 'Premium'],
+            nomes: [nomeDoNivel(1), nomeDoNivel(2), nomeDoNivel(3)],
             features: {
                 1: {
                     label: pricing.idioma === 'en-US' ? 'Essential' : pricing.idioma === 'es' ? 'Esencial' : 'Essencial',

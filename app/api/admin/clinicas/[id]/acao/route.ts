@@ -4,6 +4,7 @@ import { authOptions, hashSenha, isAdmin } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { enviarEmailBoasVindas } from '@/lib/email'
 import { getPermissions } from '@/lib/permissions'
+import { nomeDoNivel } from '@/lib/planos'
 
 function gerarSenhaAleatoria(len = 10): string {
     const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#'
@@ -229,7 +230,7 @@ export async function POST(
                     max_instancias_instagram = ${maxIg}
                 WHERE id = ${clinicaId}
             `
-            const nomePlano = novoNivel === 1 ? 'Essencial' : 'Premium'
+            const nomePlano = nomeDoNivel(novoNivel)
             return NextResponse.json({ message: `✅ Plano alterado para ${nomePlano}! Instagram: ${maxIg > 0 ? 'liberado' : 'bloqueado'}` })
         }
 

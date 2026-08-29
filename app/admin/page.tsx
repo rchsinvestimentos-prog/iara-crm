@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Users, MessageSquare, CreditCard, Activity, AlertTriangle, TrendingUp, Loader2, Shield, Search } from 'lucide-react'
+import { nomeDoNivel } from '@/lib/planos'
 
 interface ClinicaAdmin {
     id: string
@@ -21,7 +22,8 @@ interface ClinicaAdmin {
     criado_em: string
 }
 
-const planoNomes: Record<number, string> = { 1: 'Essencial', 2: 'Pro', 3: 'Premium' }
+// Nomes vêm do catálogo: repetir aqui já deixou telas mostrando plano antigo.
+const planoNomes: Record<number, string> = { 1: nomeDoNivel(1), 2: nomeDoNivel(2), 3: nomeDoNivel(3) }
 const planoCores: Record<number, string> = { 1: '#06D6A0', 2: '#F59E0B', 3: '#D99773', 4: '#0F4C61' }
 
 export default function AdminDashboard() {

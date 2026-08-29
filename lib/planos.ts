@@ -1,9 +1,14 @@
 // ============================================
 // PLANOS IARA v2 — 3 Níveis (Foco: Agendamento)
 // ============================================
-// P1 Essencial:  R$197 / $47 / €47   — 600 conversas
-// P2 Pro:        R$297 / $67 / €67   — 1.200 conversas
-// P3 Premium:    R$497 / $99 / €99   — 2.500 conversas
+// P1 Start:   R$197 / $47 / €47   — 600 conversas
+// P2 Master:  R$297 / $67 / €67   — 1.200 conversas
+// P3 Black:   R$497 / $99 / €99   — 2.500 conversas
+//
+// As CHAVES internas continuam essencial/pro/premium: já existem clínicas
+// com esses valores gravados, e renomear rebaixaria quem tem 'premium'
+// (R$497) para o que passaria a se chamar Premium (R$197). Só o nome de
+// exibição mudou. Por isso 'Premium' foi descartado como nome comercial.
 //
 // Os créditos batem com os tetos de lib/feature-limits.ts: uma conversa tem
 // cerca de 6 mensagens, e o teto lá é contado em mensagens.
@@ -16,7 +21,7 @@
 export const PLANOS = {
     essencial: {
         nivel: 1,
-        nome: 'Essencial',
+        nome: 'Start',
         hotmart: 'Secretaria',
         creditos: 3600,
         conversas: 600,
@@ -31,7 +36,7 @@ export const PLANOS = {
     },
     pro: {
         nivel: 2,
-        nome: 'Pro',
+        nome: 'Master',
         hotmart: 'Estrategista',
         creditos: 7200,
         conversas: 1200,
@@ -46,7 +51,7 @@ export const PLANOS = {
     },
     premium: {
         nivel: 3,
-        nome: 'Premium',
+        nome: 'Black',
         hotmart: 'Designer',
         creditos: 15000,
         conversas: 2500,
@@ -129,10 +134,12 @@ export const PLAN_ALIASES: Record<string, PlanoKey> = {
     starter: 'essencial',
     estrategista: 'pro',
     designer: 'premium',
+    // Nomes comerciais atuais
+    start: 'essencial',
+    master: 'pro',        // ERA 'premium': Master vale R$297, não R$497.
+    black: 'premium',
     // P4 antigo → mapeia pro P3 (maior plano disponível)
     audiovisual: 'premium',
-    black: 'premium',
-    master: 'premium',
 }
 
 // Converter texto do banco → nível numérico
@@ -201,4 +208,18 @@ export function getFeaturesPorNivel(nivel: number): string[] {
     }
 
     return features
+}
+
+
+/**
+ * Nome comercial do plano a partir do nível.
+ *
+ * Existe para os nomes ficarem num lugar só: estavam repetidos em oito
+ * arquivos, e a troca de Essencial/Pro/Premium para Start/Master/Black
+ * deixaria metade deles mostrando o nome antigo.
+ */
+export function nomeDoNivel(nivel: number | null | undefined): string {
+    const n = Math.min(Math.max(Number(nivel) || 1, 1), MAX_NIVEL)
+    const chave = (Object.keys(PLANOS) as PlanoKey[]).find(k => PLANOS[k].nivel === n)
+    return chave ? PLANOS[chave].nome : PLANOS.essencial.nome
 }
