@@ -194,7 +194,10 @@ export default function PlanoPage() {
             </div>
 
             {/* Grid de planos — 2 colunas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+            {/* Três colunas a partir do desktop. Estava em duas, de quando só havia
+                dois planos — o Black caía sozinho numa segunda linha. Pula direto
+                de uma para três: em duas, um dos planos fica órfão embaixo. */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
                 {planos.map((plano, i) => {
                     const isAtual = plano.nivel === planoAtual
                     const hotmartLink = HOTMART_LINKS[plano.chave]
@@ -204,7 +207,7 @@ export default function PlanoPage() {
                     return (
                         <div
                             key={plano.nome}
-                            className="group relative backdrop-blur-xl rounded-2xl p-8 transition-all duration-500 hover:-translate-y-1 overflow-hidden animate-fade-in"
+                            className="group relative backdrop-blur-xl rounded-2xl p-8 transition-all duration-500 hover:-translate-y-1 overflow-hidden animate-fade-in h-full flex flex-col"
                             style={{
                                 animationDelay: `${i * 0.1}s`,
                                 backgroundColor: 'var(--bg-card)',
@@ -243,7 +246,7 @@ export default function PlanoPage() {
                                 {plano.creditos.toLocaleString()} msgs/mês
                             </p>
 
-                            <ul className="space-y-2.5 mb-8">
+                            <ul className="space-y-2.5 mb-8 flex-1">
                                 {plano.features.map((f, j) => (
                                     <li key={j} className="flex items-start gap-2 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
                                         <Check size={14} className="flex-shrink-0 mt-0.5" style={{ color: plano.cor }} />
