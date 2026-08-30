@@ -1,49 +1,78 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { PLANOS, type PlanoKey } from '@/lib/planos'
+import CheckoutModal from '@/components/CheckoutModal'
 import { Check, Sparkles, Star, ExternalLink, Loader2, Smartphone, Plus, Crown, Gem } from 'lucide-react'
 
-const HOTMART_LINKS: Record<string, string> = {
-    'Essencial': 'https://pay.hotmart.com/B104324141M?off=7esdrrco&checkoutMode=6',
-    'Pro': 'https://pay.hotmart.com/B104324141M?off=7ak6m2dh&checkoutMode=6',
-    'Premium': 'https://pay.hotmart.com/B104324141M?off=8yivznpc&checkoutMode=6',
+// Os links da Hotmart continuam aqui porque ela segue vendendo como terceira
+// opção. As chaves são os nomes ANTIGOS de propósito: são os nomes das ofertas
+// já cadastradas lá, e renomear a oferta quebraria o link de quem já comprou.
+const HOTMART_LINKS: Record<PlanoKey, string> = {
+    essencial: 'https://pay.hotmart.com/B104324141M?off=7esdrrco&checkoutMode=6',
+    pro: 'https://pay.hotmart.com/B104324141M?off=7ak6m2dh&checkoutMode=6',
+    premium: 'https://pay.hotmart.com/B104324141M?off=8yivznpc&checkoutMode=6',
 }
 
-const planos = [
-    {
-        nome: 'Essencial',
-        nivel: 1,
-        icon: Sparkles,
-        cor: '#06D6A0',
-        popular: false,
-        creditos: 1000,
-        precos: { USD: 27, EUR: 27, BRL: 97 },
-        features: [
-            'WhatsApp IA 24/7 (texto + áudio)',
-            '1 WhatsApp conectado',
-            'Agendamento automático',
-            'Follow-ups inteligentes',
-            'Promoções e Combos',
-            'CRM (Kanban + Contatos)',
-            'Análise inteligente de mídias',
-            'Estilo: Direta ou Consultiva',
-        ],
-    },
-    {
-        nome: 'Pro',
-        nivel: 2,
-        icon: Star,
-        cor: '#8B5CF6',
-        popular: true,
-        creditos: 3000,
-        precos: { USD: 47, EUR: 47, BRL: 197 },
-        features: [
-            'Tudo do Essencial +',
-            '📷 Instagram DM com IA',
-            '4 idiomas (PT-BR, PT-PT, EN, ES)',
-        ],
-    },
-]
+// A tela tinha a própria lista de planos, com dois itens e os preços antigos
+// (R$97 e R$197). Ficava desatualizada sozinha toda vez que o catálogo mudava,
+// e foi assim que o Black nunca apareceu para ninguém.
+const CORES: Record<PlanoKey, string> = {
+    essencial: '#06D6A0',
+    pro: '#8B5CF6',
+    premium: '#D99773',
+}
+
+const DESTAQUES: Record<PlanoKey, string[]> = {
+    essencial: [
+        'WhatsApp com IA 24h (texto e áudio)',
+        '1 WhatsApp conectado',
+        'Agendamento automático',
+        'Follow-ups inteligentes',
+        'Promoções e combos',
+        'CRM com funil e contatos',
+    ],
+    pro: [
+        'Tudo do Start, mais:',
+        'Instagram DM com IA',
+        'Ficha de anamnese assinada',
+        'Ficha da paciente com fotos',
+        'Follow UP automático',
+        '4 idiomas',
+    ],
+    premium: [
+        'Tudo do Master, mais:',
+        '2 WhatsApps conectados',
+        'Equipe com vários profissionais',
+        'Multi-clínica',
+        'Prioridade no atendimento',
+    ],
+}
+
+const ICONES: Record<PlanoKey, typeof Sparkles> = {
+    essencial: Sparkles,
+    pro: Star,
+    premium: Crown,
+}
+
+const planos = (Object.keys(PLANOS) as PlanoKey[])
+    .map(chave => {
+        const p = PLANOS[chave]
+        return {
+            chave,
+            nome: p.nome,
+            nivel: p.nivel,
+            creditos: p.creditos,
+            conversas: (p as { conversas?: number }).conversas ?? Math.round(p.creditos / 6),
+            cor: CORES[chave],
+            icon: ICONES[chave],
+            features: DESTAQUES[chave],
+            popular: chave === 'pro',   // o do meio é o que a maioria escolhe
+            // A tela usa moeda em maiúscula; o catálogo guarda em minúscula.
+            precos: { BRL: p.precos.brl, USD: p.precos.usd, EUR: p.precos.eur },
+        }
+    })
+    .sort((a, b) => a.nivel - b.nivel)
 
 interface StatsData {
     creditosRestantes: number
@@ -58,6 +87,9 @@ export default function PlanoPage() {
     const [moeda, setMoeda] = useState<'USD' | 'EUR' | 'BRL'>('USD')
     const [simbolo, setSimbolo] = useState('$')
     const [comprando, setComprando] = useState(false)
+    const [comprandoPlano, setComprandoPlano] = useState<
+        { chave: string; nome: string; preco: number; hotmart: string } | null
+    >(null)
 
     useEffect(() => {
         fetch('/api/stats')
@@ -165,7 +197,7 @@ export default function PlanoPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
                 {planos.map((plano, i) => {
                     const isAtual = plano.nivel === planoAtual
-                    const hotmartLink = HOTMART_LINKS[plano.nome]
+                    const hotmartLink = HOTMART_LINKS[plano.chave]
                     const isDowngrade = plano.nivel < planoAtual
                     const preco = plano.precos[moeda]
 
@@ -229,18 +261,19 @@ export default function PlanoPage() {
                                     Plano inferior
                                 </button>
                             ) : (
-                                <a
-                                    href={hotmartLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                /* Abre o checkout para a clínica escolher PIX, cartão
+                                   ou Hotmart. Antes ia direto para a Hotmart, que é a
+                                   forma mais cara para você — 9,9% contra ~4%. */
+                                <button
+                                    onClick={() => setComprandoPlano({ chave: plano.chave, nome: plano.nome, preco: plano.precos.BRL, hotmart: hotmartLink })}
                                     className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5 flex items-center justify-center gap-1.5"
                                     style={{
                                         background: `linear-gradient(135deg, ${plano.cor}, ${plano.cor}CC)`,
                                         boxShadow: `0 4px 20px ${plano.cor}30`,
                                     }}
                                 >
-                                    Fazer upgrade <ExternalLink size={12} />
-                                </a>
+                                    Assinar o {plano.nome}
+                                </button>
                             )}
                         </div>
                     )
@@ -280,11 +313,24 @@ export default function PlanoPage() {
             {/* Info */}
             <div className="rounded-xl p-4 text-center animate-fade-in" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    🔒 Pagamento processado pela <strong style={{ color: 'var(--text-secondary)' }}>Hotmart</strong> com segurança •
-                    Pix, boleto e cartão de crédito • 7 dias de garantia •{' '}
+                    🔒 Pix pelo <strong style={{ color: 'var(--text-secondary)' }}>Asaas</strong>, cartão pelo{' '}
+                    <strong style={{ color: 'var(--text-secondary)' }}>Assiny</strong> ou pela{' '}
+                    <strong style={{ color: 'var(--text-secondary)' }}>Hotmart</strong> • 7 dias de garantia •{' '}
                     <a href="#" className="text-[#D99773] hover:text-[#E8B89A] transition-colors">Fale conosco</a>
                 </p>
             </div>
+
+            {comprandoPlano && (
+                <CheckoutModal
+                    aberto={true}
+                    onClose={() => setComprandoPlano(null)}
+                    tipo="plano"
+                    item={comprandoPlano.chave}
+                    nome={comprandoPlano.nome}
+                    preco={comprandoPlano.preco}
+                    linkHotmart={comprandoPlano.hotmart}
+                />
+            )}
         </div>
     )
 }
