@@ -9,8 +9,13 @@ const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || ''
  * GET /api/cron/lembrete?secret=XXX
  *
  * Lembrete pré-consulta — envia WhatsApp 24h antes do agendamento.
- * Lê agendamentos de configuracoes.agendamentos[] (gravados pelo N8N quando
- * a cliente agenda via IARA).
+ *
+ * Lia os agendamentos de configuracoes.agendamentos[], gravado pelo N8N na
+ * época em que a IARA rodava lá. Ninguém escreve nesse campo desde a
+ * migração: o cron encontrava lista vazia, pulava todas as clínicas e
+ * respondia sucesso. Ficava verde no painel sem ter mandado nada.
+ *
+ * Agora lê a tabela agendamentos_v2, a mesma que o lembrete de 2h usa.
  *
  * Frequência: 1x por dia às 08:00
  * URL: https://app.iara.click/api/cron/lembrete?secret=SEU_SECRET
@@ -59,18 +64,22 @@ export async function GET(request: NextRequest) {
             } catch { /* default */ }
             if (funcsLembrete.lembrete_24h === false) { pulados++; continue }
 
-            const agendamentos: any[] = config.agendamentos || []
             const lembretes: string[] = config.lembretes || []
-            if (agendamentos.length === 0) { pulados++; continue }
 
-            // Filtrar agendamentos amanhã ainda não lembrados
-            const pendentes = agendamentos.filter(ag => {
-                if (!ag.data || !ag.telefone || ag.status !== 'confirmado') return false
-                const data = new Date(ag.data)
-                return data >= amanha_inicio && data <= amanha_fim && !lembretes.includes(ag.id)
+            // Agendamentos desta clínica na janela de amanhã. 'pendente' entra
+            // junto de 'confirmado': quem marcou e ainda não confirmou é
+            // justamente quem mais precisa do lembrete.
+            const agendamentos = await prisma.agendamento.findMany({
+                where: {
+                    clinicaId: clinica.id,
+                    status: { in: ['confirmado', 'pendente'] },
+                    data: { gte: amanha_inicio, lte: amanha_fim },
+                },
+                select: { id: true, data: true, telefone: true, nomePaciente: true },
             })
 
-            if (pendentes.length === 0) continue
+            const pendentes = agendamentos.filter(ag => ag.telefone && !lembretes.includes(ag.id))
+            if (pendentes.length === 0) { pulados++; continue }
 
             const nomeIA = clinica.nomeAssistente || 'IARA'
             const nomeClinica = clinica.nomeClinica || 'Clínica'
@@ -80,7 +89,7 @@ export async function GET(request: NextRequest) {
             const novoLembretes = [...lembretes]
 
             for (const agend of pendentes) {
-                const primeiroNome = (agend.nome || agend.nomePaciente || 'Cliente').split(' ')[0]
+                const primeiroNome = (agend.nomePaciente || 'Cliente').split(' ')[0]
                 const dataAgend = new Date(agend.data)
                 const hora = dataAgend.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
                 const dia = dataAgend.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
