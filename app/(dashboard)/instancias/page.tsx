@@ -37,6 +37,18 @@ export default function ConexoesPage() {
     const [calendarProvider, setCalendarProvider] = useState('google');
     const [conectando, setConectando] = useState(false);
 
+    // Diagnóstico real da agenda. O card dizia "Conectada" só porque existia
+    // um token gravado — token existe e não funciona é o caso comum, porque o
+    // do Google vale 1 hora e a falha de renovação não avisa ninguém.
+    const [agenda, setAgenda] = useState<{ funcionando: boolean; problemas: string[] } | null>(null);
+
+    useEffect(() => {
+        fetch('/api/agenda/diagnostico')
+            .then(r => r.json())
+            .then(d => { if (!d.error) setAgenda(d) })
+            .catch(() => { });
+    }, []);
+
     // Apple Calendar modal
     const [appleModal, setAppleModal] = useState<{
         open: boolean;
@@ -751,14 +763,23 @@ export default function ConexoesPage() {
                     <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>Google Agenda</h2>
-                            {calendarConnected && <span style={{ fontSize: 14 }}>🟢</span>}
+                            {calendarConnected && <span style={{ fontSize: 14 }}>{agenda?.funcionando === false ? '🟠' : '🟢'}</span>}
                         </div>
-                        <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
-                            {calendarConnected
-                                ? 'Conectada — IARA agenda e verifica horários automaticamente'
-                                : 'Conecte para a IARA agendar consultas na sua agenda'
+                        <p style={{ margin: '2px 0 0', fontSize: 13, color: agenda && !agenda.funcionando && calendarConnected ? '#b45309' : '#94a3b8' }}>
+                            {!calendarConnected
+                                ? 'Conecte para a IARA agendar consultas na sua agenda'
+                                : agenda === null
+                                    ? 'Verificando a conexão...'
+                                    : agenda.funcionando
+                                        ? 'Funcionando — IARA agenda e verifica horários automaticamente'
+                                        : agenda.problemas[0] || 'A agenda não está sincronizando.'
                             }
                         </p>
+                        {agenda && !agenda.funcionando && agenda.problemas.length > 1 && (
+                            <ul style={{ margin: '6px 0 0 16px', padding: 0, fontSize: 12.5, color: '#b45309' }}>
+                                {agenda.problemas.slice(1).map(p => <li key={p}>{p}</li>)}
+                            </ul>
+                        )}
                     </div>
                     <button
                         onClick={() => window.open('/api/auth/google-calendar', '_self')}
