@@ -4,7 +4,7 @@ import { authOptions, hashSenha, isAdmin } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { enviarEmailBoasVindas } from '@/lib/email'
 import { getPermissions } from '@/lib/permissions'
-import { nomeDoNivel } from '@/lib/planos'
+import { nomeDoNivel, nivelToPlano, PLANOS, MAX_NIVEL, type PlanoKey } from '@/lib/planos'
 
 function gerarSenhaAleatoria(len = 10): string {
     const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#'
@@ -219,19 +219,38 @@ export async function POST(
         if (acao === 'plano') {
             const { nivel } = body
             const novoNivel = parseInt(nivel)
-            if (![1, 2].includes(novoNivel)) {
-                return NextResponse.json({ error: 'Nível inválido (1=Essencial, 2=Premium)' }, { status: 400 })
+
+            // Aceitava só 1 e 2. O nível 3 era recusado, então o Black nunca
+            // podia ser dado a ninguém pelo painel — era o motivo de não
+            // conseguir subir cliente para o plano maior.
+            if (!Number.isInteger(novoNivel) || novoNivel < 1 || novoNivel > MAX_NIVEL) {
+                return NextResponse.json(
+                    { error: `Nível inválido. Use de 1 a ${MAX_NIVEL}.` },
+                    { status: 400 }
+                )
             }
-            // Atualiza nível + limites de instâncias
-            const maxIg = novoNivel >= 2 ? 1 : 0
-            await prisma.$executeRaw`
-                UPDATE users 
-                SET nivel = ${novoNivel},
-                    max_instancias_instagram = ${maxIg}
-                WHERE id = ${clinicaId}
-            `
-            const nomePlano = nomeDoNivel(novoNivel)
-            return NextResponse.json({ message: `✅ Plano alterado para ${nomePlano}! Instagram: ${maxIg > 0 ? 'liberado' : 'bloqueado'}` })
+
+            // Mudava só o nível e o Instagram. Créditos, nome do plano e
+            // limite de WhatsApp ficavam do plano antigo: uma clínica subia
+            // para o Black e continuava com o teto de mensagens do Start.
+            const plano = nivelToPlano(novoNivel)
+            const chave = (Object.keys(PLANOS) as PlanoKey[]).find(k => PLANOS[k].nivel === plano.nivel)!
+
+            await prisma.clinica.update({
+                where: { id: clinicaId },
+                data: {
+                    nivel: plano.nivel,
+                    plano: chave,
+                    creditosMensais: plano.creditos,
+                    creditosDisponiveis: plano.creditos,
+                    maxInstanciasInstagram: plano.instagrams,
+                    maxInstanciasWhatsapp: plano.whatsapps,
+                },
+            })
+
+            return NextResponse.json({
+                message: `✅ Plano alterado para ${plano.nome} — ${plano.creditos.toLocaleString('pt-BR')} mensagens, ${plano.whatsapps} WhatsApp, ${plano.instagrams} Instagram.`,
+            })
         }
 
         if (acao === 'refresh') {
