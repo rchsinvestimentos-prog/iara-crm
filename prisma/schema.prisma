@@ -89,6 +89,11 @@ model Clinica {
   modoIA              String?  @default("secretaria") @map("modo_ia") @db.VarChar(30)
   estiloAtendimento   String?  @default("direta") @map("estilo_atendimento") @db.VarChar(20)
   sempreLigada        Boolean? @default(true) @map("sempre_ligada")
+  // Horário em que a IARA trabalha — diferente do horário da clínica.
+  // A clínica pode atender das 9h às 18h com secretária humana e deixar a
+  // IARA cobrir das 18h às 22h, quando não há ninguém.
+  horarioIaraInicio   String?  @map("horario_iara_inicio") @db.VarChar(5)
+  horarioIaraFim      String?  @map("horario_iara_fim") @db.VarChar(5)
   blacklist           String?  @map("blacklist")
   mensagemAniversario String?  @map("mensagem_aniversario")
   mensagemForaHorario String?  @map("mensagem_fora_horario")

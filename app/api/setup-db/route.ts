@@ -391,6 +391,12 @@ export async function GET() {
       await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "retorno_mensagem" TEXT`)
       await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "retorno_enviado" BOOLEAN DEFAULT false`)
       await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "ultimo_contato" TIMESTAMPTZ`)
+
+      // Horário próprio da IARA. A tela de Atendimento salvava início e fim
+      // há meses em campos que não existiam: o horário era descartado em
+      // silêncio e o motor seguia usando o horário da clínica.
+      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "horario_iara_inicio" VARCHAR(5)`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "horario_iara_fim" VARCHAR(5)`)
       results.push('✅ Colunas adicionais em contatos garantidas')
     } catch (e: any) {
       results.push(`⚠️ Colunas adicionais em contatos: ${e.message?.slice(0, 80)}`)

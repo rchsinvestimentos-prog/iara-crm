@@ -74,3 +74,56 @@ export function momentoDoPonto(clinica: DadosClinica): 'entrada' | 'saida' | nul
     if (Math.floor(hora) === Math.floor(h.fim)) return 'saida'
     return null
 }
+
+
+/**
+ * A IARA está no horário de trabalho dela agora?
+ *
+ * Diferente do horário da clínica. A clínica pode atender das 9h às 18h com
+ * secretária humana e deixar a IARA cobrir das 18h às 22h — justamente
+ * quando não tem ninguém. Por isso os dois horários são independentes.
+ *
+ * Sem horário próprio cadastrado, cai no horário da clínica, que era o
+ * comportamento anterior.
+ */
+export function iaraEstaNoTurno(clinica: DadosClinica): {
+    dentro: boolean
+    motivo: string
+} {
+    const { hora, diaSemana } = agoraNaClinica(clinica)
+
+    // Dias em que a IARA atende, marcados na tela de Atendimento.
+    // Guardado como JSON: "[1,2,3,4,5]" — 0 é domingo.
+    let dias: number[] | null = null
+    try {
+        const bruto = (clinica as { diasAtendimento?: string | null }).diasAtendimento
+        const lista = typeof bruto === 'string' ? JSON.parse(bruto) : bruto
+        if (Array.isArray(lista) && lista.length > 0) dias = lista.map(Number)
+    } catch { /* configuração inválida: trata como sem restrição de dia */ }
+
+    if (dias && !dias.includes(diaSemana)) {
+        return { dentro: false, motivo: `hoje (dia ${diaSemana}) não está nos dias da IARA` }
+    }
+
+    const inicio = clinica.horarioIaraInicio
+    const fim = clinica.horarioIaraFim
+
+    if (!inicio || !fim) {
+        // Sem horário próprio: usa o da clínica, como era antes.
+        const h = horarioDeHoje(clinica)
+        if (!h.atende) return { dentro: false, motivo: 'clínica não atende hoje' }
+        const dentro = hora >= h.inicio && hora < h.fim
+        return { dentro, motivo: `horário da clínica ${h.inicio}-${h.fim}, agora ${hora.toFixed(1)}` }
+    }
+
+    const emNumero = (t: string): number => {
+        const [h, m] = t.split(':').map(Number)
+        return (h || 0) + (m || 0) / 60
+    }
+    const i = emNumero(inicio)
+    const f = emNumero(fim)
+
+    // Turno que atravessa a meia-noite (ex.: 22:00 às 02:00)
+    const dentro = f > i ? (hora >= i && hora < f) : (hora >= i || hora < f)
+    return { dentro, motivo: `turno da IARA ${inicio}-${fim}, agora ${hora.toFixed(1)}` }
+}

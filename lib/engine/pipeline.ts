@@ -32,7 +32,7 @@ import { processaDraMensagem } from '@/lib/agent/dra-agent'
 import { shouldRouteToAgent } from '@/lib/agent/intent-classifier'
 import type { MensagemRecebida, DadosClinica, ProfissionalAtivo, Funcionalidades } from './types'
 import { parseFuncionalidades } from './types'
-import { parseHorario } from './horarios'
+import { parseHorario, iaraEstaNoTurno } from './horarios'
 import { prisma } from '@/lib/prisma'
 import { createHash } from 'crypto'
 import * as fs from 'fs'
@@ -223,17 +223,23 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // ================================================
     // 6. HORÁRIO DE EXPEDIENTE
     // ================================================
-    const horario = checkBusinessHours(clinica)
-    await logPipeline('HOURS_CHECK', `aberto=${horario.aberto} debug=${horario.debugInfo} horarioSab=${clinica.horarioSabado} horarioSem=${clinica.horarioSemana}`)
-    
-    if (!horario.aberto) {
-        if (!clinica.sempreLigada) {
-            await handleForaDoHorario(clinica, msg, horario.msgFechado)
-            await logPipeline('CLOSED', `${horario.debugInfo} - sempreLigada=false`)
-            return
-        } else {
-            await logPipeline('HOURS_OVERRIDE', `fechado mas sempreLigada=true`)
-        }
+    // Quem decide se a IARA responde é o turno DELA, não o da clínica.
+    //
+    // Antes usava o horário da clínica e mandava "estamos fechados". Isso
+    // atrapalha o caso real: a clínica atende das 9h às 18h com secretária
+    // humana e quer a IARA cobrindo das 18h às 22h. Pelo desenho antigo, ela
+    // ficaria muda justamente no horário em que deveria trabalhar — e falaria
+    // por cima da secretária no horário em que não deveria.
+    const turno = iaraEstaNoTurno(clinica)
+    await logPipeline('HOURS_CHECK', `dentro=${turno.dentro} ${turno.motivo}`)
+
+    if (!turno.dentro && !clinica.sempreLigada) {
+        // Silêncio, não mensagem de fechado. Fora do turno quem atende é
+        // gente: uma resposta automática atropelaria a secretária. A mensagem
+        // fica guardada e aparece no CRM para a clínica responder.
+        await registrarForaDoTurno(clinica, msg)
+        await logPipeline('FORA_DO_TURNO', turno.motivo)
+        return
     }
 
     // ================================================
@@ -431,7 +437,10 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         memoria: memoriaCliente,
         agendaContext,
         profissionais: profissionaisRaw.length > 1 ? profissionaisRaw : undefined,
-        clinicaAbertaAgora: horario.aberto,
+        // Se a CLÍNICA está aberta — separado do turno da IARA. Serve para ela
+        // saber o que dizer ("a gente abre amanhã às 9h"), não para decidir se
+        // responde. Quem decide isso é o turno dela, checado lá em cima.
+        clinicaAbertaAgora: checkBusinessHours(clinica).aberto,
         promocoesAtivas,
         cursosAtivos,
         combosAtivos,
@@ -871,6 +880,24 @@ function buildMsgFechado(clinica: DadosClinica, voltaQuando: string): string {
     }
 
     return stripEmojisIfNeeded(clinica, `Oi, tudo bem? 😊\n\nEssa é uma resposta automática. No momento ${nomeClinica} está fechado, mas voltamos às *${voltaQuando}*.\n\nAssim que voltarmos, já chamamos você por aqui. É só aguardar! ✨`)
+}
+
+/**
+ * Fora do turno da IARA: registra e não responde.
+ *
+ * Substitui o handleForaDoHorario, que mandava "estamos fechados". A
+ * paciente não recebe nada — parece alguém que ainda não viu a mensagem —
+ * mas a clínica encontra o contato no CRM e na fila de recontato.
+ */
+async function registrarForaDoTurno(clinica: DadosClinica, msg: MensagemRecebida): Promise<void> {
+    try {
+        await prisma.$executeRaw`
+            INSERT INTO fila_recontato (telefone, instancia, nome_cliente, user_id)
+            VALUES (${msg.telefone}, ${msg.instancia}, ${msg.pushName || 'Cliente'}, ${clinica.id})
+        `
+    } catch { /* fila é conveniência; não pode derrubar o registro da mensagem */ }
+
+    await memory.saveToHistory(clinica.id, msg.telefone, 'user', msg.mensagem, msg.pushName)
 }
 
 async function handleForaDoHorario(clinica: DadosClinica, msg: MensagemRecebida, mensagem: string): Promise<void> {

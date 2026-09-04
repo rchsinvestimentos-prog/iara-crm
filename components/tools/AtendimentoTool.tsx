@@ -86,8 +86,10 @@ export default function AtendimentoTool() {
                 if (data.sempreLigada !== undefined && data.sempreLigada !== null) {
                     setSempreLigada(data.sempreLigada)
                 }
-                if (data.horarioInicio) setHorarioInicio(data.horarioInicio)
-                if (data.horarioFim) setHorarioFim(data.horarioFim)
+                // Lia horarioInicio/horarioFim, que nunca existiram na tabela:
+                // a tela sempre voltava para 08:00–20:00 depois de salvar.
+                if (data.horarioIaraInicio) setHorarioInicio(data.horarioIaraInicio)
+                if (data.horarioIaraFim) setHorarioFim(data.horarioIaraFim)
                 if (data.diasAtendimento) {
                     try {
                         const dias = typeof data.diasAtendimento === 'string'
@@ -406,7 +408,7 @@ export default function AtendimentoTool() {
                         </div>
                     </div>
                 )}
-                <BotaoSalvarBloco blocoId="horario" dados={{ sempreLigada, horarioInicio, horarioFim, diasAtendimento: JSON.stringify(diasAtendimento), mensagemForaHorario }} label="Salvar Horário" />
+                <BotaoSalvarBloco blocoId="horario" dados={{ sempreLigada, horarioIaraInicio: horarioInicio, horarioIaraFim: horarioFim, diasAtendimento: JSON.stringify(diasAtendimento), mensagemForaHorario }} label="Salvar Horário" />
             </div>
             )}
 
