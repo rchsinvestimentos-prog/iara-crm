@@ -781,20 +781,55 @@ export default function ConexoesPage() {
                             </ul>
                         )}
                     </div>
-                    <button
-                        onClick={() => window.open('/api/auth/google-calendar', '_self')}
-                        style={{
-                            background: calendarConnected
-                                ? 'rgba(0,0,0,0.05)'
-                                : 'linear-gradient(135deg, #4285F4, #34A853)',
-                            color: calendarConnected ? '#64748b' : '#fff',
-                            border: 'none', borderRadius: 12,
-                            padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
-                            whiteSpace: 'nowrap'
-                        }}
-                    >
-                        {calendarConnected ? '🔄 Reconectar' : '+ Conectar'}
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                        <button
+                            onClick={() => window.open('/api/auth/google-calendar', '_self')}
+                            style={{
+                                background: calendarConnected
+                                    ? 'rgba(0,0,0,0.05)'
+                                    : 'linear-gradient(135deg, #4285F4, #34A853)',
+                                color: calendarConnected ? '#64748b' : '#fff',
+                                border: 'none', borderRadius: 12,
+                                padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                                whiteSpace: 'nowrap'
+                            }}
+                        >
+                            {calendarConnected ? '🔄 Reconectar' : '+ Conectar'}
+                        </button>
+                        {/* Só o Apple Calendar tinha como desconectar. No Google, quem
+                            quisesse parar de sincronizar precisava revogar o acesso
+                            pelo painel da conta, longe daqui. */}
+                        {calendarConnected && (
+                            <button
+                                onClick={async () => {
+                                    if (!confirm('Desconectar o Google Agenda? A IARA para de criar e consultar eventos nele. Os agendamentos já feitos continuam no seu Google.')) return
+                                    setConectando(true)
+                                    try {
+                                        const r = await fetch('/api/auth/google-calendar/disconnect', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({}),
+                                        })
+                                        if (r.ok) window.location.reload()
+                                        else alert('Não consegui desconectar. Tente de novo.')
+                                    } catch {
+                                        alert('Não consegui desconectar. Tente de novo.')
+                                    } finally {
+                                        setConectando(false)
+                                    }
+                                }}
+                                disabled={conectando}
+                                style={{
+                                    background: 'none', color: '#94a3b8',
+                                    border: '1px solid #e2e8f0', borderRadius: 12,
+                                    padding: '10px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                                    whiteSpace: 'nowrap', opacity: conectando ? 0.6 : 1,
+                                }}
+                            >
+                                Desconectar
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
