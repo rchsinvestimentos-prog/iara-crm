@@ -18,6 +18,10 @@ export async function middleware(request: NextRequest) {
     // ─── Rotas públicas — não proteger ───
     const publicPaths = [
         '/login',
+        // Termos e privacidade precisam abrir sem login: a verificação do app
+        // no Google exige ler as duas, e atrás do login ela é reprovada.
+        '/termos',
+        '/privacidade',
         '/api/auth',
         '/a/',
         '/agendar/',
@@ -25,7 +29,13 @@ export async function middleware(request: NextRequest) {
         '/api/anamnese/publico/',
         '/api/setup-db'
     ]
-    if (publicPaths.some(p => pathname.startsWith(p))) {
+    // Prefixo terminado em '/' abre a árvore inteira (é o caso de /a/ e
+    // /agendar/); o resto casa exato. Sem isso, '/termos' abriria também um
+    // '/termos-internos' futuro — o mesmo furo que já apareceu nos crons.
+    const ehPublica = publicPaths.some(p =>
+        p.endsWith('/') ? pathname.startsWith(p) : pathname === p || pathname.startsWith(`${p}/`)
+    )
+    if (ehPublica) {
         if (pathname === '/login' && token) {
             // Admin logado no subdomain admin → vai pro /admin
             const dest = isAdmin ? '/admin' : '/dashboard'

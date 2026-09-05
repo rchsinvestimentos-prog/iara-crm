@@ -26,8 +26,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Scopes necessários para ler e criar eventos no Google Calendar
+    // Só eventos. A permissão ampla 'calendar' também deixa criar e apagar
+    // agendas inteiras, coisa que o código nunca faz — e permissão a mais
+    // torna a verificação do app no Google mais difícil e mais demorada.
     const scopes = [
-        'https://www.googleapis.com/auth/calendar',
         'https://www.googleapis.com/auth/calendar.events',
     ].join(' ')
 
