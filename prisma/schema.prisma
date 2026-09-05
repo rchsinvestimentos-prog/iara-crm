@@ -99,6 +99,10 @@ model Clinica {
   cobrarParaAgendar   Boolean? @default(false) @map("cobrar_para_agendar")
   valorSinalPadrao    Decimal? @map("valor_sinal_padrao") @db.Decimal
   mensagemSinal       String?  @map("mensagem_sinal") @db.Text
+  // Link de pagamento próprio da clínica (Asaas, Mercado Pago, InfinitePay…).
+  // Quando existe, já leva o valor do sinal embutido e aceita PIX e cartão —
+  // a IARA manda o link em vez da chave solta.
+  linkPagamentoSinal  String?  @map("link_pagamento_sinal") @db.Text
   // Quanto tempo o horário fica reservado esperando o comprovante.
   minutosReservaSinal Int?   @default(30) @map("minutos_reserva_sinal")
   blacklist           String?  @map("blacklist")

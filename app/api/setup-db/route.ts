@@ -405,6 +405,7 @@ export async function GET() {
       await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "cobrar_para_agendar" BOOLEAN DEFAULT false`)
       await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "valor_sinal_padrao" DECIMAL`)
       await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "mensagem_sinal" TEXT`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "link_pagamento_sinal" TEXT`)
       await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "minutos_reserva_sinal" INTEGER DEFAULT 30`)
       results.push('✅ Colunas adicionais em contatos garantidas')
     } catch (e: any) {

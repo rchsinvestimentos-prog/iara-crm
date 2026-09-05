@@ -191,6 +191,7 @@ IMPORTANTE: O sistema remove esse marcador de forma 100% automática antes do en
         mensagemSinal?: string | null
         minutosReservaSinal?: number | null
         chavePix?: string | null
+        linkPagamentoSinal?: string | null
     }
     // Dois caminhos: a chave geral das configurações avançadas (vale pra tudo)
     // ou o sinal marcado procedimento a procedimento. O valor do procedimento
@@ -203,6 +204,18 @@ IMPORTANTE: O sistema remove esse marcador de forma 100% automática antes do en
         || ((clinica.configuracoes as Record<string, unknown> | null)?.chave_pix as string | undefined)
     const minutosReserva = cobranca.minutosReservaSinal ?? 30
     const recadoSinal = (cobranca.mensagemSinal || '').trim()
+    const linkSinal = (cobranca.linkPagamentoSinal || '').trim()
+
+    // Link de pagamento ganha da chave PIX: já vai com o valor certo e aceita
+    // tudo, então a cliente não digita nada nem erra o valor.
+    const comoPagar = linkSinal
+        ? `Mande o link de pagamento JUNTO, na mesma mensagem em que citar o sinal: ${linkSinal}
+   Copie o link exatamente como está, sem encurtar nem alterar. Ele já vem com o valor certo.
+   Nunca diga "vou te mandar o link" — mande.${chavePixClinica ? `\n   Se a cliente pedir PIX direto, a chave é: ${chavePixClinica}` : ''}`
+        : chavePixClinica
+            ? `Mande a chave PIX JUNTO, na mesma mensagem em que citar o sinal: ${chavePixClinica}
+   Nunca diga "vou te passar a chave" — passe. Mandar depois faz a cliente esperar e desistir.`
+            : 'A clínica ainda não cadastrou a chave PIX nem o link de pagamento. Diga que a equipe manda os dados de pagamento em seguida.'
 
     const listaSinal = cobrancaGeral && valorPadrao && comSinal.length === procedimentos.length
         ? `TODO agendamento exige sinal de ${moeda} ${valorPadrao}${procedimentos.some(p => p.exigeSinal && p.valorSinal)
@@ -218,7 +231,7 @@ COMO CONDUZIR, na ordem:
 1. Combine o procedimento, o dia e o horário normalmente.
 2. ANTES de confirmar, avise que esse horário só fica reservado com o sinal,
    e diga o valor. Explique com naturalidade: é o que garante a vaga dela.
-3. ${chavePixClinica ? `Mande a chave PIX JUNTO, na mesma mensagem em que citar o sinal: ${chavePixClinica}\n   Nunca diga "vou te passar a chave" — passe. Mandar depois faz a cliente esperar e desistir.` : 'A clínica ainda não cadastrou a chave PIX. Diga que a equipe manda os dados de pagamento em seguida.'}
+3. ${comoPagar}
 4. Diga que o horário fica guardado por ${minutosReserva} minutos esperando o comprovante.
 5. Peça para ela mandar o comprovante aqui mesmo, por foto.${recadoSinal ? `\n   Passe também este recado da clínica, com suas palavras: "${recadoSinal}"` : ''}
 6. NÃO use o marcador de agendamento ainda. O horário só é marcado depois que

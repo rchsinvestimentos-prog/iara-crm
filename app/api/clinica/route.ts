@@ -37,6 +37,7 @@ const UpdateClinicaSchema = z.object({
     cobrarParaAgendar: z.boolean().optional().nullable(),
     valorSinalPadrao: z.number().min(0).max(999999).optional().nullable(),
     mensagemSinal: z.string().max(2000).optional().nullable(),
+    linkPagamentoSinal: z.string().max(500).optional().nullable(),
     minutosReservaSinal: z.number().min(0).max(10080).optional().nullable(),
     // horarioInicio / horarioFim / diasFuncionamento NÃO existem no Prisma
     // São ignorados no filtro abaixo
@@ -129,7 +130,7 @@ export async function PUT(request: Request) {
             'humor', 'emojis', 'fraseDespedida', 'funcionalidades', 'feedbacks',
             'modoIA', 'sempreLigada', 'blacklist',
             'horarioIaraInicio', 'horarioIaraFim',
-            'cobrarParaAgendar', 'valorSinalPadrao', 'mensagemSinal', 'minutosReservaSinal',
+            'cobrarParaAgendar', 'valorSinalPadrao', 'mensagemSinal', 'minutosReservaSinal', 'linkPagamentoSinal',
             'mensagemAniversario', 'mensagemForaHorario', 'diasAtendimento',
             'idioma', 'pais', 'moeda', 'timezone', 'canalPrincipal',
             'telefoneTwilio', 'twilioSid',

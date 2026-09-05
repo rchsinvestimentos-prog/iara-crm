@@ -243,6 +243,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
     const [valorSinalPadrao, setValorSinalPadrao] = useState('')
     const [mensagemSinal, setMensagemSinal] = useState('')
     const [minutosReservaSinal, setMinutosReservaSinal] = useState('30')
+    const [linkPagamentoSinal, setLinkPagamentoSinal] = useState('')
     const [redesSociais, setRedesSociais] = useState<RedesSociais>({ instagram: '', tiktok: '', facebook: '', site: '' })
 
     // ---- WhatsApp QR ----
@@ -333,6 +334,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                 setValorSinalPadrao(data.valorSinalPadrao != null ? String(data.valorSinalPadrao) : '')
                 setMensagemSinal(data.mensagemSinal || '')
                 setMinutosReservaSinal(data.minutosReservaSinal != null ? String(data.minutosReservaSinal) : '30')
+                setLinkPagamentoSinal(data.linkPagamentoSinal || '')
                 setRedesSociais(data.redesSociais || { instagram: '', tiktok: '', facebook: '', site: '' })
 
                 // Verificar status real do WhatsApp via Evolution API
@@ -412,6 +414,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                     valorSinalPadrao: valorSinalPadrao.trim() ? Number(valorSinalPadrao) : null,
                     mensagemSinal: mensagemSinal.trim() || null,
                     minutosReservaSinal: Number(minutosReservaSinal) || 30,
+                    linkPagamentoSinal: linkPagamentoSinal.trim() || null,
                     redesSociais,
                     cuidadosPos: JSON.stringify(cuidadosPos),
                     autorizouCuidadosPos: autorizouCuidadosPos || null,
@@ -479,6 +482,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                     valorSinalPadrao: valorSinalPadrao.trim() ? Number(valorSinalPadrao) : null,
                     mensagemSinal: mensagemSinal.trim() || null,
                     minutosReservaSinal: Number(minutosReservaSinal) || 30,
+                    linkPagamentoSinal: linkPagamentoSinal.trim() || null,
                     redesSociais,
                 }),
             })
@@ -1808,6 +1812,19 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                                     </div>
                                 </div>
                                 <textarea className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none resize-none h-16" style={innerInputStyle} value={mensagemSinal} onChange={e => setMensagemSinal(e.target.value)} placeholder="Mensagem opcional. Ex: O sinal é descontado do valor final e garante sua vaga na agenda." />
+
+                                <div>
+                                    <label className="text-[10px] block mb-1" style={{ color: 'var(--text-muted)' }}>
+                                        🔗 Link de pagamento (opcional)
+                                    </label>
+                                    <input type="url" className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={linkPagamentoSinal} onChange={e => setLinkPagamentoSinal(e.target.value)} placeholder="https://... (Asaas, Mercado Pago, InfinitePay, PagSeguro)" />
+                                    <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                                        Se o sinal é sempre o mesmo valor, cole aqui o link da sua maquininha ou banco —
+                                        ele já leva o valor e aceita PIX e cartão. A IARA manda o link no lugar da chave
+                                        PIX, e a cliente paga sem digitar nada.
+                                    </p>
+                                </div>
+
                                 <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                                     Vale para todos os procedimentos. Quer cobrar só em alguns? Configure o sinal
                                     procedimento por procedimento na aba Serviços — lá o valor específico manda.
