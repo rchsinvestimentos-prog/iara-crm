@@ -397,6 +397,12 @@ export async function GET() {
       // silêncio e o motor seguia usando o horário da clínica.
       await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "horario_iara_inicio" VARCHAR(5)`)
       await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "horario_iara_fim" VARCHAR(5)`)
+
+      // Sinal antes de agendar: por procedimento, com o tempo de reserva
+      // definido pela clínica.
+      await prisma.$executeRawUnsafe(`ALTER TABLE "procedimentos" ADD COLUMN IF NOT EXISTS "exige_sinal" BOOLEAN DEFAULT false`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "procedimentos" ADD COLUMN IF NOT EXISTS "valor_sinal" DECIMAL`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "minutos_reserva_sinal" INTEGER DEFAULT 30`)
       results.push('✅ Colunas adicionais em contatos garantidas')
     } catch (e: any) {
       results.push(`⚠️ Colunas adicionais em contatos: ${e.message?.slice(0, 80)}`)

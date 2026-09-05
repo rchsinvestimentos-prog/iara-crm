@@ -181,6 +181,9 @@ export interface Procedimento {
     descricao: string | null
     valorMin: number | null
     valorMax: number | null
+    /** Cobra sinal antes de reservar o horário. */
+    exigeSinal?: boolean
+    valorSinal?: number | null
     profissionalId?: string | null
 }
 

@@ -94,6 +94,8 @@ model Clinica {
   // IARA cobrir das 18h às 22h, quando não há ninguém.
   horarioIaraInicio   String?  @map("horario_iara_inicio") @db.VarChar(5)
   horarioIaraFim      String?  @map("horario_iara_fim") @db.VarChar(5)
+  // Quanto tempo o horário fica reservado esperando o comprovante.
+  minutosReservaSinal Int?   @default(30) @map("minutos_reserva_sinal")
   blacklist           String?  @map("blacklist")
   mensagemAniversario String?  @map("mensagem_aniversario")
   mensagemForaHorario String?  @map("mensagem_fora_horario")
@@ -281,6 +283,10 @@ model Procedimento {
   parcelas        Int?      @map("parcelamento_padrao")
   duracao         Int?      @map("duracao_minutos")
   descricao       String?   @db.Text
+  // Sinal cobrado antes de marcar. Clínica que cobra pelo horário não pode
+  // reservar sem receber: falta sem aviso é o prejuízo que isso evita.
+  exigeSinal      Boolean   @default(false) @map("exige_sinal")
+  valorSinal      Decimal?  @map("valor_sinal") @db.Decimal
   valorMin        Decimal?  @map("valor_min") @db.Decimal
   valorMax        Decimal?  @map("valor_max") @db.Decimal
   posProcedimento String?   @map("pos_procedimento") @db.Text // Cuidados pós-procedimento

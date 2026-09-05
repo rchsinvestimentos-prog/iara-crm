@@ -182,6 +182,34 @@ IMPORTANTE: O sistema remove esse marcador de forma 100% automática antes do en
 `
 
 
+    // --- Sinal antes de agendar ---
+    // A clínica cobra pelo horário e não pode reservar sem receber. Sem esta
+    // regra a IARA marca na hora e o prejuízo da falta continua igual.
+    const comSinal = procedimentos.filter(p => p.exigeSinal && p.valorSinal)
+    const chavePixClinica = (clinica as { chavePix?: string | null }).chavePix
+        || ((clinica.configuracoes as Record<string, unknown> | null)?.chave_pix as string | undefined)
+    const minutosReserva = (clinica as { minutosReservaSinal?: number | null }).minutosReservaSinal ?? 30
+
+    const regraSinal = comSinal.length > 0 ? `
+💰 PROCEDIMENTOS QUE EXIGEM SINAL ANTES DE AGENDAR:
+${comSinal.map(p => `- ${p.nome}: sinal de ${moeda} ${p.valorSinal}`).join('\n')}
+
+COMO CONDUZIR, na ordem:
+1. Combine o procedimento, o dia e o horário normalmente.
+2. ANTES de confirmar, avise que esse horário só fica reservado com o sinal,
+   e diga o valor. Explique com naturalidade: é o que garante a vaga dela.
+3. ${chavePixClinica ? `Mande a chave PIX JUNTO, na mesma mensagem em que citar o sinal: ${chavePixClinica}\n   Nunca diga "vou te passar a chave" — passe. Mandar depois faz a cliente esperar e desistir.` : 'A clínica ainda não cadastrou a chave PIX. Diga que a equipe manda os dados de pagamento em seguida.'}
+4. Diga que o horário fica guardado por ${minutosReserva} minutos esperando o comprovante.
+5. Peça para ela mandar o comprovante aqui mesmo, por foto.
+6. NÃO use o marcador de agendamento ainda. O horário só é marcado depois que
+   a clínica confere o comprovante — quem confere é uma pessoa, não você.
+7. Quando ela mandar a foto, agradeça e diga que a clínica vai confirmar em
+   instantes. NÃO diga que está confirmado, porque ainda não está.
+
+NUNCA confirme o agendamento desses procedimentos sem comprovante. Nunca diga
+que recebeu o pagamento — você não tem como saber se ele caiu.
+` : ''
+
     // --- Regra de Preço Faixa (valor_min/valor_max) ---
     const temFaixa = procedimentos.some(p => p.valorMin && p.valorMax)
     const regraFaixa = temFaixa ? `
@@ -550,7 +578,7 @@ ${escopoTexto}
   → "Tem alguma referência de como gostaria que ficasse?"
 - Essa pergunta ajuda a personalizar a resposta e mostrar cuidado.
 - NÃO faça mais do que 1 pergunta por mensagem.
-${regraEstilo}${regraFaixa}${catalogoTexto}${promoTexto}${sobreClinicaTexto}${configTomTexto}
+${regraEstilo}${regraFaixa}${regraSinal}${catalogoTexto}${promoTexto}${sobreClinicaTexto}${configTomTexto}
 ${linhaProf}${horarioContext}${cursosTexto}${combosTexto}${cofreLeisFinais}
 
 ${funcs.vendas_7_passos ? cofreRoteiroFinal : '(Método de vendas desativado pela clínica — foque em informar preços e agendar diretamente.)'}

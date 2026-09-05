@@ -767,7 +767,21 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
     // 6. Alerta a Dra e profissionais no WhatsApp com o link direto de triagem
     const panelUrl = process.env.NEXTAUTH_URL || 'https://app.iara.click'
     const linkTriage = `${panelUrl}/clientes?contatoId=${contato.id}&triage=true`
-    const alertaMensagem = `${tipoEmoji} *${nomeCliente}* mandou ${msg.tipoMensagem === 'document' ? 'um documento' : (msg.tipoMensagem === 'image' ? 'uma foto' : 'um vídeo')}${msg.tipoMensagem === 'document' && msg.mensagem ? ' (' + msg.mensagem + ')' : ''}\n📱 ${msg.telefone}\n\nDra, clique no link abaixo para analisar a foto, ouvir os últimos áudios e responder à cliente:\n🔗 ${linkTriage}`
+    // Clínica que cobra sinal recebe comprovante por foto, e a diferença
+    // entre "foto da pele" e "comprovante de PIX" muda a urgência: do outro
+    // lado tem alguém com o horário reservado esperando confirmação.
+    let dicaComprovante = ''
+    try {
+        const cobraSinal = await prisma.$queryRaw<{ n: number }[]>`
+            SELECT COUNT(*)::int AS n FROM procedimentos
+            WHERE user_id = ${clinica.id} AND ativo = true AND exige_sinal = true
+        `
+        if ((cobraSinal?.[0]?.n ?? 0) > 0 && msg.tipoMensagem === 'image') {
+            dicaComprovante = `\n\n💰 Pode ser o comprovante do sinal. Se for, confirme o horário dela.`
+        }
+    } catch { /* coluna ainda não criada neste banco — segue sem a dica */ }
+
+    const alertaMensagem = `${tipoEmoji} *${nomeCliente}* mandou ${msg.tipoMensagem === 'document' ? 'um documento' : (msg.tipoMensagem === 'image' ? 'uma foto' : 'um vídeo')}${msg.tipoMensagem === 'document' && msg.mensagem ? ' (' + msg.mensagem + ')' : ''}\n📱 ${msg.telefone}${dicaComprovante}\n\nDra, clique no link abaixo para analisar a foto, ouvir os últimos áudios e responder à cliente:\n🔗 ${linkTriage}`
 
     // Tentar alertar profissionais primeiro, fallback para whatsappDoutora
     const profissionais = await buscarProfissionais(clinica.id)
@@ -989,10 +1003,12 @@ async function buscarProcedimentos(clinicaId: number) {
             valor_min: number | null
             valor_max: number | null
             pos_procedimento: string | null
+            exige_sinal: boolean | null
+            valor_sinal: number | null
         }[]>`
       SELECT id, nome, COALESCE(preco_normal, 0) as valor, COALESCE(preco_minimo, 0) as desconto, 
              parcelamento_padrao as parcelas, duracao_minutos as duracao, descricao, profissional_id,
-             valor_min, valor_max, pos_procedimento
+             valor_min, valor_max, pos_procedimento, exige_sinal, valor_sinal
       FROM procedimentos
       WHERE user_id = ${clinicaId}
         AND ativo = true
@@ -1003,6 +1019,8 @@ async function buscarProcedimentos(clinicaId: number) {
             profissionalId: r.profissional_id || null,
             valorMin: r.valor_min ? Number(r.valor_min) : null,
             valorMax: r.valor_max ? Number(r.valor_max) : null,
+            exigeSinal: !!r.exige_sinal,
+            valorSinal: r.valor_sinal ? Number(r.valor_sinal) : null,
         }))
     } catch (err) {
         console.error('[Pipeline] ❌ Erro ao buscar procedimentos:', err)
