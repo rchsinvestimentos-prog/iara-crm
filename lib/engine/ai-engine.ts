@@ -134,6 +134,10 @@ export function buildSystemPromptPartes(ctx: PromptContext): { estavel: string; 
                 }
             }
         }
+        catalogoTexto += `\n⚠️ PROCEDIMENTO SEM PREÇO NA LISTA:`
+        catalogoTexto += `\n- Significa que a clínica não divulga o valor por mensagem, NÃO que é de graça.`
+        catalogoTexto += `\n- NUNCA invente, estime ou compare com outro procedimento para chegar num número.`
+        catalogoTexto += `\n- Diga que o valor é definido na avaliação, porque depende do caso dela, e ofereça agendar.`
         catalogoTexto += `\n⚠️ REGRA MULTI-PROFISSIONAL:`
         catalogoTexto += `\n- Se a cliente pedir um procedimento que MAIS DE UM profissional faz, PERGUNTE com qual profissional ela prefere.`
         catalogoTexto += `\n- Se SÓ UM profissional faz aquele procedimento, direcione direto sem perguntar.`
@@ -154,6 +158,15 @@ export function buildSystemPromptPartes(ctx: PromptContext): { estavel: string; 
             })
         } else {
             catalogoTexto += `${labels.semCatalogo}\n`
+        }
+
+        // Mesma orientação do modo multi-profissional: procedimento sem preço
+        // na lista é preço não divulgado, e a IARA não pode inventar um.
+        if (procedimentos.some(p => !p.valor && !(p.valorMin && p.valorMax))) {
+            catalogoTexto += `\n⚠️ PROCEDIMENTO SEM PREÇO NA LISTA:`
+            catalogoTexto += `\n- Significa que a clínica não divulga o valor por mensagem, NÃO que é de graça.`
+            catalogoTexto += `\n- NUNCA invente, estime ou compare com outro procedimento para chegar num número.`
+            catalogoTexto += `\n- Diga que o valor é definido na avaliação, porque depende do caso dela, e ofereça agendar.\n`
         }
     }
 

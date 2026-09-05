@@ -7,7 +7,10 @@ import { z } from 'zod'
 // Validation schemas — types match actual DB columns
 const CreateProcSchema = z.object({
     nome: z.string().min(1).max(100),
-    valor: z.number().min(0).max(999999),
+    // Preço opcional: clínica que não divulga valor por mensagem cadastra o
+    // procedimento sem ele, e a IARA chama para avaliação em vez de citar
+    // número. Antes a API exigia, então não dava nem para cadastrar assim.
+    valor: z.number().min(0).max(999999).optional().nullable(),
     desconto: z.number().min(0).max(999999).optional().default(0),
     parcelas: z.number().int().min(0).max(999).optional().nullable(),
     duracao: z.number().int().min(0).max(1440).optional().default(0),
