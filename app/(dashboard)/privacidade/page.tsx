@@ -50,7 +50,7 @@ export default function PrivacidadePage() {
                 </p>
                 <ul className="text-[13px] space-y-1 list-disc pl-5">
                     <li>Provedores de infraestrutura (hospedagem, banco de dados)</li>
-                    <li>Provedores de IA (OpenAI, para processamento de mensagens)</li>
+                    <li>Provedores de IA (Anthropic e OpenAI, para processamento de mensagens)</li>
                     <li>Autoridades legais, quando exigido por lei</li>
                 </ul>
 
@@ -74,6 +74,97 @@ export default function PrivacidadePage() {
                 <p className="text-[13px] leading-relaxed">
                     Os dados são mantidos durante a vigência do contrato e por <strong>12 meses</strong> após o cancelamento,
                     exceto quando houver obrigação legal de retenção por prazo superior.
+                </p>
+
+                <h2 className="text-[15px] font-semibold mt-6" style={{ color: 'var(--text-primary)' }}>8. Dados de Contas Google</h2>
+                <p className="text-[13px] leading-relaxed">
+                    A IARA pode se conectar à conta Google da clínica, sempre por autorização explícita da própria
+                    clínica, para sincronizar a agenda. Nada é acessado sem essa autorização.
+                </p>
+                <p className="text-[13px] leading-relaxed mt-2">
+                    <strong>O que acessamos e por quê:</strong>
+                </p>
+                <ul className="text-[13px] space-y-1 list-disc pl-5">
+                    <li>
+                        <strong>Google Agenda</strong> (<code className="text-[11px]">calendar.events</code>) — para criar,
+                        alterar e cancelar os compromissos agendados pela IARA, e para consultar os horários já ocupados
+                        antes de oferecer um horário à paciente. Não lemos nem alteramos eventos de outros calendários.
+                    </li>
+                    <li>
+                        <strong>Google Contatos</strong> (<code className="text-[11px]">contacts.readonly</code>) — somente
+                        leitura, e somente quando a clínica clica em importar contatos, para trazer nomes e telefones de
+                        pacientes que já estavam na agenda dela. Nunca alteramos nem apagamos contatos.
+                    </li>
+                </ul>
+                <p className="text-[13px] leading-relaxed mt-2">
+                    <strong>Como guardamos:</strong> armazenamos apenas os tokens de acesso necessários para manter a
+                    conexão, junto com o identificador do calendário escolhido. Os dados obtidos da conta Google são
+                    usados exclusivamente para as funções descritas acima, dentro do painel da própria clínica.
+                </p>
+                <p className="text-[13px] leading-relaxed mt-2">
+                    <strong>O que nunca fazemos:</strong> não vendemos dados do Google, não os usamos para publicidade,
+                    não os transferimos a terceiros para outros fins e não os usamos para treinar modelos de
+                    inteligência artificial. Nenhuma pessoa da nossa equipe lê esses dados, exceto quando estritamente
+                    necessário para dar suporte a pedido da própria clínica, para cumprir a lei ou para investigar
+                    abuso e falhas de segurança.
+                </p>
+                <p className="text-[13px] leading-relaxed mt-2">
+                    O uso e a transferência de informações recebidas das APIs do Google pela IARA obedecem à{' '}
+                    <a
+                        href="https://developers.google.com/terms/api-services-user-data-policy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline"
+                        style={{ color: 'var(--text-primary)' }}
+                    >
+                        Política de Dados do Usuário dos Serviços de API do Google
+                    </a>
+                    , incluindo os requisitos de Uso Limitado (<em>Limited Use</em>).
+                </p>
+                <p className="text-[13px] leading-relaxed mt-2">
+                    <strong>Como desconectar:</strong> a clínica pode encerrar a conexão a qualquer momento no botão
+                    “Desconectar” dentro do painel da IARA, ou em{' '}
+                    <a
+                        href="https://myaccount.google.com/permissions"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline"
+                        style={{ color: 'var(--text-primary)' }}
+                    >
+                        myaccount.google.com/permissions
+                    </a>
+                    . Ao desconectar, os tokens são apagados dos nossos servidores.
+                </p>
+
+                <h2 className="text-[15px] font-semibold mt-6" style={{ color: 'var(--text-primary)' }}>9. Dados do Instagram</h2>
+                <p className="text-[13px] leading-relaxed">
+                    Quando a clínica conecta sua conta profissional do Instagram à IARA, coletamos:
+                </p>
+                <ul className="text-[13px] space-y-1 list-disc pl-5">
+                    <li>
+                        <strong>Mensagens diretas (DMs)</strong> — conteúdo das mensagens recebidas e enviadas, para
+                        o atendimento automatizado feito em nome da clínica.
+                    </li>
+                    <li>
+                        <strong>Comentários</strong> — conteúdo dos comentários nas publicações, para a resposta
+                        automática configurada pela própria clínica.
+                    </li>
+                    <li>
+                        <strong>Perfil de quem escreve</strong> — nome ou @ do Instagram, apenas para identificar a
+                        pessoa dentro da conversa.
+                    </li>
+                </ul>
+                <p className="text-[13px] leading-relaxed mt-2">
+                    Esses dados são usados exclusivamente para responder mensagens em nome da clínica. Nunca são
+                    vendidos, compartilhados com terceiros para marketing, usados para publicidade ou usados para
+                    treinar modelos de inteligência artificial. A clínica pode revogar o acesso a qualquer momento,
+                    desconectando a integração no painel da IARA.
+                </p>
+                <p className="text-[13px] leading-relaxed mt-2">
+                    Para solicitar a exclusão dos seus dados, acesse{' '}
+                    <a href="/legal/exclusao-de-dados" className="underline" style={{ color: 'var(--text-primary)' }}>
+                        app.iara.click/legal/exclusao-de-dados
+                    </a>.
                 </p>
 
                 <div className="mt-8 p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-card, rgba(255,255,255,0.03))', border: '1px solid var(--border-subtle, rgba(255,255,255,0.06))' }}>

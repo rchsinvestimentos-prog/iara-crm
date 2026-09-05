@@ -22,6 +22,9 @@ export async function middleware(request: NextRequest) {
         // no Google exige ler as duas, e atrás do login ela é reprovada.
         '/termos',
         '/privacidade',
+        // Existe uma segunda cópia em /legal. Se for essa a URL cadastrada no
+        // Google Cloud, o revisor cai no login e a verificação é reprovada.
+        '/legal',
         '/api/auth',
         '/a/',
         '/agendar/',
