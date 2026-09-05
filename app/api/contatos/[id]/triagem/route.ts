@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma'
 import * as sender from '@/lib/engine/sender'
 import * as aiEngine from '@/lib/engine/ai-engine'
 import * as memory from '@/lib/engine/memory'
-import { parseFuncionalidades } from '@/lib/engine/types'
+import * as calendar from '@/lib/engine/calendar'
+import { parseFuncionalidades, type DadosClinica } from '@/lib/engine/types'
 
 // POST /api/contatos/[id]/triagem
 export async function POST(
@@ -100,6 +101,160 @@ Seja objetiva, vá direto ao ponto e não invente nada além do que a Doutora fa
             `
 
             return NextResponse.json({ ok: true, respostaEnviada: respostaFinal })
+        }
+
+        // ============================================
+        // SUGERIR: que horário foi combinado na conversa?
+        // ============================================
+        // A paciente já acertou dia e hora com a IARA antes de mandar o
+        // comprovante. Fazer a doutora redigitar tudo seria atrito à toa —
+        // ela confere e corrige se precisar.
+        if (action === 'sugerir-agendamento') {
+            const historico = await memory.getConversationHistory(clinica.id, contato.telefone, 20)
+            const conversa = historico.slice().reverse()
+                .map(m => `${m.role === 'user' ? 'PACIENTE' : 'IARA'}: ${m.content}`)
+                .join('\n').slice(0, 6000)
+
+            // O modelo erra "quinta que vem" quando só recebe a data crua —
+            // no teste ele devolveu uma sexta. Dando o dia da semana de hoje e
+            // os próximos sete dias por extenso, ele passa a acertar.
+            const tz = clinica.timezone || 'America/Sao_Paulo'
+            const agora = new Date()
+            const proximosDias = Array.from({ length: 8 }, (_, i) => {
+                const d = new Date(agora.getTime() + i * 86400000)
+                const iso = d.toLocaleDateString('en-CA', { timeZone: tz })
+                const semana = d.toLocaleDateString('pt-BR', { timeZone: tz, weekday: 'long' })
+                return `${iso} = ${semana}${i === 0 ? ' (hoje)' : i === 1 ? ' (amanhã)' : ''}`
+            }).join('\n')
+
+            const sistema = `Leia a conversa e diga qual agendamento foi combinado.
+
+Calendário (use exatamente estas datas, não calcule por conta própria):
+${proximosDias}
+
+Responda APENAS um JSON, sem texto em volta:
+{"procedimento":"...","data":"AAAA-MM-DD","hora":"HH:MM","duracao":60}
+
+Se algum dado não estiver claro na conversa, use null naquele campo. NÃO invente
+data, hora nem procedimento que não tenham sido ditos. Se a cliente citou um dia
+da semana, escolha a data que corresponde a esse dia na lista acima.`
+
+            const r = await aiEngine.callAI(sistema, conversa)
+            let sugestao: Record<string, unknown> | null = null
+            try {
+                const m = r.texto.match(/\{[\s\S]*\}/)
+                if (m) sugestao = JSON.parse(m[0])
+            } catch { /* modelo devolveu algo fora do formato */ }
+
+            return NextResponse.json({ ok: true, sugestao })
+        }
+
+        // ============================================
+        // APROVAR: comprovante conferido, pode marcar
+        // ============================================
+        if (action === 'aprovar-agendamento') {
+            const { procedimento, data, hora, duracao, profissionalId } = body as {
+                procedimento?: string; data?: string; hora?: string
+                duracao?: number; profissionalId?: string
+            }
+
+            if (!procedimento || !data || !hora) {
+                return NextResponse.json(
+                    { error: 'Informe procedimento, data e horário para confirmar o agendamento.' },
+                    { status: 400 }
+                )
+            }
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !/^\d{2}:\d{2}$/.test(hora)) {
+                return NextResponse.json({ error: 'Data ou horário em formato inválido.' }, { status: 400 })
+            }
+            if (!clinica.evolutionInstance) {
+                return NextResponse.json({ error: 'Instância Evolution não configurada na clínica' }, { status: 500 })
+            }
+
+            // Duração: o que a doutora mandou, senão a do procedimento cadastrado.
+            let minutos = Number(duracao) || 0
+            if (!minutos) {
+                const proc = await prisma.procedimento.findFirst({
+                    where: { clinicaId: clinica.id, nome: procedimento },
+                    select: { duracao: true },
+                })
+                minutos = proc?.duracao || 60
+            }
+
+            // A cliente está esperando desde que mandou o comprovante. Quem avisa
+            // é a IARA, com a voz dela — não um texto de sistema.
+            const [ano, mes, dia] = data.split('-').map(Number)
+            const dataBonita = new Date(ano, mes - 1, dia)
+                .toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+
+            const systemPrompt = `Você é a ${clinica.nomeAssistente || 'Iara'}, assistente da clínica "${clinica.nomeClinica || 'a clínica'}".
+
+A profissional acabou de conferir o comprovante de pagamento da cliente e APROVOU o agendamento:
+- Procedimento: ${procedimento}
+- Data: ${dataBonita}
+- Horário: ${hora}
+
+Escreva uma mensagem curta e carinhosa avisando que a profissional confirmou o comprovante
+e que o horário está garantido. Repita data e horário para não restar dúvida.
+Não invente nada além disso e não use marcadores entre colchetes.`
+
+            const historico = await memory.getConversationHistory(clinica.id, contato.telefone, 10)
+            const resposta = await aiEngine.callAI(systemPrompt, '[A profissional aprovou o comprovante]', undefined, historico)
+
+            // Marca o agendamento pro motor de calendário: ele cria no Google,
+            // grava no banco, move o contato no CRM e devolve o link .ics.
+            const comMarcador = `${resposta.texto}\n[AGENDAR: ${procedimento} | ${data} | ${hora} | ${minutos}${profissionalId ? ` | ${profissionalId}` : ''}]`
+
+            const textoFinal = await calendar.processarAgendamentos(
+                clinica.id,
+                comMarcador,
+                clinica as unknown as DadosClinica,
+                contato.nome || 'Paciente',
+                contato.telefone
+            )
+
+            // Se o marcador continuou lá, o agendamento não foi criado — não
+            // adianta mandar "está confirmado" pra cliente.
+            if (textoFinal.includes('[AGENDAR:')) {
+                return NextResponse.json(
+                    { error: 'Não consegui criar o agendamento. Confira se existe profissional cadastrado.' },
+                    { status: 500 }
+                )
+            }
+
+            // O sinal já foi pago — é por isso que a doutora aprovou.
+            await prisma.agendamento.updateMany({
+                where: {
+                    clinicaId: clinica.id,
+                    telefone: contato.telefone,
+                    data: new Date(ano, mes - 1, dia),
+                    horario: hora,
+                },
+                data: { pixPago: true },
+            })
+
+            const enviado = await sender.sendText({
+                instancia: clinica.evolutionInstance,
+                telefone: contato.telefone,
+                apikey: clinica.evolutionApikey || undefined,
+            }, textoFinal)
+
+            if (!enviado) {
+                return NextResponse.json(
+                    { error: 'Agendamento criado, mas a mensagem não saiu no WhatsApp. Avise a cliente.' },
+                    { status: 500 }
+                )
+            }
+
+            await memory.saveToHistory(clinica.id, contato.telefone, 'assistant', textoFinal)
+
+            // Libera a IARA pra voltar a atender esta conversa.
+            await prisma.$executeRaw`
+                DELETE FROM status_conversa
+                WHERE telefone_cliente = ${contato.telefone} AND user_id = ${clinica.id}
+            `
+
+            return NextResponse.json({ ok: true, respostaEnviada: textoFinal })
         }
 
         if (action === 'lembrar') {

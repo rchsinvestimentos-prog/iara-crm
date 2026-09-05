@@ -94,6 +94,11 @@ model Clinica {
   // IARA cobrir das 18h às 22h, quando não há ninguém.
   horarioIaraInicio   String?  @map("horario_iara_inicio") @db.VarChar(5)
   horarioIaraFim      String?  @map("horario_iara_fim") @db.VarChar(5)
+  // Cobrança antes de agendar: a cliente paga o sinal, manda o comprovante,
+  // e a profissional confere antes de a IARA fechar o horário.
+  cobrarParaAgendar   Boolean? @default(false) @map("cobrar_para_agendar")
+  valorSinalPadrao    Decimal? @map("valor_sinal_padrao") @db.Decimal
+  mensagemSinal       String?  @map("mensagem_sinal") @db.Text
   // Quanto tempo o horário fica reservado esperando o comprovante.
   minutosReservaSinal Int?   @default(30) @map("minutos_reserva_sinal")
   blacklist           String?  @map("blacklist")

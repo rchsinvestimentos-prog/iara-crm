@@ -185,14 +185,34 @@ IMPORTANTE: O sistema remove esse marcador de forma 100% automática antes do en
     // --- Sinal antes de agendar ---
     // A clínica cobra pelo horário e não pode reservar sem receber. Sem esta
     // regra a IARA marca na hora e o prejuízo da falta continua igual.
-    const comSinal = procedimentos.filter(p => p.exigeSinal && p.valorSinal)
-    const chavePixClinica = (clinica as { chavePix?: string | null }).chavePix
+    const cobranca = clinica as {
+        cobrarParaAgendar?: boolean | null
+        valorSinalPadrao?: unknown
+        mensagemSinal?: string | null
+        minutosReservaSinal?: number | null
+        chavePix?: string | null
+    }
+    // Dois caminhos: a chave geral das configurações avançadas (vale pra tudo)
+    // ou o sinal marcado procedimento a procedimento. O valor do procedimento
+    // manda quando os dois existem.
+    const cobrancaGeral = !!cobranca.cobrarParaAgendar
+    const valorPadrao = cobranca.valorSinalPadrao != null ? Number(cobranca.valorSinalPadrao) : null
+    const comSinal = procedimentos.filter(p => (p.exigeSinal && p.valorSinal) || (cobrancaGeral && valorPadrao))
+
+    const chavePixClinica = cobranca.chavePix
         || ((clinica.configuracoes as Record<string, unknown> | null)?.chave_pix as string | undefined)
-    const minutosReserva = (clinica as { minutosReservaSinal?: number | null }).minutosReservaSinal ?? 30
+    const minutosReserva = cobranca.minutosReservaSinal ?? 30
+    const recadoSinal = (cobranca.mensagemSinal || '').trim()
+
+    const listaSinal = cobrancaGeral && valorPadrao && comSinal.length === procedimentos.length
+        ? `TODO agendamento exige sinal de ${moeda} ${valorPadrao}${procedimentos.some(p => p.exigeSinal && p.valorSinal)
+            ? `, exceto:\n${procedimentos.filter(p => p.exigeSinal && p.valorSinal).map(p => `- ${p.nome}: ${moeda} ${p.valorSinal}`).join('\n')}`
+            : '.'}`
+        : comSinal.map(p => `- ${p.nome}: sinal de ${moeda} ${p.valorSinal ?? valorPadrao}`).join('\n')
 
     const regraSinal = comSinal.length > 0 ? `
-💰 PROCEDIMENTOS QUE EXIGEM SINAL ANTES DE AGENDAR:
-${comSinal.map(p => `- ${p.nome}: sinal de ${moeda} ${p.valorSinal}`).join('\n')}
+💰 SINAL ANTES DE AGENDAR:
+${listaSinal}
 
 COMO CONDUZIR, na ordem:
 1. Combine o procedimento, o dia e o horário normalmente.
@@ -200,7 +220,7 @@ COMO CONDUZIR, na ordem:
    e diga o valor. Explique com naturalidade: é o que garante a vaga dela.
 3. ${chavePixClinica ? `Mande a chave PIX JUNTO, na mesma mensagem em que citar o sinal: ${chavePixClinica}\n   Nunca diga "vou te passar a chave" — passe. Mandar depois faz a cliente esperar e desistir.` : 'A clínica ainda não cadastrou a chave PIX. Diga que a equipe manda os dados de pagamento em seguida.'}
 4. Diga que o horário fica guardado por ${minutosReserva} minutos esperando o comprovante.
-5. Peça para ela mandar o comprovante aqui mesmo, por foto.
+5. Peça para ela mandar o comprovante aqui mesmo, por foto.${recadoSinal ? `\n   Passe também este recado da clínica, com suas palavras: "${recadoSinal}"` : ''}
 6. NÃO use o marcador de agendamento ainda. O horário só é marcado depois que
    a clínica confere o comprovante — quem confere é uma pessoa, não você.
 7. Quando ela mandar a foto, agradeça e diga que a clínica vai confirmar em

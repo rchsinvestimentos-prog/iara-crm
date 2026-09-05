@@ -33,6 +33,11 @@ const UpdateClinicaSchema = z.object({
     // Horário próprio da IARA — quando ELA trabalha, não quando a clínica abre.
     horarioIaraInicio: z.string().max(5).optional().nullable(),
     horarioIaraFim: z.string().max(5).optional().nullable(),
+    // Cobrança de sinal antes de agendar
+    cobrarParaAgendar: z.boolean().optional().nullable(),
+    valorSinalPadrao: z.number().min(0).max(999999).optional().nullable(),
+    mensagemSinal: z.string().max(2000).optional().nullable(),
+    minutosReservaSinal: z.number().min(0).max(10080).optional().nullable(),
     // horarioInicio / horarioFim / diasFuncionamento NÃO existem no Prisma
     // São ignorados no filtro abaixo
     // Perfil da profissional
@@ -124,6 +129,7 @@ export async function PUT(request: Request) {
             'humor', 'emojis', 'fraseDespedida', 'funcionalidades', 'feedbacks',
             'modoIA', 'sempreLigada', 'blacklist',
             'horarioIaraInicio', 'horarioIaraFim',
+            'cobrarParaAgendar', 'valorSinalPadrao', 'mensagemSinal', 'minutosReservaSinal',
             'mensagemAniversario', 'mensagemForaHorario', 'diasAtendimento',
             'idioma', 'pais', 'moeda', 'timezone', 'canalPrincipal',
             'telefoneTwilio', 'twilioSid',

@@ -145,6 +145,11 @@ export default function ClientesPage() {
     // Triage state
     const [triageInput, setTriageInput] = useState('')
     const [triageLoading, setTriageLoading] = useState(false)
+    // Rascunho do agendamento que a doutora confere antes de liberar a IARA.
+    const [aprovacao, setAprovacao] = useState<{
+        procedimento: string; data: string; hora: string; duracao: string
+    } | null>(null)
+    const [buscandoSugestao, setBuscandoSugestao] = useState(false)
 
     // Load list
     const loadContatos = async () => {
@@ -456,6 +461,70 @@ export default function ClientesPage() {
             }
         } catch {
             alert('Erro de conexão ao realizar ação.')
+        } finally {
+            setTriageLoading(false)
+        }
+    }
+
+    // "Pode agendar": a IARA relê a conversa e propõe o horário que já foi
+    // combinado com a cliente, pra doutora só conferir em vez de redigitar.
+    const abrirAprovacao = async () => {
+        if (!activeContato) return
+        setBuscandoSugestao(true)
+        setAprovacao({ procedimento: '', data: '', hora: '', duracao: '' })
+        try {
+            const res = await fetch(`/api/contatos/${activeContato.id}/triagem`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'sugerir-agendamento' })
+            })
+            const data = await res.json()
+            const s = data?.sugestao
+            if (s) {
+                setAprovacao({
+                    procedimento: s.procedimento || '',
+                    data: s.data || '',
+                    hora: s.hora || '',
+                    duracao: s.duracao ? String(s.duracao) : ''
+                })
+            }
+        } catch {
+            // Sem sugestão a doutora preenche na mão — o formulário já está aberto.
+        } finally {
+            setBuscandoSugestao(false)
+        }
+    }
+
+    const confirmarAgendamento = async () => {
+        if (!activeContato || !aprovacao) return
+        if (!aprovacao.procedimento.trim() || !aprovacao.data || !aprovacao.hora) {
+            return alert('Preencha procedimento, data e horário.')
+        }
+
+        setTriageLoading(true)
+        try {
+            const res = await fetch(`/api/contatos/${activeContato.id}/triagem`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'aprovar-agendamento',
+                    procedimento: aprovacao.procedimento.trim(),
+                    data: aprovacao.data,
+                    hora: aprovacao.hora,
+                    duracao: Number(aprovacao.duracao) || undefined
+                })
+            })
+            const data = await res.json()
+            if (res.ok) {
+                setAprovacao(null)
+                alert('Agendamento confirmado! A IARA já avisou a cliente.')
+                loadChatHistory(activeContato.telefone)
+                loadContatoDetails(activeContato, 'chat')
+            } else {
+                alert(data.error || 'Erro ao confirmar o agendamento.')
+            }
+        } catch {
+            alert('Erro de conexão ao confirmar o agendamento.')
         } finally {
             setTriageLoading(false)
         }
@@ -1546,6 +1615,72 @@ export default function ClientesPage() {
                                                         </div>
                                                     )}
 
+                                                    {aprovacao && (
+                                                        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+                                                            <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                                                <Calendar size={10} /> Confirme o horário combinado
+                                                            </p>
+                                                            <p className="text-[9px] text-gray-400 leading-relaxed">
+                                                                A IARA leu a conversa e preencheu o que a cliente pediu. Confira e ajuste se precisar —
+                                                                ao confirmar, o horário entra na agenda e a cliente recebe a confirmação.
+                                                            </p>
+                                                            <input
+                                                                value={aprovacao.procedimento}
+                                                                onChange={(e) => setAprovacao({ ...aprovacao, procedimento: e.target.value })}
+                                                                placeholder="Procedimento"
+                                                                className="input-field text-[11px] py-1"
+                                                            />
+                                                            <div className="grid grid-cols-3 gap-2">
+                                                                <div>
+                                                                    <input
+                                                                        type="date"
+                                                                        value={aprovacao.data}
+                                                                        onChange={(e) => setAprovacao({ ...aprovacao, data: e.target.value })}
+                                                                        className="input-field text-[11px] py-1 w-full"
+                                                                    />
+                                                                    {/* O dia da semana por extenso: se a IARA errar a data,
+                                                                        é aqui que a doutora percebe antes de confirmar. */}
+                                                                    {aprovacao.data && (
+                                                                        <p className="text-[9px] mt-0.5 text-gray-400 capitalize">
+                                                                            {new Date(aprovacao.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                                <input
+                                                                    type="time"
+                                                                    value={aprovacao.hora}
+                                                                    onChange={(e) => setAprovacao({ ...aprovacao, hora: e.target.value })}
+                                                                    className="input-field text-[11px] py-1"
+                                                                />
+                                                                <input
+                                                                    type="number"
+                                                                    value={aprovacao.duracao}
+                                                                    onChange={(e) => setAprovacao({ ...aprovacao, duracao: e.target.value })}
+                                                                    placeholder="min"
+                                                                    className="input-field text-[11px] py-1"
+                                                                />
+                                                            </div>
+                                                            <div className="flex gap-2 justify-end">
+                                                                <button
+                                                                    onClick={() => setAprovacao(null)}
+                                                                    disabled={triageLoading}
+                                                                    className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-bold text-[9px] transition-all cursor-pointer"
+                                                                >
+                                                                    Cancelar
+                                                                </button>
+                                                                <button
+                                                                    onClick={confirmarAgendamento}
+                                                                    disabled={triageLoading}
+                                                                    className="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                                                                >
+                                                                    {triageLoading
+                                                                        ? <Loader2 size={10} className="animate-spin" />
+                                                                        : <CheckCircle2 size={10} />} Confirmar e avisar a cliente
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
                                                     <div className="space-y-2">
                                                         <textarea
                                                             value={triageInput}
@@ -1562,6 +1697,15 @@ export default function ClientesPage() {
                                                                     className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer"
                                                                 >
                                                                     <Clock size={10} /> Me lembre em 30 min
+                                                                </button>
+                                                                <button
+                                                                    onClick={abrirAprovacao}
+                                                                    disabled={triageLoading || buscandoSugestao}
+                                                                    className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                                                                >
+                                                                    {buscandoSugestao
+                                                                        ? <Loader2 size={10} className="animate-spin" />
+                                                                        : <CheckCircle2 size={10} />} Pode agendar
                                                                 </button>
                                                                 <button
                                                                     onClick={() => handleTriageAction('assumir')}

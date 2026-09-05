@@ -18,6 +18,10 @@ const CreateProcSchema = z.object({
     posProcedimento: z.string().max(5000).optional().nullable(),
     profissionalId: z.string().optional().nullable(),
     profissionalIds: z.array(z.string()).optional().default([]),
+    // Sinal antes de agendar, por procedimento. Sobrepõe a cobrança geral
+    // das configurações avançadas.
+    exigeSinal: z.boolean().optional().default(false),
+    valorSinal: z.number().min(0).max(999999).optional().nullable(),
 })
 
 const UpdateProcSchema = CreateProcSchema.extend({
@@ -43,6 +47,7 @@ export async function GET() {
                 p.parcelamento_padrao as "parcelas", p.duracao_minutos as "duracao",
                 p.descricao, p.pos_procedimento as "posProcedimento",
                 p.profissional_id as "profissionalId",
+                p.exige_sinal as "exigeSinal", p.valor_sinal as "valorSinal",
                 COALESCE(p.profissional_ids, '[]'::jsonb) as "profissionalIds",
                 p.created_at as "createdAt"
             FROM procedimentos p
@@ -69,6 +74,8 @@ export async function GET() {
                 ...p,
                 valor: Number(p.valor),
                 desconto: Number(p.desconto),
+                exigeSinal: !!p.exigeSinal,
+                valorSinal: p.valorSinal != null ? Number(p.valorSinal) : null,
                 profissionalIds: ids,
                 profissionaisInfo,
             }
@@ -99,14 +106,16 @@ export async function POST(request: NextRequest) {
                 user_id, nome, preco_normal, preco_minimo, parcelamento_padrao, 
                 duracao_minutos, descricao, pos_procedimento, 
                 profissional_id, profissional_ids,
+                exige_sinal, valor_sinal,
                 ativo, created_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, true, NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, true, NOW())
             RETURNING id, nome, preco_normal as "valor", preco_minimo as "desconto", 
                 parcelamento_padrao as "parcelas", duracao_minutos as "duracao", 
                 descricao, pos_procedimento as "posProcedimento", 
                 profissional_id as "profissionalId",
-                profissional_ids as "profissionalIds"
+                profissional_ids as "profissionalIds",
+                exige_sinal as "exigeSinal", valor_sinal as "valorSinal"
         `,
             Number(clinicaId),
             validated.nome,
@@ -118,6 +127,8 @@ export async function POST(request: NextRequest) {
             validated.posProcedimento ?? null,
             validated.profissionalId ?? null,
             JSON.stringify(validated.profissionalIds || []),
+            validated.exigeSinal ?? false,
+            validated.valorSinal ?? null,
         )
 
         return NextResponse.json({
@@ -167,7 +178,9 @@ export async function PUT(request: NextRequest) {
                 descricao = $7,
                 pos_procedimento = $8,
                 profissional_id = $9,
-                profissional_ids = $10::jsonb
+                profissional_ids = $10::jsonb,
+                exige_sinal = $11,
+                valor_sinal = $12
             WHERE id = $1
         `,
             validated.id,
@@ -180,6 +193,8 @@ export async function PUT(request: NextRequest) {
             validated.posProcedimento ?? null,
             validated.profissionalId ?? null,
             JSON.stringify(validated.profissionalIds || []),
+            validated.exigeSinal ?? false,
+            validated.valorSinal ?? null,
         )
 
         return NextResponse.json({ ok: true, id: validated.id })

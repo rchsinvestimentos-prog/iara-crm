@@ -16,6 +16,8 @@ interface Procedimento {
     descricao: string | null
     profissionalIds?: string[]
     profissionaisInfo?: { id: string; nome: string; tratamento: string | null }[]
+    exigeSinal?: boolean
+    valorSinal?: number | string | null
 }
 
 interface Profissional {
@@ -193,7 +195,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
     const [procedimentos, setProcedimentos] = useState<Procedimento[]>([])
     const [editandoProc, setEditandoProc] = useState<string | null>(null)
     const [novoProc, setNovoProc] = useState(false)
-    const [formProc, setFormProc] = useState<Procedimento>({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '', profissionalIds: [] })
+    const [formProc, setFormProc] = useState<Procedimento>({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '', profissionalIds: [], exigeSinal: false, valorSinal: '' })
     const [savingProc, setSavingProc] = useState(false)
     const [profissionais, setProfissionais] = useState<Profissional[]>([])
 
@@ -235,6 +237,12 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
     const [autorizouCuidadosPos, setAutorizouCuidadosPos] = useState<string | null>(null)
     const [showDisclaimerPos, setShowDisclaimerPos] = useState(false)
     const [formasPagamento, setFormasPagamento] = useState<FormasPagamento>({ pix: false, chavePix: '', cartao: false, dinheiro: false, observacoes: '' })
+    // Cobrança antes de agendar (sinal). A cliente paga, manda o comprovante,
+    // e a profissional confere antes de a IARA fechar o horário.
+    const [cobrarParaAgendar, setCobrarParaAgendar] = useState(false)
+    const [valorSinalPadrao, setValorSinalPadrao] = useState('')
+    const [mensagemSinal, setMensagemSinal] = useState('')
+    const [minutosReservaSinal, setMinutosReservaSinal] = useState('30')
     const [redesSociais, setRedesSociais] = useState<RedesSociais>({ instagram: '', tiktok: '', facebook: '', site: '' })
 
     // ---- WhatsApp QR ----
@@ -321,6 +329,10 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                 setFeedbackItems(fbStr.trim() ? fbStr.split('\n').filter((l: string) => l.trim()) : [])
                 // FAQ moved to Secretária config
                 setFormasPagamento(data.formasPagamento || { pix: false, chavePix: '', cartao: false, dinheiro: false, observacoes: '' })
+                setCobrarParaAgendar(!!data.cobrarParaAgendar)
+                setValorSinalPadrao(data.valorSinalPadrao != null ? String(data.valorSinalPadrao) : '')
+                setMensagemSinal(data.mensagemSinal || '')
+                setMinutosReservaSinal(data.minutosReservaSinal != null ? String(data.minutosReservaSinal) : '30')
                 setRedesSociais(data.redesSociais || { instagram: '', tiktok: '', facebook: '', site: '' })
 
                 // Verificar status real do WhatsApp via Evolution API
@@ -396,6 +408,10 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                 payload = {
                     politicaCancelamento: politicaCancelamento || null,
                     formasPagamento,
+                    cobrarParaAgendar,
+                    valorSinalPadrao: valorSinalPadrao.trim() ? Number(valorSinalPadrao) : null,
+                    mensagemSinal: mensagemSinal.trim() || null,
+                    minutosReservaSinal: Number(minutosReservaSinal) || 30,
                     redesSociais,
                     cuidadosPos: JSON.stringify(cuidadosPos),
                     autorizouCuidadosPos: autorizouCuidadosPos || null,
@@ -459,6 +475,10 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                     autorizouCuidadosPos: autorizouCuidadosPos || null,
                     politicaCancelamento: politicaCancelamento || null,
                     formasPagamento,
+                    cobrarParaAgendar,
+                    valorSinalPadrao: valorSinalPadrao.trim() ? Number(valorSinalPadrao) : null,
+                    mensagemSinal: mensagemSinal.trim() || null,
+                    minutosReservaSinal: Number(minutosReservaSinal) || 30,
                     redesSociais,
                 }),
             })
@@ -490,6 +510,10 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                 duracao: formProc.duracao ? Number(formProc.duracao) : 0,
                 descricao: formProc.descricao || null,
                 profissionalIds: formProc.profissionalIds || [],
+                exigeSinal: !!formProc.exigeSinal,
+                valorSinal: formProc.exigeSinal && String(formProc.valorSinal ?? '').trim()
+                    ? Number(formProc.valorSinal)
+                    : null,
             }
 
             console.log('[salvarProc] enviando:', method, payload)
@@ -505,7 +529,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                 if (procRes.ok) setProcedimentos(await procRes.json())
                 setEditandoProc(null)
                 setNovoProc(false)
-                setFormProc({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '', profissionalIds: [] })
+                setFormProc({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '', profissionalIds: [], exigeSinal: false, valorSinal: '' })
             } else {
                 const errData = await res.json().catch(() => ({}))
                 console.error('[salvarProc] Erro API:', res.status, errData)
@@ -530,7 +554,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
 
     const editarProc = (p: Procedimento) => {
         setEditandoProc(p.id)
-        setFormProc({ ...p, parcelas: p.parcelas || '', duracao: p.duracao || '', descricao: p.descricao || '', profissionalIds: p.profissionalIds || [] })
+        setFormProc({ ...p, parcelas: p.parcelas || '', duracao: p.duracao || '', descricao: p.descricao || '', profissionalIds: p.profissionalIds || [], exigeSinal: !!p.exigeSinal, valorSinal: p.valorSinal ?? '' })
         setNovoProc(true)
     }
 
@@ -1032,7 +1056,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>💉 Procedimentos ({procedimentos.length})</h3>
                     <button
-                        onClick={() => { setNovoProc(true); setEditandoProc(null); setFormProc({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '', profissionalIds: [] }) }}
+                        onClick={() => { setNovoProc(true); setEditandoProc(null); setFormProc({ id: '', nome: '', valor: 0, desconto: 0, parcelas: '', duracao: '', descricao: '', profissionalIds: [], exigeSinal: false, valorSinal: '' }) }}
                         className="text-[11px] font-medium px-3 py-1.5 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1.5"
                     >
                         <Plus size={12} /> Adicionar
@@ -1109,6 +1133,30 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                                         })
                                     )}
                                 </div>
+                            </div>
+                            {/* Sinal por procedimento. Só alguns cobram — por isso fica aqui,
+                                e não só na chave geral das configurações avançadas. */}
+                            <div className="col-span-2 p-3 rounded-lg" style={{ backgroundColor: 'var(--bg-card)' }}>
+                                <label className="flex items-start gap-2 cursor-pointer">
+                                    <input type="checkbox" checked={!!formProc.exigeSinal} onChange={(e) => setFormProc({ ...formProc, exigeSinal: e.target.checked })} className="rounded mt-0.5" />
+                                    <span className="text-[11px] leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                                        💰 Exigir sinal para agendar este procedimento
+                                        <span className="block text-[9px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                            A IARA cobra o sinal, segura o horário e só marca depois que você conferir o comprovante.
+                                        </span>
+                                    </span>
+                                </label>
+                                {formProc.exigeSinal && (
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none mt-2"
+                                        style={innerInputStyle}
+                                        value={formProc.valorSinal ?? ''}
+                                        onChange={(e) => setFormProc({ ...formProc, valorSinal: e.target.value })}
+                                        placeholder="Valor do sinal (R$). Ex: 100"
+                                    />
+                                )}
                             </div>
                             <div className="flex gap-2">
                                 <button onClick={salvarProc} disabled={savingProc} className="text-[11px] font-medium px-4 py-2 bg-[#0F4C61] text-white rounded-lg flex items-center gap-1.5 disabled:opacity-50">
@@ -1723,6 +1771,49 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                             <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none mb-2" style={innerInputStyle} value={formasPagamento.chavePix} onChange={e => setFormasPagamento({ ...formasPagamento, chavePix: e.target.value })} placeholder="Chave PIX (CPF, CNPJ, email ou telefone)" />
                         )}
                         <input className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={formasPagamento.observacoes} onChange={e => setFormasPagamento({ ...formasPagamento, observacoes: e.target.value })} placeholder="Observações: Ex: aceitamos cartão em até 6x sem juros" />
+                    </div>
+
+                    {/* Cobrar para agendar — vem logo depois do PIX porque usa a mesma chave */}
+                    <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)' }}>
+                        <div className="flex items-center gap-2 mb-2">
+                            <ShieldCheck size={13} className="text-[#D99773]" />
+                            <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Cobrar para agendar</p>
+                        </div>
+                        <label className="flex items-start gap-2 cursor-pointer mb-2">
+                            <input type="checkbox" checked={cobrarParaAgendar} onChange={e => setCobrarParaAgendar(e.target.checked)} className="rounded mt-0.5" />
+                            <span className="text-[11px] leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                                Exigir sinal antes de fechar o horário
+                                <span className="block text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                    A IARA pede o sinal, manda sua chave PIX e segura o horário. Quando a cliente
+                                    envia o comprovante, você recebe pra conferir — só depois do seu OK a IARA confirma.
+                                </span>
+                            </span>
+                        </label>
+
+                        {cobrarParaAgendar && (
+                            <div className="space-y-2 mt-3">
+                                {!formasPagamento.pix && (
+                                    <p className="text-[10px] p-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                                        ⚠️ Marque o PIX acima e preencha a chave — sem ela a IARA não tem como cobrar.
+                                    </p>
+                                )}
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="text-[10px] block mb-1" style={{ color: 'var(--text-muted)' }}>Valor do sinal (R$)</label>
+                                        <input type="number" min="0" className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={valorSinalPadrao} onChange={e => setValorSinalPadrao(e.target.value)} placeholder="Ex: 100" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] block mb-1" style={{ color: 'var(--text-muted)' }}>Segurar o horário por (min)</label>
+                                        <input type="number" min="0" className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none" style={innerInputStyle} value={minutosReservaSinal} onChange={e => setMinutosReservaSinal(e.target.value)} placeholder="30" />
+                                    </div>
+                                </div>
+                                <textarea className="w-full px-3 py-2 text-[12px] rounded-lg focus:outline-none resize-none h-16" style={innerInputStyle} value={mensagemSinal} onChange={e => setMensagemSinal(e.target.value)} placeholder="Mensagem opcional. Ex: O sinal é descontado do valor final e garante sua vaga na agenda." />
+                                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                    Vale para todos os procedimentos. Quer cobrar só em alguns? Configure o sinal
+                                    procedimento por procedimento na aba Serviços — lá o valor específico manda.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Redes sociais */}
