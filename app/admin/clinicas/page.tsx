@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail, MoreHorizontal, KeyRound, Ban, Settings, Trash2, LogIn, CreditCard, ArrowUpDown, RefreshCw } from 'lucide-react'
-import { nomeDoNivel } from '@/lib/planos'
+import { nomeDoNivel, MAX_NIVEL, nivelToPlano } from '@/lib/planos'
 
 interface Clinica {
     id: number
@@ -32,8 +32,10 @@ interface Clinica {
 }
 
 // Faltava o nível 3 aqui, e os nomes estavam desatualizados.
-const planoNomes: Record<number, string> = { 1: nomeDoNivel(1), 2: nomeDoNivel(2), 3: nomeDoNivel(3) }
-const planoCores: Record<number, string> = { 1: '#06D6A0', 2: '#D99773' }
+const NIVEIS = Array.from({ length: MAX_NIVEL }, (_, i) => i + 1)
+const planoNomes: Record<number, string> = Object.fromEntries(NIVEIS.map(n => [n, nomeDoNivel(n)]))
+// Faltava a cor do nível 3, então o Black cairia no cinza de "desconhecido".
+const planoCores: Record<number, string> = { 1: '#06D6A0', 2: '#8B5CF6', 3: '#D99773' }
 const statusCor: Record<string, string> = {
     ativo: 'bg-green-500/15 text-green-400',
     inativo: 'bg-red-500/15 text-red-400',
@@ -454,11 +456,13 @@ export default function AdminClinicas() {
                                             <label className="text-xs text-gray-400 mb-1 block">Plano</label>
                                             <select value={form.nivel} onChange={e => {
                                                 const n = Number(e.target.value)
-                                                setForm({ ...form, nivel: n, creditos: n === 2 ? 3000 : 1000 })
+                                                // Créditos vinham fixos em 1000/3000, valores de antes dos tetos novos.
+                                                setForm({ ...form, nivel: n, creditos: nivelToPlano(n).creditos })
                                             }}
                                                 className="w-full text-sm px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none">
-                                                <option value={1} style={{ backgroundColor: '#111827' }}>Essencial</option>
-                                                <option value={2} style={{ backgroundColor: '#111827' }}>Premium</option>
+                                                {NIVEIS.map(n => (
+                                                    <option key={n} value={n} style={{ backgroundColor: '#111827' }}>{planoNomes[n]}</option>
+                                                ))}
                                             </select>
                                         </div>
                                         <div>
@@ -545,17 +549,18 @@ export default function AdminClinicas() {
                         </div>
                         <p className="text-xs text-gray-400">Para: <span className="text-white font-medium">{modalPlano.nome}</span></p>
                         <p className="text-xs text-gray-500">Plano atual: <span className="font-semibold" style={{ color: planoCores[modalPlano.nivelAtual] }}>{planoNomes[modalPlano.nivelAtual]}</span></p>
-                        <div className="grid grid-cols-2 gap-3">
-                            <button onClick={() => setPlanoNovo(1)}
-                                className={`p-4 rounded-xl text-center transition-all border ${planoNovo === 1 ? 'bg-[#06D6A0]/10 border-[#06D6A0]/30' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
-                                <p className="text-sm font-bold" style={{ color: planoNovo === 1 ? '#06D6A0' : '#9CA3AF' }}>Essencial</p>
-                                <p className="text-[10px] text-gray-500 mt-1">Nível 1</p>
-                            </button>
-                            <button onClick={() => setPlanoNovo(2)}
-                                className={`p-4 rounded-xl text-center transition-all border ${planoNovo === 2 ? 'bg-[#D99773]/10 border-[#D99773]/30' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
-                                <p className="text-sm font-bold" style={{ color: planoNovo === 2 ? '#D99773' : '#9CA3AF' }}>Premium</p>
-                                <p className="text-[10px] text-gray-500 mt-1">Nível 2</p>
-                            </button>
+                        {/* Os três níveis saem do catálogo. A lista era fixa com dois,
+                            e com os nomes antigos: o Black não aparecia aqui, então
+                            nem com a API corrigida dava para dar o plano maior. */}
+                        <div className="grid grid-cols-3 gap-2">
+                            {NIVEIS.map(n => (
+                                <button key={n} onClick={() => setPlanoNovo(n)}
+                                    className={`p-4 rounded-xl text-center transition-all border ${planoNovo === n ? 'border-white/30' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                                    style={planoNovo === n ? { backgroundColor: `${planoCores[n]}1A`, borderColor: `${planoCores[n]}4D` } : undefined}>
+                                    <p className="text-sm font-bold" style={{ color: planoNovo === n ? planoCores[n] : '#9CA3AF' }}>{planoNomes[n]}</p>
+                                    <p className="text-[10px] text-gray-500 mt-1">Nível {n}</p>
+                                </button>
+                            ))}
                         </div>
                         <button onClick={mudarPlano} disabled={savingModal || planoNovo === modalPlano.nivelAtual}
                             className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50"
