@@ -17,14 +17,22 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Email é obrigatório' }, { status: 400 })
         }
 
-        // Busca clínica pelo email
+        // Busca sem diferenciar maiúscula de minúscula. Antes a rota baixava o
+        // que a cliente digitava e comparava com o que estava salvo, mas o
+        // Postgres compara letra a letra: uma conta cadastrada como
+        // "Maria@gmail.com" nunca era encontrada, e a tela dizia que o email
+        // tinha sido enviado do mesmo jeito. Nenhum email de recuperação
+        // chegou a sair desde que a função existe.
+        const emailBuscado = (email || '').trim()
         const clinica = await prisma.clinica.findFirst({
-            where: { email: email.toLowerCase().trim() },
+            where: { email: { equals: emailBuscado, mode: 'insensitive' } },
             select: { id: true, email: true, nomeClinica: true },
         })
 
-        // Sempre retorna sucesso (segurança — não revela se email existe)
+        // A resposta é a mesma achando ou não achando, para não revelar quem
+        // tem conta. Mas o log precisa distinguir, senão ninguém descobre a falha.
         if (!clinica) {
+            console.warn(`[Reset] ⚠️ Nenhuma conta com o email informado (${emailBuscado.slice(0, 3)}***). Nada enviado.`)
             return NextResponse.json({ ok: true, message: 'Se o email estiver cadastrado, você receberá um link de acesso.' })
         }
 
@@ -41,11 +49,15 @@ export async function POST(request: NextRequest) {
         const magicLink = `https://app.iara.click/login?magicToken=${token}`
 
         // Envia email com magic link
-        if (process.env.RESEND_API_KEY) {
+        if (!process.env.RESEND_API_KEY) {
+            console.error('[Reset] ❌ RESEND_API_KEY não configurada — o link foi gerado mas não há como enviar.')
+            return NextResponse.json({ error: 'Não foi possível enviar o email agora. Fale com o suporte.' }, { status: 500 })
+        }
+        {
             const resend = new Resend(process.env.RESEND_API_KEY)
             const primeiroNome = (clinica.nomeClinica || 'Dra').split(' ')[0]
 
-            await resend.emails.send({
+            const envio = await resend.emails.send({
                 from: process.env.RESEND_FROM || 'Iara - Secretária Virtual com IA <noreply@iara.click>',
                 to: clinica.email || email,
                 subject: `${primeiroNome}, seu link de acesso IARA 🔑`,
@@ -92,7 +104,16 @@ export async function POST(request: NextRequest) {
                 `,
             })
 
-            console.log(`[Reset] ✅ Magic link enviado para ${clinica.email}`)
+            // O SDK do Resend não lança erro: devolve { data, error }. Sem
+            // conferir isso, uma recusa (domínio, limite, chave vencida) era
+            // registrada como sucesso e a cliente ficava esperando um email
+            // que nunca saiu.
+            if (envio.error) {
+                console.error('[Reset] ❌ Resend recusou o envio:', envio.error)
+                return NextResponse.json({ error: 'Não foi possível enviar o email agora. Fale com o suporte.' }, { status: 502 })
+            }
+
+            console.log(`[Reset] ✅ Magic link enviado para ${clinica.email} (id ${envio.data?.id})`)
         }
 
         return NextResponse.json({ ok: true, message: 'Se o email estiver cadastrado, você receberá um link de acesso.' })

@@ -121,9 +121,14 @@ export const authOptions: NextAuthOptions = {
                         }
                     }
 
+                    // O email digitado é comparado sem diferenciar maiúscula de
+                    // minúscula. O Postgres compara letra a letra, e uma conta
+                    // salva como "Maria@gmail.com" nunca casava com "maria@gmail.com".
+                    const emailDigitado = (credentials.email || '').trim()
+
                     // ─── 1) Tentar admin_users primeiro ───
-                    const admin = await prisma.adminUser.findUnique({
-                        where: { email: credentials.email },
+                    const admin = await prisma.adminUser.findFirst({
+                        where: { email: { equals: emailDigitado, mode: 'insensitive' } },
                     })
 
                     if (admin && admin.ativo && admin.senha) {
@@ -144,8 +149,8 @@ export const authOptions: NextAuthOptions = {
                     }
 
                     // ─── 2) Tentar clinica (clientes) ───
-                    const clinica = await prisma.clinica.findUnique({
-                        where: { email: credentials.email },
+                    const clinica = await prisma.clinica.findFirst({
+                        where: { email: { equals: emailDigitado, mode: 'insensitive' } },
                     })
 
                     if (clinica && clinica.senha) {
@@ -170,9 +175,9 @@ export const authOptions: NextAuthOptions = {
                         SELECT p.id, p.nome, p.email, p.senha_hash, p.clinica_id, c.nivel
                         FROM profissionais p
                         LEFT JOIN users c ON c.id = p.clinica_id
-                        WHERE p.email = $1 AND p.ativo = true AND p.senha_hash IS NOT NULL
+                        WHERE LOWER(p.email) = LOWER($1) AND p.ativo = true AND p.senha_hash IS NOT NULL
                         LIMIT 1
-                    `, credentials.email)
+                    `, emailDigitado)
                     const prof2 = profRows2[0]
                     if (prof2 && prof2.senha_hash) {
                         const profSenhaValida = await bcrypt.compare(credentials.password, prof2.senha_hash)
