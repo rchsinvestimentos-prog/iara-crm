@@ -3,6 +3,12 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 
+/**
+ * Quanto tempo depois de entrar por link de email a pessoa pode trocar a
+ * senha sem digitar a atual. Ela chegou ali justamente por não lembrar.
+ */
+export const JANELA_TROCA_SEM_SENHA_MS = 15 * 60 * 1000
+
 export const authOptions: NextAuthOptions = {
     providers: [
         CredentialsProvider({
@@ -55,30 +61,65 @@ export const authOptions: NextAuthOptions = {
                         `, credentials.magicToken)
                         console.log('[AUTH] profRows encontrado:', profRows.length, profRows[0]?.nome || 'nenhum')
                         const prof = profRows[0]
-                        if (!prof) return null
 
-                        // Consumir token (uso único)
-                        await prisma.$executeRawUnsafe(
-                            `UPDATE profissionais SET magic_token = NULL, magic_token_expires = NULL WHERE id = $1`,
-                            prof.id
-                        )
+                        if (prof) {
+                            // Consumir token (uso único)
+                            await prisma.$executeRawUnsafe(
+                                `UPDATE profissionais SET magic_token = NULL, magic_token_expires = NULL WHERE id = $1`,
+                                prof.id
+                            )
+
+                            return {
+                                id: `prof_${prof.id}`,
+                                email: prof.email || '',
+                                name: prof.nome,
+                                role: 'profissional',
+                                userType: 'profissional',
+                                adminRole: null,
+                                plano: prof.nivel || 0,
+                                profissionalId: prof.id,
+                                clinicaIdReal: prof.clinica_id,
+                                trocaSenhaLiberadaAte: Date.now() + JANELA_TROCA_SEM_SENHA_MS,
+                            }
+                        }
+                    }
+
+                    // ─── 0c) Magic link de recuperação de senha da clínica ───
+                    // A rota /api/auth/reset-password grava o token em
+                    // tokenAtivacao e manda "login?magicToken=...". Só que este
+                    // bloco procurava o token apenas na tabela de profissionais:
+                    // o link do email caía em "Link inválido ou expirado" mesmo
+                    // quando o email chegava.
+                    if (credentials?.magicToken) {
+                        const clinica = await prisma.clinica.findFirst({
+                            where: { tokenAtivacao: credentials.magicToken },
+                        })
+                        if (!clinica) return null
+
+                        await prisma.clinica.update({
+                            where: { id: clinica.id },
+                            data: { tokenAtivacao: null },
+                        })
 
                         return {
-                            id: `prof_${prof.id}`,
-                            email: prof.email || '',
-                            name: prof.nome,
-                            role: 'profissional',
-                            userType: 'profissional',
+                            id: String(clinica.id),
+                            email: clinica.email,
+                            name: clinica.nomeClinica || clinica.nome,
+                            role: clinica.role || 'cliente',
+                            userType: 'cliente',
                             adminRole: null,
-                            plano: prof.nivel || 0,
-                            profissionalId: prof.id,
-                            clinicaIdReal: prof.clinica_id,
+                            plano: clinica.nivel,
+                            profissionalId: null,
+                            clinicaIdReal: clinica.id,
+                            // Quem veio pelo link do email esqueceu a senha: não
+                            // tem como digitar a atual. Por 15 minutos pode trocar sem ela.
+                            trocaSenhaLiberadaAte: Date.now() + JANELA_TROCA_SEM_SENHA_MS,
                         }
                     }
 
                     if (!credentials?.email || !credentials?.password) return null
 
-                    // ─── 0c) Usuário Testador Fixo para Testes / Demonstração ───
+                    // ─── 0d) Usuário Testador Fixo para Testes / Demonstração ───
                     if (credentials?.email === 'teste@iara.click' && credentials?.password === '@f4aee3bC') {
                         let clinica = await prisma.clinica.findFirst({
                             where: { email: 'teste@iara.click' },
@@ -213,6 +254,7 @@ export const authOptions: NextAuthOptions = {
                 token.adminRole = (user as any).adminRole
                 token.profissionalId = (user as any).profissionalId
                 token.clinicaIdReal = (user as any).clinicaIdReal
+                token.trocaSenhaLiberadaAte = (user as any).trocaSenhaLiberadaAte ?? null
             }
             return token
         },
@@ -225,6 +267,7 @@ export const authOptions: NextAuthOptions = {
                     ; (session.user as any).adminRole = token.adminRole
                     ; (session.user as any).profissionalId = token.profissionalId
                     ; (session.user as any).clinicaIdReal = token.clinicaIdReal
+                    ; (session.user as any).trocaSenhaLiberadaAte = token.trocaSenhaLiberadaAte ?? null
             }
             return session
         },

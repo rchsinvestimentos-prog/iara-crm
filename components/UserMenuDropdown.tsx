@@ -165,8 +165,8 @@ export default function UserMenuDropdown({
         {/* Redefinir Senha */}
         <MenuItem
           icon={<Lock size={15} />}
-          label="Redefinir Senha"
-          description="Altere sua senha de acesso"
+          label="Trocar senha"
+          description="Senha atual e a nova, sem precisar de email"
           onClick={() => { onOpenTrocarSenha(); onClose() }}
           accentColor="#0F4C61"
           isDark={isDark}

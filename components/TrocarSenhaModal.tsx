@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Eye, EyeOff, Lock, Check, X } from 'lucide-react'
 import { Suspense } from 'react'
@@ -56,20 +57,35 @@ function TrocarSenhaUrlMode() {
 
 /** Conteúdo do modal em si */
 function TrocarSenhaContent({ onClose }: { onClose: () => void }) {
+  const [senhaAtual, setSenhaAtual] = useState('')
   const [senha, setSenha] = useState('')
   const [confirmar, setConfirmar] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
+  // Quem entrou pelo link do email esqueceu a senha e não tem a atual para
+  // digitar. O servidor decide; até responder, pede por segurança.
+  const [precisaSenhaAtual, setPrecisaSenhaAtual] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/auth/change-password')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setPrecisaSenhaAtual(!!d.precisaSenhaAtual) })
+      .catch(() => { })
+  }, [])
 
   const handleSubmit = async () => {
+    if (precisaSenhaAtual && !senhaAtual) {
+      setError('Digite sua senha atual')
+      return
+    }
     if (senha.length < 6) {
-      setError('Mínimo 6 caracteres')
+      setError('A nova senha precisa ter pelo menos 6 caracteres')
       return
     }
     if (senha !== confirmar) {
-      setError('As senhas não coincidem')
+      setError('A nova senha e a confirmação não são iguais')
       return
     }
 
@@ -80,7 +96,11 @@ function TrocarSenhaContent({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ novaSenha: senha }),
+        body: JSON.stringify({
+          senhaAtual: precisaSenhaAtual ? senhaAtual : undefined,
+          novaSenha: senha,
+          confirmarSenha: confirmar,
+        }),
       })
 
       if (res.ok) {
@@ -99,7 +119,10 @@ function TrocarSenhaContent({ onClose }: { onClose: () => void }) {
     }
   }
 
-  return (
+  // Vai direto para o <body>. Aberto de dentro da barra lateral, o "fixed"
+  // ficava preso à caixa da barra e o modal aparecia espremido em 260px.
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-[#111827] border border-white/[0.06] rounded-2xl p-6 shadow-2xl animate-fade-in relative">
 
@@ -126,12 +149,23 @@ function TrocarSenhaContent({ onClose }: { onClose: () => void }) {
                 <Lock size={18} className="text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Redefinir Senha</h3>
-                <p className="text-xs text-gray-500">Mínimo 6 caracteres</p>
+                <h3 className="text-lg font-bold text-white">{precisaSenhaAtual ? 'Trocar senha' : 'Criar nova senha'}</h3>
+                <p className="text-xs text-gray-500">A nova senha precisa ter pelo menos 6 caracteres</p>
               </div>
             </div>
 
             <div className="space-y-3">
+              {precisaSenhaAtual && (
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  value={senhaAtual}
+                  onChange={e => setSenhaAtual(e.target.value)}
+                  placeholder="Senha atual"
+                  className="input-field"
+                  autoComplete="current-password"
+                  autoFocus
+                />
+              )}
               <div className="relative">
                 <input
                   type={showPass ? 'text' : 'password'}
@@ -139,7 +173,8 @@ function TrocarSenhaContent({ onClose }: { onClose: () => void }) {
                   onChange={e => setSenha(e.target.value)}
                   placeholder="Nova senha"
                   className="input-field pr-10"
-                  autoFocus
+                  autoComplete="new-password"
+                  autoFocus={!precisaSenhaAtual}
                 />
                 <button
                   type="button"
@@ -153,7 +188,8 @@ function TrocarSenhaContent({ onClose }: { onClose: () => void }) {
                 type={showPass ? 'text' : 'password'}
                 value={confirmar}
                 onChange={e => setConfirmar(e.target.value)}
-                placeholder="Confirmar nova senha"
+                placeholder="Repita a nova senha"
+                autoComplete="new-password"
                 className="input-field"
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()}
               />
@@ -166,7 +202,7 @@ function TrocarSenhaContent({ onClose }: { onClose: () => void }) {
 
               <button
                 onClick={handleSubmit}
-                disabled={loading || !senha || !confirmar}
+                disabled={loading || !senha || !confirmar || (precisaSenhaAtual && !senhaAtual)}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-[#D99773] to-[#C07A55] text-white disabled:opacity-50 transition-all hover:shadow-[0_8px_30px_rgba(217,151,115,0.3)]"
               >
                 {loading ? (
@@ -178,5 +214,5 @@ function TrocarSenhaContent({ onClose }: { onClose: () => void }) {
         )}
       </div>
     </div>
-  )
+  , document.body)
 }
