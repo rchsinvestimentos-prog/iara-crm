@@ -43,6 +43,7 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
     const [momento, setMomento] = useState<MomentoAnexo>('apos_falar')
     const [enviando, setEnviando] = useState(false)
     const [apagando, setApagando] = useState<string | null>(null)
+    const [arrastando, setArrastando] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
 
     const base = `/api/procedimentos/${procedimentoId}/anexos`
@@ -185,15 +186,39 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                     })}
 
                     {!cheio && (
-                        <div className="p-2.5 rounded-lg space-y-2" style={{ border: '1px dashed var(--border-default)' }}>
-                            <input
-                                ref={inputRef}
-                                type="file"
-                                accept=".jpg,.jpeg,.png,.webp,.mp4,.pdf"
-                                onChange={e => escolher(e.target.files?.[0] || null)}
-                                className="w-full text-[11px]"
-                                style={{ color: 'var(--text-muted)' }}
-                            />
+                        <div className="p-2.5 rounded-lg space-y-2" style={{ border: '1px solid var(--border-default)' }}>
+                            {/* O botão padrão do navegador ("Escolher arquivo") saía cinza,
+                                parecendo texto solto. A área inteira abre a escolha e
+                                também aceita arrastar o arquivo. */}
+                            <label
+                                onDragOver={e => { e.preventDefault(); setArrastando(true) }}
+                                onDragLeave={() => setArrastando(false)}
+                                onDrop={e => { e.preventDefault(); setArrastando(false); escolher(e.dataTransfer.files?.[0] || null) }}
+                                className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors"
+                                style={{
+                                    border: '1.5px dashed #D99773',
+                                    backgroundColor: arrastando ? 'rgba(217,151,115,0.18)' : 'rgba(217,151,115,0.07)',
+                                }}
+                            >
+                                <input
+                                    ref={inputRef}
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png,.webp,.mp4,.pdf"
+                                    onChange={e => escolher(e.target.files?.[0] || null)}
+                                    className="sr-only"
+                                />
+                                <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)' }}>
+                                    <Upload size={16} className="text-white" />
+                                </span>
+                                <span className="min-w-0">
+                                    <span className="block text-[12px] font-semibold truncate" style={{ color: '#C07A55' }}>
+                                        {arquivo ? arquivo.name : 'Clique para escolher o arquivo'}
+                                    </span>
+                                    <span className="block text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                        {arquivo ? `${mb(arquivo.size)} · clique para trocar` : 'ou arraste aqui · foto, vídeo MP4 até 15 MB ou PDF'}
+                                    </span>
+                                </span>
+                            </label>
                             <textarea
                                 value={descricao}
                                 onChange={e => setDescricao(e.target.value)}
@@ -217,7 +242,7 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                                 disabled={enviando || !arquivo}
                                 className="text-[11px] font-medium px-3 py-1.5 bg-[#D99773] text-white rounded-md flex items-center gap-1.5 disabled:opacity-50"
                             >
-                                {enviando ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                                {enviando ? <Loader2 size={12} className="animate-spin" /> : <Paperclip size={12} />}
                                 {enviando ? 'Enviando...' : 'Anexar'}
                             </button>
                         </div>
