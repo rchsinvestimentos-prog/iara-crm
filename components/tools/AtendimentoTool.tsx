@@ -264,10 +264,10 @@ export default function AtendimentoTool() {
             {/* ============ MODO DA IA ============ */}
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
-                    🤖 Modo de Atendimento
+                    💬 Como a {nomeIA || 'IARA'} se apresenta
                 </h3>
                 <p className="text-[10px] mb-4" style={{ color: 'var(--text-muted)' }}>
-                    Escolha como a IA se comporta no WhatsApp da sua clínica.
+                    A única diferença entre os dois é se ela diz o nome dela para a paciente.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -282,12 +282,15 @@ export default function AtendimentoTool() {
                         <div className="flex items-center gap-2 mb-2">
                             <span className="text-xl">💬</span>
                             <span className="text-[13px] font-bold" style={{ color: modoIA === 'secretaria' ? '#D99773' : 'var(--text-primary)' }}>
-                                Modo Secretária
+                                Ela se apresenta
                             </span>
                             {modoIA === 'secretaria' && <Check size={14} className="text-[#D99773] ml-auto" />}
                         </div>
                         <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                            A IA se apresenta como <strong>{nomeIA || 'IARA'}</strong>, com personalidade, nome, tom de voz e emojis. As clientes sabem que falam com uma secretária virtual.
+                            Ela diz o nome dela e que cuida da agenda. A paciente sabe que está falando com a secretária da clínica.
+                        </p>
+                        <p className="text-[10px] mt-2 italic" style={{ color: 'var(--text-muted)', opacity: 0.75 }}>
+                            “Oi! Sou a {nomeIA || 'IARA'}, secretária da clínica 😊”
                         </p>
                     </button>
 
@@ -302,16 +305,27 @@ export default function AtendimentoTool() {
                         <div className="flex items-center gap-2 mb-2">
                             <span className="text-xl">🤖</span>
                             <span className="text-[13px] font-bold" style={{ color: modoIA === 'ia_pura' ? '#8B5CF6' : 'var(--text-primary)' }}>
-                                Modo IA
+                                Ela responde direto
                             </span>
                             {modoIA === 'ia_pura' && <Check size={14} className="text-[#8B5CF6] ml-auto" />}
                         </div>
                         <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                            A IA responde de forma direta, sem se identificar como secretária e sem personalidade. Ideal para quem tem atendentes humanas e quer a IA como suporte.
+                            Ela não diz nome nem cargo. Responde como se você mesma estivesse digitando.
+                        </p>
+                        <p className="text-[10px] mt-2 italic" style={{ color: 'var(--text-muted)', opacity: 0.75 }}>
+                            “Oi! Me conta, qual procedimento te interessa?”
+                        </p>
+                        <p className="text-[10px] mt-2 font-medium" style={{ color: '#8B5CF6' }}>
+                            Recomendado se você clonou a sua voz — assim o áudio na sua voz não diz que é outra pessoa falando.
                         </p>
                     </button>
                 </div>
-                <BotaoSalvarBloco blocoId="modo" dados={{ modoIA }} label="Salvar Modo" />
+                <div className="mt-3 p-2.5 rounded-lg text-[10px] leading-relaxed" style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
+                    Nos dois casos, se a paciente perguntar direto se está falando com um robô, ela assume
+                    que é a assistente da clínica. Ela nunca finge ser humana — é isso que evita a paciente
+                    se sentir enganada depois.
+                </div>
+                <BotaoSalvarBloco blocoId="modo" dados={{ modoIA }} label="Salvar" />
             </div>
 
             {/* ============ HORÁRIO DE OPERAÇÃO DA IARA ============ */}

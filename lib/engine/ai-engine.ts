@@ -520,6 +520,23 @@ EXCEÇÃO ÚNICA: se a cliente mandou uma saudação ("oi", "boa tarde"), respon
             /Na primeira vez, pode dizer "Sou a [^"]*"\./,
             'NUNCA diga seu nome nem que é secretária/assistente — responda direto, como se a própria profissional estivesse digitando.'
         )
+
+        // Faltava esta. A lei de honestidade traz um exemplo pronto
+        // ("Sou a assistente da Dra, cuido da agenda por aqui"), e exemplo
+        // pronto vence instrução genérica: medido, a IARA copiava o exemplo
+        // e se apresentava quando perguntavam "com quem eu falo?", mesmo no
+        // modo que existe justamente para ela não se apresentar.
+        //
+        // A honestidade continua: negar ser IA segue proibido. O que muda é
+        // o gatilho — só a pergunta DIRETA ("você é robô?") faz ela assumir.
+        cofreLeisFinais = cofreLeisFinais.replace(
+            /Se a cliente perguntar direto se você é robô[\s\S]*?te interessa\?"/,
+            'Se — e somente se — a cliente perguntar DIRETO se você é robô, IA ou pessoa, ' +
+            'assuma com naturalidade que é a assistente da Dra, sem drama e sem se estender, ' +
+            'e emende na mesma mensagem com como pode ajudar. ' +
+            'Perguntas como "com quem eu falo?", "quem é você?" ou "qual o seu nome?" NÃO são essa pergunta: ' +
+            'nessas, NÃO se apresente — responda direto ao assunto, como se a própria profissional estivesse digitando.'
+        )
     }
     let cofreRoteiroFinal = cofre.roteiroVendas
     let cofreObjecoesFinal = cofre.arsenalDeObjecoes
