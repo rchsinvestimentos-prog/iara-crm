@@ -116,6 +116,7 @@ export async function GET() {
             cuidados_pos: c.cuidadosPos,
             aceite_termos: c.aceiteTermos,
             voz_realista: !!((c.configuracoes as Record<string, unknown> | null)?.pacote_voz_realista),
+            clonagem: !!((c.configuracoes as Record<string, unknown> | null)?.pacote_clonagem),
             onboarding: (() => {
                 const whatsConnected = statusMap.get(c.id) === 'conectado'
                 const temProcs = (procedimentosCounts.get(c.id) ?? 0) > 0

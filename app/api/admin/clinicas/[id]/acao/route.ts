@@ -73,20 +73,26 @@ export async function POST(
             })
         }
 
-        // Libera ou tira a voz ultra realista na mão, sem cobrar o pacote.
-        // Serve para o que foi prometido na venda: o plano não destrava voz
-        // nenhuma, então sem isso não havia como cumprir a promessa.
-        if (acao === 'voz-realista') {
-            const { liberar } = body
+        // Libera ou tira um pacote de voz na mão, sem cobrar. Serve para o que
+        // foi prometido na venda: o plano não destrava voz nenhuma, então sem
+        // isso não havia como cumprir a promessa.
+        if (acao === 'pacote-voz') {
+            const { pacote, liberar } = body as { pacote?: string; liberar?: boolean }
+
+            if (pacote !== 'voz_realista' && pacote !== 'clonagem') {
+                return NextResponse.json({ error: 'Pacote desconhecido' }, { status: 400 })
+            }
+
+            const def = PACOTES[pacote]
             const cfg = (clinica.configuracoes as Record<string, unknown> | null) || {}
             const novo = { ...cfg }
 
             if (liberar) {
-                novo[PACOTES.voz_realista.chave] = true
-                novo.voz_realista_cortesia = true
+                novo[def.chave] = true
+                novo[`${def.chave}_cortesia`] = true
             } else {
-                delete novo[PACOTES.voz_realista.chave]
-                delete novo.voz_realista_cortesia
+                delete novo[def.chave]
+                delete novo[`${def.chave}_cortesia`]
             }
 
             await prisma.clinica.update({
@@ -96,8 +102,8 @@ export async function POST(
 
             return NextResponse.json({
                 message: liberar
-                    ? 'Voz ultra realista liberada! A clínica já pode escolher as vozes premium.'
-                    : 'Voz ultra realista removida desta clínica.',
+                    ? `${def.nome} liberada para esta clínica!`
+                    : `${def.nome} removida desta clínica.`,
             })
         }
 
