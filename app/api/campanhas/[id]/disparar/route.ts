@@ -5,7 +5,9 @@ import { prisma } from '@/lib/prisma'
 import { CAMPANHAS_HABILITADAS } from '@/lib/planos'
 
 // POST /api/campanhas/[id]/disparar — Inicia envio dos messages da campanha
-export async function POST(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    // Desde o Next 15 params chega como Promise: params.id era undefined.
+    const { id: campanhaId } = await params
     try {
         const session = await getServerSession(authOptions)
         const clinicaId = await getClinicaId(session)
@@ -24,7 +26,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
         }
 
         const campanha = await prisma.campanha.findFirst({
-            where: { id: params.id, clinicaId },
+            where: { id: campanhaId, clinicaId },
             include: { envios: { where: { status: 'pendente' } } },
         })
 
@@ -38,7 +40,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
 
         // Marcar campanha como enviando
         await prisma.campanha.update({
-            where: { id: params.id },
+            where: { id: campanhaId },
             data: { status: 'enviando' },
         })
 
@@ -88,7 +90,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
 
         // Marcar campanha como concluída
         await prisma.campanha.update({
-            where: { id: params.id },
+            where: { id: campanhaId },
             data: { status: 'concluida', totalEnvios: enviados, totalErros: erros },
         })
 

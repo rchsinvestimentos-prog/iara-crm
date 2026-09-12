@@ -8,9 +8,9 @@ import { cookies } from 'next/headers'
 export async function POST(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions)
-        if (!session?.user?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+        if (!(session?.user as any)?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-        const userId = Number(session.user.id)
+        const userId = Number((session!.user as any).id)
         const { clinicaId } = await request.json()
 
         if (!clinicaId) return NextResponse.json({ error: 'clinicaId obrigatório' }, { status: 400 })

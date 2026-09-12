@@ -168,10 +168,14 @@ export async function PUT(request: Request) {
             data: dataToUpdate,
         })
 
-        // Enviar notificação de confirmação por WhatsApp (async, não bloqueia)
-        if (dadosAntigos) {
+        // Aviso por WhatsApp para a doutora a cada alteração salva.
+        // DESLIGADO: nunca funcionou (o id ia como texto e a busca falhava em
+        // silêncio). Consertar faria todas as doutoras passarem a receber essa
+        // mensagem a cada salvamento — decisão do Rafael antes de ligar.
+        const AVISO_WHATSAPP_AO_SALVAR = false
+        if (AVISO_WHATSAPP_AO_SALVAR && dadosAntigos) {
             notificarMudancaConfig(
-                String(clinicaId),
+                clinicaId,
                 dadosAntigos as unknown as Record<string, unknown>,
                 validated as unknown as Record<string, unknown>
             ).catch(err => console.error('[Notificação] Erro async:', err))

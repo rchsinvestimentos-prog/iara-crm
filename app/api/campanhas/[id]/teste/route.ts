@@ -4,7 +4,9 @@ import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // POST /api/campanhas/[id]/teste — Envia teste para o WhatsApp da dona
-export async function POST(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    // Desde o Next 15 params chega como Promise: params.id era undefined.
+    const { id: campanhaId } = await params
     try {
         const session = await getServerSession(authOptions)
         const clinicaId = await getClinicaId(session)
@@ -20,7 +22,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
         }
 
         const campanha = await prisma.campanha.findFirst({
-            where: { id: params.id, clinicaId },
+            where: { id: campanhaId, clinicaId },
         })
 
         if (!campanha) {

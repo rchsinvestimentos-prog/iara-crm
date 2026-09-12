@@ -9,9 +9,9 @@ import bcrypt from 'bcryptjs'
 export async function GET() {
     try {
         const session = await getServerSession(authOptions)
-        if (!session?.user?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+        if (!(session?.user as any)?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-        const userId = Number(session.user.id)
+        const userId = Number((session!.user as any).id)
 
         const clinicas = await prisma.clinica.findMany({
             where: {
@@ -47,9 +47,9 @@ const CreateClinicaSchema = z.object({
 export async function POST(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions)
-        if (!session?.user?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+        if (!(session?.user as any)?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-        const userId = Number(session.user.id)
+        const userId = Number((session!.user as any).id)
 
         // Buscar dados do parent pra herdar plano, email, senha
         const parent = await prisma.clinica.findUnique({ where: { id: userId } })

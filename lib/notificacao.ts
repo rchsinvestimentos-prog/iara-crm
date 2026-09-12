@@ -143,7 +143,7 @@ export async function enviarNotificacaoWhatsApp(
  * Fluxo completo: detecta mudanças, gera mensagem e envia
  */
 export async function notificarMudancaConfig(
-    clinicaId: string,
+    clinicaId: number,
     dadosAntigos: Record<string, unknown>,
     dadosNovos: Record<string, unknown>
 ) {

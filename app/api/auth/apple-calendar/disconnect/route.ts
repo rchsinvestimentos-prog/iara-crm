@@ -31,7 +31,9 @@ export async function POST(req: NextRequest) {
                 },
             })
         } else {
-            await prisma.user.update({
+            // O modelo se chama clinica (tabela users); prisma.user nunca existiu e
+            // a conexão da clínica sem equipe dava erro.
+            await prisma.clinica.update({
                 where: { id: clinicaId },
                 data: {
                     appleCalendarEmail: null,

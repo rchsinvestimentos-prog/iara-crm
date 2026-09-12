@@ -65,7 +65,7 @@ export async function connectAppleCalendar(
             success: true,
             calendars: calendars.map(c => ({
                 url: c.url,
-                displayName: c.displayName || 'Calendário',
+                displayName: typeof c.displayName === 'string' && c.displayName ? c.displayName : 'Calendário',
             })),
         }
     } catch (err: any) {
@@ -312,7 +312,7 @@ function formatDateUTC(date: Date): string {
  */
 function parseICSEvent(icsData: string): { title: string; start: string; end: string } | null {
     try {
-        const titleMatch = icsData.match(/SUMMARY:(.+?)(?:\r?\n)/s)
+        const titleMatch = icsData.match(/SUMMARY:([\s\S]+?)(?:\r?\n)/)
         const startMatch = icsData.match(/DTSTART[^:]*:(\d{8}T\d{6})/)
         const endMatch = icsData.match(/DTEND[^:]*:(\d{8}T\d{6})/)
 

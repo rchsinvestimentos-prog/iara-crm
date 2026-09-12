@@ -324,11 +324,27 @@ export function getCofreParaClinica(clinica: DadosClinica): CofreIARA {
     return cofre
 }
 
+/** Rótulos de um idioma. voceE e respondaComo são funções, o resto é texto. */
+export interface LabelsIdioma {
+    cliente: string
+    conversaAteAgora: string
+    primeiroContato: string
+    procedimentosPrecos: string
+    semCatalogo: string
+    orientacoesDra: string
+    sabemosSobre: string
+    jaFez: string
+    audioLabel: string
+    comoFalar: string
+    voceE: (nome: string, clinica: string) => string
+    respondaComo: (nomeCliente: string, msg: string, nomeIA: string) => string
+}
+
 /** Retorna rótulos traduzidos (usado no prompt builder) */
-export function getLabels(idioma: string) {
+export function getLabels(idioma: string): LabelsIdioma {
     const lang = idioma || 'pt-BR'
 
-    const labels: Record<string, Record<string, string>> = {
+    const labels: Record<string, LabelsIdioma> = {
         'pt-BR': {
             cliente: 'Cliente',
             conversaAteAgora: 'CONVERSA ATÉ AGORA',

@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
             let procedimentos: any[] = []
             try {
                 procedimentos = await prisma.procedimento.findMany({
-                    where: { clinicaId: String(clinicaId) },
+                    where: { clinicaId: Number(clinicaId) },
                     take: 20,
                 })
             } catch { }
@@ -289,8 +289,8 @@ export async function POST(request: NextRequest) {
                 pushName: FAKE_PUSH_NAME,
                 tipoEntrada: clienteEnviouAudio ? 'audio' : 'text',
                 procedimentos,
-                feedbacks,
-                memoria,
+                feedbacks: feedbacks.map(regra => ({ regra })),
+                memoria: memoria ? { resumoGeral: memoria, procedimentosRealizados: [], tags: [] } : null,
                 agendaContext: null,
                 historico: historico.slice(-10).map((h: any) => ({
                     role: h.role,

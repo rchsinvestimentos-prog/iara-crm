@@ -41,6 +41,8 @@ export interface MensagemRecebida {
 
 /** Dados da clínica (vem do banco - tabela users) */
 export interface DadosClinica {
+    /** Vem do Prisma (catraca.ts busca a clínica inteira). Entra na impressão digital do cache. */
+    updatedAt?: Date | null
     id: number
     nome: string | null
     nomeClinica: string | null

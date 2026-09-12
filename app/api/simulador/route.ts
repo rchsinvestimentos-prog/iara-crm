@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         let procedimentos: Procedimento[] = []
         try {
             const raw = await prisma.procedimento.findMany({
-                where: { clinicaId: String(clinicaId) },
+                where: { clinicaId: Number(clinicaId) },
             })
             procedimentos = raw.map((p: any) => ({
                 id: p.id,
