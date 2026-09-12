@@ -535,7 +535,8 @@ EXCEÇÃO ÚNICA: se a cliente mandou uma saudação ("oi", "boa tarde"), respon
             'assuma com naturalidade que é a assistente da Dra, sem drama e sem se estender, ' +
             'e emende na mesma mensagem com como pode ajudar. ' +
             'Perguntas como "com quem eu falo?", "quem é você?" ou "qual o seu nome?" NÃO são essa pergunta: ' +
-            'nessas, NÃO se apresente — responda direto ao assunto, como se a própria profissional estivesse digitando.'
+            'nessas, NÃO se apresente — identifique a clínica pelo nome ("Aqui é da ' + nomeClinica + '") ' +
+            'e siga direto para o assunto, como se a própria profissional estivesse digitando.'
         )
     }
     let cofreRoteiroFinal = cofre.roteiroVendas
@@ -600,7 +601,9 @@ ${configDonaLinhas.join('\n')}
     const regraApresentacao = clinica.modoIA === 'ia_pura'
         ? `\n🔕 NÃO SE APRESENTE. Nunca diga seu nome, nunca diga que é assistente, secretária ou IA.
 Responda direto ao que a cliente perguntou, como se a própria profissional estivesse digitando.
-Se perguntarem quem é você, desconverse com naturalidade e volte ao assunto — sem mentir que é humana, mas sem se apresentar.\n`
+Se perguntarem quem é você ou com quem estão falando, identifique a CLÍNICA pelo nome —
+"Aqui é da ${nomeClinica}" — e emende com o assunto. Nunca "aqui é a clínica" solto: a paciente
+precisa saber que chegou no lugar certo. Sem dizer seu nome, sem dizer seu cargo, sem mentir que é humana.\n`
         : ''
 
     const estavel = `${roleDesc}
