@@ -15,6 +15,7 @@
 
 import { getCofreParaClinica, getLabels } from './cofre'
 import type { DadosClinica, Procedimento, FeedbackDra, MemoriaCliente, RespostaIA, ProfissionalAtivo } from './types'
+import { textoAnexosParaPrompt } from '@/lib/anexos-procedimento'
 import { parseFuncionalidades } from './types'
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
@@ -606,6 +607,13 @@ Se perguntarem quem é você ou com quem estão falando, identifique a CLÍNICA 
 precisa saber que chegou no lugar certo. Sem dizer seu nome, sem dizer seu cargo, sem mentir que é humana.\n`
         : ''
 
+    // --- Materiais do procedimento (foto, vídeo, PDF) ---
+    // Logo depois do arsenal de objeções: antes dele, a IARA seguia o arsenal
+    // e esquecia o material no momento "quando a paciente ficar em dúvida".
+    // Vazio quando nenhum procedimento tem anexo. Todos os procedimentos da
+    // clínica, com ou sem equipe.
+    const textoMateriais = textoAnexosParaPrompt(procedimentos)
+
     const estavel = `${roleDesc}
 ${regraApresentacao}${regraHistorico}
 🎯 SUA META #1: AGENDAR. Toda conversa deve caminhar para um agendamento.
@@ -637,7 +645,7 @@ ${linhaProf}${horarioContext}${cursosTexto}${combosTexto}${cofreLeisFinais}
 ${funcs.vendas_7_passos ? cofreRoteiroFinal : '(Método de vendas desativado pela clínica — foque em informar preços e agendar diretamente.)'}
 
 ${cofreObjecoesFinal}
-
+${textoMateriais}
 ${comoFalarFinal}
 NÃO VÁ DIRETO PARA A SONDAGEM. Primeiro, acolhimento. Siga PASSO A PASSO, uma mensagem por vez.
 EXCEÇÃO: Se a cliente quer AGENDAR e já sabe o que quer, é FECHAMENTO — não enrole.

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import AnexosProcedimento from './AnexosProcedimento'
 import { Building2, Phone, Award, Save, Plus, Trash2, Edit3, QrCode, RefreshCw, Wifi, WifiOff, Loader2, Check, Clock, GraduationCap, Calendar, Tag, Package, MapPin, CreditCard, MessageSquare, Instagram, ShieldCheck, Heart, MessageSquareText, Bot } from 'lucide-react'
 
 // ==================== Interfaces ====================
@@ -1160,6 +1161,16 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                                         onChange={(e) => setFormProc({ ...formProc, valorSinal: e.target.value })}
                                         placeholder="Valor do sinal (R$). Ex: 100"
                                     />
+                                )}
+                            </div>
+                            {/* Anexos sobem na hora, então precisam do procedimento já criado. */}
+                            <div className="col-span-2">
+                                {editandoProc ? (
+                                    <AnexosProcedimento procedimentoId={Number(editandoProc)} />
+                                ) : (
+                                    <p className="text-[10px] p-3 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-muted)' }}>
+                                        📎 Depois de salvar, abra o procedimento de novo para anexar fotos, vídeos ou PDFs que a IARA pode enviar.
+                                    </p>
                                 )}
                             </div>
                             <div className="flex gap-2">

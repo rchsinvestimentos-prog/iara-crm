@@ -187,6 +187,8 @@ export interface Procedimento {
     exigeSinal?: boolean
     valorSinal?: number | null
     profissionalId?: string | null
+    /** Fotos, vídeos e PDFs que a IARA pode mandar (ver lib/anexos-procedimento.ts). */
+    anexos?: unknown
 }
 
 /** Feedback da Dra */

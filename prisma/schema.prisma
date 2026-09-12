@@ -306,6 +306,10 @@ model Procedimento {
   valorMax        Decimal?  @map("valor_max") @db.Decimal
   posProcedimento String?   @map("pos_procedimento") @db.Text // Cuidados pós-procedimento
   profissionalIds Json?     @default("[]") @map("profissional_ids") @db.JsonB // Array de IDs de profissionais que realizam
+  // Fotos, vídeos e PDFs que a IARA manda para a paciente (lib/anexos-procedimento.ts).
+  // Lido e gravado só por /api/procedimentos/[id]/anexos, para o PUT do
+  // procedimento não apagar os anexos.
+  anexos          Json?     @default("[]") @map("anexos") @db.JsonB
   ativo           Boolean?  @default(true)
   createdAt       DateTime? @default(now()) @map("created_at")
 

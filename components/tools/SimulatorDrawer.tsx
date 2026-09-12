@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Volume2, X, Sparkles, Loader2, Bot, User, Mic, Square } from 'lucide-react'
+import { Send, Volume2, X, Sparkles, Loader2, Bot, User, Mic, Square, Paperclip } from 'lucide-react'
+import { linhaHistoricoAnexo } from '@/lib/anexos-procedimento'
 
 type SimMsg = {
     role: 'user' | 'assistant'
@@ -8,6 +9,8 @@ type SimMsg = {
     audioBase64?: string
     /** O áudio que a própria pessoa gravou, para ela poder reouvir. */
     audioUrl?: string
+    /** Anexos do procedimento que a IARA mandaria logo depois da mensagem. */
+    anexos?: { id: string; tipo: string; descricao: string; nomeArquivo: string; url: string }[]
 }
 
 interface SimulatorDrawerProps {
@@ -106,6 +109,10 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
                 .filter((m, i) => !(i === 0 && m.role === 'assistant' && m.content.includes('Faça um teste')))
                 .slice(-20)
                 .reverse()
+                // A IARA precisa ver o que já mandou, como no WhatsApp, para não repetir.
+                .map(m => m.anexos?.length
+                    ? { role: m.role, content: [m.content, ...m.anexos.map(linhaHistoricoAnexo)].filter(Boolean).join('\n') }
+                    : { role: m.role, content: m.content })
 
             const res = await fetch('/api/iara/simulate', {
                 method: 'POST',
@@ -133,7 +140,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
             if (data.error) {
                 setSimHistory(prev => [...prev, { role: 'assistant', content: `❌ Erro: ${data.error}` }])
             } else {
-                setSimHistory(prev => [...prev, { role: 'assistant', content: data.text, audioBase64: data.audioBase64 }])
+                setSimHistory(prev => [...prev, { role: 'assistant', content: data.text, audioBase64: data.audioBase64, anexos: data.anexos }])
             }
         } catch (err) {
             console.error(err)
@@ -323,6 +330,21 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
                                             </>
                                         )
                                     })()}
+                                    {msg.anexos && msg.anexos.length > 0 && (
+                                        <div className="mt-2 space-y-1.5">
+                                            {msg.anexos.map(a => (
+                                                <a key={a.id} href={a.url} target="_blank" rel="noreferrer"
+                                                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-left"
+                                                    style={{ backgroundColor: 'rgba(217,151,115,0.12)', border: '1px solid rgba(217,151,115,0.3)' }}>
+                                                    <Paperclip size={13} className="text-[#D99773] flex-shrink-0" />
+                                                    <span className="min-w-0">
+                                                        <span className="block text-[11px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>{a.nomeArquivo}</span>
+                                                        <span className="block text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{a.descricao}</span>
+                                                    </span>
+                                                </a>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )

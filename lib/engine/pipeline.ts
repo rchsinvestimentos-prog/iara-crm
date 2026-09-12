@@ -27,6 +27,8 @@ import * as quota from './quota'
 import * as calendar from './calendar'
 import * as aiEngine from './ai-engine'
 import * as sender from './sender'
+import * as anexos from './anexos'
+import { extrairMarcadoresAnexo, linhaHistoricoAnexo } from '@/lib/anexos-procedimento'
 import * as logger from './logger'
 import { processaDraMensagem } from '@/lib/agent/dra-agent'
 import { shouldRouteToAgent } from '@/lib/agent/intent-classifier'
@@ -524,6 +526,11 @@ async function finalizarResposta(
     fromCache: boolean,
     incomingAudioUrl?: string | null
 ) {
+    // Materiais do procedimento: o marcador [ANEXO:...] sai do texto antes da
+    // voz e do envio. Vale também para resposta vinda do cache.
+    const marcadoresAnexo = extrairMarcadoresAnexo(respostaTexto)
+    respostaTexto = marcadoresAnexo.texto
+
     // Determinar saída (respeita toggle responder_audio)
     const funcsLocal = parseFuncionalidades(clinica.funcionalidades)
     // A cota da voz realista é consultada antes de escolher o provedor: se
@@ -544,7 +551,7 @@ async function finalizarResposta(
 
     let audioBase64Resposta: string | null = null
     let outgoingAudioUrl: string | null = null
-    if (configSaida.tipoSaida === 'audio') {
+    if (configSaida.tipoSaida === 'audio' && respostaTexto) {
         audioBase64Resposta = await audio.generateTTS(respostaTexto, configSaida)
         if (audioBase64Resposta) {
             await quota.registrarAudio(clinica)
@@ -566,14 +573,29 @@ async function finalizarResposta(
 
     if (audioBase64Resposta) {
         await sender.sendAudio(sendOpts, audioBase64Resposta)
-    } else {
+    } else if (respostaTexto) {
         await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, respostaTexto))
     }
+
+    // Anexos pedidos pela IA, logo depois da mensagem.
+    let anexosEnviados: { id: string; descricao: string }[] = []
+    if (marcadoresAnexo.ids.length > 0) {
+        if (msg.canal === 'whatsapp') {
+            anexosEnviados = await anexos.enviarAnexosDaResposta(clinica.id, sendOpts, marcadoresAnexo.ids)
+        } else {
+            console.warn(`[Pipeline] 📎 Anexo pedido no canal ${msg.canal} — envio de arquivo só existe no WhatsApp`)
+        }
+    }
+    // A linha "📎 Arquivo enviado" no histórico mostra para a clínica o que
+    // saiu e impede a IARA de mandar o mesmo arquivo de novo.
+    const textoHistorico = anexosEnviados.length
+        ? [respostaTexto, ...anexosEnviados.map(linhaHistoricoAnexo)].filter(Boolean).join('\n')
+        : respostaTexto
 
     // Salvar no histórico
     await Promise.all([
         memory.saveToHistory(clinica.id, msg.telefone, 'user', textoMensagemOriginal, msg.pushName, incomingAudioUrl || undefined),
-        memory.saveToHistory(clinica.id, msg.telefone, 'assistant', respostaTexto, undefined, outgoingAudioUrl || undefined),
+        memory.saveToHistory(clinica.id, msg.telefone, 'assistant', textoHistorico, undefined, outgoingAudioUrl || undefined),
     ])
 
     // Descontar crédito
@@ -1016,8 +1038,23 @@ async function buscarProcedimentos(clinicaId: number) {
         AND ativo = true
       ORDER BY nome ASC
     `
+        // Anexos numa consulta à parte: se a coluna ainda não existir (boot que
+        // não conseguiu criá-la), a IARA continua com o catálogo, só sem anexos.
+        const anexosPorId = new Map<string, unknown>()
+        try {
+            const linhas = await prisma.$queryRaw<{ id: number; anexos: unknown }[]>`
+              SELECT id, anexos FROM procedimentos
+              WHERE user_id = ${clinicaId} AND ativo = true
+                AND anexos IS NOT NULL AND anexos <> '[]'::jsonb
+            `
+            for (const l of linhas) anexosPorId.set(String(l.id), l.anexos)
+        } catch (err) {
+            console.error('[Pipeline] ⚠️ Não consegui ler os anexos dos procedimentos:', err)
+        }
+
         return (result || []).map(r => ({
             ...r,
+            anexos: anexosPorId.get(String(r.id)) || [],
             profissionalId: r.profissional_id || null,
             valorMin: r.valor_min ? Number(r.valor_min) : null,
             valorMax: r.valor_max ? Number(r.valor_max) : null,

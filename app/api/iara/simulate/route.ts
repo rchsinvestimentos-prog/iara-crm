@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { buildSystemPrompt, callAI } from '@/lib/engine/ai-engine'
 import { determineOutputType, generateTTS } from '@/lib/engine/audio'
 import type { FeedbackDra, DadosClinica } from '@/lib/engine/types'
+import { extrairMarcadoresAnexo, normalizarAnexos, MAX_ANEXOS_POR_RESPOSTA } from '@/lib/anexos-procedimento'
 
 /**
  * POST /api/iara/simulate — Simula uma conversa com a IARA (via Painel)
@@ -81,11 +82,24 @@ export async function POST(req: NextRequest) {
             withAudio ? 'audio' : 'text'
         )
 
+        // Anexos: no WhatsApp o arquivo sai logo depois da mensagem. Aqui o
+        // marcador sai do texto e o simulador mostra o arquivo que seria enviado.
+        const marcadores = extrairMarcadoresAnexo(result.texto)
+        const todosAnexos = new Map(
+            procedimentosRaw.flatMap((p: any) => normalizarAnexos(p.anexos)).map(a => [a.id, a] as const)
+        )
+        const anexos = marcadores.ids
+            .map(id => todosAnexos.get(id))
+            .filter((a): a is NonNullable<typeof a> => !!a)
+            .slice(0, MAX_ANEXOS_POR_RESPOSTA)
+            .map(a => ({ id: a.id, tipo: a.tipo, descricao: a.descricao, nomeArquivo: a.nomeArquivo, url: `/api/uploads/${a.arquivo}` }))
+        const texto = marcadores.texto
+
         let audioBase64: string | undefined
-        if (withAudio) {
+        if (withAudio && texto) {
             try {
                 const config = determineOutputType(clinica as unknown as DadosClinica, true)
-                const audioBuffer = await generateTTS(result.texto, config)
+                const audioBuffer = await generateTTS(texto, config)
                 if (audioBuffer) {
                     audioBase64 = audioBuffer
                 }
@@ -95,7 +109,8 @@ export async function POST(req: NextRequest) {
         }
 
         return NextResponse.json({
-            text: result.texto,
+            text: texto,
+            anexos,
             fallback: result.fallback,
             ...(audioBase64 ? { audioBase64 } : {}),
         })

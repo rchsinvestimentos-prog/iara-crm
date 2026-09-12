@@ -113,6 +113,60 @@ export async function sendAudio(
 }
 
 /**
+ * Envia arquivo (foto, vídeo ou PDF) pelo WhatsApp, em base64.
+ * Usado pelos anexos do procedimento: o arquivo fica em UPLOADS_DIR, que é
+ * protegido por login — a Evolution não conseguiria baixar por link.
+ */
+export async function sendMedia(
+    opts: SendOptions,
+    arquivo: {
+        mediatype: 'image' | 'video' | 'document'
+        mimetype: string
+        base64: string
+        fileName: string
+        caption?: string
+    }
+): Promise<boolean> {
+    const { instancia, telefone, apikey } = opts
+
+    if (!instancia || !telefone || !arquivo.base64) {
+        console.error('[Sender] Dados incompletos para enviar arquivo')
+        return false
+    }
+
+    try {
+        const numero = normalizarTelefone(telefone)
+        const res = await fetch(`${EVOLUTION_URL}/message/sendMedia/${instancia}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': apikey || EVOLUTION_KEY,
+            },
+            body: JSON.stringify({
+                number: numero,
+                mediatype: arquivo.mediatype,
+                mimetype: arquivo.mimetype,
+                media: arquivo.base64,
+                fileName: arquivo.fileName,
+                caption: arquivo.caption || '',
+            }),
+        })
+
+        if (res.ok) {
+            console.log(`[Sender] ✅ ${arquivo.mediatype} enviado para ${numero} (${arquivo.fileName})`)
+            return true
+        } else {
+            const err = await res.text()
+            console.error(`[Sender] ❌ Erro ao enviar ${arquivo.mediatype}: ${err.slice(0, 300)}`)
+            return false
+        }
+    } catch (err) {
+        console.error('[Sender] Erro:', err)
+        return false
+    }
+}
+
+/**
  * Envia imagem pelo WhatsApp.
  */
 export async function sendImage(

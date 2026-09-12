@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  experimental: {
+    // O middleware lê o corpo do pedido e, por padrão, corta em 10 MB: o vídeo
+    // anexado ao procedimento (até 15 MB) chegava pela metade na rota.
+    proxyClientMaxBodySize: '20mb',
+  },
   compiler: {
     // Remove console.log apenas em produção, para aliviar a carga no servidor Node.js
     removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,
