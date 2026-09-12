@@ -98,6 +98,25 @@ export async function podeGerarVozRealista(clinica: DadosClinica): Promise<boole
     return r.permitido
 }
 
+/**
+ * Ainda há cota do pacote de clonagem (Fish Audio) neste mês?
+ *
+ * Mesma regra da voz realista: nunca bloqueia o atendimento. Quando acaba,
+ * a voz clonada dá lugar à premium ou à Azure — a paciente segue ouvindo.
+ */
+export async function podeGerarVozClonada(clinica: DadosClinica): Promise<boolean> {
+    const r = await checkFeature(clinica.id, clinica.nivel || 1, 'audiosClonados')
+    if (!r.permitido) {
+        console.log(`[Quota] 🎙️ Clínica ${clinica.id} usou a cota de voz clonada (${r.usado}/${r.limite}) — cai para a voz seguinte`)
+    }
+    return r.permitido
+}
+
+/** Registra um áudio de voz clonada consumido. */
+export async function registrarVozClonada(clinica: DadosClinica): Promise<void> {
+    await incrementFeature(clinica.id, 'audiosClonados', 1)
+}
+
 /** Registra um áudio de voz realista consumido. */
 export async function registrarVozRealista(clinica: DadosClinica): Promise<void> {
     await incrementFeature(clinica.id, 'audiosRealistas', 1)

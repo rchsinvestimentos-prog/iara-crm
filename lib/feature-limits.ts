@@ -28,12 +28,20 @@ import { prisma } from '@/lib/prisma'
 // R$0,026 da Azure, e o pacote empata em 296 áudios. Em 150 sobra 41% de
 // margem. Estourando a cota, a voz cai para a Azure — a clínica não fica
 // sem áudio, só sai da voz premium até virar o mês.
+//
+// audiosClonados é a cota do pacote "clonagem" (+R$147), tocado pelo Fish
+// Audio. O pacote era vendido SEM teto: uma clínica movimentada podia
+// consumir o preço inteiro do pacote em uso. O Fish cobra US$15 por milhão
+// de bytes; 800 áudios de ~300 caracteres dão ~260 mil bytes, ou seja uns
+// R$21 por mês — o resto do pacote vira margem. Estourando, a voz cai para
+// a premium (se a clínica tiver) ou para a Azure, nunca para o silêncio.
 // ------------------------------------------------------------------
 export const FEATURE_LIMITS: Record<number, Record<string, number>> = {
     // P1 Essencial
     1: {
         campanhaContatos: 30,
         audiosRealistas: 150,
+        audiosClonados: 800,
         mensagensIA: 3600,
         audiosIA: 100,
     },
@@ -41,6 +49,7 @@ export const FEATURE_LIMITS: Record<number, Record<string, number>> = {
     2: {
         campanhaContatos: 100,
         audiosRealistas: 150,
+        audiosClonados: 800,
         mensagensIA: 7200,
         audiosIA: 300,
     },
@@ -48,6 +57,7 @@ export const FEATURE_LIMITS: Record<number, Record<string, number>> = {
     3: {
         campanhaContatos: -1,
         audiosRealistas: 150,
+        audiosClonados: 800,
         mensagensIA: 15000,
         audiosIA: 600,
     },

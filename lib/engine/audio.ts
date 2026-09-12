@@ -209,7 +209,8 @@ export function determineOutputType(
     clinica: DadosClinica,
     clienteEnviouAudio: boolean,
     responderAudioAtivo: boolean = true,
-    cotaRealistaDisponivel: boolean = true
+    cotaRealistaDisponivel: boolean = true,
+    cotaClonadaDisponivel: boolean = true
 ): ConfigSaida {
     // Se não veio áudio, responde com texto
     if (!clienteEnviouAudio) {
@@ -248,9 +249,15 @@ export function determineOutputType(
     // -----------------------------------------------
     // CLONAGEM — voz da própria doutora, via Fish Audio
     // -----------------------------------------------
+    // A cota existe porque o pacote é vendido por mês e o Fish cobra por uso:
+    // sem teto, uma clínica movimentada consome o preço do pacote inteiro.
+    // Estourando, cai para a voz seguinte — nunca para o silêncio.
     if (escolha === 'clone' && temPacoteClonagem && vozClonadaId) {
-        console.log('[Audio] 🎙️ voz: clone (Fish Audio)')
-        return { tipoSaida: 'audio', provedorVoz: 'fish', voiceId: vozClonadaId, pronuncias }
+        if (cotaClonadaDisponivel) {
+            console.log('[Audio] 🎙️ voz: clone (Fish Audio)')
+            return { tipoSaida: 'audio', provedorVoz: 'fish', voiceId: vozClonadaId, pronuncias }
+        }
+        console.log('[Audio] 🎙️ cota de voz clonada esgotada — usando a voz seguinte')
     }
 
     // -----------------------------------------------
