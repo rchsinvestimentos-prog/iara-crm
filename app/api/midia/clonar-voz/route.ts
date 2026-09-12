@@ -2,8 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { PACOTES } from '@/lib/planos'
 
-// POST /api/midia/clonar-voz — Envia áudio para ElevenLabs e clona voz
+/**
+ * Clonagem de voz no Fish Audio.
+ *
+ * Antes a gravação ia para a ElevenLabs e o id era salvo como
+ * voice_provider = 'elevenlabs', mas lib/engine/audio.ts toca a voz clonada
+ * pelo Fish. Id de um serviço e reprodução no outro: nunca tocava.
+ *
+ * O Fish foi escolhido para clonagem porque cobra por uso e não limita quantas
+ * vozes a conta guarda — a ElevenLabs limita por vagas (5 no plano Pro), o que
+ * travaria o número de clínicas que podem clonar.
+ */
+
+/** 15 segundos de voz limpa é o mínimo que o Fish recomenda para um clone bom. */
+const TAMANHO_MINIMO_BYTES = 60 * 1024
+const TAMANHO_MAXIMO_BYTES = 25 * 1024 * 1024
+
 export async function POST(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions)
@@ -12,53 +28,78 @@ export async function POST(request: NextRequest) {
 
         const clinica = await prisma.clinica.findUnique({
             where: { id: clinicaId },
-            select: { nivel: true, nome: true },
+            select: { nome: true, nomeClinica: true, configuracoes: true },
         })
+        if (!clinica) return NextResponse.json({ error: 'Clínica não encontrada' }, { status: 404 })
 
-        if (!clinica || clinica.nivel < 3) {
-            return NextResponse.json({ error: 'Voz clonada disponível a partir do plano Premium', planoAtual: clinica?.nivel }, { status: 403 })
+        // A clonagem é pacote avulso, não nível de plano. O gate antigo era
+        // nivel >= 3, então quem comprava o pacote em outro plano não conseguia
+        // clonar, e quem estava no plano 3 sem o pacote conseguia de graça.
+        const cfgAtual = (clinica.configuracoes as Record<string, unknown>) || {}
+        if (!cfgAtual[PACOTES.clonagem.chave]) {
+            return NextResponse.json(
+                { error: 'A clonagem de voz é um pacote à parte. Fale com o suporte para liberar.' },
+                { status: 403 }
+            )
+        }
+
+        if (!process.env.FISH_AUDIO_API_KEY) {
+            console.error('[Clonagem] FISH_AUDIO_API_KEY não configurada')
+            return NextResponse.json({ error: 'Clonagem indisponível no momento. Fale com o suporte.' }, { status: 503 })
         }
 
         const formData = await request.formData()
-        const audio = formData.get('audio') as File
-        const nomeVoz = formData.get('nome') as string || clinica.nome || 'Dra'
+        const audio = formData.get('audio') as File | null
+        const nomeVoz = (formData.get('nome') as string) || clinica.nome || 'Dra'
 
         if (!audio) {
-            return NextResponse.json({ error: 'Envie um arquivo de áudio' }, { status: 400 })
+            return NextResponse.json({ error: 'Envie a gravação da sua voz.' }, { status: 400 })
+        }
+        if (audio.size < TAMANHO_MINIMO_BYTES) {
+            return NextResponse.json(
+                { error: 'A gravação ficou muito curta. Grave de 30 a 60 segundos falando sem parar.' },
+                { status: 400 }
+            )
+        }
+        if (audio.size > TAMANHO_MAXIMO_BYTES) {
+            return NextResponse.json({ error: 'A gravação ficou grande demais. Grave até 2 minutos.' }, { status: 400 })
         }
 
-        // Preparar FormData para ElevenLabs
-        const elevenLabsForm = new FormData()
-        elevenLabsForm.append('name', `IARA - ${nomeVoz}`)
-        elevenLabsForm.append('description', `Voz clonada da ${nomeVoz} para IARA`)
-        elevenLabsForm.append('files', audio)
+        const fishForm = new FormData()
+        fishForm.append('type', 'tts')
+        fishForm.append('train_mode', 'fast')
+        fishForm.append('title', `IARA - ${nomeVoz}`)
+        fishForm.append('description', `Voz de ${nomeVoz}, clínica ${clinica.nomeClinica || clinica.nome || clinicaId}`)
+        // Privada: a voz de uma profissional real não pode ficar no catálogo público.
+        fishForm.append('visibility', 'private')
+        fishForm.append('enhance_audio_quality', 'true')
+        fishForm.append('voices', audio)
 
-        // Chamar API ElevenLabs — Add Voice
-        const res = await fetch('https://api.elevenlabs.io/v1/voices/add', {
+        const res = await fetch('https://api.fish.audio/model', {
             method: 'POST',
-            headers: {
-                'xi-api-key': process.env.ELEVENLABS_API_KEY || '',
-            },
-            body: elevenLabsForm,
+            headers: { Authorization: `Bearer ${process.env.FISH_AUDIO_API_KEY}` },
+            body: fishForm,
         })
 
         if (!res.ok) {
-            const err = await res.text()
-            console.error('ElevenLabs error:', err)
-            return NextResponse.json({ error: 'Erro ao clonar voz na ElevenLabs', detalhes: err }, { status: 500 })
+            const detalhe = (await res.text()).slice(0, 300)
+            console.error(`[Clonagem] ❌ Fish HTTP ${res.status}:`, detalhe)
+            const amigavel = res.status === 402 || /credit|balance/i.test(detalhe)
+                ? 'A conta de voz está sem saldo. Fale com o suporte.'
+                : 'Não consegui criar a voz agora. Tente de novo em alguns minutos.'
+            return NextResponse.json({ error: amigavel }, { status: 502 })
         }
 
         const data = await res.json()
-        const voiceId = data.voice_id
+        const voiceId = data?._id || data?.id
+        if (!voiceId) {
+            console.error('[Clonagem] ❌ Fish respondeu sem id:', JSON.stringify(data).slice(0, 200))
+            return NextResponse.json({ error: 'Resposta inesperada do serviço de voz.' }, { status: 502 })
+        }
 
-        // Buscar configuracoes atuais para fazer merge
-        const clinicaAtual = await prisma.clinica.findUnique({
-            where: { id: clinicaId },
-            select: { configuracoes: true }
-        })
-        const cfgAtual = (clinicaAtual?.configuracoes as Record<string, unknown>) || {}
-
-        // Salvar voice_id no banco (vozClonada é o campo real no schema)
+        // Um update só, pelo id da clínica. O anterior casava pelo NOME
+        // ("WHERE nome_clinica ILIKE '%nome%'"), o que podia gravar a voz de
+        // uma clínica na ficha de outra com nome parecido.
         await prisma.clinica.update({
             where: { id: clinicaId },
             data: {
@@ -66,59 +107,48 @@ export async function POST(request: NextRequest) {
                 configuracoes: {
                     ...cfgAtual,
                     voice_id_clonada: voiceId,
+                    voice_provider: 'fish',
                     tipo_voz_ativa: 'clone',
                     usar_voz_clonada: true,
                 },
             },
         })
 
-        // Também salvar no banco N8N
-        try {
-            await prisma.$executeRawUnsafe(
-                `UPDATE users SET voice_id = $1, voice_provider = 'elevenlabs', updated_at = NOW() WHERE nome_clinica ILIKE $2`,
-                voiceId, `%${clinica.nome}%`
-            )
-        } catch { /* N8N table might not have these columns yet */ }
+        console.log(`[Clonagem] ✅ Voz criada no Fish para clínica ${clinicaId}: ${voiceId}`)
 
         return NextResponse.json({
             ok: true,
             voiceId,
-            mensagem: `Voz da ${nomeVoz} clonada com sucesso! A IARA agora responde com sua voz.`,
+            mensagem: `Pronto! A ${nomeVoz} agora atende com a sua voz.`,
         })
     } catch (err) {
-        console.error('Erro em /api/midia/clonar-voz:', err)
+        console.error('[Clonagem] ❌ Erro:', err)
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
     }
 }
 
-// GET /api/midia/clonar-voz — Status da voz clonada
+/** GET /api/midia/clonar-voz — a clínica já tem voz clonada? */
 export async function GET() {
     try {
         const session = await getServerSession(authOptions)
         const clinicaId = await getClinicaId(session)
         if (!clinicaId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
+        // Buscava com "WHERE nome_clinica ILIKE '%<id da clínica>%'", comparando
+        // o id com o NOME: nunca achava nada e a tela dizia que não havia voz.
         const clinica = await prisma.clinica.findUnique({
             where: { id: clinicaId },
-            select: { plano: true },
+            select: { nivel: true, vozClonada: true, configuracoes: true },
         })
 
-        // Tentar buscar voice_id do banco
-        let voiceId = null
-        try {
-            const result = await prisma.$queryRawUnsafe(
-                `SELECT voice_id FROM users WHERE nome_clinica ILIKE $1 LIMIT 1`,
-                `%${clinicaId}%`
-            ) as { voice_id: string }[]
-            if (Array.isArray(result) && result.length > 0) {
-                voiceId = result[0].voice_id
-            }
-        } catch { /* column might not exist */ }
+        const cfg = (clinica?.configuracoes as Record<string, unknown>) || {}
+        const voiceId = (cfg.voice_id_clonada as string) || clinica?.vozClonada || null
 
         return NextResponse.json({
             voiceId,
             temVoz: !!voiceId,
-            plano: clinica?.plano || 1,
+            temPacote: !!cfg[PACOTES.clonagem.chave],
+            plano: clinica?.nivel || 1,
         })
     } catch {
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })

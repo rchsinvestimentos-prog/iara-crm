@@ -22,9 +22,62 @@ export default function MidiaPage() {
     const [tab, setTab] = useState<Tipo>('foto')
     const [arquivos, setArquivos] = useState<Arquivo[]>([])
     const [temVoz, setTemVoz] = useState(false)
+    // A clonagem é pacote avulso, não nível de plano. A aba travava em
+    // "Plano 3+", então quem comprava o pacote no Start ou no Master nunca
+    // conseguia gravar — e liberar pelo admin não adiantava nada.
+    const [temPacoteClonagem, setTemPacoteClonagem] = useState(false)
     const [temAvatar, setTemAvatar] = useState(false)
     const [msg, setMsg] = useState('')
     const inputRef = useRef<HTMLInputElement>(null)
+
+    // Gravação guiada. A clínica não sabe clonar voz: sem passo a passo, ela
+    // manda um áudio com eco, com a TV ligada, ou de 5 segundos — e o clone
+    // sai ruim sem ninguém entender por quê.
+    const [gravando, setGravando] = useState(false)
+    const [segundos, setSegundos] = useState(0)
+    const [gravacao, setGravacao] = useState<{ blob: Blob; url: string } | null>(null)
+    const [erroMic, setErroMic] = useState('')
+    const recorderRef = useRef<MediaRecorder | null>(null)
+    const cronometroRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+    const SEGUNDOS_MINIMO = 30
+    const SEGUNDOS_MAXIMO = 90
+
+    const pararGravacao = () => {
+        recorderRef.current?.stop()
+        recorderRef.current?.stream.getTracks().forEach(t => t.stop())
+        if (cronometroRef.current) clearInterval(cronometroRef.current)
+        setGravando(false)
+    }
+
+    const comecarGravacao = async () => {
+        setErroMic('')
+        setGravacao(null)
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            })
+            const rec = new MediaRecorder(stream)
+            const pedacos: Blob[] = []
+            rec.ondataavailable = e => { if (e.data.size > 0) pedacos.push(e.data) }
+            rec.onstop = () => {
+                const blob = new Blob(pedacos, { type: rec.mimeType || 'audio/webm' })
+                setGravacao({ blob, url: URL.createObjectURL(blob) })
+            }
+            recorderRef.current = rec
+            rec.start()
+            setGravando(true)
+            setSegundos(0)
+            cronometroRef.current = setInterval(() => {
+                setSegundos(s => {
+                    if (s + 1 >= SEGUNDOS_MAXIMO) { pararGravacao(); return SEGUNDOS_MAXIMO }
+                    return s + 1
+                })
+            }, 1000)
+        } catch {
+            setErroMic('Não consegui acessar o microfone. Autorize o microfone no navegador e tente de novo.')
+        }
+    }
 
     useEffect(() => {
         Promise.all([
@@ -34,6 +87,7 @@ export default function MidiaPage() {
         ]).then(([stats, voz, avatar]) => {
             setPlano(stats?.plano || voz?.plano || 1)
             setTemVoz(voz?.temVoz || false)
+            setTemPacoteClonagem(!!voz?.temPacote)
             setTemAvatar(avatar?.temAvatar || false)
         }).finally(() => setLoading(false))
     }, [])
@@ -96,15 +150,23 @@ export default function MidiaPage() {
 
     const clonarVoz = async () => {
         setConfirmandoClone(false)
-        if (arquivos.length === 0) { setMsg('Envie um áudio primeiro'); return }
+        if (!gravacao && arquivos.length === 0) { setMsg('Grave a sua voz ou envie um áudio primeiro'); return }
         setClonando('voz')
         try {
-            // Fetch the uploaded audio file and send to ElevenLabs
-            const audioUrl = arquivos[0].url
-            const audioRes = await fetch(audioUrl)
-            const blob = await audioRes.blob()
+            // A gravação feita aqui na tela tem prioridade: ela passou pelo
+            // passo a passo e tem duração conferida.
+            let blob: Blob
+            let nome: string
+            if (gravacao) {
+                blob = gravacao.blob
+                nome = 'gravacao.webm'
+            } else {
+                const audioRes = await fetch(arquivos[0].url)
+                blob = await audioRes.blob()
+                nome = arquivos[0].nome
+            }
             const form = new FormData()
-            form.append('audio', blob, arquivos[0].nome)
+            form.append('audio', blob, nome)
             const r = await fetch('/api/midia/clonar-voz', { method: 'POST', body: form })
             const data = await r.json()
             if (data.ok) {
@@ -145,10 +207,10 @@ export default function MidiaPage() {
         video: 'video/*',
     }
 
-    const tabs: { id: Tipo; label: string; icon: typeof Image; planoMin: number }[] = [
-        { id: 'foto', label: 'Fotos', icon: Image, planoMin: 1 },
-        { id: 'audio', label: 'Voz', icon: Mic, planoMin: 3 },
-        ...(AVATAR_VIDEO_HABILITADO ? [{ id: 'video' as Tipo, label: 'Avatar', icon: Video, planoMin: 3 }] : []),
+    const tabs: { id: Tipo; label: string; icon: typeof Image; liberada: boolean }[] = [
+        { id: 'foto', label: 'Fotos', icon: Image, liberada: true },
+        { id: 'audio', label: 'Voz', icon: Mic, liberada: temPacoteClonagem },
+        ...(AVATAR_VIDEO_HABILITADO ? [{ id: 'video' as Tipo, label: 'Avatar', icon: Video, liberada: plano >= 3 }] : []),
     ]
 
     if (loading) {
@@ -171,7 +233,7 @@ export default function MidiaPage() {
             <div className={`grid grid-cols-1 gap-3 ${AVATAR_VIDEO_HABILITADO ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
                 {[
                     { label: 'Fotos', ok: true, desc: 'Todos os planos', icon: '📸' },
-                    { label: 'Voz Clonada', ok: temVoz, desc: plano >= 3 ? (temVoz ? 'ElevenLabs ativo ✓' : 'Disponível — envie áudio') : 'Plano 3+', icon: '🎤', locked: plano < 3 },
+                    { label: 'Voz Clonada', ok: temVoz, desc: temPacoteClonagem ? (temVoz ? 'sua voz está ativa ✓' : 'Disponível — grave a sua voz') : 'Pacote à parte', icon: '🎤', locked: !temPacoteClonagem },
                     ...(AVATAR_VIDEO_HABILITADO ? [{ label: 'Avatar Vídeo', ok: temAvatar, desc: temAvatar ? 'HeyGen ativo ✓' : 'Disponível — envie vídeo', icon: '🎬', locked: false }] : []),
                 ].map(card => (
                     <div key={card.label} className="p-4 rounded-xl flex items-center gap-3" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
@@ -192,7 +254,7 @@ export default function MidiaPage() {
             <div className="flex gap-1 p-1 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)' }}>
                 {tabs.map(t => {
                     const Icon = t.icon
-                    const locked = plano < t.planoMin
+                    const locked = !t.liberada
                     return (
                         <button
                             key={t.id}
@@ -211,6 +273,102 @@ export default function MidiaPage() {
                     )
                 })}
             </div>
+
+            {/* ============ Gravação guiada da voz ============ */}
+            {tab === 'audio' && !temVoz && (
+                <div className="rounded-2xl p-5 space-y-4" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                    <div>
+                        <h3 className="text-[14px] font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                            <Mic size={16} style={{ color: '#D99773' }} /> Gravar a sua voz
+                        </h3>
+                        <p className="text-[12px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                            Leva um minuto. O resultado depende bem mais de <strong>onde</strong> você grava do que do que você fala.
+                        </p>
+                    </div>
+
+                    <div className="rounded-xl p-4 space-y-2.5" style={{ backgroundColor: 'rgba(217,151,115,0.08)', border: '1px solid rgba(217,151,115,0.2)' }}>
+                        <p className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>Antes de começar</p>
+                        <ul className="text-[12px] space-y-1.5 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                            <li><strong>Grave dentro do closet, com a porta fechada</strong>, ou num quarto com cortina, tapete e cama. Roupa e tecido absorvem o eco.</li>
+                            <li><strong>Evite sala vazia, piso frio e parede nua.</strong> O eco entra na gravação e a sua voz clonada fica com som de banheiro — e isso não tem como tirar depois.</li>
+                            <li><strong>Desligue ar-condicionado, TV e música.</strong> Ninguém mais falando no ambiente.</li>
+                            <li><strong>Celular a um palmo da boca</strong>, falando no tom que você usa com paciente. Nem locutora, nem sussurrando.</li>
+                            <li><strong>Fale sem parar até o fim</strong>, no mesmo volume e no mesmo ânimo, com pausas curtas entre as frases.</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <p className="text-[12px] font-semibold mb-1.5" style={{ color: 'var(--text-primary)' }}>
+                            Não sabe o que falar? Lê isso em voz alta:
+                        </p>
+                        <div className="rounded-xl p-3.5 text-[12.5px] leading-relaxed italic" style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
+                            “Oi, tudo bem? Que bom que você entrou em contato com a gente. Eu cuido dos atendimentos
+                            aqui da clínica e vou te ajudar a encontrar o melhor horário. A gente trabalha com vários
+                            procedimentos, e cada pessoa tem uma necessidade diferente, então eu gosto sempre de
+                            entender primeiro o que você está buscando. Me conta um pouco do que você tem vontade de
+                            fazer, que eu te explico com calma como funciona, quanto tempo leva e como a gente
+                            costuma conduzir. Fico à disposição, tá bom? Vai ser um prazer te atender.”
+                        </div>
+                        <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
+                            Pode falar com as suas palavras também — sai até mais natural.
+                        </p>
+                    </div>
+
+                    {erroMic && (
+                        <p className="text-[12px] rounded-lg px-3 py-2" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#EF4444' }}>{erroMic}</p>
+                    )}
+
+                    {gravando ? (
+                        <div className="flex items-center gap-3">
+                            <button onClick={pararGravacao}
+                                className="px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white flex items-center gap-2"
+                                style={{ backgroundColor: '#EF4444' }}>
+                                <span className="w-2.5 h-2.5 rounded-sm bg-white" /> Parar
+                            </button>
+                            <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ backgroundColor: '#EF4444' }} />
+                                <span className="text-[15px] font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                    {String(Math.floor(segundos / 60)).padStart(2, '0')}:{String(segundos % 60).padStart(2, '0')}
+                                </span>
+                                <span className="text-[11px]" style={{ color: segundos < SEGUNDOS_MINIMO ? '#D99773' : '#06D6A0' }}>
+                                    {segundos < SEGUNDOS_MINIMO ? `continue falando — faltam ${SEGUNDOS_MINIMO - segundos}s` : 'já dá! pode parar quando quiser'}
+                                </span>
+                            </div>
+                        </div>
+                    ) : gravacao ? (
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2 text-[12px] font-semibold" style={{ color: segundos < SEGUNDOS_MINIMO ? '#D99773' : '#06D6A0' }}>
+                                {segundos < SEGUNDOS_MINIMO
+                                    ? `Ficou com ${segundos}s — curto demais. O ideal é passar de ${SEGUNDOS_MINIMO}s.`
+                                    : `Gravação de ${segundos}s pronta. Ouça antes de usar.`}
+                            </div>
+                            <audio controls src={gravacao.url} className="w-full" />
+                            <p className="text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
+                                Ouviu eco, chiado ou barulho de fundo? Grave de novo — o clone sai igual ao que você ouviu aqui.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                <button onClick={comecarGravacao}
+                                    className="px-4 py-2.5 rounded-xl text-[13px] font-medium"
+                                    style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)' }}>
+                                    Gravar de novo
+                                </button>
+                                <button onClick={() => setConfirmandoClone(true)} disabled={clonando === 'voz' || segundos < SEGUNDOS_MINIMO}
+                                    className="px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white flex items-center gap-2 disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)' }}>
+                                    {clonando === 'voz' ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                                    Usar esta gravação
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <button onClick={comecarGravacao}
+                            className="px-5 py-3 rounded-xl text-[13px] font-semibold text-white flex items-center gap-2"
+                            style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)' }}>
+                            <Mic size={15} /> Começar a gravar
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Upload zone */}
             <div
@@ -283,15 +441,19 @@ export default function MidiaPage() {
                 </button>
             )}
 
-            {/* Locked upgrade CTA */}
-            {tab === 'audio' && plano < 3 && (
+            {/* Sem o pacote: convite para comprar, não para trocar de plano —
+                subir de plano não destrava a clonagem e a clínica pagaria à toa. */}
+            {tab === 'audio' && !temPacoteClonagem && (
                 <div className="rounded-xl p-6 text-center" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                     <Lock size={32} className="mx-auto mb-3 opacity-20" style={{ color: 'var(--text-muted)' }} />
-                    <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
-                        Clonagem de voz disponível no plano Premium
+                    <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+                        A clonagem de voz é um pacote à parte
+                    </p>
+                    <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                        Some ao seu plano atual, seja ele qual for. Nenhum plano já inclui.
                     </p>
                     <Link href="/plano" className="inline-flex items-center gap-1 text-sm font-semibold text-[#D99773]">
-                        Fazer Upgrade <ChevronRight size={14} />
+                        Ver o pacote <ChevronRight size={14} />
                     </Link>
                 </div>
             )}
