@@ -81,6 +81,16 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(loginUrl)
     }
 
+    // Rotas de diagnóstico — só admin. Antes bastava estar logado: qualquer
+    // clínica (ou alguém da equipe dela) abria /api/debug/prompt-data e via os
+    // dados de todas as clínicas. Nenhuma tela usa essas rotas, e várias fazem
+    // ação só de abrir (GET). 404 para não confirmar que existem.
+    if (pathname === '/api/debug' || pathname.startsWith('/api/debug/')) {
+        if ((token as any).userType !== 'admin' && (token as any).role !== 'admin') {
+            return NextResponse.json({ error: 'Not found' }, { status: 404 })
+        }
+    }
+
     // Rotas admin — precisa ser admin
     if (pathname.startsWith('/admin')) {
         if ((token as any).userType !== 'admin' && (token as any).role !== 'admin') {
