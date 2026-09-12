@@ -625,11 +625,15 @@ export async function generateTTS(
 }
 
 /**
- * Salva um áudio em base64 no disco local (/public/uploads/audios/) e retorna a URL pública.
+ * Salva um áudio da conversa no volume e devolve a URL.
+ * Fica em <clinica>/audios/, que só a própria clínica e o admin abrem. Antes
+ * ia para audios/, pasta comum a todas: qualquer clínica logada que
+ * soubesse o nome do arquivo ouvia o áudio de outra.
  */
 export async function saveAudioFile(
     base64Data: string,
-    prefix: string
+    prefix: string,
+    clinicaId: number
 ): Promise<string | null> {
     try {
         if (!base64Data) return null
@@ -640,7 +644,8 @@ export async function saveAudioFile(
         // Vai para o volume do EasyPanel. public/ fica dentro da imagem do
         // contêiner e é descartado a cada deploy: o áudio da conversa sumia do
         // histórico na próxima publicação.
-        const uploadDir = path.join(process.env.UPLOADS_DIR || '/app/uploads', 'audios')
+        if (!Number.isInteger(clinicaId) || clinicaId <= 0) return null
+        const uploadDir = path.join(process.env.UPLOADS_DIR || '/app/uploads', String(clinicaId), 'audios')
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true })
         }
@@ -649,7 +654,7 @@ export async function saveAudioFile(
         const filepath = path.join(uploadDir, filename)
 
         await fs.promises.writeFile(filepath, Buffer.from(cleanBase64, 'base64'))
-        return `/api/uploads/audios/${filename}`
+        return `/api/uploads/${clinicaId}/audios/${filename}`
     } catch (err) {
         console.error('[Audio] Erro ao salvar arquivo de áudio:', err)
         return null

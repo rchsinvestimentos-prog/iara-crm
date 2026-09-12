@@ -28,6 +28,9 @@ import * as calendar from './calendar'
 import * as aiEngine from './ai-engine'
 import * as sender from './sender'
 import * as anexos from './anexos'
+
+/** Ver o comentário em "9. CACHE". Religar só reescrevendo a chave do cache. */
+const CACHE_RESPOSTAS_LIGADO = false
 import { extrairMarcadoresAnexo, linhaHistoricoAnexo } from '@/lib/anexos-procedimento'
 import * as logger from './logger'
 import { processaDraMensagem } from '@/lib/agent/dra-agent'
@@ -299,7 +302,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
 
         if (audioData) {
             // Salvar o arquivo de áudio recebido fisicamente
-            incomingAudioUrl = await audio.saveAudioFile(audioData, 'incoming')
+            incomingAudioUrl = await audio.saveAudioFile(audioData, 'incoming', clinica.id)
             const transcricao = await audio.transcribeAudio(audioData)
             if (transcricao) {
                 textoMensagem = `[ÁUDIO RECEBIDO E TRANSCRITO PARA VOCÊ]: ${transcricao}`
@@ -410,7 +413,16 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // ================================================
     // 9. CACHE — Já respondeu isso recentemente?
     // ================================================
-    const cacheHit = await checkCache(clinica.id, textoMensagem, clinicaFingerprint)
+    // CACHE DE RESPOSTAS — DESLIGADO em 12/09/2026.
+    // A chave era só o texto da mensagem + os dados da clínica: não entrava a
+    // conversa, o nome da paciente, a memória dela nem os horários livres.
+    // Outra paciente que mandasse o mesmo texto ("pode confirmar sexta às
+    // 14h") recebia a resposta de outra conversa, e o [AGENDAR:...] saía cru,
+    // sem marcar nada. O cache de prompt da Anthropic (ai-engine) continua e é
+    // o que dá a economia de verdade.
+    const cacheHit = CACHE_RESPOSTAS_LIGADO
+        ? await checkCache(clinica.id, textoMensagem, clinicaFingerprint)
+        : null
     if (cacheHit) {
         console.log(`[Pipeline] 💰 Cache hit! Economizando IA.`)
         // Usa resposta cacheada mas ainda envia e salva
@@ -487,7 +499,9 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // ================================================
     // 11. SALVAR NO CACHE
     // ================================================
-    await saveCache(clinica.id, textoMensagem, resposta.texto, resposta.modelo, clinicaFingerprint)
+    if (CACHE_RESPOSTAS_LIGADO) {
+        await saveCache(clinica.id, textoMensagem, resposta.texto, resposta.modelo, clinicaFingerprint)
+    }
 
     // ================================================
     // 11.5 PROCESSAR AGENDAMENTOS (se houver marcadores [AGENDAR:...])
@@ -560,7 +574,7 @@ async function finalizarResposta(
             if (configSaida.provedorVoz === 'fish') await quota.registrarVozClonada(clinica)
         }
         if (audioBase64Resposta) {
-            outgoingAudioUrl = await audio.saveAudioFile(audioBase64Resposta, 'outgoing')
+            outgoingAudioUrl = await audio.saveAudioFile(audioBase64Resposta, 'outgoing', clinica.id)
         }
     }
 

@@ -158,6 +158,14 @@ export async function PUT(request: NextRequest) {
         const body = await request.json()
         const validated = UpdateProcSchema.parse(body)
 
+        // As duas telas que editam procedimento mandam campos diferentes: a de
+        // Configurar IARA não manda cuidados pós nem o profissional dono; a da
+        // equipe não manda o sinal. O zod completa o que falta com vazio/false,
+        // e o UPDATE apagava esses campos a cada salvamento. Campo que não veio
+        // no corpo fica como está no banco.
+        const veio = (campo: string) =>
+            !!body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, campo)
+
         // Verificar que o procedimento pertence à clínica
         const existing = await prisma.procedimento.findFirst({
             where: { id: validated.id, clinicaId: Number(clinicaId) },
@@ -176,11 +184,11 @@ export async function PUT(request: NextRequest) {
                 parcelamento_padrao = $5,
                 duracao_minutos = $6,
                 descricao = $7,
-                pos_procedimento = $8,
-                profissional_id = $9,
-                profissional_ids = $10::jsonb,
-                exige_sinal = $11,
-                valor_sinal = $12
+                pos_procedimento = CASE WHEN $13 THEN $8 ELSE pos_procedimento END,
+                profissional_id = CASE WHEN $14 THEN $9 ELSE profissional_id END,
+                profissional_ids = CASE WHEN $15 THEN $10::jsonb ELSE profissional_ids END,
+                exige_sinal = CASE WHEN $16 THEN $11 ELSE exige_sinal END,
+                valor_sinal = CASE WHEN $17 THEN $12 ELSE valor_sinal END
             WHERE id = $1
         `,
             validated.id,
@@ -195,6 +203,11 @@ export async function PUT(request: NextRequest) {
             JSON.stringify(validated.profissionalIds || []),
             validated.exigeSinal ?? false,
             validated.valorSinal ?? null,
+            veio('posProcedimento'),
+            veio('profissionalId'),
+            veio('profissionalIds'),
+            veio('exigeSinal'),
+            veio('valorSinal'),
         )
 
         return NextResponse.json({ ok: true, id: validated.id })

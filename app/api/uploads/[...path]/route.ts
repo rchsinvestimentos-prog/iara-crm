@@ -29,8 +29,9 @@ const MIME: Record<string, string> = {
  *   <id>/<resto>/     só a própria clínica (dona ou equipe) ou admin:
  *                     media/ (fotos, PDFs e vídeos da paciente), audio/ (voz
  *                     da doutora para clonagem), video/
- *   audios/           qualquer pessoa logada — áudios das conversas; a pasta
- *                     não é separada por clínica
+ *   audios/           qualquer pessoa logada — áudios das conversas gravados
+ *                     até 12/09/2026, quando a pasta não era separada por
+ *                     clínica. Os novos vão para <id>/audios/ (regra da clínica).
  *   qualquer outra    ninguém
  */
 type Regra =
