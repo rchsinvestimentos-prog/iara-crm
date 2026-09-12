@@ -216,6 +216,9 @@ export async function POST(
             try { await prisma.contato.deleteMany({ where: { clinicaId } }) } catch {}
             try { await prisma.crmColuna.deleteMany({ where: { clinicaId } }) } catch {}
             try { await prisma.campanha.deleteMany({ where: { clinicaId } }) } catch {}
+            // Avaliação aponta para a clínica sem apagar junto: sem isto a
+            // exclusão da clínica falha quando ela tem alguma avaliação.
+            try { await prisma.avaliacao.deleteMany({ where: { clinicaId } }) } catch {}
 
             // Tabelas raw com "clinicaId" (aspas) — formato Prisma
             const tabelasPrismaCol = [
