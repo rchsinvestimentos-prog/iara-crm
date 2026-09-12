@@ -69,6 +69,8 @@ export interface DadosClinica {
     /** Horário em que a IARA trabalha. Vazio = usa o horário da clínica. */
     horarioIaraInicio: string | null
     horarioIaraFim: string | null
+    /** Agenda por dia da semana, em JSON. Ver o comentário no schema. */
+    horariosIara?: string | null
     horarioInicio: string | null
     horarioFim: string | null
     atendeSabado: boolean | null

@@ -48,9 +48,11 @@ export default function AtendimentoTool() {
 
     // Horário de operação da IARA
     const [sempreLigada, setSempreLigada] = useState(true)
-    const [horarioInicio, setHorarioInicio] = useState('08:00')
-    const [horarioFim, setHorarioFim] = useState('20:00')
-    const [diasAtendimento, setDiasAtendimento] = useState<number[]>([1, 2, 3, 4, 5])
+    // Agenda por dia da semana, com mais de uma faixa por dia. 0 = domingo.
+    // Clínica que nunca mexeu aqui tem isso vazio e segue no horário único.
+    const [agenda, setAgenda] = useState<Record<string, [string, string][]>>({
+        '0': [], '1': [], '2': [], '3': [], '4': [], '5': [], '6': [],
+    })
     const [mensagemForaHorario, setMensagemForaHorario] = useState('')
 
     // Blacklist
@@ -86,17 +88,43 @@ export default function AtendimentoTool() {
                 if (data.sempreLigada !== undefined && data.sempreLigada !== null) {
                     setSempreLigada(data.sempreLigada)
                 }
-                // Lia horarioInicio/horarioFim, que nunca existiram na tabela:
-                // a tela sempre voltava para 08:00–20:00 depois de salvar.
-                if (data.horarioIaraInicio) setHorarioInicio(data.horarioIaraInicio)
-                if (data.horarioIaraFim) setHorarioFim(data.horarioIaraFim)
-                if (data.diasAtendimento) {
+                // Agenda por dia. Clínica que configurou antes tem só o par
+                // início/fim e a lista de dias: convertemos aqui, senão ela
+                // abriria a tela vazia e salvaria por cima do próprio horário.
+                const vazia = (): Record<string, [string, string][]> =>
+                    ({ '0': [], '1': [], '2': [], '3': [], '4': [], '5': [], '6': [] })
+
+                let carregada: Record<string, [string, string][]> | null = null
+
+                if (data.horariosIara) {
                     try {
-                        const dias = typeof data.diasAtendimento === 'string'
-                            ? JSON.parse(data.diasAtendimento) : data.diasAtendimento
-                        if (Array.isArray(dias)) setDiasAtendimento(dias)
-                    } catch { /* default */ }
+                        const a = typeof data.horariosIara === 'string' ? JSON.parse(data.horariosIara) : data.horariosIara
+                        const limpa = vazia()
+                        let temAlgum = false
+                        for (let d = 0; d <= 6; d++) {
+                            if (Array.isArray(a?.[String(d)]) && a[String(d)].length > 0) {
+                                limpa[String(d)] = a[String(d)]
+                                temAlgum = true
+                            }
+                        }
+                        if (temAlgum) carregada = limpa
+                    } catch { /* configuração inválida: cai na conversão abaixo */ }
                 }
+
+                if (!carregada && data.horarioIaraInicio && data.horarioIaraFim) {
+                    const convertida = vazia()
+                    let dias: number[] = [1, 2, 3, 4, 5]
+                    try {
+                        const lista = typeof data.diasAtendimento === 'string'
+                            ? JSON.parse(data.diasAtendimento) : data.diasAtendimento
+                        if (Array.isArray(lista) && lista.length > 0) dias = lista.map(Number)
+                    } catch { /* mantém seg-sex */ }
+                    for (const d of dias) convertida[String(d)] = [[data.horarioIaraInicio, data.horarioIaraFim]]
+                    carregada = convertida
+                }
+
+                if (carregada) setAgenda(carregada)
+
                 if (data.mensagemForaHorario) setMensagemForaHorario(data.mensagemForaHorario)
 
                 // Blacklist, Aniversário, Boas-vindas
@@ -164,9 +192,9 @@ export default function AtendimentoTool() {
                     feedbacks: JSON.stringify(feedbacksAtualizados),
                     modoIA,
                     sempreLigada,
-                    horarioInicio,
-                    horarioFim,
-                    diasAtendimento: JSON.stringify(diasAtendimento),
+                    // horarioInicio/horarioFim nunca existiram na tabela e eram
+                    // descartados em silêncio. A agenda por dia substitui os dois.
+                    horariosIara: JSON.stringify(agenda),
                     mensagemForaHorario,
                     blacklist,
                     mensagemAniversario,
@@ -383,46 +411,102 @@ export default function AtendimentoTool() {
                     </button>
                 </div>
 
-                {/* Campos de horário (só aparece se não for sempre ligada) */}
+                {/* Agenda por dia (só aparece se não for sempre ligada) */}
                 {!sempreLigada && (
                     <div className="space-y-3 p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Início</label>
-                                <input type="time" value={horarioInicio} onChange={e => setHorarioInicio(e.target.value)} className={inputClass} style={inputStyle} />
-                            </div>
-                            <div>
-                                <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Fim</label>
-                                <input type="time" value={horarioFim} onChange={e => setHorarioFim(e.target.value)} className={inputClass} style={inputStyle} />
-                            </div>
-                        </div>
+                        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            Marque os dias e os horários de cada um. Pode ter mais de um período no mesmo dia —
+                            atender cedo, parar, e voltar à noite.
+                        </p>
 
-                        <div>
-                            <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>Dias que a {nomeIA || 'IARA'} atende</label>
-                            <div className="flex gap-1">
-                                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((dia, i) => (
-                                    <button key={i} onClick={() => setDiasAtendimento(prev => prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i])}
-                                        className="px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all"
-                                        style={{
-                                            backgroundColor: diasAtendimento.includes(i) ? '#D99773' : 'var(--bg-card)',
-                                            color: diasAtendimento.includes(i) ? 'white' : 'var(--text-muted)',
-                                            border: `1px solid ${diasAtendimento.includes(i) ? '#D99773' : 'var(--border-default)'}`,
-                                        }}>
-                                        {dia}
-                                    </button>
-                                ))}
-                            </div>
+                        {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((nomeDia, d) => {
+                            const faixas = agenda[String(d)] || []
+                            const atende = faixas.length > 0
+                            const mudar = (novasFaixas: [string, string][]) =>
+                                setAgenda(prev => ({ ...prev, [String(d)]: novasFaixas }))
+
+                            return (
+                                <div key={d} className="p-3 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                                    <div className="flex items-center justify-between">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={atende}
+                                                onChange={e => mudar(e.target.checked ? [['08:00', '18:00']] : [])}
+                                                className="rounded"
+                                            />
+                                            <span className="text-[12px] font-semibold" style={{ color: atende ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                                                {nomeDia}
+                                            </span>
+                                        </label>
+                                        {!atende && (
+                                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>não atende</span>
+                                        )}
+                                    </div>
+
+                                    {atende && (
+                                        <div className="mt-2 space-y-2">
+                                            {faixas.map((faixa, i) => (
+                                                <div key={i} className="flex items-center gap-2">
+                                                    <input type="time" value={faixa[0]} className={inputClass} style={inputStyle}
+                                                        onChange={e => mudar(faixas.map((f, j) => j === i ? [e.target.value, f[1]] as [string, string] : f))} />
+                                                    <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>até</span>
+                                                    <input type="time" value={faixa[1]} className={inputClass} style={inputStyle}
+                                                        onChange={e => mudar(faixas.map((f, j) => j === i ? [f[0], e.target.value] as [string, string] : f))} />
+                                                    {faixas.length > 1 && (
+                                                        <button onClick={() => mudar(faixas.filter((_, j) => j !== i))}
+                                                            aria-label={`Remover período ${i + 1} de ${nomeDia}`}
+                                                            className="text-[11px] px-2 py-1 rounded-lg" style={{ color: 'var(--text-muted)' }}>
+                                                            ✕
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            <div className="flex gap-3">
+                                                {faixas.length < 3 && (
+                                                    <button onClick={() => {
+                                                        // Começa onde o período anterior terminou, senão o novo
+                                                        // nasce igual ao que já existe e a clínica não percebe.
+                                                        const ultimo = faixas[faixas.length - 1]
+                                                        const [h] = (ultimo?.[1] || '18:00').split(':').map(Number)
+                                                        const ini = `${String(Math.min(h, 21)).padStart(2, '0')}:00`
+                                                        const fim = `${String(Math.min(h + 2, 23)).padStart(2, '0')}:00`
+                                                        mudar([...faixas, [ini, fim]])
+                                                    }}
+                                                        className="text-[10px] font-medium" style={{ color: '#D99773' }}>
+                                                        + outro período neste dia
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => setAgenda(prev => {
+                                                        const copia = { ...prev }
+                                                        for (let x = 0; x <= 6; x++) copia[String(x)] = faixas.map(f => [...f] as [string, string])
+                                                        return copia
+                                                    })}
+                                                    className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                                    copiar para todos os dias
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
+
+                        <div className="p-2.5 rounded-lg text-[10px] leading-relaxed" style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
+                            A {nomeIA || 'IARA'} pode atender em dia que a clínica está fechada — ela agenda para outro dia normalmente.
+                            Período que vira a noite (22:00 até 02:00) é aceito.
                         </div>
 
                         <div>
                             <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>💬 Mensagem fora do horário (opcional)</label>
                             <textarea value={mensagemForaHorario} onChange={e => setMensagemForaHorario(e.target.value)} rows={2}
                                 className={`w-full ${inputClass} resize-none`} style={inputStyle}
-                                placeholder="Olá! Nosso horário de atendimento é de seg-sex das 08h às 20h. Retornaremos em breve! 😊" />
+                                placeholder="Deixe em branco para a IARA ficar em silêncio fora do horário." />
                         </div>
                     </div>
                 )}
-                <BotaoSalvarBloco blocoId="horario" dados={{ sempreLigada, horarioIaraInicio: horarioInicio, horarioIaraFim: horarioFim, diasAtendimento: JSON.stringify(diasAtendimento), mensagemForaHorario }} label="Salvar Horário" />
+                <BotaoSalvarBloco blocoId="horario" dados={{ sempreLigada, horariosIara: JSON.stringify(agenda), mensagemForaHorario }} label="Salvar Horário" />
             </div>
             )}
 

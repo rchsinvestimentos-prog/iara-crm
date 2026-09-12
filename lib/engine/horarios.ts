@@ -86,11 +86,90 @@ export function momentoDoPonto(clinica: DadosClinica): 'entrada' | 'saida' | nul
  * Sem horário próprio cadastrado, cai no horário da clínica, que era o
  * comportamento anterior.
  */
+type Faixa = [string, string]
+type Agenda = Record<string, Faixa[]>
+
+const DIAS_PT = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
+
+const emNumero = (t: string): number => {
+    const [h, m] = String(t).split(':').map(Number)
+    return (h || 0) + (m || 0) / 60
+}
+
+/**
+ * Lê a agenda por dia da semana. Devolve null quando a clínica ainda não
+ * configurou — aí vale o horário único antigo.
+ */
+function lerAgenda(clinica: DadosClinica): Agenda | null {
+    const bruto = (clinica as { horariosIara?: string | null }).horariosIara
+    if (!bruto) return null
+    try {
+        const obj = typeof bruto === 'string' ? JSON.parse(bruto) : bruto
+        if (!obj || typeof obj !== 'object') return null
+        const agenda: Agenda = {}
+        let temAlgum = false
+        for (let d = 0; d <= 6; d++) {
+            const faixas = Array.isArray(obj[String(d)]) ? obj[String(d)] : []
+            const validas = faixas.filter((f: unknown) =>
+                Array.isArray(f) && f.length === 2 &&
+                /^\d{1,2}:\d{2}$/.test(String(f[0])) && /^\d{1,2}:\d{2}$/.test(String(f[1]))
+            ) as Faixa[]
+            agenda[String(d)] = validas
+            if (validas.length > 0) temAlgum = true
+        }
+        return temAlgum ? agenda : null
+    } catch {
+        return null
+    }
+}
+
+/**
+ * A hora atual cai em alguma faixa do dia?
+ *
+ * Faixa que atravessa a meia-noite (22:00-02:00) vale em dois dias: das 22h
+ * às 24h no dia marcado, e das 0h às 2h no dia seguinte. Por isso a checagem
+ * olha também as faixas de ontem — senão a IARA calava à meia-noite no meio
+ * do próprio turno.
+ */
+function dentroDaAgenda(agenda: Agenda, diaSemana: number, hora: number): { faixa: Faixa; dia: number } | null {
+    const ontem = (diaSemana + 6) % 7
+
+    for (const f of agenda[String(diaSemana)] || []) {
+        const i = emNumero(f[0])
+        const fim = emNumero(f[1])
+        if (fim > i ? (hora >= i && hora < fim) : hora >= i) return { faixa: f, dia: diaSemana }
+    }
+
+    // Sobra da faixa de ontem que passou da meia-noite
+    for (const f of agenda[String(ontem)] || []) {
+        const i = emNumero(f[0])
+        const fim = emNumero(f[1])
+        if (fim <= i && hora < fim) return { faixa: f, dia: ontem }
+    }
+
+    return null
+}
+
 export function iaraEstaNoTurno(clinica: DadosClinica): {
     dentro: boolean
     motivo: string
 } {
     const { hora, diaSemana } = agoraNaClinica(clinica)
+
+    // Agenda por dia, com mais de uma faixa. Quando existe, manda nela.
+    const agenda = lerAgenda(clinica)
+    if (agenda) {
+        const achou = dentroDaAgenda(agenda, diaSemana, hora)
+        const doDia = agenda[String(diaSemana)] || []
+        if (achou) {
+            return { dentro: true, motivo: `agenda da IARA: ${DIAS_PT[achou.dia]} ${achou.faixa[0]}-${achou.faixa[1]}` }
+        }
+        if (doDia.length === 0) {
+            return { dentro: false, motivo: `a IARA não atende ${DIAS_PT[diaSemana]}` }
+        }
+        const lista = doDia.map(f => `${f[0]}-${f[1]}`).join(', ')
+        return { dentro: false, motivo: `fora das faixas de ${DIAS_PT[diaSemana]} (${lista}), agora ${hora.toFixed(1)}` }
+    }
 
     // Dias em que a IARA atende, marcados na tela de Atendimento.
     // Guardado como JSON: "[1,2,3,4,5]" — 0 é domingo.
@@ -116,10 +195,6 @@ export function iaraEstaNoTurno(clinica: DadosClinica): {
         return { dentro, motivo: `horário da clínica ${h.inicio}-${h.fim}, agora ${hora.toFixed(1)}` }
     }
 
-    const emNumero = (t: string): number => {
-        const [h, m] = t.split(':').map(Number)
-        return (h || 0) + (m || 0) / 60
-    }
     const i = emNumero(inicio)
     const f = emNumero(fim)
 

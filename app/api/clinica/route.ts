@@ -33,6 +33,7 @@ const UpdateClinicaSchema = z.object({
     // Horário próprio da IARA — quando ELA trabalha, não quando a clínica abre.
     horarioIaraInicio: z.string().max(5).optional().nullable(),
     horarioIaraFim: z.string().max(5).optional().nullable(),
+    horariosIara: z.string().max(4000).optional().nullable(),
     // Cobrança de sinal antes de agendar
     cobrarParaAgendar: z.boolean().optional().nullable(),
     valorSinalPadrao: z.number().min(0).max(999999).optional().nullable(),
@@ -129,7 +130,7 @@ export async function PUT(request: Request) {
             'aprendizadoContinuo', 'diferenciais', 'daCursos',
             'humor', 'emojis', 'fraseDespedida', 'funcionalidades', 'feedbacks',
             'modoIA', 'sempreLigada', 'blacklist',
-            'horarioIaraInicio', 'horarioIaraFim',
+            'horarioIaraInicio', 'horarioIaraFim', 'horariosIara',
             'cobrarParaAgendar', 'valorSinalPadrao', 'mensagemSinal', 'minutosReservaSinal', 'linkPagamentoSinal',
             'mensagemAniversario', 'mensagemForaHorario', 'diasAtendimento',
             'idioma', 'pais', 'moeda', 'timezone', 'canalPrincipal',

@@ -397,6 +397,7 @@ export async function GET() {
       // silêncio e o motor seguia usando o horário da clínica.
       await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "horario_iara_inicio" VARCHAR(5)`)
       await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "horario_iara_fim" VARCHAR(5)`)
+      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "horarios_iara" TEXT`)
 
       // Sinal antes de agendar: por procedimento, com o tempo de reserva
       // definido pela clínica.

@@ -94,6 +94,12 @@ model Clinica {
   // IARA cobrir das 18h às 22h, quando não há ninguém.
   horarioIaraInicio   String?  @map("horario_iara_inicio") @db.VarChar(5)
   horarioIaraFim      String?  @map("horario_iara_fim") @db.VarChar(5)
+  // Agenda da IARA por dia da semana, com mais de uma faixa por dia.
+  // JSON: {"1":[["06:00","09:00"],["20:30","23:00"]], "6":[["08:00","18:00"]]}
+  // Chave 0 = domingo. Dia ausente ou lista vazia = a IARA não atende.
+  // Quando vazio, vale o par horarioIaraInicio/Fim acima, que atende um
+  // bloco só e o mesmo para todos os dias.
+  horariosIara        String?  @map("horarios_iara") @db.Text
   // Cobrança antes de agendar: a cliente paga o sinal, manda o comprovante,
   // e a profissional confere antes de a IARA fechar o horário.
   cobrarParaAgendar   Boolean? @default(false) @map("cobrar_para_agendar")
