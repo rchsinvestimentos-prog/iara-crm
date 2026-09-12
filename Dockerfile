@@ -58,6 +58,11 @@ COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/clie
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 
+# Conferência do banco no boot (entrypoint.sh): script + módulo com o SQL.
+# Ficam fora do bundle do Next, por isso são copiados à parte.
+COPY --from=builder /app/scripts/banco-no-boot.js ./scripts/banco-no-boot.js
+COPY --from=builder /app/lib/banco/setup-db.js ./lib/banco/setup-db.js
+
 # Criar diretório de uploads com permissões corretas
 RUN mkdir -p /app/uploads && chown -R nextjs:nodejs /app/uploads
 VOLUME /app/uploads

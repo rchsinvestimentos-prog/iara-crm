@@ -1,421 +1,54 @@
 import { NextResponse } from 'next/server'
+import { readFileSync } from 'fs'
+import path from 'path'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { executarSetupDb, sincronizarColunasDoSchema } from '@/lib/banco/setup-db'
 
-// Endpoint de setup: cria tabelas que ainda não existem
-// Chame GET /api/setup-db uma vez após o deploy
+export const dynamic = 'force-dynamic'
+
+const RELATORIO_BOOT = process.env.BANCO_BOOT_RELATORIO || '/tmp/iara-banco-no-boot.json'
+
+// Garante tabelas e colunas que o app precisa. Só adiciona, nunca apaga.
+// O mesmo SQL roda sozinho no boot do contêiner (scripts/banco-no-boot.js);
+// esta rota fica como conferência manual e mostra o resultado do último boot.
 export async function GET() {
-  const results: string[] = []
-
-  // ============================================
-  // TABELA: historico_conversas (memória das conversas da IARA)
-  // ============================================
+  let ultimoBoot: unknown = null
   try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS historico_conversas (
-        id SERIAL PRIMARY KEY,
-        user_id INT,
-        telefone_cliente VARCHAR(50),
-        role VARCHAR(20),
-        content TEXT,
-        push_name VARCHAR(200),
-        origem VARCHAR(30) DEFAULT 'whatsapp',
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `)
-    await prisma.$executeRawUnsafe(`
-      CREATE INDEX IF NOT EXISTS idx_historico_user_tel
-      ON historico_conversas (user_id, telefone_cliente, created_at DESC)
-    `)
-    results.push('✅ Tabela historico_conversas garantida')
-  } catch (e: any) {
-    results.push(`⚠️ historico_conversas: ${e.message?.slice(0, 80)}`)
+    const r = JSON.parse(readFileSync(RELATORIO_BOOT, 'utf8'))
+    ultimoBoot = {
+      quando: r.quando,
+      ok: r.ok,
+      tentativas: r.tentativas,
+      duracaoMs: r.duracaoMs,
+      colunasAdicionadas: Array.isArray(r.colunasAdicionadas) ? r.colunasAdicionadas.length : 0,
+      avisos: Array.isArray(r.avisos) ? r.avisos.length : 0,
+      erro: r.erro ? 'sim — ver log do contêiner' : null,
+    }
+  } catch {
+    // Sem relatório: rodando fora do contêiner, ou o boot não chegou a gravar.
   }
 
-  // ============================================
-  // TABELA: memoria_clientes
-  // ============================================
+  let results: string[] = []
   try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS memoria_clientes (
-        id SERIAL PRIMARY KEY,
-        user_id INT NOT NULL,
-        telefone_cliente VARCHAR(50) NOT NULL,
-        resumo_geral TEXT,
-        procedimentos_realizados TEXT[] DEFAULT '{}',
-        tags TEXT[] DEFAULT '{}',
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(user_id, telefone_cliente)
-      )
-    `)
-    results.push('✅ Tabela memoria_clientes garantida')
-  } catch (e: any) {
-    results.push(`⚠️ memoria_clientes: ${e.message?.slice(0, 80)}`)
-  }
-
-  // ============================================
-  // TABELA: status_conversa (pausas)
-  // ============================================
-  try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS status_conversa (
-        id SERIAL PRIMARY KEY,
-        telefone_cliente VARCHAR(50) NOT NULL,
-        user_id INT NOT NULL,
-        pausa_ate TIMESTAMPTZ,
-        motivo VARCHAR(100),
-        updated_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(telefone_cliente, user_id)
-      )
-    `)
-    results.push('✅ Tabela status_conversa garantida')
-  } catch (e: any) {
-    results.push(`⚠️ status_conversa: ${e.message?.slice(0, 80)}`)
-  }
-
-  // ============================================
-  // TABELA: cache_respostas
-  // ============================================
-  try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS cache_respostas (
-        id SERIAL PRIMARY KEY,
-        user_id INT NOT NULL,
-        hash_mensagem VARCHAR(32) NOT NULL,
-        resposta TEXT,
-        modelo VARCHAR(100),
-        hits INT DEFAULT 0,
-        expires_at TIMESTAMPTZ,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(user_id, hash_mensagem)
-      )
-    `)
-    results.push('✅ Tabela cache_respostas garantida')
-  } catch (e: any) {
-    results.push(`⚠️ cache_respostas: ${e.message?.slice(0, 80)}`)
-  }
-
-  // ============================================
-  // TABELA: feedback_iara
-  // ============================================
-  try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS feedback_iara (
-        id SERIAL PRIMARY KEY,
-        user_id INT NOT NULL,
-        regra TEXT NOT NULL,
-        origem VARCHAR(50) DEFAULT 'manual',
-        ativo BOOLEAN DEFAULT true,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `)
-    results.push('✅ Tabela feedback_iara garantida')
-  } catch (e: any) {
-    results.push(`⚠️ feedback_iara: ${e.message?.slice(0, 80)}`)
-  }
-
-  // ============================================
-  // TABELA: fila_recontato
-  // ============================================
-  try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS fila_recontato (
-        id SERIAL PRIMARY KEY,
-        telefone VARCHAR(50),
-        instancia VARCHAR(200),
-        nome_cliente VARCHAR(200),
-        user_id INT,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `)
-    results.push('✅ Tabela fila_recontato garantida')
-  } catch (e: any) {
-    results.push(`⚠️ fila_recontato: ${e.message?.slice(0, 80)}`)
-  }
-
-  // ============================================
-  // TABELA: webhook_debug_log
-  // ============================================
-  try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS webhook_debug_log (
-        id SERIAL PRIMARY KEY,
-        payload TEXT,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `)
-    results.push('✅ Tabela webhook_debug_log garantida')
-  } catch (e: any) {
-    results.push(`⚠️ webhook_debug_log: ${e.message?.slice(0, 80)}`)
-  }
-
-  try {
-    // Verificar se a tabela profissionais existe
-    const tableCheck = await prisma.$queryRawUnsafe<any[]>(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'profissionais'
-      ) as exists
-    `)
-
-    if (!tableCheck[0]?.exists) {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "profissionais" (
-          "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
-          "clinica_id" INTEGER NOT NULL,
-          "nome" VARCHAR(200) NOT NULL,
-          "tratamento" VARCHAR(50),
-          "bio" TEXT,
-          "especialidade" VARCHAR(200),
-          "diferenciais" TEXT,
-          "whatsapp" VARCHAR(30),
-          "cursos" JSONB DEFAULT '[]',
-          "redes_sociais_prof" JSONB DEFAULT '{}',
-          "horario_semana" VARCHAR(50),
-          "almoco_semana" VARCHAR(50),
-          "atende_sabado" BOOLEAN,
-          "horario_sabado" VARCHAR(50),
-          "almoco_sabado" VARCHAR(50),
-          "atende_domingo" BOOLEAN,
-          "horario_domingo" VARCHAR(50),
-          "almoco_domingo" VARCHAR(50),
-          "intervalo_atendimento" INTEGER,
-          "google_calendar_token" TEXT,
-          "google_calendar_refresh_token" TEXT,
-          "google_calendar_id" VARCHAR(200) DEFAULT 'primary',
-          "google_token_expires" TIMESTAMP(3),
-          "ausencias" JSONB DEFAULT '[]',
-          "link_agendamento" VARCHAR(100),
-          "foto_url" VARCHAR(500),
-          "chave_pix" VARCHAR(200),
-          "link_pagamento" VARCHAR(500),
-          "is_dono" BOOLEAN NOT NULL DEFAULT false,
-          "ativo" BOOLEAN NOT NULL DEFAULT true,
-          "ordem" INTEGER NOT NULL DEFAULT 0,
-          "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "profissionais_pkey" PRIMARY KEY ("id")
-        )
-      `)
-      results.push('✅ Tabela profissionais criada')
-
-      // Criar índice
-      await prisma.$executeRawUnsafe(`
-        CREATE INDEX IF NOT EXISTS "profissionais_clinica_id_idx" ON "profissionais"("clinica_id")
-      `)
-      results.push('✅ Índice clinica_id criado')
-
-      // Criar unique constraint no link_agendamento
-      await prisma.$executeRawUnsafe(`
-        CREATE UNIQUE INDEX IF NOT EXISTS "profissionais_link_agendamento_key" ON "profissionais"("link_agendamento")
-      `)
-      results.push('✅ Unique index link_agendamento criado')
-
-      // Adicionar FK para clinicas
-      await prisma.$executeRawUnsafe(`
-        ALTER TABLE "profissionais" 
-        ADD CONSTRAINT "profissionais_clinica_id_fkey" 
-        FOREIGN KEY ("clinica_id") REFERENCES "clinicas"("id") 
-        ON DELETE RESTRICT ON UPDATE CASCADE
-      `).catch(() => results.push('⚠️ FK clinica_id já existia ou tabela clinicas não encontrada'))
-      results.push('✅ FK clinica_id adicionada')
-
-    } else {
-      results.push('ℹ️ Tabela profissionais já existe')
-    }
-
-    // Verificar se coluna profissionalId existe na tabela procedimentos
-    const procColCheck = await prisma.$queryRawUnsafe<any[]>(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_name = 'procedimentos' 
-        AND column_name = 'profissional_id'
-      ) as exists
-    `)
-
-    if (!procColCheck[0]?.exists) {
-      await prisma.$executeRawUnsafe(`
-        ALTER TABLE "procedimentos" ADD COLUMN IF NOT EXISTS "profissional_id" TEXT
-      `)
-      results.push('✅ Coluna profissional_id adicionada em procedimentos')
-
-      await prisma.$executeRawUnsafe(`
-        ALTER TABLE "procedimentos" 
-        ADD CONSTRAINT "procedimentos_profissional_id_fkey" 
-        FOREIGN KEY ("profissional_id") REFERENCES "profissionais"("id") 
-        ON DELETE SET NULL ON UPDATE CASCADE
-      `).catch(() => results.push('⚠️ FK profissional_id em procedimentos já existia'))
-    } else {
-      results.push('ℹ️ Coluna profissional_id já existe em procedimentos')
-    }
-
-    // Verificar coluna pos_procedimento em procedimentos
-    const posColCheck = await prisma.$queryRawUnsafe<any[]>(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_name = 'procedimentos' 
-        AND column_name = 'pos_procedimento'
-      ) as exists
-    `)
-
-    if (!posColCheck[0]?.exists) {
-      await prisma.$executeRawUnsafe(`
-        ALTER TABLE "procedimentos" ADD COLUMN IF NOT EXISTS "pos_procedimento" TEXT
-      `)
-      results.push('✅ Coluna pos_procedimento adicionada em procedimentos')
-    } else {
-      results.push('ℹ️ Coluna pos_procedimento já existe em procedimentos')
-    }
-
-    // ============================================
-    // Apple Calendar columns on users table
-    // ============================================
-    try {
-      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "apple_calendar_email" VARCHAR(200)`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "apple_calendar_password" TEXT`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "apple_calendar_url" TEXT`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "calendar_provider" VARCHAR(20) DEFAULT 'google'`)
-      results.push('✅ Colunas Apple Calendar em users garantidas')
-    } catch (e: any) {
-      results.push(`⚠️ Apple Calendar cols (users): ${e.message?.slice(0, 80)}`)
-    }
-
-    // Apple Calendar columns on profissionais table
-    try {
-      await prisma.$executeRawUnsafe(`ALTER TABLE "profissionais" ADD COLUMN IF NOT EXISTS "apple_calendar_email" VARCHAR(200)`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "profissionais" ADD COLUMN IF NOT EXISTS "apple_calendar_password" TEXT`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "profissionais" ADD COLUMN IF NOT EXISTS "apple_calendar_url" TEXT`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "profissionais" ADD COLUMN IF NOT EXISTS "calendar_provider" VARCHAR(20) DEFAULT 'google'`)
-      results.push('✅ Colunas Apple Calendar em profissionais garantidas')
-    } catch (e: any) {
-      results.push(`⚠️ Apple Calendar cols (profissionais): ${e.message?.slice(0, 80)}`)
-    }
-
-    // ============================================
-    // TABELA: modelos_anamnese
-    // ============================================
-    try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "modelos_anamnese" (
-          "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
-          "clinica_id" INTEGER NOT NULL,
-          "titulo" TEXT NOT NULL,
-          "perguntas" JSONB NOT NULL,
-          "procedimento_ids" JSONB DEFAULT '[]',
-          "mensagem_envio" TEXT,
-          "horas_antecedencia" INTEGER DEFAULT 24,
-          "ativo" BOOLEAN NOT NULL DEFAULT true,
-          "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "modelos_anamnese_pkey" PRIMARY KEY ("id")
-        )
-      `)
-      results.push('✅ Tabela modelos_anamnese garantida')
-    } catch (e: any) {
-      results.push(`⚠️ modelos_anamnese: ${e.message?.slice(0, 80)}`)
-    }
-
-    // ============================================
-    // TABELA: fichas_preenchidas
-    // ============================================
-    try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "fichas_preenchidas" (
-          "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
-          "clinica_id" INTEGER NOT NULL,
-          "contato_id" INTEGER NOT NULL,
-          "titulo" TEXT NOT NULL,
-          "respostas" JSONB NOT NULL,
-          "assinatura_png" TEXT NOT NULL,
-          "selfie_png" TEXT,
-          "data_signature" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
-          "data_assinatura" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "ip_origem" VARCHAR(50) NOT NULL,
-          "user_agent" VARCHAR(500) NOT NULL,
-          "hash_integridade" VARCHAR(64) NOT NULL,
-          "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "fichas_preenchidas_pkey" PRIMARY KEY ("id")
-        )
-      `)
-      await prisma.$executeRawUnsafe(`
-        ALTER TABLE "fichas_preenchidas" ADD COLUMN IF NOT EXISTS "selfie_png" TEXT;
-      `)
-      results.push('✅ Tabela fichas_preenchidas garantida (com selfie)')
-    } catch (e: any) {
-      results.push(`⚠️ fichas_preenchidas: ${e.message?.slice(0, 80)}`)
-    }
-
-    // ============================================
-    // TABELA: follow_up_configs
-    // ============================================
-    try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "follow_up_configs" (
-          "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
-          "clinica_id" INTEGER NOT NULL,
-          "tipo" VARCHAR(50) NOT NULL,
-          "ativo" BOOLEAN NOT NULL DEFAULT true,
-          "mensagem" TEXT NOT NULL,
-          "dias_delay" INTEGER,
-          "procedimento_ids" JSONB DEFAULT '[]',
-          "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "follow_up_configs_pkey" PRIMARY KEY ("id")
-        )
-      `)
-      await prisma.$executeRawUnsafe(`
-        CREATE UNIQUE INDEX IF NOT EXISTS "follow_up_configs_clinica_id_tipo_key" ON "follow_up_configs"("clinica_id", "tipo")
-      `)
-      results.push('✅ Tabela follow_up_configs garantida')
-    } catch (e: any) {
-      results.push(`⚠️ follow_up_configs: ${e.message?.slice(0, 80)}`)
-    }
-
-    // ============================================
-    // COLUNAS: contatos (ia_pausada, resumo_clinico, etc)
-    // ============================================
-    try {
-      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "ia_pausada" BOOLEAN DEFAULT false`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "resumo_clinico" TEXT`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "foto_url" TEXT`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "tags" TEXT[] DEFAULT '{}'`)
-      // Colunas que existiam no schema.prisma mas nunca chegaram ao banco: o
-      // 'prisma db push' do boot roda com os erros escondidos (2>/dev/null),
-      // então a falha passa despercebida até uma rota quebrar em produção.
-      // Foi o que derrubou /api/cron/retornos com "column contatos.pacotes
-      // does not exist".
-      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "pacotes" JSONB DEFAULT '[]'::jsonb`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "memoria_ia" TEXT`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "cpf" VARCHAR(14)`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "data_nascimento" TIMESTAMPTZ`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "retorno_data" TIMESTAMPTZ`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "retorno_mensagem" TEXT`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "retorno_enviado" BOOLEAN DEFAULT false`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "contatos" ADD COLUMN IF NOT EXISTS "ultimo_contato" TIMESTAMPTZ`)
-
-      // Horário próprio da IARA. A tela de Atendimento salvava início e fim
-      // há meses em campos que não existiam: o horário era descartado em
-      // silêncio e o motor seguia usando o horário da clínica.
-      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "horario_iara_inicio" VARCHAR(5)`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "horario_iara_fim" VARCHAR(5)`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "horarios_iara" TEXT`)
-
-      // Sinal antes de agendar: por procedimento, com o tempo de reserva
-      // definido pela clínica.
-      await prisma.$executeRawUnsafe(`ALTER TABLE "procedimentos" ADD COLUMN IF NOT EXISTS "exige_sinal" BOOLEAN DEFAULT false`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "procedimentos" ADD COLUMN IF NOT EXISTS "valor_sinal" DECIMAL`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "cobrar_para_agendar" BOOLEAN DEFAULT false`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "valor_sinal_padrao" DECIMAL`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "mensagem_sinal" TEXT`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "link_pagamento_sinal" TEXT`)
-      await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "minutos_reserva_sinal" INTEGER DEFAULT 30`)
-      results.push('✅ Colunas adicionais em contatos garantidas')
-    } catch (e: any) {
-      results.push(`⚠️ Colunas adicionais em contatos: ${e.message?.slice(0, 80)}`)
-    }
-
-    return NextResponse.json({ success: true, results })
+    results = (await executarSetupDb(prisma)).results
   } catch (error: any) {
     console.error('Setup DB error:', error)
-    return NextResponse.json({ success: false, error: error.message, results }, { status: 500 })
+    return NextResponse.json(
+      { success: false, error: error.message, results: error.results || results, ultimoBoot },
+      { status: 500 }
+    )
   }
+
+  let colunasDoSchema: { adicionadas: string[]; avisos: string[] } | { erro: string }
+  try {
+    let schemaTexto = ''
+    try { schemaTexto = readFileSync(path.join(process.cwd(), 'prisma', 'schema.prisma'), 'utf8') } catch { }
+    colunasDoSchema = await sincronizarColunasDoSchema(prisma, Prisma.dmmf, schemaTexto)
+  } catch (error: any) {
+    console.error('Setup DB (colunas do schema) error:', error)
+    colunasDoSchema = { erro: String(error?.message || error).split('\n').pop()!.slice(0, 200) }
+  }
+
+  return NextResponse.json({ success: true, results, colunasDoSchema, ultimoBoot })
 }
