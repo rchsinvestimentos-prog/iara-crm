@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail, MoreHorizontal, KeyRound, Ban, Settings, Trash2, LogIn, CreditCard, ArrowUpDown, RefreshCw } from 'lucide-react'
-import { nomeDoNivel, MAX_NIVEL, nivelToPlano } from '@/lib/planos'
+import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail, MoreHorizontal, KeyRound, Ban, Settings, Trash2, LogIn, CreditCard, ArrowUpDown, RefreshCw, Sparkles } from 'lucide-react'
+import { nomeDoNivel, MAX_NIVEL, nivelToPlano, PACOTES } from '@/lib/planos'
 
 interface Clinica {
     id: number
@@ -29,6 +29,7 @@ interface Clinica {
         total: number
     }
     aceite_termos: string | null
+    voz_realista: boolean
 }
 
 // Faltava o nível 3 aqui, e os nomes estavam desatualizados.
@@ -119,7 +120,8 @@ export default function AdminClinicas() {
     // Modais de créditos e plano
     const [modalCreditos, setModalCreditos] = useState<{ id: number; nome: string } | null>(null)
     const [creditosQtd, setCreditosQtd] = useState('500')
-    const [modalPlano, setModalPlano] = useState<{ id: number; nome: string; nivelAtual: number } | null>(null)
+    const [modalPlano, setModalPlano] = useState<{ id: number; nome: string; nivelAtual: number; vozRealista: boolean } | null>(null)
+    const [salvandoVoz, setSalvandoVoz] = useState(false)
     const [planoNovo, setPlanoNovo] = useState(1)
     const [savingModal, setSavingModal] = useState(false)
 
@@ -212,6 +214,29 @@ export default function AdminClinicas() {
             if (r.ok) { setModalPlano(null); load() }
         } catch { alert('Erro de rede') }
         setSavingModal(false)
+    }
+
+    // O pacote de voz é salvo na hora, separado do plano: o botão de plano
+    // fica desligado quando o nível não muda, e a voz não depende do nível.
+    async function alternarVozRealista() {
+        if (!modalPlano) return
+        const liberar = !modalPlano.vozRealista
+        setSalvandoVoz(true)
+        try {
+            const r = await fetch(`/api/admin/clinicas/${modalPlano.id}/acao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ acao: 'voz-realista', liberar })
+            })
+            const data = await r.json()
+            if (r.ok) {
+                setModalPlano({ ...modalPlano, vozRealista: liberar })
+                load()
+            } else {
+                alert(data.error || 'Erro ao alterar a voz')
+            }
+        } catch { alert('Erro de rede') }
+        setSalvandoVoz(false)
     }
 
     const filtradas = clinicas.filter(c =>
@@ -356,7 +381,7 @@ export default function AdminClinicas() {
                                                 >
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'impersonar') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><LogIn size={14} className="text-green-400" /> Acessar Painel</button>
                                                     <button onClick={() => { setMenuAberto(null); setModalCreditos({ id: c.id, nome: c.nome_clinica }); setCreditosQtd('500') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><CreditCard size={14} className="text-emerald-400" /> Liberar Créditos</button>
-                                                    <button onClick={() => { setMenuAberto(null); setModalPlano({ id: c.id, nome: c.nome_clinica, nivelAtual: c.nivel }); setPlanoNovo(c.nivel) }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><ArrowUpDown size={14} className="text-purple-400" /> Mudar Plano</button>
+                                                    <button onClick={() => { setMenuAberto(null); setModalPlano({ id: c.id, nome: c.nome_clinica, nivelAtual: c.nivel, vozRealista: c.voz_realista }); setPlanoNovo(c.nivel) }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><ArrowUpDown size={14} className="text-purple-400" /> Mudar Plano</button>
                                                     <div className="h-px bg-white/5 my-1" />
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'reenviar') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><KeyRound size={14} className="text-[#D99773]" /> Reenviar Acesso</button>
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'bloquear') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><Ban size={14} className="text-yellow-400" /> Bloquear/Desbloquear</button>
@@ -562,6 +587,32 @@ export default function AdminClinicas() {
                                 </button>
                             ))}
                         </div>
+                        {/* Voz ultra realista — cortesia, fora do plano */}
+                        <div className="rounded-xl p-3 space-y-2" style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-xs font-semibold text-white flex items-center gap-1.5">
+                                        <Sparkles size={13} className="text-[#D99773]" /> Voz ultra realista
+                                    </p>
+                                    <p className="text-[10px] text-gray-500 mt-0.5">
+                                        Pacote de R$ {PACOTES.voz_realista.preco}/mês. Nenhum plano inclui — libere na mão quando prometer na venda.
+                                    </p>
+                                </div>
+                                <button onClick={alternarVozRealista} disabled={salvandoVoz}
+                                    aria-label={modalPlano.vozRealista ? 'Remover voz ultra realista' : 'Liberar voz ultra realista'}
+                                    className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50"
+                                    style={{ backgroundColor: modalPlano.vozRealista ? '#D99773' : 'rgba(255,255,255,0.12)' }}>
+                                    <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+                                        style={{ left: modalPlano.vozRealista ? '22px' : '2px' }} />
+                                </button>
+                            </div>
+                            <p className="text-[10px]" style={{ color: modalPlano.vozRealista ? '#6EE7B7' : '#9CA3AF' }}>
+                                {salvandoVoz ? 'Salvando...' : modalPlano.vozRealista
+                                    ? '✓ Liberada — a clínica já escolhe as vozes premium'
+                                    : 'Bloqueada — a clínica só tem as vozes padrão'}
+                            </p>
+                        </div>
+
                         <button onClick={mudarPlano} disabled={savingModal || planoNovo === modalPlano.nivelAtual}
                             className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50"
                             style={{ background: planoNovo === modalPlano.nivelAtual ? '#374151' : 'linear-gradient(135deg, #8B5CF6, #7C3AED)' }}>

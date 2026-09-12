@@ -23,7 +23,7 @@ const vozesTTS = [
 ]
 
 // ============================================
-// VOZES ULTRA REALISTAS (ElevenLabs BR) — Plano 2+
+// VOZES ULTRA REALISTAS (ElevenLabs BR) — pacote avulso, nenhum plano inclui
 // ============================================
 const vozesUltra = [
     { id: '7eUAxNOneHxqfyRS77mW', nome: 'Carla', desc: 'Confiante e calorosa', tom: 'Vendedora' },
@@ -385,7 +385,12 @@ export default function VozTool() {
                         <Sparkles size={14} className={tipoVozAtiva === 'ultra' ? 'text-[#D99773]' : 'text-gray-400'} />
                         <p className="text-[11px] font-semibold text-gray-700 mt-1">Ultra Realista</p>
                         <p className="text-[9px] text-gray-400">Parecem humanos de verdade</p>
-                        <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium mt-2 inline-block">Plano 2+</span>
+                        {/* Dizia "Plano 2+", de quando a voz vinha no plano. O
+                            cliente do plano 3 olhava, achava que tinha direito e
+                            abria chamado. Agora é pacote à parte. */}
+                        <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium mt-2 inline-block">
+                            {podeAtivarUltra ? 'Liberada' : `Pacote R$ ${PACOTES.voz_realista.preco}/mês`}
+                        </span>
                         {tipoVozAtiva === 'ultra' && <Check size={14} className="text-[#D99773] mt-1" />}
                     </button>
                 </div>
@@ -445,7 +450,7 @@ export default function VozTool() {
                     </h3>
                     {!podeAtivarUltra && (
                         <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium flex items-center gap-1">
-                            <Lock size={9} /> Plano 2+
+                            <Lock size={9} /> Pacote R$ {PACOTES.voz_realista.preco}/mês
                         </span>
                     )}
                 </div>

@@ -46,6 +46,9 @@ export async function GET() {
                 tomAtendimento: true,
                 humor: true,
                 horarioSemana: true,
+                // Os pacotes de voz ficam em configuracoes, não no nível do
+                // plano: o admin precisa ver quem já tem antes de liberar.
+                configuracoes: true,
             },
             orderBy: { createdAt: 'desc' },
         })
@@ -112,6 +115,7 @@ export async function GET() {
             autorizou_cuidados_pos: c.autorizouCuidadosPos,
             cuidados_pos: c.cuidadosPos,
             aceite_termos: c.aceiteTermos,
+            voz_realista: !!((c.configuracoes as Record<string, unknown> | null)?.pacote_voz_realista),
             onboarding: (() => {
                 const whatsConnected = statusMap.get(c.id) === 'conectado'
                 const temProcs = (procedimentosCounts.get(c.id) ?? 0) > 0

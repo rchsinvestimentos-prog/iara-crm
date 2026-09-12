@@ -4,7 +4,7 @@ import { authOptions, hashSenha, isAdmin } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { enviarEmailBoasVindas } from '@/lib/email'
 import { getPermissions } from '@/lib/permissions'
-import { nomeDoNivel, nivelToPlano, PLANOS, MAX_NIVEL, type PlanoKey } from '@/lib/planos'
+import { nomeDoNivel, nivelToPlano, PLANOS, PACOTES, MAX_NIVEL, type PlanoKey } from '@/lib/planos'
 
 function gerarSenhaAleatoria(len = 10): string {
     const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#'
@@ -70,6 +70,34 @@ export async function POST(
             return NextResponse.json({
                 message: 'Token de acesso gerado!',
                 impersonateToken: token,
+            })
+        }
+
+        // Libera ou tira a voz ultra realista na mão, sem cobrar o pacote.
+        // Serve para o que foi prometido na venda: o plano não destrava voz
+        // nenhuma, então sem isso não havia como cumprir a promessa.
+        if (acao === 'voz-realista') {
+            const { liberar } = body
+            const cfg = (clinica.configuracoes as Record<string, unknown> | null) || {}
+            const novo = { ...cfg }
+
+            if (liberar) {
+                novo[PACOTES.voz_realista.chave] = true
+                novo.voz_realista_cortesia = true
+            } else {
+                delete novo[PACOTES.voz_realista.chave]
+                delete novo.voz_realista_cortesia
+            }
+
+            await prisma.clinica.update({
+                where: { id: clinicaId },
+                data: { configuracoes: novo as any },
+            })
+
+            return NextResponse.json({
+                message: liberar
+                    ? 'Voz ultra realista liberada! A clínica já pode escolher as vozes premium.'
+                    : 'Voz ultra realista removida desta clínica.',
             })
         }
 
