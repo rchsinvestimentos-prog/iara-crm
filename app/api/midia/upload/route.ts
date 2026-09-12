@@ -9,6 +9,7 @@ import { AVATAR_VIDEO_HABILITADO } from '@/lib/planos'
 
 // Diretório de uploads — montado como volume Docker em produção
 const UPLOADS_DIR = process.env.UPLOADS_DIR || '/app/uploads'
+const TIPOS_VALIDOS = ['foto', 'audio', 'video']
 
 // POST /api/midia/upload — Upload de fotos, áudios ou vídeos
 export async function POST(request: NextRequest) {
@@ -26,6 +27,11 @@ export async function POST(request: NextRequest) {
         const formData = await request.formData()
         const file = formData.get('file') as File
         const tipo = formData.get('tipo') as string || 'foto' // 'foto' | 'audio' | 'video'
+        // O tipo vira nome de pasta. Sem esta lista, "../17/media" gravava
+        // arquivo na pasta de outra clínica.
+        if (!TIPOS_VALIDOS.includes(tipo)) {
+            return NextResponse.json({ error: 'Tipo de arquivo inválido' }, { status: 400 })
+        }
 
         if (!file) {
             return NextResponse.json({ error: 'Envie um arquivo' }, { status: 400 })
@@ -61,7 +67,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Gerar nome único
-        const ext = file.name.split('.').pop() || 'bin'
+        // A extensão vem do nome que o navegador manda e entra no caminho do
+        // arquivo: "x./../../evil" escrevia fora da pasta. Só letras e números.
+        const extBruta = (file.name.split('.').pop() || '').toLowerCase()
+        const ext = /^[a-z0-9]{1,8}$/.test(extBruta) ? extBruta : 'bin'
         const timestamp = Date.now()
         const filename = `${tipo}_${timestamp}.${ext}`
         const filepath = join(tipoDir, filename)
@@ -100,6 +109,8 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url)
         const tipo = searchParams.get('tipo') || 'foto'
+        // Mesmo motivo do POST: "../17/media" listava os arquivos de outra clínica.
+        if (!TIPOS_VALIDOS.includes(tipo)) return NextResponse.json({ arquivos: [] })
 
         const tipoDir = join(UPLOADS_DIR, String(clinicaId), tipo)
 
