@@ -40,9 +40,12 @@ export async function POST(request: NextRequest) {
         const token = crypto.randomBytes(32).toString('hex')
 
         // Salva no campo tokenAtivacao (reutiliza fluxo de impersonação — uso único)
+        // `select` mínimo: sem ele o update devolve a linha inteira e uma
+        // coluna faltando no banco derruba o "esqueci a senha" junto com o login.
         await prisma.clinica.update({
             where: { id: clinica.id },
             data: { tokenAtivacao: token },
+            select: { id: true },
         })
 
         // Monta magic link

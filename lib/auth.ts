@@ -9,6 +9,32 @@ import { prisma } from '@/lib/prisma'
  */
 export const JANELA_TROCA_SEM_SENHA_MS = 15 * 60 * 1000
 
+/**
+ * Só as colunas que o login usa. Sem `select`, o Prisma pede TODAS as
+ * colunas do modelo — e basta uma faltar no banco (campo novo no schema
+ * que o boot não criou) para a busca quebrar, o catch devolver null e o
+ * login de todas as clínicas responder "senha errada". Aconteceu em
+ * 11/09 e 12/09/2026. Com a lista fixa, coluna nova não derruba o login.
+ */
+const CAMPOS_LOGIN_CLINICA = {
+    id: true,
+    email: true,
+    senha: true,
+    nome: true,
+    nomeClinica: true,
+    role: true,
+    nivel: true,
+} as const
+
+const CAMPOS_LOGIN_ADMIN = {
+    id: true,
+    email: true,
+    senha: true,
+    nome: true,
+    role: true,
+    ativo: true,
+} as const
+
 export const authOptions: NextAuthOptions = {
     providers: [
         CredentialsProvider({
@@ -25,6 +51,7 @@ export const authOptions: NextAuthOptions = {
                     if (credentials?.impersonateToken) {
                         const clinica = await prisma.clinica.findFirst({
                             where: { tokenAtivacao: credentials.impersonateToken },
+                            select: CAMPOS_LOGIN_CLINICA,
                         })
                         if (!clinica) return null
 
@@ -32,6 +59,7 @@ export const authOptions: NextAuthOptions = {
                         await prisma.clinica.update({
                             where: { id: clinica.id },
                             data: { tokenAtivacao: null },
+                            select: { id: true },
                         })
 
                         return {
@@ -93,12 +121,14 @@ export const authOptions: NextAuthOptions = {
                     if (credentials?.magicToken) {
                         const clinica = await prisma.clinica.findFirst({
                             where: { tokenAtivacao: credentials.magicToken },
+                            select: CAMPOS_LOGIN_CLINICA,
                         })
                         if (!clinica) return null
 
                         await prisma.clinica.update({
                             where: { id: clinica.id },
                             data: { tokenAtivacao: null },
+                            select: { id: true },
                         })
 
                         return {
@@ -123,6 +153,7 @@ export const authOptions: NextAuthOptions = {
                     if (credentials?.email === 'teste@iara.click' && credentials?.password === '@f4aee3bC') {
                         let clinica = await prisma.clinica.findFirst({
                             where: { email: 'teste@iara.click' },
+                            select: CAMPOS_LOGIN_CLINICA,
                         })
                         if (!clinica) {
                             const senhaHash = await bcrypt.hash('@f4aee3bC', 12)
@@ -138,13 +169,15 @@ export const authOptions: NextAuthOptions = {
                                     plano: 'Essencial',
                                     configuracoes: {},
                                     integracoes: {}
-                                }
+                                },
+                                select: CAMPOS_LOGIN_CLINICA,
                             })
                         } else {
                             if (clinica.role !== 'tester') {
                                 await prisma.clinica.update({
                                     where: { id: clinica.id },
-                                    data: { role: 'tester' }
+                                    data: { role: 'tester' },
+                                    select: { id: true },
                                 })
                             }
                         }
@@ -170,6 +203,7 @@ export const authOptions: NextAuthOptions = {
                     // ─── 1) Tentar admin_users primeiro ───
                     const admin = await prisma.adminUser.findFirst({
                         where: { email: { equals: emailDigitado, mode: 'insensitive' } },
+                        select: CAMPOS_LOGIN_ADMIN,
                     })
 
                     if (admin && admin.ativo && admin.senha) {
@@ -192,6 +226,7 @@ export const authOptions: NextAuthOptions = {
                     // ─── 2) Tentar clinica (clientes) ───
                     const clinica = await prisma.clinica.findFirst({
                         where: { email: { equals: emailDigitado, mode: 'insensitive' } },
+                        select: CAMPOS_LOGIN_CLINICA,
                     })
 
                     if (clinica && clinica.senha) {
