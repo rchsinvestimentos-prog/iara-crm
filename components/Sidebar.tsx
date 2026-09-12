@@ -77,7 +77,7 @@ export default function Sidebar() {
         const nomes: Record<number, string> = { 1: 'Essencial', 2: 'Pro', 3: 'Premium' }
         setNomePlano(nomes[Math.min(3, Number(data?.nivel))] || 'Essencial')
         if (data?.id) setClinicaAtiva(Number(data.id))
-        if (data?.fotoUrl) setAvatarUrl(data.fotoUrl)
+        if (data?.configuracoes?.foto_url) setAvatarUrl(data.configuracoes.foto_url)
       })
       .catch(() => { })
   }, [])

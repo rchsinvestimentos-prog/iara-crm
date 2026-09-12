@@ -5,72 +5,74 @@ import { prisma } from '@/lib/prisma'
 import { writeFile, unlink, mkdir } from 'fs/promises'
 import path from 'path'
 
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'avatars')
+// Volume do EasyPanel, montado em /app/uploads. Antes ficava em public/, que
+// é descartado a cada deploy.
+const UPLOADS_ROOT = process.env.UPLOADS_DIR || '/app/uploads'
+const UPLOAD_DIR = path.join(UPLOADS_ROOT, 'avatars')
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
+// A foto da clínica fica em configuracoes.foto_url.
+//
+// Esta rota lia e gravava "fotoUrl" na tabela da clínica, mas esse campo só
+// existe nas tabelas de profissional e de contato. O Prisma recusava e a
+// rota devolvia "Erro interno" em todo envio — a foto de perfil da clínica
+// nunca funcionou. Passou despercebido porque o build ignora erro de tipo.
+//
+// Guardar em configuracoes, e não criar a coluna, é de propósito: coluna nova
+// exige rodar /api/setup-db depois do deploy, e esquecer isso já derrubou o
+// login de todas as clínicas duas vezes.
+
+async function lerConfig(clinicaId: number) {
+  const c = await prisma.clinica.findUnique({ where: { id: clinicaId }, select: { configuracoes: true } })
+  return (c?.configuracoes as Record<string, unknown> | null) || {}
+}
+
+async function apagarArquivoAntigo(url: unknown) {
+  if (typeof url !== 'string') return
+  if (url.startsWith('/api/uploads/avatars/')) {
+    await unlink(path.join(UPLOAD_DIR, path.basename(url))).catch(() => {})
+  }
+}
+
 /**
  * POST /api/auth/foto-perfil
- * Faz upload de foto de perfil da clínica logada.
  * Body: FormData com campo "file"
  */
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     const clinicaId = await getClinicaId(session)
-
-    if (!clinicaId) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    }
+    if (!clinicaId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
     const formData = await request.formData()
     const file = formData.get('file') as File | null
 
-    if (!file) {
-      return NextResponse.json({ error: 'Nenhum arquivo enviado' }, { status: 400 })
-    }
-
+    if (!file) return NextResponse.json({ error: 'Nenhum arquivo enviado' }, { status: 400 })
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json({ error: 'Tipo de arquivo não permitido. Use JPG, PNG, WebP ou GIF.' }, { status: 400 })
     }
-
     if (file.size > MAX_SIZE) {
       return NextResponse.json({ error: 'Arquivo muito grande. Máximo 5MB.' }, { status: 400 })
     }
 
-    // Garantir que o diretório existe
     await mkdir(UPLOAD_DIR, { recursive: true })
 
-    // Remover foto anterior se existir
-    const clinica = await prisma.clinica.findUnique({
-      where: { id: clinicaId },
-      select: { fotoUrl: true },
-    })
+    const cfg = await lerConfig(clinicaId)
+    await apagarArquivoAntigo(cfg.foto_url)
 
-    if (clinica?.fotoUrl && clinica.fotoUrl.startsWith('/uploads/avatars/')) {
-      const oldPath = path.join(process.cwd(), 'public', clinica.fotoUrl)
-      await unlink(oldPath).catch(() => {}) // Ignora se não existir
-    }
-
-    // Gerar nome único para o arquivo
     const ext = file.type.split('/')[1].replace('jpeg', 'jpg')
     const fileName = `clinica-${clinicaId}-${Date.now()}.${ext}`
-    const filePath = path.join(UPLOAD_DIR, fileName)
-    const publicUrl = `/uploads/avatars/${fileName}`
+    await writeFile(path.join(UPLOAD_DIR, fileName), Buffer.from(await file.arrayBuffer()))
+    const url = `/api/uploads/avatars/${fileName}`
 
-    // Salvar arquivo no disco
-    const buffer = Buffer.from(await file.arrayBuffer())
-    await writeFile(filePath, buffer)
-
-    // Atualizar a clínica no banco
     await prisma.clinica.update({
       where: { id: clinicaId },
-      data: { fotoUrl: publicUrl },
+      data: { configuracoes: { ...cfg, foto_url: url } as any },
     })
 
-    console.log(`[FotoPerfil] ✅ Avatar atualizado para clínica ${clinicaId}: ${publicUrl}`)
-
-    return NextResponse.json({ ok: true, url: publicUrl })
+    console.log(`[FotoPerfil] ✅ Avatar atualizado para clínica ${clinicaId}: ${url}`)
+    return NextResponse.json({ ok: true, url })
   } catch (err: any) {
     console.error('[FotoPerfil] ❌ Erro ao fazer upload:', err)
     return NextResponse.json({ error: 'Erro interno ao salvar imagem' }, { status: 500 })
@@ -79,34 +81,23 @@ export async function POST(request: Request) {
 
 /**
  * DELETE /api/auth/foto-perfil
- * Remove a foto de perfil da clínica logada.
  */
-export async function DELETE(request: Request) {
+export async function DELETE() {
   try {
     const session = await getServerSession(authOptions)
     const clinicaId = await getClinicaId(session)
+    if (!clinicaId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
-    if (!clinicaId) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-    }
-
-    const clinica = await prisma.clinica.findUnique({
-      where: { id: clinicaId },
-      select: { fotoUrl: true },
-    })
-
-    if (clinica?.fotoUrl && clinica.fotoUrl.startsWith('/uploads/avatars/')) {
-      const oldPath = path.join(process.cwd(), 'public', clinica.fotoUrl)
-      await unlink(oldPath).catch(() => {})
-    }
+    const cfg = await lerConfig(clinicaId)
+    await apagarArquivoAntigo(cfg.foto_url)
+    const { foto_url: _removida, ...resto } = cfg
 
     await prisma.clinica.update({
       where: { id: clinicaId },
-      data: { fotoUrl: null },
+      data: { configuracoes: resto as any },
     })
 
     console.log(`[FotoPerfil] 🗑️ Avatar removido para clínica ${clinicaId}`)
-
     return NextResponse.json({ ok: true })
   } catch (err: any) {
     console.error('[FotoPerfil] ❌ Erro ao remover foto:', err)

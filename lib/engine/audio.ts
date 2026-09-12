@@ -637,16 +637,19 @@ export async function saveAudioFile(
         // Remover possível cabeçalho do dataURI (data:audio/mp3;base64,...)
         const cleanBase64 = base64Data.replace(/^data:audio\/\w+;base64,/, '')
         
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'audios')
+        // Vai para o volume do EasyPanel. public/ fica dentro da imagem do
+        // contêiner e é descartado a cada deploy: o áudio da conversa sumia do
+        // histórico na próxima publicação.
+        const uploadDir = path.join(process.env.UPLOADS_DIR || '/app/uploads', 'audios')
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true })
         }
-        
+
         const filename = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`
         const filepath = path.join(uploadDir, filename)
-        
+
         await fs.promises.writeFile(filepath, Buffer.from(cleanBase64, 'base64'))
-        return `/uploads/audios/${filename}`
+        return `/api/uploads/audios/${filename}`
     } catch (err) {
         console.error('[Audio] Erro ao salvar arquivo de áudio:', err)
         return null

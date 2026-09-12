@@ -9,6 +9,9 @@ const MIME: Record<string, string> = {
     '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
     '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
     '.mp3': 'audio/mpeg', '.mp4': 'video/mp4', '.webm': 'video/webm',
+    // Comprovante de sinal chega como PDF, e sem o tipo certo o navegador
+    // baixava o arquivo em vez de mostrar para a doutora conferir.
+    '.pdf': 'application/pdf', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4', '.wav': 'audio/wav',
 }
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
