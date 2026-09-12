@@ -26,6 +26,34 @@ export default function MidiaPage() {
     // "Plano 3+", então quem comprava o pacote no Start ou no Master nunca
     // conseguia gravar — e liberar pelo admin não adiantava nada.
     const [temPacoteClonagem, setTemPacoteClonagem] = useState(false)
+    // Depois de clonar, a doutora precisa OUVIR como ficou. Sem isso ela grava,
+    // o sistema diz "pronto", e ela só descobre o resultado quando a paciente
+    // ouve — tarde demais para regravar.
+    const [ouvindo, setOuvindo] = useState(false)
+    const [amostraVoz, setAmostraVoz] = useState<string | null>(null)
+    const [erroAmostra, setErroAmostra] = useState('')
+
+    const ouvirMinhaVoz = async () => {
+        setOuvindo(true)
+        setErroAmostra('')
+        try {
+            const r = await fetch('/api/voz/testar-pronuncia', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    voz: 'clone',
+                    texto: 'Oi! Consegui encaixar você na quinta às quinze horas, pode ser? Qualquer coisa é só me chamar por aqui.',
+                }),
+            })
+            const d = await r.json()
+            if (d.audioBase64) setAmostraVoz(`data:audio/mp3;base64,${d.audioBase64.split(',').pop()}`)
+            else setErroAmostra(d.error || 'Não consegui gerar o áudio agora.')
+        } catch {
+            setErroAmostra('Não consegui gerar o áudio agora.')
+        } finally {
+            setOuvindo(false)
+        }
+    }
     const [temAvatar, setTemAvatar] = useState(false)
     const [msg, setMsg] = useState('')
     const inputRef = useRef<HTMLInputElement>(null)
@@ -273,6 +301,45 @@ export default function MidiaPage() {
                     )
                 })}
             </div>
+
+            {/* ============ Ouvir a voz clonada ============ */}
+            {tab === 'audio' && temVoz && (
+                <div className="rounded-2xl p-5 space-y-3" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                    <div>
+                        <h3 className="text-[14px] font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                            <CheckCircle2 size={16} style={{ color: '#06D6A0' }} /> A sua voz está ativa
+                        </h3>
+                        <p className="text-[12px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                            Ouça como ficou antes de a primeira paciente ouvir.
+                        </p>
+                    </div>
+
+                    {amostraVoz ? (
+                        <div className="space-y-2">
+                            <audio controls autoPlay src={amostraVoz} className="w-full" />
+                            <p className="text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
+                                Não ficou parecida, ou saiu com eco? Grave de novo num lugar com mais tecido — o resultado depende da gravação.
+                            </p>
+                        </div>
+                    ) : erroAmostra ? (
+                        <p className="text-[12px] rounded-lg px-3 py-2" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#EF4444' }}>{erroAmostra}</p>
+                    ) : null}
+
+                    <div className="flex flex-wrap gap-2">
+                        <button onClick={ouvirMinhaVoz} disabled={ouvindo}
+                            className="px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white flex items-center gap-2 disabled:opacity-60"
+                            style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)' }}>
+                            {ouvindo ? <Loader2 size={14} className="animate-spin" /> : <Mic size={14} />}
+                            {ouvindo ? 'Gerando...' : amostraVoz ? 'Ouvir de novo' : 'Ouvir a minha voz'}
+                        </button>
+                        <button onClick={() => { setTemVoz(false); setGravacao(null); setAmostraVoz(null) }}
+                            className="px-4 py-2.5 rounded-xl text-[13px] font-medium"
+                            style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)' }}>
+                            Regravar a minha voz
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* ============ Gravação guiada da voz ============ */}
             {tab === 'audio' && !temVoz && (
