@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
+import { esquecerQueda } from '@/lib/whatsapp-queda';
 
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
@@ -106,6 +107,14 @@ export async function POST(req: Request) {
     // WhatsApp: Desconectar via Evolution API
     // ============================================
     if (canal === 'whatsapp' && instancia.evolution_instance) {
+      // Desconectar de propósito não é queda: tira o 'conectado' antes do logout,
+      // senão o webhook de 'close' da Evolution manda aviso de queda para a dona
+      await prisma.$queryRaw`
+        UPDATE instancias_clinica SET status_conexao = 'desconectado'
+        WHERE id = ${Number(instanceId)} AND user_id = ${user.id}
+      `;
+      await esquecerQueda(instancia.evolution_instance);
+
       if (EVOLUTION_API_URL && EVOLUTION_API_KEY) {
         // Logout
         try {

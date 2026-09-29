@@ -20,6 +20,7 @@ import { processMessage } from '@/lib/engine'
 import * as agrupador from '@/lib/engine/agrupador'
 import type { MensagemRecebida } from '@/lib/engine'
 import { ensureWebhook } from '@/lib/engine/webhook-sync'
+import { registrarQueda, registrarVolta } from '@/lib/whatsapp-queda'
 
 // Deduplicação: cache de requestIds já processados (evita resposta duplicada)
 const processedMessages = new Map<string, number>()
@@ -85,6 +86,9 @@ export async function POST(request: NextRequest) {
                     if (r.webhookFixed) console.log(`[Webhook] 🔧 Webhook auto-corrigido para ${webhookInstance}`)
                 }).catch(() => {})
 
+                // Sem await: o aviso de volta manda WhatsApp e e-mail, não pode segurar o webhook
+                void registrarVolta(webhookInstance)
+
                 // Sincronizar status no banco
                 try {
                     await prisma.$executeRaw`
@@ -93,13 +97,16 @@ export async function POST(request: NextRequest) {
                     `
                 } catch { /* silenciar */ }
             } else if (state === 'close' && webhookInstance) {
-                // Instância desconectou
-                try {
-                    await prisma.$executeRaw`
-                        UPDATE instancias_clinica SET status_conexao = 'desconectado'
-                        WHERE evolution_instance = ${webhookInstance}
-                    `
-                } catch { /* silenciar */ }
+                // Instância desconectou — anota a queda antes de trocar o status.
+                // Se a anotação falhou, fica 'conectado' para o Guardian anotar depois.
+                if (await registrarQueda(webhookInstance)) {
+                    try {
+                        await prisma.$executeRaw`
+                            UPDATE instancias_clinica SET status_conexao = 'desconectado'
+                            WHERE evolution_instance = ${webhookInstance}
+                        `
+                    } catch { /* silenciar */ }
+                }
             }
 
             return NextResponse.json({ ok: true, handled: 'connection_update', state })

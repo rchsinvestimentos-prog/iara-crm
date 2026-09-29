@@ -9,6 +9,8 @@
 // REGRA DE OURO: Se a instância está conectada na Evolution,
 // o webhook TEM que estar ativo. Sem exceção.
 
+import { registrarQueda, registrarVolta, conferirQuedas } from '@/lib/whatsapp-queda'
+
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || ''
 const WEBHOOK_URL = process.env.EVOLUTION_WEBHOOK_URL || 'https://app.iara.click/api/webhook/evolution'
@@ -214,7 +216,13 @@ export async function ensureAllWebhooks(): Promise<{
         const inst = allInstances.get(instanceName)
         if (inst && !inst._legado) {
             const newStatus = syncResult.connectionState === 'open' ? 'conectado' : 'desconectado'
-            try {
+            // Cobre queda cujo webhook não chegou (Evolution reiniciou, servidor fora do ar).
+            // 'unknown' = a Evolution não respondeu: não dá pra afirmar nada, status fica como está.
+            // Se a anotação da queda falhou, também fica, para a próxima rodada anotar.
+            let podeGravar = syncResult.connectionState !== 'unknown'
+            if (syncResult.connectionState === 'open') await registrarVolta(instanceName)
+            else if (podeGravar) podeGravar = await registrarQueda(instanceName)
+            if (podeGravar) try {
                 await prisma.$executeRaw`
                     UPDATE instancias_clinica
                     SET status_conexao = ${newStatus}
@@ -225,6 +233,13 @@ export async function ensureAllWebhooks(): Promise<{
 
         // Delay entre instâncias para não sobrecarregar a Evolution
         await new Promise(r => setTimeout(r, 200))
+    }
+
+    // Avisa as donas de quedas com mais de 5 minutos (inclusive as que o setTimeout perdeu num reinício)
+    try {
+        await conferirQuedas()
+    } catch (err) {
+        console.error('[Guardian] Erro ao conferir quedas de WhatsApp:', err)
     }
 
     return {
