@@ -233,6 +233,20 @@ export async function saveToHistory(
 }
 
 /**
+ * Anotação interna da doutora na conversa (ex.: o que ela achou de cada foto).
+ * A cliente NÃO recebe. Fica no histórico com role 'nota' para a IARA saber o
+ * que foi decidido e continuar o atendimento a partir disso — o
+ * prepararMensagens do ai-engine entrega ao modelo como fala do lado da clínica.
+ */
+export async function saveNotaInterna(clinicaId: number, telefone: string, texto: string): Promise<void> {
+    await ensureHistoricoTable()
+    await prisma.$executeRaw`
+      INSERT INTO historico_conversas (user_id, telefone_cliente, role, content, origem, created_at)
+      VALUES (${clinicaId}, ${telefone}, 'nota', ${texto}, 'doutora', NOW())
+    `
+}
+
+/**
  * Salvar feedback da Dra.
  * Quando a Dra manda "fb: nunca diga X" ou "feedback: sempre faça Y"
  */

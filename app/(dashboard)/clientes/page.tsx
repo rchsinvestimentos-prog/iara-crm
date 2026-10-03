@@ -12,6 +12,7 @@ import {
 import ImageAnnotator from '@/components/ImageAnnotator'
 import CertificadoAssinatura from '@/components/CertificadoAssinatura'
 import MidiaNaConversa, { type MidiaNaConversaProps } from '@/components/MidiaNaConversa'
+import QuadroTriagem from '@/components/triagem/QuadroTriagem'
 
 interface Contato {
     id: number
@@ -53,7 +54,7 @@ interface ModeloAnamnese {
 
 interface ChatMessage {
     id: number
-    role: 'user' | 'assistant'
+    role: 'user' | 'assistant' | 'nota'
     content: string
     pushName: string | null
     audioUrl?: string | null
@@ -469,7 +470,9 @@ export default function ClientesPage() {
                     loadChatHistory(activeContato.telefone)
                     loadContatoDetails(activeContato, 'chat')
                 } else if (action === 'lembrar') {
-                    alert('Lembrete agendado! A triagem foi adiada.')
+                    alert(resultado.lembreteAgendado === false
+                        ? 'A IARA vai esperar mais 30 minutos, mas NÃO consegui agendar o lembrete. Volte aqui por conta própria.'
+                        : 'Combinado! Em 30 minutos você recebe um lembrete no WhatsApp. Até lá, a IARA não responde esta cliente.')
                     setActiveContato(null)
                 } else if (action === 'nada') {
                     if (resultado.fotosNovas > 0) {
@@ -1635,7 +1638,7 @@ export default function ClientesPage() {
 
                                     {/* TABA: CHAT WHATSAPP */}
                                     {activeTab === 'chat' && (
-                                        <div className="space-y-4 animate-fade-in flex flex-col h-[60vh] overflow-hidden text-[11px]">
+                                        <div className={`space-y-4 animate-fade-in flex flex-col text-[11px] ${activeContato?.emTriagem ? 'max-h-[80vh] overflow-y-auto pr-1' : 'h-[60vh] overflow-hidden'}`}>
                                             {/* Triage card */}
                                             {activeContato?.emTriagem && (
                                                 <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3 flex-shrink-0 text-left">
@@ -1650,42 +1653,20 @@ export default function ClientesPage() {
                                                             Não consegui carregar as fotos desta triagem agora. Veja na aba Galeria Evolutiva.
                                                         </p>
                                                     )}
-                                                    {midiasTriagem.length > 0 && (
-                                                        <div className="space-y-2">
-                                                            <p className="text-[10px] font-semibold text-petroleo dark:text-white">
-                                                                {midiasTriagem.length === 1
-                                                                    ? '1 arquivo aguardando avaliação'
-                                                                    : `${midiasTriagem.length} arquivos aguardando avaliação`}
-                                                            </p>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {midiasTriagem.map(m => (
-                                                                    <a
-                                                                        key={m.id}
-                                                                        href={m.url}
-                                                                        target="_blank"
-                                                                        rel="noreferrer"
-                                                                        title={`Enviada em ${new Date(m.createdAt).toLocaleString('pt-BR')} — toque para abrir`}
-                                                                        className="block"
-                                                                    >
-                                                                        {m.tipo === 'imagem' ? (
-                                                                            <img
-                                                                                src={m.url}
-                                                                                alt="Foto enviada pela cliente"
-                                                                                className="w-24 h-24 object-cover rounded-lg hover:opacity-90 transition-opacity"
-                                                                            />
-                                                                        ) : (
-                                                                            <div className="w-24 h-24 bg-white/5 rounded-lg border flex flex-col items-center justify-center gap-1 text-gray-400">
-                                                                                <FileText size={20} />
-                                                                                <span className="text-[9px]">Abrir</span>
-                                                                            </div>
-                                                                        )}
-                                                                        <span className="block text-[9px] text-gray-500 mt-0.5 text-center">
-                                                                            {new Date(m.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                                                        </span>
-                                                                    </a>
-                                                                ))}
-                                                            </div>
-                                                        </div>
+                                                    {midiasTriagem.length > 0 && activeContato && (
+                                                        <QuadroTriagem
+                                                            key={activeContato.id}
+                                                            contatoId={activeContato.id}
+                                                            nomeCliente={activeContato.nome || ''}
+                                                            midias={midiasTriagem}
+                                                            ateMidia={ateMidiaVista}
+                                                            marcarAcao={() => { versaoTriagemRef.current++ }}
+                                                            aoEnviar={(r) => {
+                                                                avisarFotosNovas(r.fotosNovas)
+                                                                loadChatHistory(activeContato.telefone)
+                                                                loadContatoDetails(activeContato, 'chat')
+                                                            }}
+                                                        />
                                                     )}
 
                                                     {aprovacao && (
@@ -1754,63 +1735,67 @@ export default function ClientesPage() {
                                                         </div>
                                                     )}
 
-                                                    <div className="space-y-2">
-                                                        <textarea
-                                                            value={triageInput}
-                                                            onChange={(e) => setTriageInput(e.target.value)}
-                                                            placeholder="Escreva a resposta ou instrução (ex: 'Diz que tá ótimo e que pode agendar o retorno'). A IARA vai formatar de forma carinhosa no tom da clínica."
-                                                            className="input-field text-[11px] h-12"
-                                                        />
-                                                        
-                                                        <div className="flex flex-wrap gap-2 justify-between items-center">
-                                                            <div className="flex gap-2">
+                                                    {/* Sem fotos na lista (documento antigo, falha ao carregar): instrução por texto, como antes */}
+                                                    {midiasTriagem.length === 0 && (
+                                                        <div className="space-y-2">
+                                                            <textarea
+                                                                value={triageInput}
+                                                                onChange={(e) => setTriageInput(e.target.value)}
+                                                                placeholder="Escreva a resposta ou instrução (ex: 'Diz que tá ótimo e que pode agendar o retorno'). A IARA vai formatar de forma carinhosa no tom da clínica."
+                                                                className="input-field text-[11px] h-12 w-full"
+                                                            />
+                                                            <div className="flex justify-end">
                                                                 <button
-                                                                    onClick={() => handleTriageAction('lembrar', 30)}
-                                                                    disabled={triageLoading}
-                                                                    className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-gray-300 dark:border-white/10 text-gray-600 dark:text-gray-300 font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer"
+                                                                    onClick={() => handleTriageAction('responder')}
+                                                                    disabled={triageLoading || !triageInput.trim()}
+                                                                    className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
                                                                 >
-                                                                    <Clock size={10} /> Me lembre em 30 min
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleTriageAction('nada')}
-                                                                    disabled={triageLoading}
-                                                                    title="A foto não precisa de resposta. Nada é enviado à cliente e a IARA volta a atender."
-                                                                    className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-gray-300 dark:border-white/10 text-gray-600 dark:text-gray-300 font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer"
-                                                                >
-                                                                    <X size={10} /> Não fazer nada
-                                                                </button>
-                                                                <button
-                                                                    onClick={abrirAprovacao}
-                                                                    disabled={triageLoading || buscandoSugestao}
-                                                                    className="px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
-                                                                >
-                                                                    {buscandoSugestao
-                                                                        ? <Loader2 size={10} className="animate-spin" />
-                                                                        : <CheckCircle2 size={10} />} Pode agendar
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleTriageAction('assumir')}
-                                                                    disabled={triageLoading}
-                                                                    className="px-2 py-1 rounded-lg bg-[#0F4C61]/10 hover:bg-[#0F4C61]/20 border border-[#0F4C61]/30 text-petroleo dark:text-[#0F4C61] font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer"
-                                                                >
-                                                                    <User size={10} /> Deixa que eu assumo
+                                                                    {triageLoading ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />} Enviar via IARA
                                                                 </button>
                                                             </div>
-                                                            
-                                                            <button
-                                                                onClick={() => handleTriageAction('responder')}
-                                                                disabled={triageLoading || !triageInput.trim()}
-                                                                className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
-                                                            >
-                                                                {triageLoading ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />} Enviar via IARA
-                                                            </button>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Outras saídas — cada uma explica o que acontece (pedido do Rafael, 03/10) */}
+                                                    <div className="pt-2 border-t border-amber-500/20 space-y-1">
+                                                        <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Ou escolha uma destas opções</p>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                            <OpcaoTriagem
+                                                                onClick={() => handleTriageAction('lembrar', 30)}
+                                                                disabled={triageLoading}
+                                                                icone={<Clock size={10} />}
+                                                                titulo="Me lembre em 30 min"
+                                                                explicacao="Você vai receber outra mensagem no WhatsApp em 30 minutos. Até lá, a IARA não responde esta cliente."
+                                                            />
+                                                            <OpcaoTriagem
+                                                                onClick={() => handleTriageAction('nada')}
+                                                                disabled={triageLoading}
+                                                                icone={<X size={10} />}
+                                                                titulo="Não fazer nada"
+                                                                explicacao="Nada é enviado à cliente. A IARA volta a atender normalmente."
+                                                            />
+                                                            <OpcaoTriagem
+                                                                onClick={() => handleTriageAction('assumir')}
+                                                                disabled={triageLoading}
+                                                                icone={<User size={10} />}
+                                                                titulo="Deixa que eu assumo"
+                                                                explicacao="A IARA pausa e você fica responsável por este atendimento. Se a cliente mandar qualquer coisa nas próximas 3 horas, a IARA não responde."
+                                                            />
+                                                            <OpcaoTriagem
+                                                                onClick={abrirAprovacao}
+                                                                disabled={triageLoading || buscandoSugestao}
+                                                                carregando={buscandoSugestao}
+                                                                icone={<CheckCircle2 size={10} />}
+                                                                titulo='Pode agendar ("exclusivo para comprovante de pagamento")'
+                                                                explicacao="Use só quando a foto for o comprovante do sinal. A IARA sugere o horário combinado, você confere e ela confirma com a cliente."
+                                                            />
                                                         </div>
                                                     </div>
                                                 </div>
                                             )}
 
                                             {/* Chat messaging window */}
-                                            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-[#0B0F19]/50 rounded-2xl border space-y-3 flex flex-col min-h-[200px]">
+                                            <div className={`overflow-y-auto p-4 bg-gray-50 dark:bg-[#0B0F19]/50 rounded-2xl border space-y-3 flex flex-col min-h-[200px] ${activeContato?.emTriagem ? 'h-[45vh] flex-shrink-0' : 'flex-1'}`}>
                                                 {chatLoading ? (
                                                     <div className="flex flex-col items-center justify-center h-full">
                                                         <Loader2 size={16} className="animate-spin text-[#D99773] mb-2" />
@@ -1824,6 +1809,15 @@ export default function ClientesPage() {
                                                 ) : (
                                                     chatMessages.map(m => {
                                                         const isUser = m.role === 'user'
+                                                        // Avaliação da doutora: só a clínica vê, a cliente não recebeu
+                                                        if (m.role === 'nota') {
+                                                            return (
+                                                                <div key={m.id} className="self-center max-w-[90%] p-2.5 rounded-xl text-[10px] leading-relaxed bg-amber-500/10 border border-dashed border-amber-500/40 text-amber-800 dark:text-amber-300">
+                                                                    <p className="font-bold mb-0.5">📝 Nota interna da Doutora (a cliente não vê)</p>
+                                                                    <p className="whitespace-pre-wrap">{m.content.replace(/^\[NOTA INTERNA[^\]]*\]\n?/, '')}</p>
+                                                                </div>
+                                                            )
+                                                        }
                                                         return (
                                                             <div 
                                                                 key={m.id}
@@ -2306,4 +2300,28 @@ function renderSvgTemplate(modelo: 'face' | 'corpo_frente' | 'corpo_verso') {
                 </svg>
             )
     }
+}
+
+// Botão de saída da triagem com a frase que explica o que acontece depois
+function OpcaoTriagem({ onClick, disabled, carregando, icone, titulo, explicacao }: {
+    onClick: () => void
+    disabled?: boolean
+    carregando?: boolean
+    icone: React.ReactNode
+    titulo: string
+    explicacao: string
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className="text-left p-2 rounded-lg border border-gray-300 dark:border-white/10 bg-white/40 dark:bg-white/5 hover:bg-white/70 dark:hover:bg-white/10 transition-all cursor-pointer disabled:opacity-50"
+        >
+            <span className="flex items-center gap-1 font-bold text-[10px] text-petroleo dark:text-white">
+                {carregando ? <Loader2 size={10} className="animate-spin" /> : icone} {titulo}
+            </span>
+            <span className="block text-[9px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">{explicacao}</span>
+        </button>
+    )
 }

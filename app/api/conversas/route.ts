@@ -149,7 +149,7 @@ export async function GET(request: Request) {
             conversas: conversas.map((c: ConversaRow) => ({
                 telefone: c.telefone,
                 nome: c.nome || c.telefone,
-                ultimaMensagem: rotuloDaMidia(c.ultima_mensagem || ''),
+                ultimaMensagem: (c.ultima_mensagem || '').startsWith('[NOTA INTERNA') ? '📝 Nota interna da Doutora' : rotuloDaMidia(c.ultima_mensagem || ''),
                 ultimaData: c.ultima_data,
                 totalMensagens: Number(c.total_mensagens),
                 origem: c.origem || 'whatsapp',

@@ -8,6 +8,7 @@ import * as memory from '@/lib/engine/memory'
 import * as calendar from '@/lib/engine/calendar'
 import { parseFuncionalidades, type DadosClinica } from '@/lib/engine/types'
 import { marcarTriagemResolvida } from '@/lib/midia-na-conversa'
+import { agendarLembreteTriagem } from '@/lib/triagem-lembrete'
 
 // POST /api/contatos/[id]/triagem
 export async function POST(
@@ -274,7 +275,16 @@ Não invente nada além disso e não use marcadores entre colchetes.`
                 DO UPDATE SET pausa_ate = NOW() + ${mins + ' minutes'}::INTERVAL, motivo = 'triagem_pendente', updated_at = NOW()
             `
 
-            return NextResponse.json({ ok: true, adiadoAte: new Date(Date.now() + mins * 60 * 1000).toISOString() })
+            // Lembrete de verdade no WhatsApp da doutora (antes só adiava o silêncio)
+            let lembreteAgendado = true
+            try {
+                await agendarLembreteTriagem(clinica.id, contato.id, mins)
+            } catch (err) {
+                lembreteAgendado = false
+                console.error(`[Triage API] Erro ao agendar lembrete de ${contato.telefone}:`, err)
+            }
+
+            return NextResponse.json({ ok: true, lembreteAgendado, adiadoAte: new Date(Date.now() + mins * 60 * 1000).toISOString() })
         }
 
         if (action === 'assumir') {
@@ -297,6 +307,102 @@ Não invente nada além disso e não use marcadores entre colchetes.`
             await marcarTriagemResolvidaSemTravar(clinica.id, contato.telefone, ateMidia, false)
 
             return NextResponse.json({ ok: true })
+        }
+
+        // ============================================
+        // PREPARAR: a doutora comentou foto por foto
+        // ============================================
+        // A IARA junta os comentários numa mensagem só e devolve para a doutora
+        // aprovar. Nada sai para a cliente aqui.
+        if (action === 'preparar') {
+            const comentarios = lerComentarios(body.comentarios)
+            if (comentarios.length === 0) {
+                return NextResponse.json({ error: 'Comente pelo menos uma foto antes de preparar a mensagem.' }, { status: 400 })
+            }
+
+            // Mesmo jeito de chamar a profissional que a IARA usa no atendimento (ai-engine)
+            const formaTratamento = clinica.tratamentoDoutora || 'Pelo nome'
+            const primeiroNome = clinica.nomeDoutora?.split(' ')[0]
+            const tratamento = !primeiroNome ? 'a Doutora'
+                : formaTratamento === 'Pelo nome' ? primeiroNome
+                : `${formaTratamento} ${primeiroNome}`
+            const listaFotos = comentarios.length === 1
+                ? `Comentário sobre a foto:\n${comentarios[0].comentario}`
+                : comentarios.map((c, i) => `Foto ${i + 1}: ${c.comentario}`).join('\n')
+
+            const systemPrompt = `Você é a ${clinica.nomeAssistente || 'IARA'}, assistente virtual da clínica "${clinica.nomeClinica || 'a clínica'}".
+A cliente mandou ${comentarios.length === 1 ? 'uma foto' : `${comentarios.length} fotos`} e ${tratamento} avaliou. Abaixo estão os comentários dela.
+
+Escreva UMA mensagem de WhatsApp para a cliente que passe TODOS os comentários, na mesma ordem.
+${comentarios.length > 1 ? 'Quando precisar diferenciar as fotos, diga "na primeira foto", "na segunda foto" etc.' : ''}
+- Fale como a assistente da clínica: carinhosa, natural, profissional, emojis moderados.
+- Diga que foi ${tratamento} quem avaliou.
+- NÃO invente nada além do que ${tratamento} disse: nada de preço, prazo, diagnóstico ou promessa que não esteja nos comentários.
+- Sem saudação longa (vocês já estão conversando). Responda só com o texto da mensagem, sem aspas e sem explicações.`
+
+            const historico = await memory.getConversationHistory(clinica.id, contato.telefone, 10)
+            const response = await aiEngine.callAI(systemPrompt, `[Comentários da Doutora]\n${listaFotos}`, undefined, historico)
+            const proposta = (response.texto || '').trim()
+            if (!proposta) {
+                return NextResponse.json({ error: 'A IARA não conseguiu escrever a mensagem agora. Tente de novo.' }, { status: 502 })
+            }
+            return NextResponse.json({ ok: true, proposta })
+        }
+
+        // ============================================
+        // ENVIAR: a doutora aprovou (ou escreveu) o texto
+        // ============================================
+        // Sai exatamente o texto que a doutora viu na tela — aprovado da IARA
+        // ou escrito por ela em "Deixa que eu ajusto". Os comentários por foto
+        // ficam no histórico como nota interna, para a IARA continuar sabendo.
+        if (action === 'enviar') {
+            const texto = typeof body.texto === 'string' ? body.texto.trim() : ''
+            if (!texto) {
+                return NextResponse.json({ error: 'A mensagem está vazia.' }, { status: 400 })
+            }
+            if (texto.length > 4000) {
+                return NextResponse.json({ error: 'Mensagem longa demais para o WhatsApp (máximo 4000 letras).' }, { status: 400 })
+            }
+            if (!clinica.evolutionInstance) {
+                return NextResponse.json({ error: 'Instância Evolution não configurada na clínica' }, { status: 500 })
+            }
+
+            const enviado = await sender.sendText({
+                instancia: clinica.evolutionInstance,
+                telefone: contato.telefone,
+                apikey: clinica.evolutionApikey || undefined,
+            }, texto)
+            if (!enviado) {
+                return NextResponse.json({ error: 'Erro ao disparar mensagem para o WhatsApp da cliente' }, { status: 500 })
+            }
+
+            // A mensagem já saiu: daqui em diante nada pode virar erro na tela
+            // (a doutora mandaria de novo). Só registra.
+            const comentarios = lerComentarios(body.comentarios)
+            let notaSalva = true
+            if (comentarios.length > 0) {
+                const nota = `[NOTA INTERNA — avaliação da Doutora sobre as fotos que a cliente mandou. A cliente NÃO recebeu este texto.]\n`
+                    + comentarios.map((c, i) => comentarios.length === 1 ? c.comentario : `Foto ${i + 1}: ${c.comentario}`).join('\n')
+                try {
+                    await memory.saveNotaInterna(clinica.id, contato.telefone, nota)
+                } catch (err) {
+                    notaSalva = false
+                    console.error(`[Triage API] Erro ao salvar nota interna de ${contato.telefone} — a IARA não vai saber dos comentários:`, err)
+                }
+            }
+            await memory.saveToHistory(clinica.id, contato.telefone, 'assistant', texto)
+
+            try {
+                await prisma.$executeRaw`
+                    DELETE FROM status_conversa
+                    WHERE telefone_cliente = ${contato.telefone} AND user_id = ${clinica.id}
+                `
+            } catch (err) {
+                console.error(`[Triage API] Erro ao liberar a IARA para ${contato.telefone} depois do envio:`, err)
+            }
+            const fotosNovas = await marcarTriagemResolvidaSemTravar(clinica.id, contato.telefone, ateMidia)
+            console.log(`[Triage API] ✉️ Resposta da triagem enviada para ${contato.telefone} (${body.literal ? 'texto da doutora' : 'texto da IARA aprovado'})`)
+            return NextResponse.json({ ok: true, fotosNovas, notaSalva })
         }
 
         // ============================================
@@ -339,4 +445,15 @@ async function marcarTriagemResolvidaSemTravar(
         }
     }
     return 0
+}
+
+// Comentários da doutora por foto, na ordem em que as fotos chegaram.
+// Foto sem comentário fica de fora da mensagem (decisão do Rafael, 03/10).
+function lerComentarios(bruto: unknown): { midiaId: string; comentario: string }[] {
+    if (!Array.isArray(bruto)) return []
+    return bruto
+        .filter((c): c is { midiaId: unknown; comentario: unknown } => !!c && typeof c === 'object')
+        .map(c => ({ midiaId: String(c.midiaId ?? ''), comentario: typeof c.comentario === 'string' ? c.comentario.trim().slice(0, 2000) : '' }))
+        .filter(c => c.comentario.length > 0)
+        .slice(0, 30)
 }

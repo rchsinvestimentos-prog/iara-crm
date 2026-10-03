@@ -26,7 +26,13 @@ const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || ''
  * Recebe: áudio em base64
  * Retorna: texto transcrito
  */
-export async function transcribeAudio(audioBase64: string): Promise<string> {
+export async function transcribeAudio(
+    audioBase64: string,
+    // Áudio do WhatsApp é ogg. O gravado no painel vem do navegador: webm no
+    // Chrome, mp4 no iPhone — o Whisper decide o formato pelo nome do arquivo.
+    mimeType: string = 'audio/ogg',
+    nomeArquivo: string = 'audio.ogg',
+): Promise<string> {
     if (!audioBase64 || !OPENAI_API_KEY) {
         console.error('[Audio] Sem áudio base64 ou API key')
         return ''
@@ -38,8 +44,8 @@ export async function transcribeAudio(audioBase64: string): Promise<string> {
 
         // Montar FormData com o arquivo
         const formData = new FormData()
-        const audioBlob = new Blob([audioBuffer], { type: 'audio/ogg' })
-        formData.append('file', audioBlob, 'audio.ogg')
+        const audioBlob = new Blob([audioBuffer], { type: mimeType })
+        formData.append('file', audioBlob, nomeArquivo)
         formData.append('model', 'whisper-1')
         formData.append('language', 'pt') // detecta automatico se não for PT
 
