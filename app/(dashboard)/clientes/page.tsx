@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import ImageAnnotator from '@/components/ImageAnnotator'
 import CertificadoAssinatura from '@/components/CertificadoAssinatura'
+import MidiaNaConversa, { type MidiaNaConversaProps } from '@/components/MidiaNaConversa'
 
 interface Contato {
     id: number
@@ -56,6 +57,7 @@ interface ChatMessage {
     content: string
     pushName: string | null
     audioUrl?: string | null
+    midia?: MidiaNaConversaProps | null
     data: string
 }
 
@@ -73,6 +75,19 @@ export default function ClientesPage() {
     const [timeline, setTimeline] = useState<TimelineEvent[]>([])
     const [fichas, setFichas] = useState<any[]>([])
     const [midias, setMidias] = useState<any[]>([])
+    // Fotos da leva que espera a doutora no quadro de triagem (todas, não só a última)
+    const [midiasTriagem, setMidiasTriagem] = useState<any[]>([])
+    const [midiasTriagemIncompleta, setMidiasTriagemIncompleta] = useState(false)
+    // Muda a cada ação da doutora: a atualização automática que começou antes
+    // de uma ação descarta a resposta (senão reabria o quadro recém-fechado)
+    const versaoTriagemRef = useRef(0)
+    // Foto mais nova que a doutora tem na tela — o servidor só dá por vistas até ela
+    const ateMidiaVista = () => midiasTriagem.length
+        ? midiasTriagem.reduce((max, m) => (new Date(m.createdAt) > new Date(max) ? m.createdAt : max), midiasTriagem[0].createdAt)
+        : undefined
+    const avisarFotosNovas = (n?: number) => {
+        if (n && n > 0) alert(`Chegaram ${n === 1 ? 'mais 1 foto' : `mais ${n} fotos`} enquanto você avaliava. O quadro continua aberto para você ver.`)
+    }
     const [detailLoading, setDetailLoading] = useState(false)
     const [activeTab, setActiveTab] = useState<'prontuario' | 'galeria' | 'documentos' | 'chat' | 'financeiro'>('prontuario')
 
@@ -203,6 +218,8 @@ export default function ClientesPage() {
             if (data.timeline) setTimeline(data.timeline)
             if (data.fichas) setFichas(data.fichas)
             if (data.midias) setMidias(data.midias)
+            setMidiasTriagem(Array.isArray(data.midiasTriagem) ? data.midiasTriagem : [])
+            setMidiasTriagemIncompleta(!!data.midiasTriagemIncompleta)
             if (data.marcacoes) setMarcacoes(data.marcacoes)
             else setMarcacoes([])
             
@@ -426,11 +443,12 @@ export default function ClientesPage() {
     }, [])
 
     // Handler for triage actions
-    const handleTriageAction = async (action: 'responder' | 'lembrar' | 'assumir', minutos?: number) => {
+    const handleTriageAction = async (action: 'responder' | 'lembrar' | 'assumir' | 'nada', minutos?: number) => {
         if (!activeContato) return
         if (action === 'responder' && !triageInput.trim()) return alert('Digite a instrução para a IARA responder.')
 
         setTriageLoading(true)
+        versaoTriagemRef.current++
         try {
             const res = await fetch(`/api/contatos/${activeContato.id}/triagem`, {
                 method: 'POST',
@@ -438,18 +456,29 @@ export default function ClientesPage() {
                 body: JSON.stringify({
                     action,
                     mensagem: triageInput,
-                    minutos
+                    minutos,
+                    ateMidia: ateMidiaVista(),
                 })
             })
             if (res.ok) {
+                const resultado = await res.clone().json().catch(() => ({}))
                 if (action === 'responder') {
                     setTriageInput('')
                     alert('Resposta enviada com sucesso!')
+                    avisarFotosNovas(resultado.fotosNovas)
                     loadChatHistory(activeContato.telefone)
                     loadContatoDetails(activeContato, 'chat')
                 } else if (action === 'lembrar') {
                     alert('Lembrete agendado! A triagem foi adiada.')
                     setActiveContato(null)
+                } else if (action === 'nada') {
+                    if (resultado.fotosNovas > 0) {
+                        avisarFotosNovas(resultado.fotosNovas)
+                        loadContatoDetails(activeContato, 'chat')
+                    } else {
+                        setActiveContato(prev => prev ? { ...prev, emTriagem: false } : null)
+                        setMidiasTriagem([])
+                    }
                 } else if (action === 'assumir') {
                     alert('Você assumiu o atendimento. O robô foi pausado por 3 horas.')
                     setActiveContato(prev => prev ? { ...prev, emTriagem: false, iaPausada: true } : null)
@@ -502,11 +531,13 @@ export default function ClientesPage() {
         }
 
         setTriageLoading(true)
+        versaoTriagemRef.current++
         try {
             const res = await fetch(`/api/contatos/${activeContato.id}/triagem`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    ateMidia: ateMidiaVista(),
                     action: 'aprovar-agendamento',
                     procedimento: aprovacao.procedimento.trim(),
                     data: aprovacao.data,
@@ -518,6 +549,7 @@ export default function ClientesPage() {
             if (res.ok) {
                 setAprovacao(null)
                 alert('Agendamento confirmado! A IARA já avisou a cliente.')
+                avisarFotosNovas(data.fotosNovas)
                 loadChatHistory(activeContato.telefone)
                 loadContatoDetails(activeContato, 'chat')
             } else {
@@ -526,13 +558,14 @@ export default function ClientesPage() {
         } catch {
             alert('Erro de conexão ao confirmar o agendamento.')
         } finally {
+            versaoTriagemRef.current++
             setTriageLoading(false)
         }
     }
 
     // Load real-time chat history
-    const loadChatHistory = async (telefone: string) => {
-        setChatLoading(true)
+    const loadChatHistory = async (telefone: string, silencioso = false) => {
+        if (!silencioso) setChatLoading(true)
         try {
             const res = await fetch(`/api/conversas?telefone=${telefone}`)
             const data = await res.json()
@@ -548,11 +581,42 @@ export default function ClientesPage() {
         }
     }
 
+    // Depende só do id/telefone: a atualização automática abaixo troca o objeto
+    // do contato a cada 15 s e não pode piscar o "Buscando histórico..."
+    const contatoAbertoId = activeContato?.id
+    const contatoAbertoTel = activeContato?.telefone
     useEffect(() => {
-        if (activeContato && activeTab === 'chat') {
-            loadChatHistory(activeContato.telefone)
+        if (contatoAbertoTel && activeTab === 'chat') {
+            loadChatHistory(contatoAbertoTel)
         }
-    }, [activeContato, activeTab])
+    }, [contatoAbertoId, contatoAbertoTel, activeTab])
+
+    // Com o chat aberto, a cada 15 s traz as mensagens e fotos novas da cliente
+    // e atualiza o quadro de triagem, sem a doutora precisar recarregar.
+    useEffect(() => {
+        if (!contatoAbertoId || !contatoAbertoTel || activeTab !== 'chat') return
+        const timer = setInterval(async () => {
+            const versao = versaoTriagemRef.current
+            loadChatHistory(contatoAbertoTel, true)
+            try {
+                const res = await fetch(`/api/contatos/${contatoAbertoId}/detalhes`)
+                if (!res.ok) {
+                    console.warn(`[Clientes] Atualização automática do contato ${contatoAbertoId} falhou: HTTP ${res.status}`)
+                    return
+                }
+                const data = await res.json()
+                // A doutora agiu enquanto a resposta vinha: o estado dela vale mais
+                if (versao !== versaoTriagemRef.current) return
+                if (data.midias) setMidias(data.midias)
+                setMidiasTriagem(Array.isArray(data.midiasTriagem) ? data.midiasTriagem : [])
+                setMidiasTriagemIncompleta(!!data.midiasTriagemIncompleta)
+                setActiveContato(prev => prev && prev.id === contatoAbertoId ? { ...prev, emTriagem: data.emTriagem } : prev)
+            } catch (err) {
+                console.warn(`[Clientes] Atualização automática do contato ${contatoAbertoId} falhou:`, err)
+            }
+        }, 15000)
+        return () => clearInterval(timer)
+    }, [contatoAbertoId, contatoAbertoTel, activeTab])
 
     // Toggle AI Paused
     const handleToggleIAPause = async () => {
@@ -1581,36 +1645,45 @@ export default function ClientesPage() {
                                                         </h4>
                                                     </div>
                                                     
-                                                    {midias[0] && (
-                                                        <div className="flex gap-3 p-2 bg-white/5 rounded-xl border border-white/5">
-                                                            {(midias[0].tipo === 'imagem' || midias[0].tipo === 'imagem') ? (
-                                                                <img 
-                                                                    src={midias[0].url} 
-                                                                    alt="Foto para triagem" 
-                                                                    className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                                                    onClick={() => window.open(midias[0].url, '_blank')}
-                                                                />
-                                                            ) : (
-                                                                <div className="w-16 h-16 bg-white/5 rounded-lg flex items-center justify-center text-gray-400">
-                                                                    <FileText size={20} />
-                                                                </div>
-                                                            )}
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="font-semibold text-petroleo dark:text-white truncate">
-                                                                    {midias[0].titulo || 'Mídia recebida'}
-                                                                </p>
-                                                                <p className="text-[9px] text-gray-400 mt-0.5">
-                                                                    Enviada em {new Date(midias[0].createdAt).toLocaleString('pt-BR')}
-                                                                </p>
-                                                                <a 
-                                                                    href={midias[0].url} 
-                                                                    download
-                                                                    target="_blank"
-                                                                    rel="noreferrer"
-                                                                    className="text-[9px] text-terracota hover:underline font-bold mt-1 inline-block"
-                                                                >
-                                                                    Visualizar / Baixar mídia
-                                                                </a>
+                                                    {midiasTriagemIncompleta && (
+                                                        <p className="text-[10px] text-amber-700 dark:text-amber-400">
+                                                            Não consegui carregar as fotos desta triagem agora. Veja na aba Galeria Evolutiva.
+                                                        </p>
+                                                    )}
+                                                    {midiasTriagem.length > 0 && (
+                                                        <div className="space-y-2">
+                                                            <p className="text-[10px] font-semibold text-petroleo dark:text-white">
+                                                                {midiasTriagem.length === 1
+                                                                    ? '1 arquivo aguardando avaliação'
+                                                                    : `${midiasTriagem.length} arquivos aguardando avaliação`}
+                                                            </p>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {midiasTriagem.map(m => (
+                                                                    <a
+                                                                        key={m.id}
+                                                                        href={m.url}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        title={`Enviada em ${new Date(m.createdAt).toLocaleString('pt-BR')} — toque para abrir`}
+                                                                        className="block"
+                                                                    >
+                                                                        {m.tipo === 'imagem' ? (
+                                                                            <img
+                                                                                src={m.url}
+                                                                                alt="Foto enviada pela cliente"
+                                                                                className="w-24 h-24 object-cover rounded-lg hover:opacity-90 transition-opacity"
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="w-24 h-24 bg-white/5 rounded-lg border flex flex-col items-center justify-center gap-1 text-gray-400">
+                                                                                <FileText size={20} />
+                                                                                <span className="text-[9px]">Abrir</span>
+                                                                            </div>
+                                                                        )}
+                                                                        <span className="block text-[9px] text-gray-500 mt-0.5 text-center">
+                                                                            {new Date(m.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                        </span>
+                                                                    </a>
+                                                                ))}
                                                             </div>
                                                         </div>
                                                     )}
@@ -1694,9 +1767,17 @@ export default function ClientesPage() {
                                                                 <button
                                                                     onClick={() => handleTriageAction('lembrar', 30)}
                                                                     disabled={triageLoading}
-                                                                    className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer"
+                                                                    className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-gray-300 dark:border-white/10 text-gray-600 dark:text-gray-300 font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer"
                                                                 >
                                                                     <Clock size={10} /> Me lembre em 30 min
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleTriageAction('nada')}
+                                                                    disabled={triageLoading}
+                                                                    title="A foto não precisa de resposta. Nada é enviado à cliente e a IARA volta a atender."
+                                                                    className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-gray-300 dark:border-white/10 text-gray-600 dark:text-gray-300 font-bold text-[9px] flex items-center gap-1 transition-all cursor-pointer"
+                                                                >
+                                                                    <X size={10} /> Não fazer nada
                                                                 </button>
                                                                 <button
                                                                     onClick={abrirAprovacao}
@@ -1752,6 +1833,7 @@ export default function ClientesPage() {
                                                                         : 'bg-[#D99773] text-white self-end font-medium shadow-sm'
                                                                 }`}
                                                             >
+                                                                {m.midia && <MidiaNaConversa {...m.midia} />}
                                                                 {m.content && <p className="text-left">{m.content}</p>}
                                                                 {m.audioUrl && (
                                                                     <audio controls src={m.audioUrl} className="mt-2 max-w-full h-8 outline-none" />

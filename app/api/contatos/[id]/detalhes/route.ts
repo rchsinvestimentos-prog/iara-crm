@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { midiasPendentes } from '@/lib/midia-na-conversa'
 
 // GET /api/contatos/[id]/detalhes
 // Retorna os dados completos do contato, histórico de agendamentos e fichas preenchidas
@@ -104,12 +105,27 @@ export async function GET(
             console.error('[GET /api/contatos/[id]/detalhes] Erro ao buscar triagem:', triageErr)
         }
 
+        // Todas as fotos da leva que espera a doutora (o quadro mostrava só a última)
+        let midiasTriagem: typeof midias = []
+        let midiasTriagemIncompleta = false
+        if (emTriagem) {
+            try {
+                midiasTriagem = await midiasPendentes(cid, contato.telefone, midias)
+            } catch (err) {
+                console.error('[GET /api/contatos/[id]/detalhes] Erro ao buscar fotos pendentes:', err)
+                // A tela avisa e manda a doutora para a Galeria
+                midiasTriagemIncompleta = true
+            }
+        }
+
         // Ordenar do mais novo para o mais antigo
         timeline.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
 
         return NextResponse.json({
             contato,
             emTriagem,
+            midiasTriagem,
+            midiasTriagemIncompleta,
             timeline,
             fichas,
             agendamentos,

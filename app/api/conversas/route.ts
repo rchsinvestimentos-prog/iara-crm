@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ligarMidias, rotuloDaMidia, ehMarcadorDeMidia, type MidiaDaMensagem } from '@/lib/midia-na-conversa'
 
 interface ConversaRow {
     telefone: string
@@ -75,21 +76,44 @@ export async function GET(request: Request) {
                 FROM historico_conversas
                 WHERE user_id = ${clinicaId}
                   AND telefone_cliente = ${telefone}
-                ORDER BY created_at ASC
+                ORDER BY created_at DESC
                 LIMIT 200
             `
+            // Pega as 200 mais recentes (antes eram as 200 mais antigas: em conversa
+            // longa, o que a cliente acabou de mandar não aparecia) e volta à ordem do chat
+            mensagens.reverse()
+
+            // "[IMAGE ENVIADO]" vira a foto de verdade. Se falhar, a conversa
+            // aparece mesmo assim, com o rótulo no lugar da foto.
+            let midias = new Map<number, MidiaDaMensagem | null>()
+            let falhouAoLigar = false
+            try {
+                midias = await ligarMidias(clinicaId, telefone, mensagens.map(m => ({ ...m, id: Number(m.id) })))
+            } catch (err) {
+                falhouAoLigar = true
+                console.error(`[Conversas] Erro ao ligar fotos da conversa ${telefone}:`, err)
+            }
 
             return NextResponse.json({
                 telefone,
-                mensagens: mensagens.map((m: MensagemRow) => ({
-                    id: Number(m.id),
-                    role: m.role,
-                    content: m.content,
-                    pushName: m.push_name,
-                    origem: m.origem,
-                    audioUrl: m.audio_url,
-                    data: m.created_at,
-                })),
+                mensagens: mensagens.map((m: MensagemRow) => {
+                    const id = Number(m.id)
+                    const ehMidia = ehMarcadorDeMidia(m.content)
+                    const midia = midias.get(id) || null
+                    return {
+                        id,
+                        role: m.role,
+                        // Com o arquivo achado, a foto fala por si; sem ele, fica o rótulo
+                        content: !ehMidia ? m.content
+                            : midia ? ''
+                            : `${rotuloDaMidia(m.content)} ${falhouAoLigar ? '(não foi possível carregar agora)' : '(arquivo não guardado)'}`,
+                        pushName: m.push_name,
+                        origem: m.origem,
+                        audioUrl: m.audio_url,
+                        midia,
+                        data: m.created_at,
+                    }
+                }),
             })
         }
 
@@ -125,7 +149,7 @@ export async function GET(request: Request) {
             conversas: conversas.map((c: ConversaRow) => ({
                 telefone: c.telefone,
                 nome: c.nome || c.telefone,
-                ultimaMensagem: c.ultima_mensagem || '',
+                ultimaMensagem: rotuloDaMidia(c.ultima_mensagem || ''),
                 ultimaData: c.ultima_data,
                 totalMensagens: Number(c.total_mensagens),
                 origem: c.origem || 'whatsapp',

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Search, MessageSquare, Loader2, Sparkles, User, Bot, ArrowLeft, Instagram, Send, AlertCircle } from 'lucide-react'
+import MidiaNaConversa, { type MidiaNaConversaProps } from '@/components/MidiaNaConversa'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,7 @@ interface Mensagem {
     pushName?: string | null
     origem?: string | null
     tipo?: string
+    midia?: MidiaNaConversaProps | null
     data: string
 }
 
@@ -394,9 +396,12 @@ export default function ConversasPage() {
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words" style={{ color: 'var(--text-primary)' }}>
-                                                            {msg.content.replace('[FALHA_ENVIO] ', '')}
-                                                        </p>
+                                                        {msg.midia && <MidiaNaConversa {...msg.midia} />}
+                                                        {msg.content && (
+                                                            <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words" style={{ color: 'var(--text-primary)' }}>
+                                                                {msg.content.replace('[FALHA_ENVIO] ', '')}
+                                                            </p>
+                                                        )}
                                                         <p className="text-right mt-1">
                                                             <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{formatTime(msg.data)}</span>
                                                         </p>

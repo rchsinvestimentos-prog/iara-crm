@@ -42,6 +42,7 @@ import { prisma } from '@/lib/prisma'
 import { createHash } from 'crypto'
 import * as fs from 'fs'
 import * as path from 'path'
+import { ANOTACAO_RECEBIDO_WHATSAPP } from '@/lib/midia-na-conversa'
 
 // ============================================
 // HELPER: Emoji-safe — respeita config da clínica
@@ -787,7 +788,7 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
                     tipo: msg.tipoMensagem === 'image' ? 'imagem' : 'documento',
                     url: mediaUrl,
                     titulo: msg.tipoMensagem === 'image' ? 'Foto enviada pela cliente' : 'Documento enviado pela cliente',
-                    anotacoes: 'Recebido via WhatsApp'
+                    anotacoes: ANOTACAO_RECEBIDO_WHATSAPP
                 }
             })
             console.log(`[Pipeline] ✅ Mídia gravada no prontuário do contato ID ${contato.id}`)

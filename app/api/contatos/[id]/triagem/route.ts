@@ -7,6 +7,7 @@ import * as aiEngine from '@/lib/engine/ai-engine'
 import * as memory from '@/lib/engine/memory'
 import * as calendar from '@/lib/engine/calendar'
 import { parseFuncionalidades, type DadosClinica } from '@/lib/engine/types'
+import { marcarTriagemResolvida } from '@/lib/midia-na-conversa'
 
 // POST /api/contatos/[id]/triagem
 export async function POST(
@@ -49,6 +50,8 @@ export async function POST(
         // 2. Ler parâmetros do body
         const body = await request.json()
         const { action, mensagem, minutos } = body
+        // Horário da foto mais nova que estava na tela da doutora (ver marcarTriagemResolvida)
+        const ateMidia = body.ateMidia ? new Date(body.ateMidia) : null
 
         if (!action) {
             return NextResponse.json({ error: 'Ação é obrigatória' }, { status: 400 })
@@ -99,8 +102,9 @@ Seja objetiva, vá direto ao ponto e não invente nada além do que a Doutora fa
                 DELETE FROM status_conversa
                 WHERE telefone_cliente = ${contato.telefone} AND user_id = ${clinica.id}
             `
+            const fotosNovas = await marcarTriagemResolvidaSemTravar(clinica.id, contato.telefone, ateMidia)
 
-            return NextResponse.json({ ok: true, respostaEnviada: respostaFinal })
+            return NextResponse.json({ ok: true, respostaEnviada: respostaFinal, fotosNovas })
         }
 
         // ============================================
@@ -253,8 +257,9 @@ Não invente nada além disso e não use marcadores entre colchetes.`
                 DELETE FROM status_conversa
                 WHERE telefone_cliente = ${contato.telefone} AND user_id = ${clinica.id}
             `
+            const fotosNovas = await marcarTriagemResolvidaSemTravar(clinica.id, contato.telefone, ateMidia)
 
-            return NextResponse.json({ ok: true, respostaEnviada: textoFinal })
+            return NextResponse.json({ ok: true, respostaEnviada: textoFinal, fotosNovas })
         }
 
         if (action === 'lembrar') {
@@ -288,8 +293,27 @@ Não invente nada além disso e não use marcadores entre colchetes.`
                 where: { id: contato.id },
                 data: { iaPausada: true }
             })
+            // A doutora assumiu a conversa: as fotos novas ela vê no próprio WhatsApp
+            await marcarTriagemResolvidaSemTravar(clinica.id, contato.telefone, ateMidia, false)
 
             return NextResponse.json({ ok: true })
+        }
+
+        // ============================================
+        // NÃO FAZER NADA: a foto não pede resposta
+        // ============================================
+        // Nada é enviado à cliente. A IARA volta a atender a conversa e as
+        // fotos saem do quadro "Aguardando ação".
+        if (action === 'nada') {
+            await prisma.$executeRaw`
+                DELETE FROM status_conversa
+                WHERE telefone_cliente = ${contato.telefone} AND user_id = ${clinica.id}
+                  AND motivo = 'triagem_pendente'
+            `
+            // Se chegou foto que a doutora não viu, a marcação reabre o quadro
+            const fotosNovas = await marcarTriagemResolvida(clinica.id, contato.telefone, ateMidia)
+            console.log(`[Triage API] 🙅 Doutora marcou "não fazer nada" para ${contato.telefone}${fotosNovas ? ` — ${fotosNovas} foto(s) nova(s) mantêm o quadro aberto` : ''}`)
+            return NextResponse.json({ ok: true, fotosNovas })
         }
 
         return NextResponse.json({ error: 'Ação inválida' }, { status: 400 })
@@ -298,4 +322,21 @@ Não invente nada além disso e não use marcadores entre colchetes.`
         console.error('[POST /api/contatos/[id]/triagem] Erro:', err)
         return NextResponse.json({ error: 'Erro interno ao processar ação de triagem', detalhe: err.message }, { status: 500 })
     }
+}
+
+// A mensagem já saiu para a cliente: falhar aqui não pode virar erro na tela
+// (a doutora mandaria de novo). Só deixa as fotos no quadro e registra.
+async function marcarTriagemResolvidaSemTravar(
+    clinicaId: number, telefone: string, ateMidia: Date | null, reabrir = true,
+): Promise<number> {
+    // Tenta duas vezes; se não der, as fotos já respondidas voltariam a
+    // aparecer na próxima triagem — fica registrado
+    for (let tentativa = 1; tentativa <= 2; tentativa++) {
+        try {
+            return await marcarTriagemResolvida(clinicaId, telefone, ateMidia, reabrir)
+        } catch (err) {
+            console.error(`[Triage API] Erro ao marcar triagem resolvida de ${telefone} (tentativa ${tentativa}/2):`, err)
+        }
+    }
+    return 0
 }
