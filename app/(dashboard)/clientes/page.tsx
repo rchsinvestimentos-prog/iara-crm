@@ -144,6 +144,10 @@ export default function ClientesPage() {
     const [chatLoading, setChatLoading] = useState(false)
     const [sendingMsg, setSendingMsg] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    // Caixa do chat: rola só ela. O scrollIntoView antigo rolava a tela inteira
+    // e, com a atualização a cada 15 s, puxava a doutora para baixo no meio da digitação.
+    const chatBoxRef = useRef<HTMLDivElement>(null)
+    const qtdMensagensRef = useRef(0)
     const fileInputDirectRef = useRef<HTMLInputElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
 
@@ -572,15 +576,26 @@ export default function ClientesPage() {
         try {
             const res = await fetch(`/api/conversas?telefone=${telefone}`)
             const data = await res.json()
-            if (data.mensagens) setChatMessages(data.mensagens)
+            if (!res.ok) console.warn(`[Clientes] Histórico de ${telefone} não carregou: HTTP ${res.status}`, data?.detalhe || data?.error)
+            if (data.mensagens) {
+                // Na atualização automática, só desce se chegou mensagem nova
+                // e a doutora já estava no fim do chat (não estava lendo lá em cima)
+                const chegouNova = data.mensagens.length !== qtdMensagensRef.current
+                const caixa = chatBoxRef.current
+                const estavaNoFim = !caixa || caixa.scrollHeight - caixa.scrollTop - caixa.clientHeight < 80
+                qtdMensagensRef.current = data.mensagens.length
+                setChatMessages(data.mensagens)
+                if (!silencioso || (chegouNova && estavaNoFim)) {
+                    setTimeout(() => {
+                        const c = chatBoxRef.current
+                        if (c) c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' })
+                    }, 100)
+                }
+            }
         } catch (err) {
             console.error('Erro ao carregar histórico de chat:', err)
         } finally {
             setChatLoading(false)
-            // Scroll to bottom
-            setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-            }, 100)
         }
     }
 
@@ -692,6 +707,10 @@ export default function ClientesPage() {
             })
             if (res.ok) {
                 setChatInput('')
+                const resultado = await res.json().catch(() => ({}))
+                if (resultado.pausaAplicada === false) {
+                    alert('Mensagem enviada, mas a IARA NÃO foi pausada. Ela pode responder esta cliente. Se quiser, use o botão de pausar a IARA no topo da ficha.')
+                }
                 // Recarregar chat
                 loadChatHistory(activeContato.telefone)
             } else {
@@ -1795,7 +1814,7 @@ export default function ClientesPage() {
                                             )}
 
                                             {/* Chat messaging window */}
-                                            <div className={`overflow-y-auto p-4 bg-gray-50 dark:bg-[#0B0F19]/50 rounded-2xl border space-y-3 flex flex-col min-h-[200px] ${activeContato?.emTriagem ? 'h-[45vh] flex-shrink-0' : 'flex-1'}`}>
+                                            <div ref={chatBoxRef} className={`overflow-y-auto p-4 bg-gray-50 dark:bg-[#0B0F19]/50 rounded-2xl border space-y-3 flex flex-col min-h-[200px] ${activeContato?.emTriagem ? 'h-[45vh] flex-shrink-0' : 'flex-1'}`}>
                                                 {chatLoading ? (
                                                     <div className="flex flex-col items-center justify-center h-full">
                                                         <Loader2 size={16} className="animate-spin text-[#D99773] mb-2" />
@@ -1863,6 +1882,10 @@ export default function ClientesPage() {
                                                 </div>
 
                                                 {/* Button to show scheduler */}
+                                                <p className="text-[9px] text-gray-500 dark:text-gray-400 leading-snug">
+                                                    (Ao mandar por aqui, a IARA pausa o atendimento desta cliente por 3 horas, porque houve intervenção humana.)
+                                                </p>
+
                                                 <button 
                                                     onClick={() => setShowScheduler(!showScheduler)}
                                                     className="text-[10px] text-terracota hover:underline font-bold flex items-center gap-1"
@@ -1873,6 +1896,9 @@ export default function ClientesPage() {
                                                 {showScheduler && (
                                                     <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border space-y-3 animate-fade-in" style={{ borderColor: 'var(--border-default)' }}>
                                                         <h4 className="font-bold text-[10px] text-petroleo dark:text-white uppercase">Programar Lembrete / Mensagem</h4>
+                                                        <p className="text-[9px] text-gray-500 dark:text-gray-400 leading-snug">
+                                                            (Quando a mensagem programada sair, a IARA pausa o atendimento desta cliente por 3 horas, porque houve intervenção humana.)
+                                                        </p>
                                                         <div className="grid grid-cols-1 gap-2">
                                                             <div>
                                                                 <label className="block text-gray-500 mb-1">Data e Hora de Disparo:</label>

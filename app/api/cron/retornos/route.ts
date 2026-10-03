@@ -81,6 +81,24 @@ export async function GET(req: NextRequest) {
                     })
                     enviados++
                     console.log(`[Cron/Retornos] ✅ Retorno enviado para ${contato.nome} (${contato.telefone})`)
+
+                    // Mensagem programada pela clínica = intervenção humana: a IARA pausa 3 horas
+                    if (!contato.clinicaId) {
+                        console.error(`[Cron/Retornos] Contato ${contato.id} sem clínica — a IARA NÃO foi pausada para ${contato.telefone}`)
+                    } else try {
+                        await prisma.$executeRawUnsafe(`
+                            INSERT INTO status_conversa (telefone_cliente, user_id, pausa_ate, motivo, updated_at)
+                            VALUES ($1, $2, NOW() + INTERVAL '180 minutes', 'dra_assumiu', NOW())
+                            ON CONFLICT (telefone_cliente, user_id) DO UPDATE SET
+                                -- Nunca encurta uma pausa maior que já existia
+                                motivo = CASE WHEN status_conversa.pausa_ate > NOW() + INTERVAL '180 minutes'
+                                              THEN status_conversa.motivo ELSE 'dra_assumiu' END,
+                                pausa_ate = GREATEST(status_conversa.pausa_ate, NOW() + INTERVAL '180 minutes'),
+                                updated_at = NOW()
+                        `, contato.telefone, contato.clinicaId)
+                    } catch (err) {
+                        console.error(`[Cron/Retornos] Mensagem saiu, mas não consegui pausar a IARA para ${contato.telefone}:`, err)
+                    }
                 } else {
                     erros++
                     console.error(`[Cron/Retornos] ❌ Falha ao enviar para ${contato.telefone}`)

@@ -79,6 +79,26 @@ export async function POST(
             VALUES ($1, $2, 'assistant', $3, $4, 'whatsapp', NOW())
         `, cid, contato.telefone, mensagem, nomeRemetente)
 
+        // 4.5 Intervenção humana: a IARA pausa esta cliente por 3 horas, como
+        // quando a doutora responde pelo celular (pipeline, isFromMe). Mensagem
+        // enviada pelo painel não volta como webhook, então a pausa é aqui.
+        let pausaAplicada = true
+        try {
+            await prisma.$executeRawUnsafe(`
+                INSERT INTO status_conversa (telefone_cliente, user_id, pausa_ate, motivo, updated_at)
+                VALUES ($1, $2, NOW() + INTERVAL '180 minutes', 'dra_assumiu', NOW())
+                ON CONFLICT (telefone_cliente, user_id) DO UPDATE SET
+                    -- Nunca encurta uma pausa maior que já existia
+                    motivo = CASE WHEN status_conversa.pausa_ate > NOW() + INTERVAL '180 minutes'
+                                  THEN status_conversa.motivo ELSE 'dra_assumiu' END,
+                    pausa_ate = GREATEST(status_conversa.pausa_ate, NOW() + INTERVAL '180 minutes'),
+                    updated_at = NOW()
+            `, contato.telefone, cid)
+        } catch (err) {
+            pausaAplicada = false
+            console.error(`[Enviar mensagem] Mensagem saiu, mas não consegui pausar a IARA para ${contato.telefone}:`, err)
+        }
+
         // 5. Atualizar último contato e data no CRM
         await prisma.contato.update({
             where: { id: contatoId },
@@ -88,7 +108,7 @@ export async function POST(
             }
         })
 
-        return NextResponse.json({ ok: true })
+        return NextResponse.json({ ok: true, pausaAplicada })
     } catch (err) {
         if (err instanceof z.ZodError) {
             return NextResponse.json({ error: 'Mensagem vazia ou inválida', details: err.issues }, { status: 400 })

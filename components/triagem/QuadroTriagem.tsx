@@ -8,7 +8,7 @@
 // mandar. "Deixa que eu ajusto" faz a IARA encaminhar o texto da doutora sem
 // mexer. Foto sem comentário fica de fora da mensagem.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Loader2, Send, Pencil, RotateCcw, Bot, User, FileText } from 'lucide-react'
 import BotaoGravarAudio from './BotaoGravarAudio'
 
@@ -44,6 +44,8 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
     const [textoProprio, setTextoProprio] = useState('')
 
     const primeiroNome = (nomeCliente || 'a cliente').split(' ')[0]
+    // Mantém a última fala do mini chat à vista — rolando só a caixa dele, não a tela
+    const chatRef = useRef<HTMLDivElement>(null)
     const ordem = useMemo(() => new Map(midias.map((m, i) => [m.id, i + 1])), [midias])
     const comentadas = midias.filter(m => comentarios[m.id]?.trim())
     const selecionada = midias.find(m => m.id === selecionadaId) || null
@@ -55,6 +57,11 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
         setSelecionadaId(proxima?.id || null)
         setRascunho(proxima ? comentarios[proxima.id] || '' : '')
     }, [midias, selecionadaId, comentarios])
+
+    useEffect(() => {
+        const c = chatRef.current
+        if (c) c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' })
+    }, [selecionadaId, etapa, comentarios, proposta])
 
     const selecionar = (id: string) => {
         setSelecionadaId(id)
@@ -178,7 +185,7 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
             </div>
 
             {/* 2. MINI WHATSAPP COM A IARA */}
-            <div className="rounded-xl border bg-white/60 dark:bg-white/5 p-3 space-y-2 max-h-[45vh] overflow-y-auto">
+            <div ref={chatRef} className="rounded-xl border bg-white/60 dark:bg-white/5 p-3 space-y-2 max-h-[45vh] overflow-y-auto">
                 <BalaoIara>
                     Oi, Doutora! {primeiroNome} mandou {midias.length === 1 ? 'uma foto' : `${midias.length} fotos`}. Me diz o que fazer com cada uma — por texto ou áudio. A que você não comentar fica de fora.
                 </BalaoIara>
@@ -202,6 +209,22 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
                 {etapa === 'ajustando' && (
                     <BalaoIara>
                         Perfeito, Doutora! Escreve a mensagem aqui embaixo. Do jeito que você mandar, eu encaminho para {primeiroNome} sem mexer.
+                    </BalaoIara>
+                )}
+
+                {/* A foto escolhida agora aparece no chat, com a pergunta da IARA */}
+                {etapa === 'comentando' && selecionada && (
+                    <BalaoIara>
+                        <span className="block mb-1.5">
+                            {comentarios[selecionada.id] ? 'Quer mudar o comentário da' : 'E a'} <b>foto {ordem.get(selecionada.id)}</b>? O que faço com ela?
+                        </span>
+                        {selecionada.tipo === 'imagem' ? (
+                            <a href={selecionada.url} target="_blank" rel="noreferrer" title="Abrir em tamanho real">
+                                <img src={selecionada.url} alt={`Foto ${ordem.get(selecionada.id)}`} className="w-40 h-40 object-cover rounded-lg cursor-zoom-in" />
+                            </a>
+                        ) : (
+                            <a href={selecionada.url} target="_blank" rel="noreferrer" className="underline font-semibold">📄 Abrir arquivo {ordem.get(selecionada.id)}</a>
+                        )}
                     </BalaoIara>
                 )}
 
@@ -238,10 +261,10 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
                                 type="button"
                                 onClick={preparar}
                                 disabled={comentadas.length === 0}
-                                title={comentadas.length === 0 ? 'Comente pelo menos uma foto' : ''}
+                                title={comentadas.length === 0 ? 'Comente pelo menos uma foto' : 'A IARA junta seus comentários numa mensagem e pergunta se pode mandar'}
                                 className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[9px] flex items-center gap-1 cursor-pointer disabled:opacity-50"
                             >
-                                <Bot size={10} /> Preparar mensagem ({comentadas.length} {comentadas.length === 1 ? 'foto' : 'fotos'})
+                                <Bot size={10} /> Responder à IARA ({comentadas.length} {comentadas.length === 1 ? 'foto comentada' : 'fotos comentadas'})
                             </button>
                         </div>
                     </div>
