@@ -82,12 +82,13 @@ export default function ClientesPage() {
     // Muda a cada ação da doutora: a atualização automática que começou antes
     // de uma ação descarta a resposta (senão reabria o quadro recém-fechado)
     const versaoTriagemRef = useRef(0)
-    // Foto mais nova que a doutora tem na tela — o servidor só dá por vistas até ela
-    const ateMidiaVista = () => midiasTriagem.length
-        ? midiasTriagem.reduce((max, m) => (new Date(m.createdAt) > new Date(max) ? m.createdAt : max), midiasTriagem[0].createdAt)
-        : undefined
-    const avisarFotosNovas = (n?: number) => {
-        if (n && n > 0) alert(`Chegaram ${n === 1 ? 'mais 1 foto' : `mais ${n} fotos`} enquanto você avaliava. O quadro continua aberto para você ver.`)
+    // Fotos que a doutora tem na tela: a decisão vale só para elas. Foto que
+    // chegou depois continua na lista (e nos lembretes de 15 min).
+    const idsNaTela = () => midiasTriagem.map(m => m.id)
+    const avisarRestantes = (n?: number | null) => {
+        if (n && n > 0) alert(n === 1
+            ? 'Ainda falta 1 foto para você avaliar. Ela continua no quadro e eu continuo te lembrando a cada 15 minutos.'
+            : `Ainda faltam ${n} fotos para você avaliar. Elas continuam no quadro e eu continuo te lembrando a cada 15 minutos.`)
     }
     const [detailLoading, setDetailLoading] = useState(false)
     const [activeTab, setActiveTab] = useState<'prontuario' | 'galeria' | 'documentos' | 'chat' | 'financeiro'>('prontuario')
@@ -462,7 +463,7 @@ export default function ClientesPage() {
                     action,
                     mensagem: triageInput,
                     minutos,
-                    ateMidia: ateMidiaVista(),
+                    midiaIds: idsNaTela(),
                 })
             })
             if (res.ok) {
@@ -470,25 +471,34 @@ export default function ClientesPage() {
                 if (action === 'responder') {
                     setTriageInput('')
                     alert('Resposta enviada com sucesso!')
-                    avisarFotosNovas(resultado.fotosNovas)
+                    avisarRestantes(resultado.restantes)
                     loadChatHistory(activeContato.telefone)
                     loadContatoDetails(activeContato, 'chat')
                 } else if (action === 'lembrar') {
-                    alert(resultado.lembreteAgendado === false
-                        ? 'A IARA vai esperar mais 30 minutos, mas NÃO consegui agendar o lembrete. Volte aqui por conta própria.'
-                        : 'Combinado! Em 30 minutos você recebe um lembrete no WhatsApp. Até lá, a IARA não responde esta cliente.')
+                    const partes = [
+                        resultado.clienteAvisada === false
+                            ? 'NÃO consegui avisar a cliente que você está ocupada.'
+                            : 'A cliente foi avisada de que você está em atendimento e logo volta a falar com ela.',
+                        resultado.lembreteAgendado === false
+                            ? 'NÃO consegui agendar o lembrete — volte aqui por conta própria.'
+                            : 'Em 30 minutos você recebe um lembrete no WhatsApp.',
+                    ]
+                    alert(partes.join('\n\n'))
                     setActiveContato(null)
                 } else if (action === 'nada') {
-                    if (resultado.fotosNovas > 0) {
-                        avisarFotosNovas(resultado.fotosNovas)
+                    if (resultado.restantes > 0) {
+                        avisarRestantes(resultado.restantes)
                         loadContatoDetails(activeContato, 'chat')
                     } else {
                         setActiveContato(prev => prev ? { ...prev, emTriagem: false } : null)
                         setMidiasTriagem([])
                     }
                 } else if (action === 'assumir') {
-                    alert('Você assumiu o atendimento. O robô foi pausado por 3 horas.')
-                    setActiveContato(prev => prev ? { ...prev, emTriagem: false, iaPausada: true } : null)
+                    alert(resultado.clienteAvisada === false
+                        ? 'Você assumiu o atendimento e a IARA ficou pausada por 3 horas. NÃO consegui avisar a cliente — fale com ela agora.'
+                        : 'A cliente foi avisada de que você vai assumir. A IARA ficou pausada por 3 horas.')
+                    avisarRestantes(resultado.restantes)
+                    setActiveContato(prev => prev ? { ...prev, iaPausada: true } : null)
                     loadContatoDetails(activeContato, 'chat')
                 }
             } else {
@@ -544,7 +554,7 @@ export default function ClientesPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    ateMidia: ateMidiaVista(),
+                    midiaIds: idsNaTela(),
                     action: 'aprovar-agendamento',
                     procedimento: aprovacao.procedimento.trim(),
                     data: aprovacao.data,
@@ -556,7 +566,7 @@ export default function ClientesPage() {
             if (res.ok) {
                 setAprovacao(null)
                 alert('Agendamento confirmado! A IARA já avisou a cliente.')
-                avisarFotosNovas(data.fotosNovas)
+                avisarRestantes(data.restantes)
                 loadChatHistory(activeContato.telefone)
                 loadContatoDetails(activeContato, 'chat')
             } else {
@@ -1667,6 +1677,10 @@ export default function ClientesPage() {
                                                         </h4>
                                                     </div>
                                                     
+                                                    <p className="text-[10px] text-gray-600 dark:text-gray-400 leading-snug">
+                                                        Enquanto você não decidir, a IARA continua atendendo a cliente, mas sobre as fotos só diz que você está analisando.
+                                                        Você recebe um lembrete a cada 15 minutos, no horário da clínica.
+                                                    </p>
                                                     {midiasTriagemIncompleta && (
                                                         <p className="text-[10px] text-amber-700 dark:text-amber-400">
                                                             Não consegui carregar as fotos desta triagem agora. Veja na aba Galeria Evolutiva.
@@ -1678,10 +1692,9 @@ export default function ClientesPage() {
                                                             contatoId={activeContato.id}
                                                             nomeCliente={activeContato.nome || ''}
                                                             midias={midiasTriagem}
-                                                            ateMidia={ateMidiaVista}
                                                             marcarAcao={() => { versaoTriagemRef.current++ }}
                                                             aoEnviar={(r) => {
-                                                                avisarFotosNovas(r.fotosNovas)
+                                                                avisarRestantes(r.restantes)
                                                                 loadChatHistory(activeContato.telefone)
                                                                 loadContatoDetails(activeContato, 'chat')
                                                             }}
@@ -1784,21 +1797,21 @@ export default function ClientesPage() {
                                                                 disabled={triageLoading}
                                                                 icone={<Clock size={10} />}
                                                                 titulo="Me lembre em 30 min"
-                                                                explicacao="Você vai receber outra mensagem no WhatsApp em 30 minutos. Até lá, a IARA não responde esta cliente."
+                                                                explicacao="A cliente recebe: 'a Doutora está em atendimento agora, mas logo volta a falar com você'. Você recebe outro lembrete no WhatsApp em 30 minutos. A IARA segue atendendo, sem falar da foto."
                                                             />
                                                             <OpcaoTriagem
                                                                 onClick={() => handleTriageAction('nada')}
                                                                 disabled={triageLoading}
                                                                 icone={<X size={10} />}
                                                                 titulo="Não fazer nada"
-                                                                explicacao="Nada é enviado à cliente. A IARA volta a atender normalmente."
+                                                                explicacao="Nada é enviado à cliente. As fotos saem da lista e os lembretes param."
                                                             />
                                                             <OpcaoTriagem
                                                                 onClick={() => handleTriageAction('assumir')}
                                                                 disabled={triageLoading}
                                                                 icone={<User size={10} />}
                                                                 titulo="Deixa que eu assumo"
-                                                                explicacao="A IARA pausa e você fica responsável por este atendimento. Se a cliente mandar qualquer coisa nas próximas 3 horas, a IARA não responde."
+                                                                explicacao="A cliente recebe: 'a Doutora vai assumir o seu atendimento'. A IARA pausa e você fica responsável. Se a cliente mandar qualquer coisa nas próximas 3 horas, a IARA não responde."
                                                             />
                                                             <OpcaoTriagem
                                                                 onClick={abrirAprovacao}

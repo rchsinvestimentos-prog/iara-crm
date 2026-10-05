@@ -42,6 +42,7 @@ import { prisma } from '@/lib/prisma'
 import { createHash } from 'crypto'
 import * as fs from 'fs'
 import * as path from 'path'
+import * as triagem from '@/lib/triagem'
 import { ANOTACAO_RECEBIDO_WHATSAPP } from '@/lib/midia-na-conversa'
 
 // ============================================
@@ -461,6 +462,23 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         combosAtivos,
     })
 
+    // Fotos esperando a doutora: a IARA segue atendendo, mas sobre elas só diz
+    // que a doutora está analisando. Se a cliente perguntou da foto, a doutora
+    // recebe um lembrete extra (no máximo 1 a cada 5 min).
+    try {
+        const { contatoId, midias: fotosPendentes } = await triagem.midiasPendentesPorTelefone(clinica.id, msg.telefone)
+        if (contatoId && fotosPendentes.length > 0) {
+            systemPrompt.volatil += triagem.instrucaoFotosPendentes(fotosPendentes.length, triagem.nomeDaDoutora(clinica))
+            if (triagem.clienteFalouDaFoto(textoMensagem)) {
+                triagem.lembreteExtra(clinica.id, contatoId)
+                    .catch(err => console.error('[Pipeline] Erro no lembrete extra de triagem:', err))
+            }
+        }
+    } catch (err) {
+        // Sem a instrução a IARA poderia opinar sobre a foto: registra bem alto
+        console.error(`[Pipeline] ⚠️ Não consegui checar fotos pendentes de ${msg.telefone} — IARA responde sem a regra das fotos:`, err)
+    }
+
     // ------------------------------------------------
     // TETO DO PLANO — checado aqui, depois do cache.
     // Resposta que veio do cache não custa IA, então não consome cota.
@@ -779,6 +797,7 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
     }
 
     // 3. Registrar a mídia na tabela MidiaContato
+    let midiaGravada = false
     if (mediaUrl) {
         try {
             await prisma.midiaContato.create({
@@ -791,14 +810,45 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
                     anotacoes: ANOTACAO_RECEBIDO_WHATSAPP
                 }
             })
+            midiaGravada = true
             console.log(`[Pipeline] ✅ Mídia gravada no prontuário do contato ID ${contato.id}`)
         } catch (err) {
             console.error('[Pipeline] Erro ao gravar MidiaContato no banco:', err)
         }
     }
 
-    // 4. Pausar a IA temporariamente por 120 minutos sob motivo 'triagem_pendente'
-    await pausarConversa(clinica.id, msg.telefone, 120, 'triagem_pendente')
+    // 4. Desde 05/10 a IARA NÃO pausa por foto: continua atendendo e, sobre a
+    // foto, só diz que a doutora está analisando (instrução no prompt, passo 10).
+    // Aviso único: só a primeira foto da leva avisa a cliente e a doutora; as
+    // seguintes entram na mesma pendência e nos lembretes de 15 min (lib/triagem).
+    let primeiraDaLeva = true
+    let avisarCliente = true
+    if (midiaGravada) {
+        try {
+            const r = await triagem.registrarFotoRecebida(clinica.id, contato.id)
+            primeiraDaLeva = r.primeiraDaLeva
+            avisarCliente = r.avisarCliente
+        } catch (err) {
+            // Sem pendência não há lembrete: avisa como antes, para a foto não passar batido
+            console.error('[Pipeline] Erro ao registrar a foto na triagem — avisando a doutora agora:', err)
+        }
+    } else {
+        // Sem o arquivo não há lista nem lembrete nem a regra "não opinar sobre a
+        // foto" — volta ao comportamento antigo: IARA calada 2 h com esta cliente
+        console.error(`[Pipeline] ⚠️ Mídia de ${msg.telefone} não foi salva — sem lembretes; IARA pausada 2 h por segurança`)
+        await pausarConversa(clinica.id, msg.telefone, 120, 'triagem_pendente')
+    }
+
+    if (!primeiraDaLeva) {
+        // Foto de outra rodada (a anterior ainda sem parecer): a cliente ouve
+        // "recebi" de novo; a doutora fica com os lembretes de 15 min
+        if (avisarCliente) {
+            await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, `Recebi ${msg.tipoMensagem === 'document' ? 'seu documento' : 'sua ' + tipoLabel}! ✨ Já encaminhei pra Doutora, junto com o que você mandou antes. Assim que ela analisar, te damos o retorno 😊`))
+        }
+        await memory.saveToHistory(clinica.id, msg.telefone, 'user', `[${msg.tipoMensagem.toUpperCase()} ENVIADO]`, msg.pushName)
+        console.log(`[Pipeline] ${tipoEmoji} Mais uma ${tipoLabel} de ${nomeCliente} na mesma leva — sem novo alerta (lembrete a cada 15 min)${avisarCliente ? '; cliente avisada' : ''}`)
+        return
+    }
 
     // 5. Avisa a cliente que recebeu
     await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, `Recebi ${msg.tipoMensagem === 'document' ? 'seu documento' : 'sua ' + tipoLabel}! ✨ Já encaminhei agora mesmo pra Doutora dar uma olhada. Assim que ela ver, já te damos um retorno, tá? 😊`))
@@ -822,26 +872,11 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
 
     const alertaMensagem = `${tipoEmoji} *${nomeCliente}* mandou ${msg.tipoMensagem === 'document' ? 'um documento' : (msg.tipoMensagem === 'image' ? 'uma foto' : 'um vídeo')}${msg.tipoMensagem === 'document' && msg.mensagem ? ' (' + msg.mensagem + ')' : ''}\n📱 ${msg.telefone}${dicaComprovante}\n\nDra, clique no link abaixo para analisar a foto, ouvir os últimos áudios e responder à cliente:\n🔗 ${linkTriage}`
 
-    // Tentar alertar profissionais primeiro, fallback para whatsappDoutora
-    const profissionais = await buscarProfissionais(clinica.id)
-    const whatsAppsAlertados = new Set<string>()
-
-    for (const prof of profissionais) {
-        if (prof.whatsapp && !whatsAppsAlertados.has(prof.whatsapp)) {
-            await sender.sendText(
-                { instancia: msg.instancia, telefone: prof.whatsapp, apikey: clinica.evolutionApikey || undefined },
-                alertaMensagem
-            )
-            whatsAppsAlertados.add(prof.whatsapp)
-        }
-    }
-
-    // Fallback: se nenhum profissional tem WhatsApp, alerta a dona
-    if (whatsAppsAlertados.size === 0 && clinica.whatsappDoutora) {
-        await sender.sendText(
-            { instancia: msg.instancia, telefone: clinica.whatsappDoutora, apikey: clinica.evolutionApikey || undefined },
-            alertaMensagem
-        )
+    // Profissionais com WhatsApp, senão a dona (mesmo destino dos lembretes)
+    const alertadas = await triagem.mandarParaDoutora(clinica, alertaMensagem, msg.instancia)
+    if (alertadas === 0) {
+        // Só a primeira foto da leva alerta: se este falhou, sobra o lembrete de 15 min
+        console.error(`[Pipeline] ⚠️ Alerta da foto de ${msg.telefone} NÃO chegou em ninguém — a doutora só vai saber pelo lembrete`)
     }
 
     // 7. Salvar no histórico
@@ -854,7 +889,7 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
         pushName: msg.pushName,
     })
 
-    console.log(`[Pipeline] ${tipoEmoji} Mídia (${tipoLabel}) de ${nomeCliente} → Profissionais alertados e IA pausada para triagem`)
+    console.log(`[Pipeline] ${tipoEmoji} Mídia (${tipoLabel}) de ${nomeCliente} → Profissionais alertados; IARA segue atendendo`)
 }
 
 // ============================================
@@ -867,7 +902,7 @@ interface HorarioCheck {
     debugInfo: string
 }
 
-function checkBusinessHours(clinica: DadosClinica): HorarioCheck {
+export function checkBusinessHours(clinica: DadosClinica): HorarioCheck {
     const tz = clinica.timezone || 'America/Sao_Paulo'
     const agora = new Date(new Date().toLocaleString("en-US", { timeZone: tz }))
     const horaAtual = agora.getHours() + (agora.getMinutes() / 60)

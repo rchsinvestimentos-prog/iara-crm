@@ -23,21 +23,21 @@ interface Props {
     contatoId: number
     nomeCliente: string
     midias: MidiaPendente[]
-    /** Horário da foto mais nova na tela (o servidor só dá por vistas até ela) */
-    ateMidia: () => string | undefined
     /** Avisa a página que a doutora agiu (a atualização automática descarta respostas velhas) */
     marcarAcao: () => void
     /** Mensagem enviada: a página recarrega o quadro e o chat */
-    aoEnviar: (resultado: { fotosNovas?: number; notaSalva?: boolean }) => void
+    aoEnviar: (resultado: { restantes?: number | null; notaSalva?: boolean }) => void
 }
 
 type Etapa = 'comentando' | 'preparando' | 'aprovando' | 'ajustando' | 'enviando' | 'enviado'
 
 const hora = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
-export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia, marcarAcao, aoEnviar }: Props) {
+export default function QuadroTriagem({ contatoId, nomeCliente, midias, marcarAcao, aoEnviar }: Props) {
     const [selecionadaId, setSelecionadaId] = useState<string | null>(null)
     const [comentarios, setComentarios] = useState<Record<string, string>>({})
+    // Fotos que a doutora marcou "não precisa de resposta": saem da lista sem entrar na mensagem
+    const [semResposta, setSemResposta] = useState<Set<string>>(new Set())
     const [rascunho, setRascunho] = useState('')
     const [etapa, setEtapa] = useState<Etapa>('comentando')
     const [proposta, setProposta] = useState('')
@@ -48,20 +48,23 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
     const chatRef = useRef<HTMLDivElement>(null)
     const ordem = useMemo(() => new Map(midias.map((m, i) => [m.id, i + 1])), [midias])
     const comentadas = midias.filter(m => comentarios[m.id]?.trim())
+    const dispensadas = midias.filter(m => semResposta.has(m.id))
+    const decidida = (id: string) => !!comentarios[id]?.trim() || semResposta.has(id)
+    const faltando = midias.filter(m => !decidida(m.id))
     const selecionada = midias.find(m => m.id === selecionadaId) || null
 
     // Começa (e segue) pela primeira foto ainda sem comentário
     useEffect(() => {
         if (selecionadaId && midias.some(m => m.id === selecionadaId)) return
-        const proxima = midias.find(m => !comentarios[m.id]) || midias[0]
+        const proxima = midias.find(m => !comentarios[m.id] && !semResposta.has(m.id)) || midias[0]
         setSelecionadaId(proxima?.id || null)
         setRascunho(proxima ? comentarios[proxima.id] || '' : '')
-    }, [midias, selecionadaId, comentarios])
+    }, [midias, selecionadaId, comentarios, semResposta])
 
     useEffect(() => {
         const c = chatRef.current
         if (c) c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' })
-    }, [selecionadaId, etapa, comentarios, proposta])
+    }, [selecionadaId, etapa, comentarios, semResposta, proposta])
 
     const selecionar = (id: string) => {
         setSelecionadaId(id)
@@ -76,15 +79,52 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
         }
     }
 
-    const salvarComentario = () => {
-        if (!selecionadaId || !rascunho.trim()) return
-        const novos = { ...comentarios, [selecionadaId]: rascunho.trim() }
-        setComentarios(novos)
-        voltarParaComentarios()
-        const proxima = midias.find(m => m.id !== selecionadaId && !novos[m.id])
+    const irParaProxima = (novosComentarios: Record<string, string>, novasSem: Set<string>) => {
+        const proxima = midias.find(m => m.id !== selecionadaId && !novosComentarios[m.id] && !novasSem.has(m.id))
         if (proxima) {
             setSelecionadaId(proxima.id)
             setRascunho('')
+        }
+    }
+
+    const salvarComentario = () => {
+        if (!selecionadaId || !rascunho.trim()) return
+        const novos = { ...comentarios, [selecionadaId]: rascunho.trim() }
+        const novasSem = new Set(semResposta)
+        novasSem.delete(selecionadaId)
+        setComentarios(novos)
+        setSemResposta(novasSem)
+        voltarParaComentarios()
+        irParaProxima(novos, novasSem)
+    }
+
+    // "Esta não precisa de resposta": sai da lista, não entra na mensagem, para de ser lembrada
+    const marcarSemResposta = () => {
+        if (!selecionadaId) return
+        const novos = { ...comentarios }
+        delete novos[selecionadaId]
+        const novasSem = new Set(semResposta)
+        novasSem.add(selecionadaId)
+        setComentarios(novos)
+        setSemResposta(novasSem)
+        setRascunho('')
+        voltarParaComentarios()
+        irParaProxima(novos, novasSem)
+    }
+
+    // Só fotos dispensadas, nenhuma comentada: conclui sem mandar nada à cliente
+    const concluirSemMensagem = async () => {
+        setEtapa('enviando')
+        marcarAcao()
+        try {
+            const data = await chamar({ action: 'nada', midiaIds: dispensadas.map(m => m.id) })
+            setEtapa('enviado')
+            aoEnviar(data)
+        } catch (err: any) {
+            alert(err.message || 'Não consegui concluir. Tente de novo.')
+            setEtapa('comentando')
+        } finally {
+            marcarAcao()
         }
     }
 
@@ -126,7 +166,7 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
                 texto: texto.trim(),
                 literal,
                 comentarios: listaComentarios(),
-                ateMidia: ateMidia(),
+                semResposta: dispensadas.map(m => m.id),
             })
             setEtapa('enviado')
             if (data.notaSalva === false) {
@@ -155,6 +195,7 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
                     {midias.map(m => {
                         const ativa = m.id === selecionadaId
                         const feita = !!comentarios[m.id]?.trim()
+                        const dispensada = semResposta.has(m.id)
                         return (
                             <button
                                 key={m.id}
@@ -177,6 +218,9 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
                                         <Check size={10} />
                                     </span>
                                 )}
+                                {dispensada && (
+                                    <span className="absolute top-1 right-1 bg-gray-500 text-white rounded-full px-1 text-[8px] font-bold" title="Não precisa de resposta">—</span>
+                                )}
                                 <span className="block text-[9px] text-gray-500 text-center">{hora(m.createdAt)}</span>
                             </button>
                         )
@@ -190,11 +234,11 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
                     Oi, Doutora! {primeiroNome} mandou {midias.length === 1 ? 'uma foto' : `${midias.length} fotos`}. Me diz o que fazer com cada uma — por texto ou áudio. A que você não comentar fica de fora.
                 </BalaoIara>
 
-                {comentadas.map(m => (
+                {midias.filter(m => decidida(m.id)).map(m => (
                     <BalaoDoutora key={m.id}>
                         <span className="flex gap-2 items-start">
                             {m.tipo === 'imagem' && <img src={m.url} alt="" className="w-8 h-8 object-cover rounded" />}
-                            <span><b>Foto {ordem.get(m.id)}:</b> {comentarios[m.id]}</span>
+                            <span><b>Foto {ordem.get(m.id)}:</b> {semResposta.has(m.id) ? <i>não precisa de resposta</i> : comentarios[m.id]}</span>
                         </span>
                     </BalaoDoutora>
                 ))}
@@ -203,6 +247,13 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
                     <BalaoIara>
                         Entendi! Posso mandar isto para {primeiroNome}?
                         <span className="block mt-2 p-2 rounded-lg bg-white dark:bg-black/20 border whitespace-pre-wrap">{proposta}</span>
+                        {faltando.length > 0 && (
+                            <span className="block mt-2 text-[10px] text-amber-700 dark:text-amber-400">
+                                {faltando.length === 1
+                                    ? `A foto ${ordem.get(faltando[0].id)} ficou sem comentário — ela continua na lista e eu te lembro dela.`
+                                    : `As fotos ${faltando.map(m => ordem.get(m.id)).join(', ')} ficaram sem comentário — continuam na lista e eu te lembro delas.`}
+                            </span>
+                        )}
                     </BalaoIara>
                 )}
 
@@ -213,10 +264,20 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
                 )}
 
                 {/* A foto escolhida agora aparece no chat, com a pergunta da IARA */}
-                {etapa === 'comentando' && selecionada && (
+                {etapa === 'comentando' && faltando.length === 0 && (
+                    <BalaoIara>
+                        Pronto, Doutora! Todas as fotos têm decisão.{' '}
+                        {comentadas.length > 0
+                            ? <>Toque em <b>Responder à IARA</b> que eu preparo a mensagem para {primeiroNome}.</>
+                            : <>Nenhuma pede resposta: toque em <b>Concluir</b> e nada é enviado.</>}
+                        {' '}Para mudar alguma, é só tocar nela.
+                    </BalaoIara>
+                )}
+
+                {etapa === 'comentando' && selecionada && !decidida(selecionada.id) && (
                     <BalaoIara>
                         <span className="block mb-1.5">
-                            {comentarios[selecionada.id] ? 'Quer mudar o comentário da' : 'E a'} <b>foto {ordem.get(selecionada.id)}</b>? O que faço com ela?
+                            E a <b>foto {ordem.get(selecionada.id)}</b>? O que faço com ela?
                         </span>
                         {selecionada.tipo === 'imagem' ? (
                             <a href={selecionada.url} target="_blank" rel="noreferrer" title="Abrir em tamanho real">
@@ -247,8 +308,18 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
                         className="input-field text-[11px] h-14 w-full"
                     />
                     <div className="flex flex-wrap gap-2 items-center justify-between">
-                        <BotaoGravarAudio onTexto={t => setRascunho(prev => (prev.trim() ? `${prev.trim()} ${t}` : t))} />
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
+                            <BotaoGravarAudio onTexto={t => setRascunho(prev => (prev.trim() ? `${prev.trim()} ${t}` : t))} />
+                            <button
+                                type="button"
+                                onClick={marcarSemResposta}
+                                title="Ela sai da lista, não entra na mensagem e eu paro de lembrar dela"
+                                className="px-2 py-1 rounded-lg border border-gray-300 dark:border-white/10 text-gray-600 dark:text-gray-300 text-[9px] font-bold cursor-pointer"
+                            >
+                                Esta não precisa de resposta
+                            </button>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
                             <button
                                 type="button"
                                 onClick={salvarComentario}
@@ -257,6 +328,16 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
                             >
                                 <Check size={10} /> {comentarios[selecionada.id] ? 'Atualizar comentário' : 'Salvar comentário'}
                             </button>
+                            {comentadas.length === 0 && dispensadas.length > 0 ? (
+                                <button
+                                    type="button"
+                                    onClick={concluirSemMensagem}
+                                    title="Nada é enviado à cliente; as fotos marcadas saem da lista"
+                                    className="px-3 py-1 rounded-lg bg-gray-600 hover:bg-gray-700 text-white font-bold text-[9px] flex items-center gap-1 cursor-pointer"
+                                >
+                                    <Check size={10} /> Concluir (nada é enviado)
+                                </button>
+                            ) : (
                             <button
                                 type="button"
                                 onClick={preparar}
@@ -266,6 +347,7 @@ export default function QuadroTriagem({ contatoId, nomeCliente, midias, ateMidia
                             >
                                 <Bot size={10} /> Responder à IARA ({comentadas.length} {comentadas.length === 1 ? 'foto comentada' : 'fotos comentadas'})
                             </button>
+                            )}
                         </div>
                     </div>
                 </div>

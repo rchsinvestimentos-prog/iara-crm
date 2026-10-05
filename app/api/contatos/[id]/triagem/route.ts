@@ -7,8 +7,10 @@ import * as aiEngine from '@/lib/engine/ai-engine'
 import * as memory from '@/lib/engine/memory'
 import * as calendar from '@/lib/engine/calendar'
 import { parseFuncionalidades, type DadosClinica } from '@/lib/engine/types'
-import { marcarTriagemResolvida } from '@/lib/midia-na-conversa'
-import { agendarLembreteTriagem } from '@/lib/triagem-lembrete'
+import {
+    decidirMidias, midiasPendentesDoContato, adiarLembrete, instanciaDaClinica,
+    nomeDaDoutora, semEmojiSePreciso, type ComoDecidiu,
+} from '@/lib/triagem'
 
 // POST /api/contatos/[id]/triagem
 export async function POST(
@@ -51,8 +53,15 @@ export async function POST(
         // 2. Ler parâmetros do body
         const body = await request.json()
         const { action, mensagem, minutos } = body
-        // Horário da foto mais nova que estava na tela da doutora (ver marcarTriagemResolvida)
-        const ateMidia = body.ateMidia ? new Date(body.ateMidia) : null
+        // Fotos que estavam na tela da doutora quando ela decidiu. Foto que
+        // chegou depois continua esperando (e sendo lembrada).
+        const midiasNaTela: string[] = Array.isArray(body.midiaIds) ? body.midiaIds.map(String).slice(0, 50) : []
+        const decidirTela = async (como: ComoDecidiu) => {
+            const ids = midiasNaTela.length > 0
+                ? midiasNaTela
+                : (await midiasPendentesDoContato(clinica.id, contato.id)).map(m => m.id)
+            return decidirSemTravar(clinica.id, contato.id, ids, como)
+        }
 
         if (!action) {
             return NextResponse.json({ error: 'Ação é obrigatória' }, { status: 400 })
@@ -103,9 +112,9 @@ Seja objetiva, vá direto ao ponto e não invente nada além do que a Doutora fa
                 DELETE FROM status_conversa
                 WHERE telefone_cliente = ${contato.telefone} AND user_id = ${clinica.id}
             `
-            const fotosNovas = await marcarTriagemResolvidaSemTravar(clinica.id, contato.telefone, ateMidia)
+            const restantes = await decidirTela('respondida')
 
-            return NextResponse.json({ ok: true, respostaEnviada: respostaFinal, fotosNovas })
+            return NextResponse.json({ ok: true, respostaEnviada: respostaFinal, restantes })
         }
 
         // ============================================
@@ -258,33 +267,33 @@ Não invente nada além disso e não use marcadores entre colchetes.`
                 DELETE FROM status_conversa
                 WHERE telefone_cliente = ${contato.telefone} AND user_id = ${clinica.id}
             `
-            const fotosNovas = await marcarTriagemResolvidaSemTravar(clinica.id, contato.telefone, ateMidia)
+            const restantes = await decidirTela('agendou')
 
-            return NextResponse.json({ ok: true, respostaEnviada: textoFinal, fotosNovas })
+            return NextResponse.json({ ok: true, respostaEnviada: textoFinal, restantes })
         }
 
+        // ============================================
+        // ME LEMBRE EM X MIN: a doutora está ocupada
+        // ============================================
+        // A cliente fica sabendo; a IARA continua o atendimento normal (sem
+        // falar das fotos) e a doutora recebe o próximo lembrete em X minutos.
         if (action === 'lembrar') {
             const mins = Number(minutos) || 30
-            console.log(`[Triage API] ⏳ Adiada triagem para ${contato.telefone} por ${mins} minutos`)
+            console.log(`[Triage API] ⏳ Doutora pediu lembrete de ${contato.telefone} em ${mins} minutos`)
 
-            // Atualizar o tempo da pausa temporária por triagem pendente
-            await prisma.$executeRaw`
-                INSERT INTO status_conversa (telefone_cliente, user_id, pausa_ate, motivo, updated_at)
-                VALUES (${contato.telefone}, ${clinica.id}, NOW() + ${mins + ' minutes'}::INTERVAL, 'triagem_pendente', NOW())
-                ON CONFLICT (telefone_cliente, user_id)
-                DO UPDATE SET pausa_ate = NOW() + ${mins + ' minutes'}::INTERVAL, motivo = 'triagem_pendente', updated_at = NOW()
-            `
-
-            // Lembrete de verdade no WhatsApp da doutora (antes só adiava o silêncio)
             let lembreteAgendado = true
             try {
-                await agendarLembreteTriagem(clinica.id, contato.id, mins)
+                await adiarLembrete(clinica.id, contato.id, mins)
             } catch (err) {
                 lembreteAgendado = false
                 console.error(`[Triage API] Erro ao agendar lembrete de ${contato.telefone}:`, err)
             }
 
-            return NextResponse.json({ ok: true, lembreteAgendado, adiadoAte: new Date(Date.now() + mins * 60 * 1000).toISOString() })
+            const textoCliente = semEmojiSePreciso(clinica,
+                `${capitalizar(nomeDaDoutora(clinica))} está em atendimento neste momento, mas assim que possível volta a falar com você sobre a sua foto 😊`)
+            const clienteAvisada = await avisarCliente(clinica, contato.telefone, textoCliente)
+
+            return NextResponse.json({ ok: true, lembreteAgendado, clienteAvisada })
         }
 
         if (action === 'assumir') {
@@ -303,10 +312,14 @@ Não invente nada além disso e não use marcadores entre colchetes.`
                 where: { id: contato.id },
                 data: { iaPausada: true }
             })
-            // A doutora assumiu a conversa: as fotos novas ela vê no próprio WhatsApp
-            await marcarTriagemResolvidaSemTravar(clinica.id, contato.telefone, ateMidia, false)
+            // Pausa gravada primeiro; só então a cliente ouve que a doutora vai assumir
+            const textoCliente = semEmojiSePreciso(clinica,
+                `${capitalizar(nomeDaDoutora(clinica))} vai assumir o seu atendimento e já vem falar com você 😊`)
+            const clienteAvisada = await avisarCliente(clinica, contato.telefone, textoCliente)
 
-            return NextResponse.json({ ok: true })
+            const restantes = await decidirTela('assumiu')
+
+            return NextResponse.json({ ok: true, clienteAvisada, restantes })
         }
 
         // ============================================
@@ -400,26 +413,33 @@ ${comentarios.length > 1 ? 'Quando precisar diferenciar as fotos, diga "na prime
             } catch (err) {
                 console.error(`[Triage API] Erro ao liberar a IARA para ${contato.telefone} depois do envio:`, err)
             }
-            const fotosNovas = await marcarTriagemResolvidaSemTravar(clinica.id, contato.telefone, ateMidia)
-            console.log(`[Triage API] ✉️ Resposta da triagem enviada para ${contato.telefone} (${body.literal ? 'texto da doutora' : 'texto da IARA aprovado'})`)
-            return NextResponse.json({ ok: true, fotosNovas, notaSalva })
+            // Só as fotos comentadas (e as marcadas "não precisa de resposta")
+            // saem da lista; a que ficou sem comentário segue sendo lembrada
+            const semResposta: string[] = Array.isArray(body.semResposta) ? body.semResposta.map(String).slice(0, 50) : []
+            await decidirSemTravar(clinica.id, contato.id, comentarios.map(c => c.midiaId), 'respondida')
+            const restantes = await decidirSemTravar(clinica.id, contato.id, semResposta, 'sem_resposta')
+            console.log(`[Triage API] ✉️ Resposta da triagem enviada para ${contato.telefone} (${body.literal ? 'texto da doutora' : 'texto da IARA aprovado'}); faltam ${restantes ?? '?'} foto(s)`)
+            return NextResponse.json({ ok: true, restantes, notaSalva })
         }
 
         // ============================================
         // NÃO FAZER NADA: a foto não pede resposta
         // ============================================
-        // Nada é enviado à cliente. A IARA volta a atender a conversa e as
-        // fotos saem do quadro "Aguardando ação".
+        // Nada é enviado à cliente. As fotos saem do quadro e os lembretes
+        // param (a pausa antiga de triagem, se ainda existir, é desfeita).
         if (action === 'nada') {
             await prisma.$executeRaw`
                 DELETE FROM status_conversa
                 WHERE telefone_cliente = ${contato.telefone} AND user_id = ${clinica.id}
                   AND motivo = 'triagem_pendente'
             `
-            // Se chegou foto que a doutora não viu, a marcação reabre o quadro
-            const fotosNovas = await marcarTriagemResolvida(clinica.id, contato.telefone, ateMidia)
-            console.log(`[Triage API] 🙅 Doutora marcou "não fazer nada" para ${contato.telefone}${fotosNovas ? ` — ${fotosNovas} foto(s) nova(s) mantêm o quadro aberto` : ''}`)
-            return NextResponse.json({ ok: true, fotosNovas })
+            const ids = midiasNaTela.length > 0
+                ? midiasNaTela
+                : (await midiasPendentesDoContato(clinica.id, contato.id)).map(m => m.id)
+            // Aqui a falha vira erro na tela: nada foi enviado, a doutora pode tentar de novo
+            const restantes = await decidirMidias(clinica.id, contato.id, ids, 'nada')
+            console.log(`[Triage API] 🙅 Doutora marcou "não fazer nada" para ${contato.telefone} (${ids.length} foto(s)); faltam ${restantes}`)
+            return NextResponse.json({ ok: true, restantes })
         }
 
         return NextResponse.json({ error: 'Ação inválida' }, { status: 400 })
@@ -431,20 +451,43 @@ ${comentarios.length > 1 ? 'Quando precisar diferenciar as fotos, diga "na prime
 }
 
 // A mensagem já saiu para a cliente: falhar aqui não pode virar erro na tela
-// (a doutora mandaria de novo). Só deixa as fotos no quadro e registra.
-async function marcarTriagemResolvidaSemTravar(
-    clinicaId: number, telefone: string, ateMidia: Date | null, reabrir = true,
-): Promise<number> {
-    // Tenta duas vezes; se não der, as fotos já respondidas voltariam a
-    // aparecer na próxima triagem — fica registrado
+// (a doutora mandaria de novo). Tenta duas vezes; se não der, as fotos seguem
+// na lista (e nos lembretes) — fica registrado. null = não deu para saber.
+async function decidirSemTravar(clinicaId: number, contatoId: number, ids: string[], como: ComoDecidiu): Promise<number | null> {
     for (let tentativa = 1; tentativa <= 2; tentativa++) {
         try {
-            return await marcarTriagemResolvida(clinicaId, telefone, ateMidia, reabrir)
+            return await decidirMidias(clinicaId, contatoId, ids, como)
         } catch (err) {
-            console.error(`[Triage API] Erro ao marcar triagem resolvida de ${telefone} (tentativa ${tentativa}/2):`, err)
+            console.error(`[Triage API] Erro ao marcar ${ids.length} foto(s) do contato ${contatoId} como "${como}" (tentativa ${tentativa}/2):`, err)
         }
     }
-    return 0
+    return null
+}
+
+// Aviso curto para a cliente quando a doutora assume ou pede um tempo.
+// Não trava a ação da doutora se falhar — devolve false para a tela avisar.
+async function avisarCliente(clinica: DadosClinica | any, telefone: string, texto: string): Promise<boolean> {
+    try {
+        const instancia = await instanciaDaClinica(clinica)
+        if (!instancia) {
+            console.error(`[Triage API] Clínica ${clinica.id} sem instância — aviso para ${telefone} não saiu`)
+            return false
+        }
+        const ok = await sender.sendText({ instancia, telefone, apikey: clinica.evolutionApikey || undefined }, texto)
+        if (!ok) {
+            console.error(`[Triage API] Falha ao avisar a cliente ${telefone}`)
+            return false
+        }
+        await memory.saveToHistory(clinica.id, telefone, 'assistant', texto)
+        return true
+    } catch (err) {
+        console.error(`[Triage API] Erro ao avisar a cliente ${telefone}:`, err)
+        return false
+    }
+}
+
+function capitalizar(t: string): string {
+    return t.charAt(0).toUpperCase() + t.slice(1)
 }
 
 // Comentários da doutora por foto, na ordem em que as fotos chegaram.

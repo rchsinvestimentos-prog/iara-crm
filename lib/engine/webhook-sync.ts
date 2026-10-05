@@ -10,7 +10,7 @@
 // o webhook TEM que estar ativo. Sem exceção.
 
 import { registrarQueda, registrarVolta, conferirQuedas } from '@/lib/whatsapp-queda'
-import { enviarLembretesVencidos } from '@/lib/triagem-lembrete'
+import { processarLembretes, iniciarRelogioTriagem } from '@/lib/triagem'
 
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || ''
@@ -243,9 +243,10 @@ export async function ensureAllWebhooks(): Promise<{
         console.error('[Guardian] Erro ao conferir quedas de WhatsApp:', err)
     }
 
-    // "Me lembre em 30 min" cujo setTimeout se perdeu num reinício
+    // Lembretes de foto sem parecer (o relógio do processo pode ter parado num reinício)
     try {
-        await enviarLembretesVencidos()
+        iniciarRelogioTriagem()
+        await processarLembretes()
     } catch (err) {
         console.error('[Guardian] Erro ao enviar lembretes de triagem:', err)
     }

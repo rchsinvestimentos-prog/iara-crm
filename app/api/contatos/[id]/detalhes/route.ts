@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { midiasPendentes } from '@/lib/midia-na-conversa'
+import { midiasPendentesDoContato } from '@/lib/triagem'
 
 // GET /api/contatos/[id]/detalhes
 // Retorna os dados completos do contato, histórico de agendamentos e fichas preenchidas
@@ -90,33 +90,22 @@ export async function GET(
             })
         })
 
-        // 3.6. Verificar se o contato está em triagem
-        let emTriagem = false
-        try {
-            const triageStatus = await prisma.$queryRaw<any[]>`
-                SELECT motivo, status_conversa.pausa_ate FROM status_conversa 
-                WHERE telefone_cliente = ${contato.telefone} AND user_id = ${cid}
-                LIMIT 1
-            `
-            emTriagem = triageStatus.length > 0 && 
-                        triageStatus[0].motivo === 'triagem_pendente' && 
-                        new Date() < new Date(triageStatus[0].pausa_ate)
-        } catch (triageErr) {
-            console.error('[GET /api/contatos/[id]/detalhes] Erro ao buscar triagem:', triageErr)
-        }
-
-        // Todas as fotos da leva que espera a doutora (o quadro mostrava só a última)
+        // 3.6. Triagem: fotos que a cliente mandou e ainda esperam a doutora.
+        // Desde 05/10 a IARA não pausa mais por foto; o quadro aparece
+        // enquanto houver foto sem decisão (lib/triagem.ts).
         let midiasTriagem: typeof midias = []
         let midiasTriagemIncompleta = false
-        if (emTriagem) {
-            try {
-                midiasTriagem = await midiasPendentes(cid, contato.telefone, midias)
-            } catch (err) {
-                console.error('[GET /api/contatos/[id]/detalhes] Erro ao buscar fotos pendentes:', err)
-                // A tela avisa e manda a doutora para a Galeria
-                midiasTriagemIncompleta = true
-            }
+        try {
+            const pendentes = new Set((await midiasPendentesDoContato(cid, contato.id)).map(m => m.id))
+            midiasTriagem = midias
+                .filter(m => pendentes.has(m.id))
+                .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        } catch (err) {
+            console.error('[GET /api/contatos/[id]/detalhes] Erro ao buscar fotos pendentes:', err)
+            // A tela avisa e manda a doutora para a Galeria
+            midiasTriagemIncompleta = true
         }
+        const emTriagem = midiasTriagem.length > 0 || midiasTriagemIncompleta
 
         // Ordenar do mais novo para o mais antigo
         timeline.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
