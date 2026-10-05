@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "simulacao": "npx --yes tsx --env-file-if-exists=.env.local --env-file-if-exists=.env tests/simulacao/rodar.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

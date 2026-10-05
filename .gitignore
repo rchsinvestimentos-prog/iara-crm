@@ -56,3 +56,10 @@ test_pg_nopass.js
 test_pg_timeout.js
 test_prisma_diag.ts
 *.bak
+
+# Simulação com prints (tests/simulacao)
+tests/simulacao/relatorios/
+tests/simulacao/.uploads/
+tests/simulacao/.painel.*
+tests/simulacao/.ultima-execucao.log
+tests/simulacao/.clinica-original.json

@@ -339,18 +339,39 @@ Não invente nada além disso e não use marcadores entre colchetes.`
             const tratamento = !primeiroNome ? 'a Doutora'
                 : formaTratamento === 'Pelo nome' ? primeiroNome
                 : `${formaTratamento} ${primeiroNome}`
-            const listaFotos = comentarios.length === 1
-                ? `Comentário sobre a foto:\n${comentarios[0].comentario}`
-                : comentarios.map((c, i) => `Foto ${i + 1}: ${c.comentario}`).join('\n')
+            // Posição real de cada foto na leva (a doutora pode comentar só a 2ª de 3)
+            const ORDINAL = ['primeira', 'segunda', 'terceira', 'quarta', 'quinta', 'sexta', 'sétima', 'oitava', 'nona', 'décima']
+            let numeracaoIncerta = false
+            const leva = await midiasPendentesDoContato(clinica.id, contato.id).catch(err => {
+                // Sem a leva não dá para saber qual foto é qual: texto neutro, sem "primeira/segunda"
+                console.error(`[Triage API] Não consegui ler a leva de fotos de ${contato.telefone} para numerar:`, err)
+                numeracaoIncerta = true
+                return []
+            })
+            const totalFotos = Math.max(leva.length, comentarios.length)
+            const posicao = (midiaId: string) => {
+                const i = leva.findIndex(m => m.id === midiaId)
+                return i >= 0 ? i : comentarios.findIndex(c => c.midiaId === midiaId)
+            }
+            const nomeFoto = (i: number) => `a ${ORDINAL[i] || `${i + 1}ª`} foto`
+            const listaFotos = comentarios
+                .map(c => numeracaoIncerta ? `- ${c.comentario}` : `Sobre ${nomeFoto(posicao(c.midiaId))}: ${c.comentario}`)
+                .join('\n')
+            const avaliadasTexto = comentarios.map(c => nomeFoto(posicao(c.midiaId))).join(', ')
+            const parcial = comentarios.length < totalFotos
 
             const systemPrompt = `Você é a ${clinica.nomeAssistente || 'IARA'}, assistente virtual da clínica "${clinica.nomeClinica || 'a clínica'}".
-A cliente mandou ${comentarios.length === 1 ? 'uma foto' : `${comentarios.length} fotos`} e ${tratamento} avaliou. Abaixo estão os comentários dela.
+${numeracaoIncerta
+    ? `A cliente mandou fotos e ${tratamento} comentou parte delas. NÃO diga quantas foram avaliadas, NÃO use "primeira/segunda foto" e NÃO diga que todas foram vistas.`
+    : `A cliente mandou ${totalFotos === 1 ? 'uma foto' : `${totalFotos} fotos`}. ${tratamento} avaliou ${parcial ? `APENAS ${avaliadasTexto}` : (totalFotos === 1 ? 'a foto' : 'todas')}.`} Abaixo estão os comentários dela.
 
 Escreva UMA mensagem de WhatsApp para a cliente que passe TODOS os comentários, na mesma ordem.
-${comentarios.length > 1 ? 'Quando precisar diferenciar as fotos, diga "na primeira foto", "na segunda foto" etc.' : ''}
+${totalFotos > 1 && !numeracaoIncerta ? 'Diga de qual foto está falando ("na primeira foto", "na segunda foto"...).' : ''}
+${parcial && !numeracaoIncerta ? `- As outras fotos AINDA NÃO foram avaliadas. É PROIBIDO dizer "suas fotos", "as fotos" ou dar a entender que todas foram vistas. Fale só de ${avaliadasTexto}.` : ''}
 - Fale como a assistente da clínica: carinhosa, natural, profissional, emojis moderados.
 - Diga que foi ${tratamento} quem avaliou.
 - NÃO invente nada além do que ${tratamento} disse: nada de preço, prazo, diagnóstico ou promessa que não esteja nos comentários.
+- NÃO acrescente convite, pergunta ou oferta que ${tratamento} não pediu (ex.: "quer agendar?", "vamos marcar uma consulta?").
 - Sem saudação longa (vocês já estão conversando). Responda só com o texto da mensagem, sem aspas e sem explicações.`
 
             const historico = await memory.getConversationHistory(clinica.id, contato.telefone, 10)
