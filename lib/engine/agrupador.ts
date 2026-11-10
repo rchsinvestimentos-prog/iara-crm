@@ -137,6 +137,13 @@ export async function receber(
     msg: MensagemRecebida,
     despachar: (m: MensagemRecebida) => void
 ): Promise<void> {
+    // Mensagem da doutora (fromMe) nunca entra no lote: o lote não guarda de
+    // quem é cada linha e sai marcado como da paciente.
+    if (msg.isFromMe) {
+        despachar(msg)
+        return
+    }
+
     // Foto, vídeo e documento têm tratamento próprio no pipeline e seguem
     // direto. Antes, o texto que já esperava é despachado, senão ficaria
     // pendurado atrás de uma mídia que não passa pelo lote.

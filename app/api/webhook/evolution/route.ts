@@ -18,6 +18,7 @@ import { prisma } from '@/lib/prisma'
 import { autoCaptureCRM } from '@/lib/auto-capture'
 import { processMessage } from '@/lib/engine'
 import * as agrupador from '@/lib/engine/agrupador'
+import { foiEnviadaPelaIara } from '@/lib/engine/sender'
 import type { MensagemRecebida } from '@/lib/engine'
 import { ensureWebhook } from '@/lib/engine/webhook-sync'
 import { registrarQueda, registrarVolta } from '@/lib/whatsapp-queda'
@@ -294,6 +295,18 @@ export async function POST(request: NextRequest) {
             processMessage(m).catch((err) => {
                 console.error('[Webhook] ❌ Erro no pipeline:', err)
             })
+        }
+
+        // Mensagem que a doutora digitou no celular (fromMe) vai direto: no
+        // agrupador ela perdia a marca de "é da doutora", entrava no lote da
+        // paciente e a IARA respondia a ela em vez de pausar. O eco das
+        // mensagens que a própria IARA mandou é ignorado.
+        if (isFromMe) {
+            if (foiEnviadaPelaIara(key.id)) {
+                return NextResponse.json({ ok: true, ignored: 'eco_da_iara' })
+            }
+            despachar(mensagem)
+            return NextResponse.json({ ok: true, requestId: mensagem.requestId, fromMe: true })
         }
 
         agrupador.receber(mensagem, despachar).catch((err) => {

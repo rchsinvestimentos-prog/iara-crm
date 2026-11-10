@@ -11,6 +11,36 @@
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || ''
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || ''
 
+// Ids das mensagens que a própria IARA mandou. O WhatsApp pode devolver o
+// envio como mensagem "fromMe" (do número da clínica); sem esta lista, o
+// webhook confundiria a resposta da IARA com a doutora assumindo a conversa
+// e pausaria a IARA depois de cada resposta. Guarda por 10 minutos.
+const ENVIADAS_PELA_IARA: Map<string, number> =
+    ((globalThis as any).__iaraEnviadas ??= new Map<string, number>())
+const VALIDADE_ENVIADA_MS = 10 * 60 * 1000
+
+async function lembrarEnvio(res: Response): Promise<void> {
+    try {
+        const corpo: any = await res.json()
+        const id = corpo?.key?.id
+        if (typeof id !== 'string' || !id) return
+        const agora = Date.now()
+        ENVIADAS_PELA_IARA.set(id, agora)
+        if (ENVIADAS_PELA_IARA.size > 5000) {
+            for (const [k, t] of ENVIADAS_PELA_IARA) if (agora - t > VALIDADE_ENVIADA_MS) ENVIADAS_PELA_IARA.delete(k)
+        }
+    } catch {
+        // Resposta sem JSON: o envio deu certo, só não dá para reconhecer o eco.
+    }
+}
+
+/** A mensagem com este id foi mandada pela própria IARA nos últimos 10 min? */
+export function foiEnviadaPelaIara(id: string | undefined | null): boolean {
+    if (!id) return false
+    const t = ENVIADAS_PELA_IARA.get(id)
+    return t !== undefined && Date.now() - t < VALIDADE_ENVIADA_MS
+}
+
 interface SendOptions {
     instancia: string
     telefone: string
@@ -57,6 +87,7 @@ export async function sendText(
         })
 
         if (res.ok) {
+            await lembrarEnvio(res)
             console.log(`[Sender] ✅ Texto enviado para ${numero} via ${instancia}`)
             return true
         } else {
@@ -99,6 +130,7 @@ export async function sendAudio(
         })
 
         if (res.ok) {
+            await lembrarEnvio(res)
             console.log(`[Sender] ✅ Áudio enviado para ${numero}`)
             return true
         } else {
@@ -153,6 +185,7 @@ export async function sendMedia(
         })
 
         if (res.ok) {
+            await lembrarEnvio(res)
             console.log(`[Sender] ✅ ${arquivo.mediatype} enviado para ${numero} (${arquivo.fileName})`)
             return true
         } else {
@@ -193,6 +226,7 @@ export async function sendImage(
         })
 
         if (res.ok) {
+            await lembrarEnvio(res)
             console.log(`[Sender] ✅ Imagem enviada para ${numero}`)
             return true
         } else {

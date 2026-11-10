@@ -98,7 +98,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
 
     if (!acesso.permitido) {
         await logPipeline('BLOCKED', `motivo=${acesso.motivo} inst=${msg.instancia}`)
-        if (acesso.mensagemBloqueio && acesso.motivo === 'sem_creditos' && acesso.clinica) {
+        if (!msg.isFromMe && acesso.mensagemBloqueio && acesso.motivo === 'sem_creditos' && acesso.clinica) {
             await sender.sendText(
                 { instancia: msg.instancia, telefone: msg.telefone, apikey: acesso.clinica.evolutionApikey || undefined },
                 acesso.mensagemBloqueio
@@ -128,7 +128,6 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // → Avisa a Dra que IARA vai pausar
     if (msg.isFromMe || isDoutora) {
         const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
-        const nomeIA = clinica.nomeAssistente || 'Iara'
 
         // Se é feedback ("iara:" ou "feedback:") — não é intervenção humana
         if (isDoutora) {
@@ -156,22 +155,26 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
             }
         }
 
-        // Pausa 10 min (SEMPRE — anti-duplicação)
-        await pausarConversa(clinica.id, msg.telefone, 10, 'intervencao_humana')
-
         // Se isFromMe (Dra respondeu direto ao cliente) → pausa 3h
         if (msg.isFromMe) {
-            await pausarConversa(clinica.id, msg.telefone, 180, 'dra_assumiu')
-            console.log(`[Pipeline] 👩‍⚕️ Dra assumiu → pausa 3h para ${msg.telefone}`)
+            const r = await assumirConversa(clinica.id, msg.telefone)
+            if (r === 'erro') {
+                // Sem pausa gravada não dá para prometer pausa: nada de aviso.
+                console.error(`[Pipeline] ❌❌ Dra assumiu ${msg.telefone} mas a pausa NÃO foi gravada — a IARA pode responder essa cliente`)
+                return
+            }
+            console.log(`[Pipeline] 👩‍⚕️ Dra assumiu → pausa 3h para ${msg.telefone}${r === 'renovada' ? ' (renovada)' : ''}`)
 
-            // Avisar a Dra que IARA vai pausar
-            if (clinica.whatsappDoutora) {
+            // Avisar a Dra que IARA vai pausar (só na primeira mensagem dela)
+            if (clinica.whatsappDoutora && r === 'primeira') {
                 await sender.sendText(
                     { instancia: msg.instancia, telefone: clinica.whatsappDoutora, apikey: clinica.evolutionApikey || undefined },
-                    `Dra, vi que você respondeu diretamente para *${msg.telefone}* 👩‍⚕️\n\nVou pausar o atendimento automático dessa cliente por *3 horas* pra você continuar tranquilamente.\n\nSe quiser que eu volte antes, é só me mandar:\n✅ *"${nomeIA} volta"* — retomo o atendimento agora\n⏰ *"${nomeIA} volta em X min"* — retomo em X minutos`
+                    `Dra, vi que você respondeu diretamente para *${msg.telefone}* 👩‍⚕️\n\nVou pausar o atendimento automático dessa cliente por *3 horas* pra você continuar tranquilamente. Cada mensagem sua para ela conta as 3 horas de novo; depois disso eu volto sozinha.`
                 )
             }
         } else {
+            // Pausa 10 min (anti-duplicação) quando a doutora escreve no número da IARA
+            await pausarConversa(clinica.id, msg.telefone, 10, 'intervencao_humana')
             console.log(`[Pipeline] 👩‍⚕️ Intervenção humana → pausa 10 min para ${msg.telefone}`)
         }
 
@@ -702,16 +705,70 @@ function isEmojiOnly(text: string): boolean {
 // PAUSA (dona tá falando / mídia)
 // ============================================
 
+/**
+ * Pausa a IARA para uma paciente.
+ *
+ * Nunca encurta uma pausa maior que já esteja valendo (ex.: os 10 min de
+ * intervenção não podem cortar as 3 h de "Dra assumiu"). O motivo só muda
+ * quando a pausa nova é a que vale mais. Mensagem nova da doutora conta as
+ * 3 h de novo a partir de agora, porque o fim novo é mais tarde.
+ */
 async function pausarConversa(userId: number, telefone: string, minutos: number, motivo: string): Promise<void> {
     try {
         await prisma.$executeRaw`
             INSERT INTO status_conversa (telefone_cliente, user_id, pausa_ate, motivo, updated_at)
             VALUES (${telefone}, ${userId}, NOW() + ${minutos + ' minutes'}::INTERVAL, ${motivo}, NOW())
             ON CONFLICT (telefone_cliente, user_id)
-            DO UPDATE SET pausa_ate = NOW() + ${minutos + ' minutes'}::INTERVAL, motivo = ${motivo}, updated_at = NOW()
+            DO UPDATE SET
+                pausa_ate = GREATEST(COALESCE(status_conversa.pausa_ate, NOW()), EXCLUDED.pausa_ate),
+                motivo = CASE WHEN EXCLUDED.pausa_ate >= COALESCE(status_conversa.pausa_ate, NOW())
+                              THEN EXCLUDED.motivo ELSE status_conversa.motivo END,
+                updated_at = NOW()
         `
     } catch (e) {
         console.error('[Pipeline] Erro ao pausar conversa:', e)
+    }
+}
+
+/**
+ * A doutora assumiu a conversa: pausa 3 h e diz se é a PRIMEIRA mensagem
+ * dela nesta conversa (para o aviso sair uma vez só).
+ *
+ * Sem ler-e-depois-gravar: balões seguidos da doutora chegam juntos, e todos
+ * leriam "ainda não assumida" e mandariam o aviso repetido. Aqui quem decide
+ * é o próprio banco — só um comando consegue criar a linha ou trocar o motivo
+ * para dra_assumiu; os outros só esticam as 3 h. Nunca encurta pausa maior.
+ */
+async function assumirConversa(userId: number, telefone: string): Promise<'primeira' | 'renovada' | 'erro'> {
+    try {
+        const criada = await prisma.$queryRaw<{ ok: number }[]>`
+            INSERT INTO status_conversa (telefone_cliente, user_id, pausa_ate, motivo, updated_at)
+            VALUES (${telefone}, ${userId}, NOW() + INTERVAL '180 minutes', 'dra_assumiu', NOW())
+            ON CONFLICT (telefone_cliente, user_id) DO NOTHING
+            RETURNING 1 AS ok
+        `
+        if (criada.length > 0) return 'primeira'
+
+        const trocada = await prisma.$queryRaw<{ ok: number }[]>`
+            UPDATE status_conversa SET
+                pausa_ate = GREATEST(COALESCE(pausa_ate, NOW()), NOW() + INTERVAL '180 minutes'),
+                motivo = 'dra_assumiu', updated_at = NOW()
+            WHERE telefone_cliente = ${telefone} AND user_id = ${userId}
+              AND NOT (motivo = 'dra_assumiu' AND pausa_ate > NOW())
+            RETURNING 1 AS ok
+        `
+        if (trocada.length > 0) return 'primeira'
+
+        const esticada = await prisma.$executeRaw`
+            UPDATE status_conversa SET
+                pausa_ate = GREATEST(COALESCE(pausa_ate, NOW()), NOW() + INTERVAL '180 minutes'),
+                updated_at = NOW()
+            WHERE telefone_cliente = ${telefone} AND user_id = ${userId}
+        `
+        return esticada > 0 ? 'renovada' : 'erro'
+    } catch (e) {
+        console.error('[Pipeline] Erro ao pausar conversa assumida pela Dra:', e)
+        return 'erro'
     }
 }
 
