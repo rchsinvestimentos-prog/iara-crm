@@ -115,6 +115,9 @@ export const config = {
          * - api/webhook
          * - api/cron/
          * - api/pagamentos/webhook/  (avisos do Asaas e do Assiny)
+         * - api/hotmart/webhook  (vendas dos afiliados). Ficava de fora até
+         *   10/11/2026: a Hotmart levava 307 para /login e nenhuma venda dela
+         *   chegava na rota. A rota confere o HOTMART_HOTTOK.
          * - api/pagamentos/checkout-publico  (compra pela página de vendas)
          * - vozes/   (amostras de voz do catálogo, em public/vozes)
          *
@@ -136,6 +139,6 @@ export const config = {
          * por /api/uploads, que continua protegido. Por isso a liberação é da
          * pasta e não da extensão .mp3: liberar a extensão abriria os uploads.
          */
-        '/((?!_next/static|_next/image|api/agendamento-publico|api/auth|api/webhook|api/cron/|api/pagamentos/webhook/|api/pagamentos/checkout-publico|vozes/|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|api/agendamento-publico|api/auth|api/webhook|api/cron/|api/pagamentos/webhook/|api/hotmart/webhook|api/pagamentos/checkout-publico|vozes/|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }

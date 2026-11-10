@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         if (!produto) return NextResponse.json({ error: 'Produto não encontrado' }, { status: 400 })
 
         const valor = tipo === 'plano'
-            ? (produto as typeof PLANOS.pro).precos.brl
+            ? (produto as typeof PLANOS.premium).precos.brl
             : (produto as typeof PACOTES.clonagem).preco
         const descricao = `IARA — ${produto.nome}`
 
@@ -56,6 +56,12 @@ export async function POST(request: NextRequest) {
 
         if (metodo !== 'pix') {
             return NextResponse.json({ error: 'Forma de pagamento inválida' }, { status: 400 })
+        }
+
+        // Desde 10/11/2026 quem ainda não é cliente assina só pelo cartão. O
+        // PIX é exceção negociada e passa pelo admin, nunca pela página pública.
+        if (metodo === 'pix') {
+            return NextResponse.json({ error: 'A assinatura é pelo cartão de crédito.' }, { status: 403 })
         }
 
         // ---------- PIX: precisa saber quem é, para criar a conta depois ----------

@@ -1,275 +1,143 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { enviarEmailBoasVindas } from '@/lib/email'
 import { sendText } from '@/lib/engine/sender'
-import bcrypt from 'bcryptjs'
+import { ativarCompra, suspenderCompra, registrarLog } from '@/lib/pagamentos/ativacao'
+import { identificarItem } from '@/lib/pagamentos/catalogo-externo'
+import { acharOuCriarClinica } from '@/lib/pagamentos/conta'
+import { CARENCIA_PAGAMENTO_DIAS } from '@/lib/pagamentos/pendencia'
 
-// Token de segurança da Hotmart — validar que o request é legítimo
+/**
+ * POST /api/hotmart/webhook
+ *
+ * Desde 10/11/2026 a Hotmart vende só o plano, e só pelos AFILIADOS (a
+ * clínica que entra pelo painel paga na Assiny). A comissão é toda da
+ * Hotmart; aqui só liberamos ou suspendemos o acesso.
+ *
+ * Usa o mesmo caminho da Assiny e do Asaas (lib/pagamentos/ativacao.ts).
+ * Antes este arquivo tinha a própria tabela de planos, que ficou velha: um
+ * produto de nome desconhecido virava o plano mais barato, e o cancelamento
+ * de qualquer produto desligava a IARA inteira.
+ */
+
 const HOTMART_HOTTOK = process.env.HOTMART_HOTTOK || ''
 
-// Mapeamento de produto Hotmart → plano IARA (4 planos)
-// Os nomes devem bater com os produtos/planos configurados na Hotmart
-const PLANOS_HOTMART: Record<string, { nivel: number; plano: string; creditos: number; whatsapps: number }> = {
-    'secretaria': { nivel: 1, plano: 'secretaria', creditos: 1000, whatsapps: 1 },
-    'estrategista': { nivel: 2, plano: 'estrategista', creditos: 3000, whatsapps: 1 },
-    'designer': { nivel: 3, plano: 'designer', creditos: 5000, whatsapps: 2 },
-    'audiovisual': { nivel: 4, plano: 'audiovisual', creditos: 10000, whatsapps: 3 },
-    // Aliases antigos (pra não quebrar quem já comprou)
-    'essencial': { nivel: 1, plano: 'secretaria', creditos: 1000, whatsapps: 1 },
-    'premium': { nivel: 2, plano: 'estrategista', creditos: 3000, whatsapps: 1 },
-    'master': { nivel: 3, plano: 'designer', creditos: 5000, whatsapps: 2 },
-    'black': { nivel: 4, plano: 'audiovisual', creditos: 10000, whatsapps: 3 },
+// Dinheiro voltou: a IARA para na hora.
+const ESTORNO = new Set(['PURCHASE_REFUNDED', 'PURCHASE_CHARGEBACK', 'PURCHASE_PROTEST'])
+// Cartão não passou, boleto venceu ou assinatura cancelada: carência + PIX.
+const ATRASO = new Set(['PURCHASE_CANCELED', 'PURCHASE_DELAYED', 'PURCHASE_EXPIRED', 'SUBSCRIPTION_CANCELLATION'])
+const APROVADO = new Set(['PURCHASE_APPROVED', 'PURCHASE_COMPLETE'])
+
+function instanciaDoSistema(): string {
+    return process.env.HOTMART_SYSTEM_INSTANCE || process.env.EVOLUTION_SYSTEM_INSTANCE || ''
 }
 
-function gerarSenhaTemporaria(): string {
-    // Gera senha forte: 3 letras + 2 MAIÚSCULAS + 4 números + 1 especial
-    const lower = 'abcdefghijkmnpqrstuvwxyz'
-    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
-    const nums = '23456789'
-    const special = '!@#&'
-    let senha = ''
-    for (let i = 0; i < 3; i++) senha += lower[Math.floor(Math.random() * lower.length)]
-    for (let i = 0; i < 2; i++) senha += upper[Math.floor(Math.random() * upper.length)]
-    for (let i = 0; i < 4; i++) senha += nums[Math.floor(Math.random() * nums.length)]
-    senha += special[Math.floor(Math.random() * special.length)]
-    return senha
-}
-
-// Detectar qual plano a partir do nome do produto Hotmart
-function detectarPlano(planName: string) {
-    const name = (planName || '').toLowerCase().trim()
-
-    // Tentar match direto primeiro
-    if (PLANOS_HOTMART[name]) return PLANOS_HOTMART[name]
-
-    // Match parcial (pra pegar "IARA Audiovisual", "Plano Designer", etc.)
-    if (name.includes('audiovisual') || name.includes('black')) return PLANOS_HOTMART['audiovisual']
-    if (name.includes('designer') || name.includes('master')) return PLANOS_HOTMART['designer']
-    if (name.includes('estrategista') || name.includes('premium') || name.includes('pro')) return PLANOS_HOTMART['estrategista']
-
-    // Default: Secretária (P1)
-    return PLANOS_HOTMART['secretaria']
-}
-
-// POST /api/hotmart/webhook — recebe eventos da Hotmart
-export async function POST(request: NextRequest) {
+/** Aviso por WhatsApp para a doutora. Falha aqui nunca derruba o webhook. */
+async function avisar(clinicaId: number, mensagem: (primeiroNome: string) => string, telefoneReserva?: string) {
     try {
-        const body = await request.json()
+        const instancia = instanciaDoSistema()
+        if (!instancia) return
+        const c = await prisma.clinica.findUnique({
+            where: { id: clinicaId },
+            select: { telefone: true, whatsappDoutora: true, nome: true },
+        })
+        const telefone = c?.whatsappDoutora || c?.telefone || telefoneReserva
+        if (!telefone) return
+        await sendText({ instancia, telefone }, mensagem(c?.nome?.split(' ')[0] || 'Doutora'))
+    } catch (err) {
+        console.error('[Hotmart] Erro ao avisar por WhatsApp:', err)
+    }
+}
 
-        // Validar hottok — SEMPRE (segurança)
+export async function POST(request: NextRequest) {
+    let body: any = null
+    try {
+        body = await request.json()
+
         const hottok = request.headers.get('X-HOTMART-HOTTOK') || body?.hottok
         if (!HOTMART_HOTTOK) {
-            console.error('[Hotmart Webhook] ❌ HOTMART_HOTTOK não configurado no env!')
+            console.error('[Hotmart] ❌ HOTMART_HOTTOK não configurado no env!')
             return NextResponse.json({ error: 'Configuração inválida' }, { status: 500 })
         }
         if (hottok !== HOTMART_HOTTOK) {
-            console.warn('[Hotmart Webhook] ❌ Hottok inválido')
+            console.warn('[Hotmart] ❌ Hottok inválido')
             return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
         }
 
-        const evento = body?.event
-        console.log(`[Hotmart Webhook] Evento: ${evento}`)
+        const evento: string = body?.event || ''
+        const dados = body?.data || {}
+        const buyer = dados.buyer || {}
+        const email = String(buyer.email || dados.subscriber?.email || '').trim().toLowerCase()
+        const textos = [dados.subscription?.plan?.name, dados.product?.name].filter(Boolean) as string[]
+        const valor = Number(dados.purchase?.price?.value) || null
+        const idExterno = dados.purchase?.transaction || dados.subscription?.subscriber?.code || undefined
+        const item = identificarItem(textos, valor)
 
-        // Helper para enviar notificações do sistema via WhatsApp
-        const sendSystemNotification = async (email: string, message: string) => {
-            try {
-                const systemInstance = process.env.HOTMART_SYSTEM_INSTANCE || process.env.EVOLUTION_SYSTEM_INSTANCE || ''
-                if (!systemInstance) return
-                const c = await prisma.clinica.findUnique({
-                    where: { email },
-                    select: { telefone: true, whatsappDoutora: true, nome: true }
-                })
-                const phone = c?.whatsappDoutora || c?.telefone
-                if (phone) {
-                    const formattedMsg = message.replace('{{nome}}', c.nome?.split(' ')[0] || 'Doutora')
-                    await sendText({ instancia: systemInstance, telefone: phone }, formattedMsg)
-                }
-            } catch (err) {
-                console.error('[Hotmart Webhook] Erro ao enviar notificação WhatsApp:', err)
-            }
+        console.log(`[Hotmart] evento=${evento} email=${email || '?'} item=${item ? `${item.tipo}/${item.item}` : '?'} textos=${textos.join(' | ')}`)
+
+        const ignorar = async (motivo: string) => {
+            await registrarLog({ provedor: 'hotmart', evento, idExterno, payload: body, resultado: motivo })
+            return NextResponse.json({ ok: true, ignorado: motivo })
         }
 
-        // ============ COMPRA APROVADA ============
-        if (evento === 'PURCHASE_APPROVED') {
-            const buyer = body?.data?.buyer
-            const product = body?.data?.product
-            const subscription = body?.data?.subscription
-            const purchase = body?.data?.purchase
+        if (!APROVADO.has(evento) && !ESTORNO.has(evento) && !ATRASO.has(evento)) {
+            // SWITCH_PLAN não existe mais (plano único); REACTIVATION é seguida
+            // de PURCHASE_APPROVED, que é quem libera de fato.
+            return ignorar(`evento sem ação: ${evento || 'vazio'}`)
+        }
+        if (!email) return ignorar('sem e-mail do comprador — liberar manualmente')
+        if (!item) return ignorar(`produto não reconhecido (${textos.join(' | ').slice(0, 90)})`)
 
-            if (!buyer?.email) {
-                console.error('[Hotmart Webhook] Email do comprador não encontrado')
-                return NextResponse.json({ error: 'Email obrigatório' }, { status: 400 })
+        // ---------- ESTORNO / ATRASO ----------
+        if (ESTORNO.has(evento) || ATRASO.has(evento)) {
+            const clinica = await prisma.clinica.findFirst({ where: { email }, select: { id: true } })
+            if (!clinica) return ignorar(`${evento} de e-mail sem conta: ${email}`)
+
+            const gravidade = ESTORNO.has(evento) ? 'estorno' : 'atraso'
+            const r = await suspenderCompra({ clinicaId: clinica.id, tipo: item.tipo, item: item.item, motivo: evento, gravidade })
+            await registrarLog({ provedor: 'hotmart', evento, idExterno, clinicaId: clinica.id, payload: body, resultado: r.mensagem })
+
+            if (item.tipo === 'plano') {
+                await avisar(clinica.id, nome => gravidade === 'estorno'
+                    ? `Olá, ${nome}! Sua compra da *IARA* foi reembolsada ou contestada, e a assistente foi desligada. Se foi um engano, fale com a gente para reativar. 💜`
+                    : `Olá, ${nome}! O pagamento da sua assinatura da *IARA* não foi concluído. Ela continua atendendo por mais ${CARENCIA_PAGAMENTO_DIAS} dias — regularize em https://app.iara.click/plano para não interromper. 💜`)
             }
-
-            // Determinar plano pelo nome do produto ou plan ID
-            const planName = subscription?.plan?.name?.toLowerCase() || product?.name?.toLowerCase() || ''
-            const planoConfig = detectarPlano(planName)
-
-            // Verificar se já existe conta com esse email
-            const existente = await prisma.clinica.findUnique({
-                where: { email: buyer.email },
-            })
-
-            if (existente) {
-                // Atualizar plano se já existe
-                await prisma.clinica.update({
-                    where: { email: buyer.email },
-                    data: {
-                        nivel: planoConfig.nivel,
-                        plano: planoConfig.plano,
-                        status: 'ativo',
-                        creditosMensais: planoConfig.creditos,
-                        creditosDisponiveis: planoConfig.creditos,
-                    },
-                })
-                console.log(`[Hotmart Webhook] Plano atualizado: ${buyer.email} → ${planoConfig.plano}`)
-
-                // Enviar notificação de atualização/reativação via WhatsApp
-                const systemInstance = process.env.HOTMART_SYSTEM_INSTANCE || process.env.EVOLUTION_SYSTEM_INSTANCE || ''
-                const targetPhone = existente.whatsappDoutora || existente.telefone || (buyer.phone_checkout_local_code ? `${buyer.phone_checkout_local_code}${buyer.phone_checkout_number}` : buyer.phone_checkout_number)
-                if (targetPhone && systemInstance) {
-                    const primeiroNome = existente.nome?.split(' ')[0] || 'Doutora'
-                    const msg = `Olá, *${primeiroNome}*! Seu plano da *IARA* foi renovado/reativado com sucesso! 💜🚀\n\n🔹 *Plano:* ${planoConfig.plano.toUpperCase()}\n🔹 *Créditos:* ${planoConfig.creditos}\n\nSua assistente já está ativa e pronta para atender seus pacientes! Qualquer dúvida, conte conosco. 🤗`
-                    sendText({ instancia: systemInstance, telefone: targetPhone }, msg).catch(err => console.error('[Hotmart Webhook] Erro WhatsApp Renovação:', err))
-                }
-
-                return NextResponse.json({ ok: true, action: 'updated' })
-            }
-
-            // Criar nova conta
-            const senhaTemporaria = gerarSenhaTemporaria()
-            const senhaHash = await bcrypt.hash(senhaTemporaria, 12)
-
-            const nomeCompleto = [buyer.name, buyer.last_name].filter(Boolean).join(' ')
-            const telefone = buyer.phone_checkout_local_code
-                ? `${buyer.phone_checkout_local_code}${buyer.phone_checkout_number}`
-                : buyer.phone_checkout_number || ''
-
-            const novaClinica = await prisma.clinica.create({
-                data: {
-                    nome: nomeCompleto,
-                    nomeClinica: nomeCompleto, // cliente muda depois no painel
-                    email: buyer.email,
-                    senha: senhaHash,
-                    telefone: telefone,
-                    role: 'cliente',
-                    nivel: planoConfig.nivel,
-                    plano: planoConfig.plano,
-                    status: 'ativo',
-                    nomeAssistente: 'IARA',
-                    creditosMensais: planoConfig.creditos,
-                    creditosDisponiveis: planoConfig.creditos,
-                    maxInstanciasWhatsapp: planoConfig.whatsapps,
-                    maxInstanciasInstagram: planoConfig.nivel >= 2 ? 1 : 0,
-                },
-            })
-
-            console.log(`[Hotmart Webhook] ✅ Conta criada: ${buyer.email} (ID: ${novaClinica.id}, Plano: ${planoConfig.plano})`)
-
-            // Enviar email de boas-vindas com credenciais
-            enviarEmailBoasVindas({
-                email: buyer.email,
-                nome: nomeCompleto,
-                senha: senhaTemporaria,
-                plano: planoConfig.plano,
-            }).catch(err => console.error('[Hotmart Webhook] Erro email:', err))
-
-            // Enviar credenciais via WhatsApp
-            const systemInstance = process.env.HOTMART_SYSTEM_INSTANCE || process.env.EVOLUTION_SYSTEM_INSTANCE || ''
-            if (telefone && systemInstance) {
-                const primeiroNome = nomeCompleto.split(' ')[0] || 'Doutora'
-                const msg = `Olá, *${primeiroNome}*! Seja muito bem-vinda à *IARA*! 💜🎉\n\nSua conta no plano *${planoConfig.plano.toUpperCase()}* foi criada com sucesso! A partir de agora, sua assistente virtual cuidará do atendimento e agendamento da sua clínica 24h por dia.\n\n🔑 *Seus dados de acesso:*\n🔗 *Painel:* https://app.iara.click\n📧 *E-mail:* ${buyer.email}\n🔑 *Senha:* ${senhaTemporaria}\n\n*Próximos passos:*\n1️⃣ Acesse o painel e aceite os termos\n2️⃣ Configure sua clínica em "Configurações"\n3️⃣ Conecte seu WhatsApp em "Instâncias"\n\nQualquer dúvida, fale conosco por aqui! 🚀`
-                sendText({ instancia: systemInstance, telefone }, msg).catch(err => console.error('[Hotmart Webhook] Erro WhatsApp Boas-Vindas:', err))
-            }
-
-            return NextResponse.json({
-                ok: true,
-                action: 'created',
-                clinicaId: novaClinica.id,
-                // NÃO retornar senha na response por segurança
-            })
+            return NextResponse.json(r)
         }
 
-        // ============ COMPRA CANCELADA / REEMBOLSO ============
-        if (evento === 'PURCHASE_CANCELED' || evento === 'PURCHASE_REFUNDED' || evento === 'PURCHASE_CHARGEBACK') {
-            const buyer = body?.data?.buyer
-            if (buyer?.email) {
-                await prisma.clinica.updateMany({
-                    where: { email: buyer.email },
-                    data: { status: 'inativo' },
-                })
-                console.log(`[Hotmart Webhook] ❌ Conta desativada: ${buyer.email} (${evento})`)
-                // Notificar via WhatsApp
-                const acaoNome = evento === 'PURCHASE_REFUNDED' ? 'reembolsada' : evento === 'PURCHASE_CHARGEBACK' ? 'contestada' : 'cancelada'
-                await sendSystemNotification(buyer.email, `Olá, {{nome}}! Sua compra da *IARA* foi ${acaoNome} e sua conta foi desativada temporariamente. 😔\n\nCaso tenha ocorrido algum engano ou queira reativar seu plano, entre em contato conosco para te ajudarmos! 💜`)
-            }
-            return NextResponse.json({ ok: true, action: 'deactivated' })
+        // ---------- APROVADO ----------
+        const nomeCompleto = [buyer.name, buyer.last_name].filter(Boolean).join(' ')
+        const telefone = buyer.phone_checkout_local_code
+            ? `${buyer.phone_checkout_local_code}${buyer.phone_checkout_number || ''}`
+            : buyer.phone_checkout_number || ''
+
+        const conta = await acharOuCriarClinica({
+            email,
+            nome: nomeCompleto || undefined,
+            telefone: telefone || undefined,
+            comPlano: item.tipo === 'plano',
+        })
+
+        const r = await ativarCompra({
+            clinicaId: conta.clinicaId, tipo: item.tipo, item: item.item,
+            provedor: 'hotmart', idExterno, valor: valor ?? undefined,
+        })
+        await registrarLog({
+            provedor: 'hotmart', evento, idExterno, clinicaId: conta.clinicaId, payload: body,
+            resultado: `${r.mensagem}${conta.criada ? ' (conta criada)' : ''}`,
+        })
+
+        if (r.ok && conta.criada && conta.senhaTemporaria) {
+            const senha = conta.senhaTemporaria
+            await avisar(conta.clinicaId, nome => `Olá, *${nome}*! Seja muito bem-vinda à *IARA*! 💜🎉\n\n🔑 *Seus dados de acesso:*\n🔗 *Painel:* https://app.iara.click\n📧 *E-mail:* ${email}\n🔑 *Senha:* ${senha}\n\n*Próximos passos:*\n1️⃣ Acesse o painel e aceite os termos\n2️⃣ Configure sua clínica em "Configurações"\n3️⃣ Conecte seu WhatsApp em "Instâncias"\n\nQualquer dúvida, fale conosco por aqui! 🚀`, telefone)
+        } else if (r.ok && item.tipo === 'plano') {
+            await avisar(conta.clinicaId, nome => `Olá, *${nome}*! Seu pagamento da *IARA* foi confirmado. 💜 Sua assistente está ativa e pronta para atender!`)
         }
 
-        // ============ ASSINATURA CANCELADA ============
-        if (evento === 'SUBSCRIPTION_CANCELLATION') {
-            const buyer = body?.data?.buyer
-            if (buyer?.email) {
-                await prisma.clinica.updateMany({
-                    where: { email: buyer.email },
-                    data: { status: 'cancelado' },
-                })
-                console.log(`[Hotmart Webhook] 🚫 Assinatura cancelada: ${buyer.email}`)
-                // Notificar via WhatsApp
-                await sendSystemNotification(buyer.email, `Olá, {{nome}}! Confirmamos o cancelamento da sua assinatura da *IARA*. 😔\n\nSua assistente continuará ativa até o fim do período já pago. Esperamos ter você de volta em breve! 💜`)
-            }
-            return NextResponse.json({ ok: true, action: 'subscription_cancelled' })
-        }
+        return NextResponse.json({ ...r, contaCriada: conta.criada })
 
-        // ============ TROCA DE PLANO ============
-        if (evento === 'SWITCH_PLAN') {
-            const buyer = body?.data?.buyer
-            const subscription = body?.data?.subscription
-            const product = body?.data?.product
-
-            if (buyer?.email) {
-                const planName = subscription?.plan?.name?.toLowerCase() || product?.name?.toLowerCase() || ''
-                const planoConfig = detectarPlano(planName)
-
-                await prisma.clinica.updateMany({
-                    where: { email: buyer.email },
-                    data: {
-                        nivel: planoConfig.nivel,
-                        plano: planoConfig.plano,
-                        creditosMensais: planoConfig.creditos,
-                        creditosDisponiveis: planoConfig.creditos,
-                        maxInstanciasWhatsapp: planoConfig.whatsapps,
-                        maxInstanciasInstagram: planoConfig.nivel >= 2 ? 1 : 0,
-                    },
-                })
-                console.log(`[Hotmart Webhook] 🔄 Plano trocado: ${buyer.email} → ${planoConfig.plano}`)
-                // Notificar via WhatsApp
-                await sendSystemNotification(buyer.email, `Olá, {{nome}}! Seu plano da *IARA* foi alterado com sucesso! 🎉\n\n🔹 *Novo Plano:* ${planoConfig.plano.toUpperCase()}\n🔹 *Novos Limites:* ${planoConfig.creditos} créditos mensais e até ${planoConfig.whatsapps} WhatsApps.\n\nAs mudanças já estão aplicadas no seu painel! Aproveite! 🚀`)
-            }
-            return NextResponse.json({ ok: true, action: 'plan_switched' })
-        }
-
-        // ============ ASSINATURA REATIVADA ============
-        if (evento === 'SUBSCRIPTION_REACTIVATION') {
-            const buyer = body?.data?.buyer
-            if (buyer?.email) {
-                await prisma.clinica.updateMany({
-                    where: { email: buyer.email },
-                    data: { status: 'ativo' },
-                })
-                console.log(`[Hotmart Webhook] ♻️ Assinatura reativada: ${buyer.email}`)
-                // Notificar via WhatsApp
-                await sendSystemNotification(buyer.email, `Olá, {{nome}}! Sua assinatura da *IARA* foi reativada com sucesso! 😍💜\n\nSua assistente já está ativa novamente e cuidando de tudo na sua clínica. Bem-vinda de volta! 🚀`)
-            }
-            return NextResponse.json({ ok: true, action: 'reactivated' })
-        }
-
-        // Evento não tratado
-        console.log(`[Hotmart Webhook] Evento ignorado: ${evento}`)
-        return NextResponse.json({ ok: true, action: 'ignored' })
-
-    } catch (err) {
-        console.error('[Hotmart Webhook] Erro:', err)
+    } catch (err: any) {
+        console.error('[Hotmart] ❌ Erro:', err)
+        await registrarLog({ provedor: 'hotmart', payload: body, resultado: `erro: ${err?.message}`.slice(0, 190) })
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
     }
 }

@@ -107,6 +107,39 @@ export async function POST(
             })
         }
 
+        // PIX como exceção (desde 10/11/2026): o Rafael libera quando a clínica
+        // atrasou ou quando negociou um valor. A clínica passa a ver o PIX na
+        // tela de planos. Pagar o PIX desliga a liberação sozinho
+        // (limparPendencia em lib/pagamentos/ativacao.ts).
+        if (acao === 'pix') {
+            const { liberar, valor } = body as { liberar?: boolean; valor?: number | string | null }
+            const cfg = { ...((clinica.configuracoes as Record<string, unknown> | null) || {}) }
+            if (liberar) {
+                cfg.pix_liberado = true
+                const v = Number(String(valor ?? '').replace(',', '.'))
+                if (valor !== undefined && valor !== null && String(valor).trim() !== '') {
+                    if (!Number.isFinite(v) || v <= 0) {
+                        return NextResponse.json({ error: 'Valor do PIX inválido' }, { status: 400 })
+                    }
+                    cfg.pix_valor = Math.round(v * 100) / 100
+                } else {
+                    delete cfg.pix_valor
+                }
+            } else {
+                delete cfg.pix_liberado
+                delete cfg.pix_valor
+            }
+            await prisma.clinica.update({
+                where: { id: clinicaId },
+                data: { configuracoes: cfg as any },
+            })
+            return NextResponse.json({
+                message: liberar
+                    ? `PIX liberado${cfg.pix_valor ? ` (R$ ${cfg.pix_valor})` : ' (preço cheio)'}. A clínica já vê o PIX em Meu Plano.`
+                    : 'PIX desligado. A clínica volta a ver só o cartão.',
+            })
+        }
+
         if (acao === 'bloquear') {
             const novoStatus = clinica.status === 'ativo' ? 'inativo' : 'ativo'
             await prisma.clinica.update({

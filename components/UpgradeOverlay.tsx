@@ -15,6 +15,8 @@ interface UpgradeOverlayProps {
     variante?: 'section' | 'inline'
 }
 
+const TUDO_LIBERADO = true
+
 const PLANO_NOMES: Record<number, string> = {
     1: 'Essencial',
     2: 'Pro',
@@ -58,8 +60,11 @@ export default function UpgradeOverlay({
     children,
     variante = 'section',
 }: UpgradeOverlayProps) {
-    // Se já tem o plano, renderiza normal
-    if (planoAtual >= planoMinimo) {
+    // Plano único desde 10/11/2026: não existe plano maior para oferecer,
+    // então nada fica trancado por nível. O componente continua aqui para
+    // não mexer nas telas que o usam; o bloqueio abaixo não roda mais.
+    void planoAtual
+    if (TUDO_LIBERADO || planoAtual >= planoMinimo) {
         return <>{children}</>
     }
 

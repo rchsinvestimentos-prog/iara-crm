@@ -1,5 +1,6 @@
 'use client'
 
+import { nomeDoNivel } from '@/lib/planos'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
@@ -57,7 +58,7 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [planoAtual, setPlanoAtual] = useState(1)
   const [nomeClinica, setNomeClinica] = useState('')
-  const [nomePlano, setNomePlano] = useState('Essencial')
+  const [nomePlano, setNomePlano] = useState<string>(nomeDoNivel(null))
   const [clinicas, setClinicas] = useState<ClinicaItem[]>([])
   const [clinicaAtiva, setClinicaAtiva] = useState<number | null>(null)
   const [showClinicaDropdown, setShowClinicaDropdown] = useState(false)
@@ -74,8 +75,7 @@ export default function Sidebar() {
       .then(data => {
         if (data?.nivel) setPlanoAtual(Math.min(3, Number(data.nivel)))
         if (data?.nome_clinica || data?.nomeClinica) setNomeClinica(data.nome_clinica || data.nomeClinica)
-        const nomes: Record<number, string> = { 1: 'Essencial', 2: 'Pro', 3: 'Premium' }
-        setNomePlano(nomes[Math.min(3, Number(data?.nivel))] || 'Essencial')
+        setNomePlano(nomeDoNivel(Number(data?.nivel)))
         if (data?.id) setClinicaAtiva(Number(data.id))
         if (data?.configuracoes?.foto_url) setAvatarUrl(data.configuracoes.foto_url)
       })

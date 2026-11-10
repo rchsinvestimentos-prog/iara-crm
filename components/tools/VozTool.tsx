@@ -51,6 +51,8 @@ export default function VozTool() {
     // liberação olha configuracoes, não o nível.
     const [temPacoteRealista, setTemPacoteRealista] = useState(false)
     const [temPacoteClonagem, setTemPacoteClonagem] = useState(false)
+    // PIX só aparece com atraso ou negociação (lib/pagamentos/pendencia.ts)
+    const [pixLiberado, setPixLiberado] = useState(false)
     const [ofertaAberta, setOfertaAberta] = useState<null | 'realista' | 'clonagem'>(null)
     const [checkoutAberto, setCheckoutAberto] = useState(false)
 
@@ -93,6 +95,7 @@ export default function VozTool() {
                 const cfg = data?.configuracoes || {}
                 setTemPacoteRealista(!!cfg.pacote_voz_realista)
                 setTemPacoteClonagem(!!cfg.pacote_clonagem)
+                setPixLiberado(cfg.pix_liberado === true)
 
                 // 'tts' e 'ultra' são os nomes antigos, de antes dos pacotes.
                 const LEGADO: Record<string, TipoVoz> = { tts: 'tts', ultra: 'ultra' }
@@ -684,6 +687,7 @@ export default function VozTool() {
                     item={ofertaAberta === 'realista' ? 'voz_realista' : 'clonagem'}
                     nome={ofertaAberta === 'realista' ? PACOTES.voz_realista.nome : PACOTES.clonagem.nome}
                     preco={ofertaAberta === 'realista' ? PACOTES.voz_realista.preco : PACOTES.clonagem.preco}
+                    pixLiberado={pixLiberado}
                 />
             )}
         </div>

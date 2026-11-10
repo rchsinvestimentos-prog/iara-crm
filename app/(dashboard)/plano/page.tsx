@@ -1,78 +1,42 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { PLANOS, type PlanoKey } from '@/lib/planos'
+import { PLANO_UNICO, PLANO_UNICO_CHAVE, PACOTES, INSTAGRAM_HABILITADO } from '@/lib/planos'
+import { CARENCIA_PAGAMENTO_DIAS, diasPendente } from '@/lib/pagamentos/pendencia'
 import CheckoutModal from '@/components/CheckoutModal'
-import { Check, Sparkles, Star, ExternalLink, Loader2, Smartphone, Plus, Crown, Gem } from 'lucide-react'
+import { Check, Loader2, Smartphone, Plus, Crown, Mic, AlertTriangle } from 'lucide-react'
 
-// Os links da Hotmart continuam aqui porque ela segue vendendo como terceira
-// opção. As chaves são os nomes ANTIGOS de propósito: são os nomes das ofertas
-// já cadastradas lá, e renomear a oferta quebraria o link de quem já comprou.
-const HOTMART_LINKS: Record<PlanoKey, string> = {
-    essencial: 'https://pay.hotmart.com/B104324141M?off=7esdrrco&checkoutMode=6',
-    pro: 'https://pay.hotmart.com/B104324141M?off=7ak6m2dh&checkoutMode=6',
-    premium: 'https://pay.hotmart.com/B104324141M?off=8yivznpc&checkoutMode=6',
+// Plano único desde 10/11/2026. A Hotmart não aparece aqui: ela fica só para
+// as vendas dos afiliados, que chegam pelo link deles.
+const COR = '#D99773'
+
+const DESTAQUES: string[] = [
+    'WhatsApp com IA 24h (texto e áudio)',
+    `${PLANO_UNICO.whatsapps} WhatsApps conectados`,
+    'Agendamento automático',
+    'Follow-ups inteligentes',
+    'Promoções e combos',
+    'CRM com funil e contatos',
+    'Ficha de anamnese assinada',
+    'Ficha da paciente com fotos',
+    '4 idiomas',
+    'Equipe com vários profissionais',
+    'Multi-clínica',
+    INSTAGRAM_HABILITADO ? 'Instagram DM com IA' : 'Instagram DM com IA (em breve)',
+    'Prioridade no atendimento',
+]
+
+const plano = {
+    chave: PLANO_UNICO_CHAVE,
+    nome: PLANO_UNICO.nome,
+    nivel: PLANO_UNICO.nivel,
+    creditos: PLANO_UNICO.creditos,
+    cor: COR,
+    icon: Crown,
+    features: DESTAQUES,
+    precos: { BRL: PLANO_UNICO.precos.brl, USD: PLANO_UNICO.precos.usd, EUR: PLANO_UNICO.precos.eur },
 }
-
-// A tela tinha a própria lista de planos, com dois itens e os preços antigos
-// (R$97 e R$197). Ficava desatualizada sozinha toda vez que o catálogo mudava,
-// e foi assim que o Black nunca apareceu para ninguém.
-const CORES: Record<PlanoKey, string> = {
-    essencial: '#06D6A0',
-    pro: '#8B5CF6',
-    premium: '#D99773',
-}
-
-const DESTAQUES: Record<PlanoKey, string[]> = {
-    essencial: [
-        'WhatsApp com IA 24h (texto e áudio)',
-        '1 WhatsApp conectado',
-        'Agendamento automático',
-        'Follow-ups inteligentes',
-        'Promoções e combos',
-        'CRM com funil e contatos',
-    ],
-    pro: [
-        'Tudo do Start, mais:',
-        'Instagram DM com IA',
-        'Ficha de anamnese assinada',
-        'Ficha da paciente com fotos',
-        'Follow UP automático',
-        '4 idiomas',
-    ],
-    premium: [
-        'Tudo do Master, mais:',
-        '2 WhatsApps conectados',
-        'Equipe com vários profissionais',
-        'Multi-clínica',
-        'Prioridade no atendimento',
-    ],
-}
-
-const ICONES: Record<PlanoKey, typeof Sparkles> = {
-    essencial: Sparkles,
-    pro: Star,
-    premium: Crown,
-}
-
-const planos = (Object.keys(PLANOS) as PlanoKey[])
-    .map(chave => {
-        const p = PLANOS[chave]
-        return {
-            chave,
-            nome: p.nome,
-            nivel: p.nivel,
-            creditos: p.creditos,
-            conversas: (p as { conversas?: number }).conversas ?? Math.round(p.creditos / 6),
-            cor: CORES[chave],
-            icon: ICONES[chave],
-            features: DESTAQUES[chave],
-            popular: chave === 'pro',   // o do meio é o que a maioria escolhe
-            // A tela usa moeda em maiúscula; o catálogo guarda em minúscula.
-            precos: { BRL: p.precos.brl, USD: p.precos.usd, EUR: p.precos.eur },
-        }
-    })
-    .sort((a, b) => a.nivel - b.nivel)
+const vozRealista = PACOTES.voz_realista
 
 interface StatsData {
     creditosRestantes: number
@@ -87,9 +51,37 @@ export default function PlanoPage() {
     const [moeda, setMoeda] = useState<'USD' | 'EUR' | 'BRL'>('USD')
     const [simbolo, setSimbolo] = useState('$')
     const [comprando, setComprando] = useState(false)
-    const [comprandoPlano, setComprandoPlano] = useState<
-        { chave: string; nome: string; preco: number; hotmart: string } | null
-    >(null)
+    const [comprandoPlano, setComprandoPlano] = useState(false)
+    // Pendência de pagamento e PIX liberado (lib/pagamentos/pendencia.ts)
+    const [pix, setPix] = useState<{ liberado: boolean; valor?: number; diasPendente: number | null }>({ liberado: false, diasPendente: null })
+    const [comprandoVoz, setComprandoVoz] = useState(false)
+    // null = ainda não sei. Só mostra "Adicionar" quando a resposta disser
+    // que não tem: mostrar antes faria quem já pagou pagar de novo.
+    const [temVozRealista, setTemVozRealista] = useState<boolean | null>(null)
+    const [contaAtiva, setContaAtiva] = useState(true)
+
+    const conferirVozRealista = () => {
+        fetch('/api/clinica')
+            .then(r => {
+                if (!r.ok) throw new Error(`/api/clinica respondeu ${r.status}`)
+                return r.json()
+            })
+            .then(data => {
+                const cfg = data?.configuracoes || {}
+                setContaAtiva(data?.status === 'ativo')
+                setTemVozRealista(!!cfg.pacote_voz_realista)
+                const valor = Number(cfg.pix_valor)
+                setPix({
+                    liberado: cfg.pix_liberado === true,
+                    valor: Number.isFinite(valor) && valor > 0 ? valor : undefined,
+                    diasPendente: diasPendente(cfg),
+                })
+            })
+            .catch(err => {
+                console.error('[Plano] Não consegui conferir o pacote de voz:', err)
+                setTemVozRealista(null)
+            })
+    }
 
     useEffect(() => {
         fetch('/api/stats')
@@ -108,17 +100,19 @@ export default function PlanoPage() {
                 else { setMoeda('USD'); setSimbolo('$') }
             })
             .catch(() => { })
+
+        conferirVozRealista()
     }, [])
 
-    const planoAtual = stats?.plano ?? 1
-    const planoAtualData = planos.find(p => p.nivel === planoAtual) || planos[0]
-    const creditosMensais = planoAtualData.creditos
+    // Tem o plano quando a conta está ativa no nível do plano único.
+    const temPlano = contaAtiva && (stats?.plano ?? 0) >= plano.nivel
+    const creditosMensais = plano.creditos
     const creditosRestantes = stats?.creditosRestantes ?? 0
     const creditosTotal = Math.max(creditosMensais, creditosRestantes)
     const creditosUsados = Math.max(0, creditosTotal - creditosRestantes)
     const percentUsado = creditosTotal > 0 ? Math.min(100, Math.max(0, (creditosUsados / creditosTotal) * 100)) : 0
 
-    const precoInstanciaExtra = Math.ceil(planoAtualData.precos[moeda] / 2)
+    const precoInstanciaExtra = Math.ceil(plano.precos[moeda] / 2)
 
     const handleComprarInstancia = async () => {
         setComprando(true)
@@ -145,10 +139,10 @@ export default function PlanoPage() {
         <div className="max-w-4xl mx-auto space-y-8">
             <div className="text-center animate-fade-in">
                 <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                    Planos & Créditos
+                    Plano & Créditos
                 </h1>
                 <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>
-                    Escolha o plano ideal para sua clínica crescer com a {stats?.nomeIA || 'IARA'}
+                    Um plano só, com tudo liberado para a sua clínica crescer com a {stats?.nomeIA || 'IARA'}
                 </p>
             </div>
 
@@ -163,7 +157,7 @@ export default function PlanoPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                                Plano atual: <span className="font-bold" style={{ color: planoAtualData.cor }}>{planoAtualData.nome}</span>
+                                Plano: <span className="font-bold" style={{ color: plano.cor }}>{temPlano ? plano.nome : 'sem plano ativo'}</span>
                             </p>
                             <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
                                 {stats?.creditosRestantes ?? 0} créditos restantes
@@ -181,7 +175,7 @@ export default function PlanoPage() {
                                         width: `${percentUsado}%`,
                                         background: percentUsado > 80
                                             ? 'linear-gradient(90deg, #EF4444, #DC2626)'
-                                            : `linear-gradient(90deg, ${planoAtualData.cor}, ${planoAtualData.cor}CC)`,
+                                            : `linear-gradient(90deg, ${plano.cor}, ${plano.cor}CC)`,
                                     }}
                                 />
                             </div>
@@ -193,15 +187,25 @@ export default function PlanoPage() {
                 )}
             </div>
 
-            {/* Grid de planos — 2 colunas */}
-            {/* Três colunas a partir do desktop. Estava em duas, de quando só havia
-                dois planos — o Black caía sozinho numa segunda linha. Pula direto
-                de uma para três: em duas, um dos planos fica órfão embaixo. */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
-                {planos.map((plano, i) => {
-                    const isAtual = plano.nivel === planoAtual
-                    const hotmartLink = HOTMART_LINKS[plano.chave]
-                    const isDowngrade = plano.nivel < planoAtual
+            {/* Pagamento pendente: cartão falhou ou assinatura cancelada. */}
+            {pix.diasPendente !== null && (
+                <div className="rounded-2xl p-4 flex items-start gap-3 animate-fade-in" style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                    <AlertTriangle size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-[13px]" style={{ color: 'var(--text-primary)' }}>
+                        <p className="font-semibold">O pagamento do seu plano não foi concluído.</p>
+                        <p className="mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                            {pix.diasPendente >= CARENCIA_PAGAMENTO_DIAS
+                                ? 'A IARA parou de responder as pacientes. Pague abaixo para ela voltar na hora.'
+                                : `A IARA continua atendendo por mais ${CARENCIA_PAGAMENTO_DIAS - pix.diasPendente} dia(s). Pague abaixo para não interromper.`}
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Um card só, centralizado: o Black é o único plano à venda. */}
+            <div className="grid grid-cols-1 gap-4 max-w-md mx-auto">
+                {[plano].map((plano, i) => {
+                    const isAtual = temPlano
                     const preco = plano.precos[moeda]
 
                     return (
@@ -211,7 +215,7 @@ export default function PlanoPage() {
                             style={{
                                 animationDelay: `${i * 0.1}s`,
                                 backgroundColor: 'var(--bg-card)',
-                                border: isAtual ? `2px solid ${plano.cor}` : plano.popular ? `2px solid ${plano.cor}60` : '1px solid var(--border-default)',
+                                border: `2px solid ${plano.cor}${isAtual ? '' : '60'}`,
                             }}
                         >
                             {/* Glow */}
@@ -223,12 +227,6 @@ export default function PlanoPage() {
                             {isAtual && (
                                 <div className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md" style={{ backgroundColor: `${plano.cor}20`, color: plano.cor }}>
                                     Seu plano ✓
-                                </div>
-                            )}
-
-                            {plano.popular && !isAtual && (
-                                <div className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md" style={{ backgroundColor: `${plano.cor}15`, color: plano.cor }}>
-                                    Recomendado
                                 </div>
                             )}
 
@@ -255,27 +253,22 @@ export default function PlanoPage() {
                                 ))}
                             </ul>
 
-                            {isAtual ? (
+                            {/* Com o PIX liberado (atraso ou acordo) quem já tem o plano
+                                precisa de um botão para pagar; sem isso via só "Plano atual". */}
+                            {isAtual && !pix.liberado ? (
                                 <button className="w-full py-3 rounded-xl text-sm font-medium border transition-all" style={{ borderColor: plano.cor, color: plano.cor }} disabled>
                                     Plano atual ✓
                                 </button>
-                            ) : isDowngrade ? (
-                                <button className="w-full py-3 rounded-xl text-sm font-medium border transition-all opacity-50" style={{ borderColor: 'var(--border-default)', color: 'var(--text-muted)' }} disabled>
-                                    Plano inferior
-                                </button>
                             ) : (
-                                /* Abre o checkout para a clínica escolher PIX, cartão
-                                   ou Hotmart. Antes ia direto para a Hotmart, que é a
-                                   forma mais cara para você — 9,9% contra ~4%. */
                                 <button
-                                    onClick={() => setComprandoPlano({ chave: plano.chave, nome: plano.nome, preco: plano.precos.BRL, hotmart: hotmartLink })}
+                                    onClick={() => setComprandoPlano(true)}
                                     className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5 flex items-center justify-center gap-1.5"
                                     style={{
                                         background: `linear-gradient(135deg, ${plano.cor}, ${plano.cor}CC)`,
                                         boxShadow: `0 4px 20px ${plano.cor}30`,
                                     }}
                                 >
-                                    Assinar o {plano.nome}
+                                    {isAtual ? 'Pagar agora' : `Assinar o ${plano.nome}`}
                                 </button>
                             )}
                         </div>
@@ -283,9 +276,59 @@ export default function PlanoPage() {
                 })}
             </div>
 
+            {/* Upgrade de voz — vale para qualquer plano. Quem já tem o pacote
+                vê "Ativo" (configuracoes.pacote_voz_realista, o mesmo que a aba
+                Voz e lib/engine/audio.ts consultam). */}
+            <div className="backdrop-blur-xl rounded-2xl p-6 animate-fade-in" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-[#D99773]/10 flex items-center justify-center flex-shrink-0">
+                        <Mic size={22} className="text-[#D99773]" />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-[15px] font-bold" style={{ color: 'var(--text-primary)' }}>
+                            Upgrade: {vozRealista.nome}
+                        </h3>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                            {vozRealista.resumo}
+                        </p>
+                        <ul className="mt-2 space-y-1">
+                            {vozRealista.beneficios.map((b, j) => (
+                                <li key={j} className="flex items-start gap-1.5 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+                                    <Check size={12} className="flex-shrink-0 mt-0.5 text-[#D99773]" />
+                                    {b}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    <div className="sm:text-right flex-shrink-0">
+                        <p className="text-xl font-bold text-[#D99773]">R${vozRealista.preco}<span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>/mês</span></p>
+                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Somado ao plano</p>
+                    </div>
+                    {temVozRealista === null ? (
+                        <button className="px-5 py-2.5 rounded-xl text-sm font-medium border flex-shrink-0 opacity-60 flex items-center justify-center gap-1.5" style={{ borderColor: 'var(--border-default)', color: 'var(--text-muted)' }} disabled>
+                            <Loader2 size={14} className="animate-spin" />
+                            Verificando...
+                        </button>
+                    ) : temVozRealista ? (
+                        <button className="px-5 py-2.5 rounded-xl text-sm font-medium border flex-shrink-0" style={{ borderColor: '#D99773', color: '#D99773' }} disabled>
+                            Ativo ✓
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => setComprandoVoz(true)}
+                            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:-translate-y-0.5 flex items-center justify-center gap-1.5 flex-shrink-0"
+                            style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)', boxShadow: '0 4px 20px rgba(217,151,115,0.3)' }}
+                        >
+                            <Plus size={14} />
+                            Adicionar
+                        </button>
+                    )}
+                </div>
+            </div>
+
             {/* Instância Extra WhatsApp */}
             <div className="backdrop-blur-xl rounded-2xl p-6 animate-fade-in" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
                         <Smartphone size={22} className="text-green-500" />
                     </div>
@@ -297,14 +340,14 @@ export default function PlanoPage() {
                             Conecte mais um número de WhatsApp à sua IARA. Ideal para filiais ou números diferentes.
                         </p>
                     </div>
-                    <div className="text-right flex-shrink-0">
+                    <div className="sm:text-right flex-shrink-0">
                         <p className="text-xl font-bold text-green-500">{simbolo}{precoInstanciaExtra}<span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>/mês</span></p>
                         <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Metade do seu plano</p>
                     </div>
                     <button
                         onClick={handleComprarInstancia}
                         disabled={comprando}
-                        className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-green-500 hover:bg-green-600 transition-all hover:-translate-y-0.5 flex items-center gap-1.5 flex-shrink-0 disabled:opacity-50"
+                        className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-green-500 hover:bg-green-600 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-1.5 flex-shrink-0 disabled:opacity-50"
                         style={{ boxShadow: '0 4px 20px rgba(34,197,94,0.3)' }}
                     >
                         {comprando ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
@@ -316,9 +359,7 @@ export default function PlanoPage() {
             {/* Info */}
             <div className="rounded-xl p-4 text-center animate-fade-in" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    🔒 Pix pelo <strong style={{ color: 'var(--text-secondary)' }}>Asaas</strong>, cartão pelo{' '}
-                    <strong style={{ color: 'var(--text-secondary)' }}>Assiny</strong> ou pela{' '}
-                    <strong style={{ color: 'var(--text-secondary)' }}>Hotmart</strong> • 7 dias de garantia •{' '}
+                    🔒 Cartão de crédito pela <strong style={{ color: 'var(--text-secondary)' }}>Assiny</strong>, com cobrança automática • 7 dias de garantia •{' '}
                     <a href="#" className="text-[#D99773] hover:text-[#E8B89A] transition-colors">Fale conosco</a>
                 </p>
             </div>
@@ -326,12 +367,25 @@ export default function PlanoPage() {
             {comprandoPlano && (
                 <CheckoutModal
                     aberto={true}
-                    onClose={() => setComprandoPlano(null)}
+                    onClose={() => { setComprandoPlano(false); conferirVozRealista() }}
                     tipo="plano"
-                    item={comprandoPlano.chave}
-                    nome={comprandoPlano.nome}
-                    preco={comprandoPlano.preco}
-                    linkHotmart={comprandoPlano.hotmart}
+                    item={plano.chave}
+                    nome={plano.nome}
+                    preco={plano.precos.BRL}
+                    pixLiberado={pix.liberado}
+                    precoPix={pix.valor}
+                />
+            )}
+
+            {comprandoVoz && (
+                <CheckoutModal
+                    aberto={true}
+                    onClose={() => { setComprandoVoz(false); conferirVozRealista() }}
+                    tipo="pacote"
+                    item="voz_realista"
+                    nome={vozRealista.nome}
+                    preco={vozRealista.preco}
+                    pixLiberado={pix.liberado}
                 />
             )}
         </div>

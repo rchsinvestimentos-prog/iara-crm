@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PLANOS, PACOTES, type PlanoKey, type PacoteKey } from '@/lib/planos'
-import { garantirCliente, cobrancaPix, assinaturaPix } from '@/lib/pagamentos/asaas'
+import { garantirCliente, cobrancaPix } from '@/lib/pagamentos/asaas'
 import { linkAssiny } from '@/lib/pagamentos/links'
 
 /**
@@ -33,9 +33,19 @@ export async function POST(request: NextRequest) {
         const produto = tipo === 'plano' ? PLANOS[item as PlanoKey] : PACOTES[item as PacoteKey]
         if (!produto) return NextResponse.json({ error: 'produto não encontrado' }, { status: 400 })
 
-        const valor = tipo === 'plano'
-            ? (produto as typeof PLANOS.pro).precos.brl
+        // Pacote já ativo não gera cobrança nova. A tela também esconde o
+        // botão, mas só o servidor garante que ninguém paga duas vezes.
+        if (tipo === 'pacote') {
+            const cfg = (clinica.configuracoes as Record<string, unknown> | null) || {}
+            if (cfg[(produto as typeof PACOTES.clonagem).chave]) {
+                return NextResponse.json({ error: 'Este pacote já está ativo na sua conta.' }, { status: 409 })
+            }
+        }
+
+        const precoCheio = tipo === 'plano'
+            ? (produto as typeof PLANOS.premium).precos.brl
             : (produto as typeof PACOTES.clonagem).preco
+        let valor: number = precoCheio
         const descricao = `IARA — ${produto.nome}`
 
         // ---------- CARTÃO: link do Assiny ----------
@@ -63,6 +73,17 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'método inválido' }, { status: 400 })
         }
 
+        // Desde 10/11/2026 o PIX é exceção: só para pagamento atrasado ou
+        // negociado com o Rafael. Quem liga é o webhook (cartão falhou) ou o
+        // admin. Ver lib/pagamentos/pendencia.ts.
+        const cfgPix = (clinica.configuracoes as Record<string, unknown> | null) || {}
+        if (cfgPix.pix_liberado !== true) {
+            return NextResponse.json({ error: 'O pagamento é pelo cartão de crédito.' }, { status: 403 })
+        }
+        // Valor negociado vale só para o plano; o pacote é sempre preço cheio.
+        const negociado = Number(cfgPix.pix_valor)
+        if (tipo === 'plano' && Number.isFinite(negociado) && negociado > 0) valor = negociado
+
         const clienteId = await garantirCliente({
             nome: clinica.nomeClinica || clinica.nome || 'Clínica',
             email: clinica.email || email,
@@ -72,15 +93,9 @@ export async function POST(request: NextRequest) {
 
         const referencia = { clinicaId: clinica.id, tipo, item } as const
 
-        // Plano é mensalidade, pacote é cobrança avulsa que se repete todo mês
-        // — os dois viram assinatura no Asaas, para a clínica não precisar
-        // lembrar de pagar de novo.
-        if (tipo === 'plano') {
-            const ass = await assinaturaPix({ clienteId, valor, descricao, referencia })
-            const primeira = await cobrancaPix({ clienteId, valor, descricao, referencia })
-            return NextResponse.json({ metodo: 'pix', assinaturaId: ass.id, ...primeira, valor })
-        }
-
+        // Uma cobrança só. A mensalidade recorrente é a do cartão; o PIX cobre
+        // o mês atrasado ou o acordo. (Antes o plano criava uma assinatura PIX
+        // E uma cobrança avulsa — duas cobranças no primeiro mês.)
         const cob = await cobrancaPix({ clienteId, valor, descricao, referencia })
         return NextResponse.json({ metodo: 'pix', ...cob, valor })
 

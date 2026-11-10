@@ -1,5 +1,6 @@
 'use client'
 
+import { nomeDoNivel } from '@/lib/planos'
 import { useParams, useRouter } from 'next/navigation'
 import { Lock, Play, ArrowUpRight, ArrowLeft, Check } from 'lucide-react'
 import Link from 'next/link'
@@ -22,7 +23,8 @@ const EditorTool = dynamic(() => import('@/components/tools/EditorTool'))
 const CollagemTool = dynamic(() => import('@/components/tools/CollagemTool'))
 
 // Dados das habilidades
-const PLANO_NOMES: Record<number, string> = { 1: 'Essencial', 2: 'Pro', 3: 'Premium' }
+// Plano único desde 10/11/2026: qualquer nível mostra o nome dele.
+const PLANO_NOMES: Record<number, string> = { 1: nomeDoNivel(1), 2: nomeDoNivel(2), 3: nomeDoNivel(3) }
 const PLANO_CORES: Record<number, string> = { 1: '#D99773', 2: '#8B5CF6', 3: '#06B6D4', 4: '#F59E0B' }
 
 const skillsData: Record<string, {

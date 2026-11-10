@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { PLANO_UNICO } from '@/lib/planos'
 
 // ==========================================
 // Limites de features por nível de plano
@@ -79,7 +80,10 @@ function mesAtual(): string {
  * -1 = ilimitado
  */
 export function getLimite(nivel: number, feature: string): number {
-    const nivelConfig = FEATURE_LIMITS[nivel] || FEATURE_LIMITS[1]
+    // Plano único desde 10/11/2026: todas as clínicas usam os limites do
+    // nível dele, mesmo que o banco ainda guarde um nível antigo.
+    void nivel
+    const nivelConfig = FEATURE_LIMITS[PLANO_UNICO.nivel]
     return nivelConfig[feature] ?? 0
 }
 
@@ -135,7 +139,7 @@ export async function incrementFeature(clinicaId: number, feature: string, quant
  * Útil para mostrar no dashboard / UI.
  */
 export async function getResumoUso(clinicaId: number, nivel: number) {
-    const features = Object.keys(FEATURE_LIMITS[1])
+    const features = Object.keys(FEATURE_LIMITS[PLANO_UNICO.nivel])
     const mes = mesAtual()
 
     const registros = await prisma.usoFeature.findMany({

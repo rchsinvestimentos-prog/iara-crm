@@ -13,7 +13,7 @@
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { enviarEmailBoasVindas } from '@/lib/email'
-import { PLANOS, type PlanoKey } from '@/lib/planos'
+import { PLANO_UNICO, PLANO_UNICO_CHAVE } from '@/lib/planos'
 
 /** Senha temporária: 3 minúsculas + 2 maiúsculas + 4 números + 1 especial. */
 function gerarSenha(): string {
@@ -40,7 +40,12 @@ export async function acharOuCriarClinica(dados: {
     email: string
     nome?: string
     telefone?: string
-    planoInicial?: PlanoKey
+    /**
+     * false quando a compra foi só de um pacote (ex.: Voz Realista) por quem
+     * ainda não tem conta. A conta nasce INATIVA: pagar R$97 de voz não pode
+     * liberar a IARA inteira de graça.
+     */
+    comPlano: boolean
 }): Promise<{ clinicaId: number; criada: boolean; senhaTemporaria?: string }> {
     const email = dados.email.trim().toLowerCase()
     if (!email) throw new Error('e-mail vazio')
@@ -48,7 +53,7 @@ export async function acharOuCriarClinica(dados: {
     const existente = await prisma.clinica.findFirst({ where: { email } })
     if (existente) return { clinicaId: existente.id, criada: false }
 
-    const plano = PLANOS[dados.planoInicial || 'essencial']
+    const plano = PLANO_UNICO
     const senhaTemporaria = gerarSenha()
     const nome = (dados.nome || '').trim() || email.split('@')[0]
 
@@ -61,13 +66,13 @@ export async function acharOuCriarClinica(dados: {
             telefone: dados.telefone?.replace(/\D/g, '') || '',
             role: 'cliente',
             nivel: plano.nivel,
-            plano: dados.planoInicial || 'essencial',
-            status: 'ativo',
+            plano: PLANO_UNICO_CHAVE,
+            status: dados.comPlano ? 'ativo' : 'inativo',
             nomeAssistente: 'IARA',
             creditosMensais: plano.creditos,
             creditosDisponiveis: plano.creditos,
             maxInstanciasWhatsapp: plano.whatsapps,
-            maxInstanciasInstagram: plano.nivel >= 2 ? 1 : 0,
+            maxInstanciasInstagram: plano.instagrams,
         },
     })
 
@@ -80,7 +85,7 @@ export async function acharOuCriarClinica(dados: {
         email,
         nome,
         senha: senhaTemporaria,
-        plano: dados.planoInicial || 'essencial',
+        plano: PLANO_UNICO.nome,
     }).catch(err => console.error('[Pagamentos] Falha ao enviar boas-vindas:', err))
 
     return { clinicaId: nova.id, criada: true, senhaTemporaria }

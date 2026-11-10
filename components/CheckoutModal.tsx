@@ -3,8 +3,12 @@
 // ============================================
 // CHECKOUT — escolher como pagar
 // ============================================
-// Aparece quando a clínica decide comprar um plano ou pacote. Oferece PIX
-// (cobrança gerada na hora no Asaas) e cartão (link do Assiny).
+// Aparece quando a clínica decide comprar um plano ou pacote.
+//
+// Desde 10/11/2026: o cartão (link do Assiny) é o caminho normal. O PIX
+// (Asaas) só aparece quando pixLiberado — pagamento atrasado ou valor
+// negociado com o Rafael (ver lib/pagamentos/pendencia.ts). A Hotmart não
+// aparece aqui: ela fica só para as vendas dos afiliados.
 //
 // Nada é liberado aqui: quem libera é o webhook, quando o dinheiro entra.
 // A tela só leva a clínica até o pagamento.
@@ -12,11 +16,11 @@
 import { useState } from 'react'
 import { X, QrCode, CreditCard, Loader2, Copy, Check, ExternalLink } from 'lucide-react'
 
-type Metodo = 'pix' | 'cartao' | 'hotmart'
+type Metodo = 'pix' | 'cartao'
 type Pix = { url: string; copiaECola?: string; qrCode?: string; valor: number }
 
 export default function CheckoutModal({
-    aberto, onClose, tipo, item, nome, preco, linkHotmart,
+    aberto, onClose, tipo, item, nome, preco, pixLiberado = false, precoPix,
 }: {
     aberto: boolean
     onClose: () => void
@@ -24,8 +28,10 @@ export default function CheckoutModal({
     item: string
     nome: string
     preco: number
-    /** Só os planos têm oferta na Hotmart; pacotes não. */
-    linkHotmart?: string
+    /** Mostra o PIX. Só vem true em atraso ou negociação. */
+    pixLiberado?: boolean
+    /** Valor do PIX quando foi negociado diferente do preço cheio. */
+    precoPix?: number
 }) {
     const [carregando, setCarregando] = useState<Metodo | null>(null)
     const [pix, setPix] = useState<Pix | null>(null)
@@ -35,14 +41,6 @@ export default function CheckoutModal({
     if (!aberto) return null
 
     const escolher = async (metodo: Metodo) => {
-        // A Hotmart é link pronto: não passa pela nossa API, e quem cria a
-        // conta depois é o webhook dela, que já existe.
-        if (metodo === 'hotmart') {
-            if (linkHotmart) window.open(linkHotmart, '_blank')
-            onClose()
-            return
-        }
-
         setErro('')
         setCarregando(metodo)
         try {
@@ -55,7 +53,7 @@ export default function CheckoutModal({
 
             if (!res.ok) {
                 setErro(dados.error === 'Cartão ainda não disponível para este item'
-                    ? 'O cartão para este item ainda está sendo liberado. Use o PIX por enquanto.'
+                    ? 'O pagamento pelo cartão ainda está sendo liberado. Fale com o suporte da IARA.'
                     : dados.error || 'Não consegui gerar a cobrança. Tente de novo.')
                 return
             }
@@ -107,37 +105,7 @@ export default function CheckoutModal({
 
                 {!pix ? (
                     <>
-                        <p className="text-[13px] text-gray-500">Como você prefere pagar?</p>
-
-                        <button onClick={() => escolher('pix')} disabled={!!carregando}
-                            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all disabled:opacity-50"
-                            style={{ borderColor: '#E5E7EB' }}>
-                            <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                                style={{ backgroundColor: 'rgba(6,214,160,0.12)' }}>
-                                {carregando === 'pix'
-                                    ? <Loader2 size={18} className="animate-spin" style={{ color: '#06D6A0' }} />
-                                    : <QrCode size={18} style={{ color: '#06D6A0' }} />}
-                            </span>
-                            <span className="text-left">
-                                <span className="block text-[14px] font-semibold text-gray-800">PIX</span>
-                                <span className="block text-[11.5px] text-gray-400">Libera assim que o pagamento cair</span>
-                            </span>
-                        </button>
-
-                        {linkHotmart && (
-                            <button onClick={() => escolher('hotmart')} disabled={!!carregando}
-                                className="w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all disabled:opacity-50"
-                                style={{ borderColor: '#E5E7EB' }}>
-                                <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                                    style={{ backgroundColor: 'rgba(15,76,97,0.10)' }}>
-                                    <ExternalLink size={18} style={{ color: '#0F4C61' }} />
-                                </span>
-                                <span className="text-left">
-                                    <span className="block text-[14px] font-semibold text-gray-800">Hotmart</span>
-                                    <span className="block text-[11.5px] text-gray-400">Pix, boleto ou cartão, com parcelamento</span>
-                                </span>
-                            </button>
-                        )}
+                        <p className="text-[13px] text-gray-500">{pixLiberado ? 'Como você prefere pagar?' : 'O pagamento é pelo cartão, com cobrança automática todo mês.'}</p>
 
                         <button onClick={() => escolher('cartao')} disabled={!!carregando}
                             className="w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all disabled:opacity-50"
@@ -153,6 +121,24 @@ export default function CheckoutModal({
                                 <span className="block text-[11.5px] text-gray-400">Cobrança automática todo mês</span>
                             </span>
                         </button>
+                        {pixLiberado && (
+                            <button onClick={() => escolher('pix')} disabled={!!carregando}
+                                className="w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all disabled:opacity-50"
+                                style={{ borderColor: '#E5E7EB' }}>
+                                <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                                    style={{ backgroundColor: 'rgba(6,214,160,0.12)' }}>
+                                    {carregando === 'pix'
+                                        ? <Loader2 size={18} className="animate-spin" style={{ color: '#06D6A0' }} />
+                                        : <QrCode size={18} style={{ color: '#06D6A0' }} />}
+                                </span>
+                                <span className="text-left">
+                                    <span className="block text-[14px] font-semibold text-gray-800">PIX</span>
+                                    <span className="block text-[11.5px] text-gray-400">
+                                        {precoPix && precoPix !== preco ? `R$ ${precoPix} combinado · ` : ''}Libera assim que o pagamento cair
+                                    </span>
+                                </span>
+                            </button>
+                        )}
                     </>
                 ) : (
                     <>

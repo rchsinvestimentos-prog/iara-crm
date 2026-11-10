@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Building2, Search, Plus, Loader2, X, Eye, Copy, Check, Mail, MoreHorizontal, KeyRound, Ban, Settings, Trash2, LogIn, CreditCard, ArrowUpDown, RefreshCw, Sparkles } from 'lucide-react'
-import { nomeDoNivel, MAX_NIVEL, nivelToPlano, PACOTES } from '@/lib/planos'
+import { nomeDoNivel, nivelToPlano, PACOTES, PLANO_UNICO } from '@/lib/planos'
 
 interface Clinica {
     id: number
@@ -31,10 +31,14 @@ interface Clinica {
     aceite_termos: string | null
     voz_realista: boolean
     clonagem: boolean
+    pix_liberado: boolean
+    pix_valor: number | null
+    pagamento_pendente_desde: string | null
 }
 
 // Faltava o nível 3 aqui, e os nomes estavam desatualizados.
-const NIVEIS = Array.from({ length: MAX_NIVEL }, (_, i) => i + 1)
+// Plano único desde 10/11/2026 (lib/planos.ts).
+const NIVEIS = [PLANO_UNICO.nivel]
 const planoNomes: Record<number, string> = Object.fromEntries(NIVEIS.map(n => [n, nomeDoNivel(n)]))
 // Faltava a cor do nível 3, então o Black cairia no cinza de "desconhecido".
 const planoCores: Record<number, string> = { 1: '#06D6A0', 2: '#8B5CF6', 3: '#D99773' }
@@ -64,9 +68,9 @@ export default function AdminClinicas() {
         email: '',
         codigoPais: '55',
         telefone: '',
-        nivel: 1,
+        nivel: PLANO_UNICO.nivel as number,
         duracao: '30',
-        creditos: 1000,
+        creditos: PLANO_UNICO.creditos as number,
         enviarEmail: true,
     })
 
@@ -106,7 +110,7 @@ export default function AdminClinicas() {
     function fecharModal() {
         setShowModal(false)
         setResultado(null)
-        setForm({ nome: '', email: '', codigoPais: '55', telefone: '', nivel: 1, duracao: '30', creditos: 1000, enviarEmail: true })
+        setForm({ nome: '', email: '', codigoPais: '55', telefone: '', nivel: PLANO_UNICO.nivel, duracao: '30', creditos: PLANO_UNICO.creditos, enviarEmail: true })
         setMsg('')
     }
 
@@ -121,9 +125,10 @@ export default function AdminClinicas() {
     // Modais de créditos e plano
     const [modalCreditos, setModalCreditos] = useState<{ id: number; nome: string } | null>(null)
     const [creditosQtd, setCreditosQtd] = useState('500')
-    const [modalPlano, setModalPlano] = useState<{ id: number; nome: string; nivelAtual: number; vozRealista: boolean; clonagem: boolean } | null>(null)
+    const [modalPlano, setModalPlano] = useState<{ id: number; nome: string; nivelAtual: number; vozRealista: boolean; clonagem: boolean; pixLiberado: boolean; pixValor: number | null; pendenteDesde: string | null } | null>(null)
+    const [pixValorTexto, setPixValorTexto] = useState('')
+    const [salvandoPix, setSalvandoPix] = useState(false)
     const [salvandoPacote, setSalvandoPacote] = useState<'voz_realista' | 'clonagem' | null>(null)
-    const [planoNovo, setPlanoNovo] = useState(1)
     const [savingModal, setSavingModal] = useState(false)
 
     // Fechar menu ao clicar fora (simples)
@@ -201,20 +206,25 @@ export default function AdminClinicas() {
         setSavingModal(false)
     }
 
-    async function mudarPlano() {
+    // PIX como exceção: atraso ou valor negociado (lib/pagamentos/pendencia.ts)
+    async function salvarPix(liberar: boolean) {
         if (!modalPlano) return
-        setSavingModal(true)
+        setSalvandoPix(true)
         try {
             const r = await fetch(`/api/admin/clinicas/${modalPlano.id}/acao`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ acao: 'plano', nivel: planoNovo })
+                body: JSON.stringify({ acao: 'pix', liberar, valor: liberar ? pixValorTexto : null })
             })
             const data = await r.json()
             alert(data.message || data.error)
-            if (r.ok) { setModalPlano(null); load() }
+            if (r.ok) {
+                const v = Number(pixValorTexto.replace(',', '.'))
+                setModalPlano({ ...modalPlano, pixLiberado: liberar, pixValor: liberar && v > 0 ? v : null })
+                load()
+            }
         } catch { alert('Erro de rede') }
-        setSavingModal(false)
+        setSalvandoPix(false)
     }
 
     // Os pacotes de voz são salvos na hora, separados do plano: o botão de
@@ -385,7 +395,7 @@ export default function AdminClinicas() {
                                                 >
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'impersonar') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><LogIn size={14} className="text-green-400" /> Acessar Painel</button>
                                                     <button onClick={() => { setMenuAberto(null); setModalCreditos({ id: c.id, nome: c.nome_clinica }); setCreditosQtd('500') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><CreditCard size={14} className="text-emerald-400" /> Liberar Créditos</button>
-                                                    <button onClick={() => { setMenuAberto(null); setModalPlano({ id: c.id, nome: c.nome_clinica, nivelAtual: c.nivel, vozRealista: c.voz_realista, clonagem: c.clonagem }); setPlanoNovo(c.nivel) }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><ArrowUpDown size={14} className="text-purple-400" /> Mudar Plano</button>
+                                                    <button onClick={() => { setMenuAberto(null); setModalPlano({ id: c.id, nome: c.nome_clinica, nivelAtual: c.nivel, vozRealista: c.voz_realista, clonagem: c.clonagem, pixLiberado: c.pix_liberado, pixValor: c.pix_valor, pendenteDesde: c.pagamento_pendente_desde }); setPixValorTexto(c.pix_valor ? String(c.pix_valor) : '') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><ArrowUpDown size={14} className="text-purple-400" /> Pagamento e pacotes</button>
                                                     <div className="h-px bg-white/5 my-1" />
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'reenviar') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><KeyRound size={14} className="text-[#D99773]" /> Reenviar Acesso</button>
                                                     <button onClick={() => { setMenuAberto(null); executarAcao(c.id, 'bloquear') }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 text-gray-300 flex items-center gap-2 transition-colors"><Ban size={14} className="text-yellow-400" /> Bloquear/Desbloquear</button>
@@ -572,25 +582,42 @@ export default function AdminClinicas() {
                     <div className="rounded-2xl p-6 w-full max-w-sm space-y-4" style={{ backgroundColor: '#111827', border: '1px solid rgba(255,255,255,0.08)' }} onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between">
                             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                <ArrowUpDown size={18} className="text-purple-400" /> Mudar Plano
+                                <ArrowUpDown size={18} className="text-purple-400" /> Pagamento e pacotes
                             </h2>
                             <button onClick={() => setModalPlano(null)} className="text-gray-500 hover:text-gray-300"><X size={18} /></button>
                         </div>
                         <p className="text-xs text-gray-400">Para: <span className="text-white font-medium">{modalPlano.nome}</span></p>
-                        <p className="text-xs text-gray-500">Plano atual: <span className="font-semibold" style={{ color: planoCores[modalPlano.nivelAtual] }}>{planoNomes[modalPlano.nivelAtual]}</span></p>
-                        {/* Os três níveis saem do catálogo. A lista era fixa com dois,
-                            e com os nomes antigos: o Black não aparecia aqui, então
-                            nem com a API corrigida dava para dar o plano maior. */}
-                        <div className="grid grid-cols-3 gap-2">
-                            {NIVEIS.map(n => (
-                                <button key={n} onClick={() => setPlanoNovo(n)}
-                                    className={`p-4 rounded-xl text-center transition-all border ${planoNovo === n ? 'border-white/30' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
-                                    style={planoNovo === n ? { backgroundColor: `${planoCores[n]}1A`, borderColor: `${planoCores[n]}4D` } : undefined}>
-                                    <p className="text-sm font-bold" style={{ color: planoNovo === n ? planoCores[n] : '#9CA3AF' }}>{planoNomes[n]}</p>
-                                    <p className="text-[10px] text-gray-500 mt-1">Nível {n}</p>
+                        {/* PIX: só aparece para a clínica quando liberado aqui
+                            (ou quando o cartão falhou — aí o sistema liga sozinho). */}
+                        <div className="rounded-xl p-3 space-y-2" style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <p className="text-xs font-semibold text-white">PIX (atraso ou negociação)</p>
+                            {modalPlano.pendenteDesde && (
+                                <p className="text-[10px] text-red-300">
+                                    Pagamento pendente desde {new Date(modalPlano.pendenteDesde).toLocaleDateString('pt-BR')}. A IARA para depois de 7 dias.
+                                </p>
+                            )}
+                            <p className="text-[10px] text-gray-500">
+                                {modalPlano.pixLiberado
+                                    ? `✓ Liberado${modalPlano.pixValor ? ` — R$ ${modalPlano.pixValor} combinado` : ' — preço cheio'}. Desliga sozinho quando ela pagar.`
+                                    : 'Desligado — a clínica só vê o cartão.'}
+                            </p>
+                            <div className="flex gap-2">
+                                <input value={pixValorTexto} onChange={e => setPixValorTexto(e.target.value)} inputMode="decimal"
+                                    placeholder={`Valor (vazio = R$ ${PLANO_UNICO.precos.brl})`}
+                                    className="flex-1 min-w-0 rounded-lg px-3 py-2 text-xs text-white bg-white/5 border border-white/10 outline-none" />
+                                <button onClick={() => salvarPix(true)} disabled={salvandoPix}
+                                    className="px-3 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50" style={{ backgroundColor: '#06D6A0' }}>
+                                    {salvandoPix ? '...' : modalPlano.pixLiberado ? 'Atualizar' : 'Liberar PIX'}
                                 </button>
-                            ))}
+                                {modalPlano.pixLiberado && (
+                                    <button onClick={() => salvarPix(false)} disabled={salvandoPix}
+                                        className="px-3 py-2 rounded-lg text-xs font-semibold text-gray-300 border border-white/10 disabled:opacity-50">
+                                        Desligar
+                                    </button>
+                                )}
+                            </div>
                         </div>
+
                         {/* Pacotes de voz — cortesia, fora do plano */}
                         {([
                             { chave: 'voz_realista' as const, titulo: 'Voz ultra realista', ligado: modalPlano.vozRealista, preco: PACOTES.voz_realista.preco, ok: 'A clínica já escolhe as vozes premium', off: 'A clínica só tem as vozes padrão' },
@@ -620,11 +647,6 @@ export default function AdminClinicas() {
                             </div>
                         ))}
 
-                        <button onClick={mudarPlano} disabled={savingModal || planoNovo === modalPlano.nivelAtual}
-                            className="w-full py-2.5 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50"
-                            style={{ background: planoNovo === modalPlano.nivelAtual ? '#374151' : 'linear-gradient(135deg, #8B5CF6, #7C3AED)' }}>
-                            {savingModal ? <Loader2 size={16} className="animate-spin mx-auto" /> : planoNovo === modalPlano.nivelAtual ? 'Mesmo plano atual' : `Alterar para ${planoNomes[planoNovo]}`}
-                        </button>
                     </div>
                 </div>
             )}

@@ -17,6 +17,7 @@ import {
     Sparkles,
 } from 'lucide-react'
 import Link from 'next/link'
+import { PLANO_UNICO } from '@/lib/planos'
 
 interface Skill {
     nome: string
@@ -26,38 +27,23 @@ interface Skill {
     slug?: string
 }
 
+// Plano único desde 10/11/2026: todas as habilidades fazem parte dele.
+// A voz clonada saiu daqui porque é pacote à parte (lib/planos.ts).
 const habilidades: { titulo: string; nivel: number; preco: string; cor: string; skills: Skill[] }[] = [
     {
-        titulo: 'Essencial',
+        titulo: PLANO_UNICO.nome,
         nivel: 1,
-        preco: 'R$ 97/mês',
-        cor: '#06D6A0',
+        preco: `R$ ${PLANO_UNICO.precos.brl}/mês — tudo incluído`,
+        cor: '#D99773',
         skills: [
             { nome: 'Atendimento por Texto', descricao: 'Responde clientes via WhatsApp automaticamente', icon: <MessageSquare size={20} />, nivel: 1, slug: 'atendimento' },
             { nome: 'Atendimento por Áudio', descricao: 'Transcreve e responde áudios com IA', icon: <Mic size={20} />, nivel: 1, slug: 'audio' },
             { nome: 'Agendamento Automático', descricao: 'Agenda direto no Google Calendar', icon: <Calendar size={20} />, nivel: 1, slug: 'agendamento' },
             { nome: 'Follow-up', descricao: 'Lembrete 24h e 2h antes da consulta', icon: <UserCheck size={20} />, nivel: 1, slug: 'followup' },
-        ],
-    },
-    {
-        titulo: 'Pro',
-        nivel: 2,
-        preco: 'R$ 197/mês',
-        cor: '#F59E0B',
-        skills: [
-            { nome: 'Instagram DM IA', descricao: 'Atende clientes pelo Instagram automaticamente', icon: <Instagram size={20} />, nivel: 2, slug: 'instagram' },
-            { nome: '4 Idiomas', descricao: 'Atende em PT-BR, PT-PT, EN e ES', icon: <FileText size={20} />, nivel: 2 },
-        ],
-    },
-    {
-        titulo: 'Premium',
-        nivel: 3,
-        preco: 'R$ 297/mês',
-        cor: '#D99773',
-        skills: [
-            { nome: 'Equipe / Multi-profissional', descricao: 'Cadastre profissionais com agendas próprias', icon: <Camera size={20} />, nivel: 3 },
-            { nome: 'Voz Clonada', descricao: 'Sua voz clonada via ElevenLabs', icon: <Mic size={20} />, nivel: 3, slug: 'voz' },
-            { nome: 'Multi-clínica', descricao: 'Gerencie múltiplas clínicas', icon: <Paintbrush size={20} />, nivel: 3 },
+            { nome: 'Instagram DM IA', descricao: 'Atende clientes pelo Instagram automaticamente', icon: <Instagram size={20} />, nivel: 1, slug: 'instagram' },
+            { nome: '4 Idiomas', descricao: 'Atende em PT-BR, PT-PT, EN e ES', icon: <FileText size={20} />, nivel: 1 },
+            { nome: 'Equipe / Multi-profissional', descricao: 'Cadastre profissionais com agendas próprias', icon: <Camera size={20} />, nivel: 1 },
+            { nome: 'Multi-clínica', descricao: 'Gerencie múltiplas clínicas', icon: <Paintbrush size={20} />, nivel: 1 },
         ],
     },
 ]
@@ -93,7 +79,7 @@ export default function HabilidadesPage() {
                     Habilidades da {nomeIA}
                 </h1>
                 <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                    Sua {nomeIA} é <span className="font-bold text-[#D99773]">Nível {planoAtual}</span> — desbloqueie novas habilidades fazendo upgrade
+                    Tudo o que a {nomeIA} sabe fazer, incluído no seu plano. Ative cada habilidade abaixo.
                 </p>
             </div>
 

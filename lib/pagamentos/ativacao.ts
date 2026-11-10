@@ -9,9 +9,10 @@
 // grava o plano e esquece os créditos.
 
 import { prisma } from '@/lib/prisma'
-import { PLANOS, PACOTES, type PlanoKey, type PacoteKey } from '@/lib/planos'
+import { PLANO_UNICO, PLANO_UNICO_CHAVE, PACOTES, PLAN_ALIASES, type PacoteKey } from '@/lib/planos'
+import { limparPendencia } from '@/lib/pagamentos/pendencia'
 
-export type Provedor = 'asaas' | 'assiny' | 'manual'
+export type Provedor = 'asaas' | 'assiny' | 'hotmart' | 'manual'
 export type TipoItem = 'plano' | 'pacote'
 
 /** Garante as tabelas de cobrança. Mesmo padrão do resto do projeto. */
@@ -78,6 +79,30 @@ export async function registrarLog(dados: {
 }
 
 /**
+ * O item foi pago (por qualquer provedor) depois desta data?
+ *
+ * Serve para o PIX esquecido: a clínica gera um PIX, acaba pagando no cartão,
+ * e dias depois o Asaas avisa que o PIX venceu. Sem esta conferência o aviso
+ * abriria uma carência nova e cortaria quem está em dia.
+ *
+ * Sem data (ou data estragada) responde false: na dúvida segue a regra
+ * normal de atraso, que só corta depois de 7 dias e avisa no admin.
+ */
+export async function pagoDepoisDe(
+    clinicaId: number, tipo: TipoItem, item: string, data: unknown
+): Promise<boolean> {
+    const t = typeof data === 'string' ? Date.parse(data) : NaN
+    if (Number.isNaN(t)) return false
+    await garantirTabelas()
+    const r = await prisma.$queryRaw<{ n: bigint }[]>`
+        SELECT COUNT(*)::bigint AS n FROM assinaturas
+        WHERE clinica_id = ${clinicaId} AND tipo = ${tipo} AND item = ${item}
+          AND status = 'ativa' AND atualizado_em > ${new Date(t)}
+    `
+    return Number(r[0]?.n ?? 0) > 0
+}
+
+/**
  * Libera uma compra. Chamado pelos webhooks dos dois provedores.
  *
  * É idempotente: o mesmo aviso chegando duas vezes não cobra nem libera em
@@ -97,15 +122,28 @@ export async function ativarCompra(dados: {
     await garantirTabelas()
 
     if (tipo === 'plano') {
-        const plano = PLANOS[item as PlanoKey]
-        if (!plano) return { ok: false, mensagem: `plano desconhecido: ${item}` }
+        // Plano único: qualquer nome de plano (antigo ou novo) libera o mesmo.
+        // Nome que não é plano nenhum continua sendo recusado.
+        if (!PLAN_ALIASES[String(item).toLowerCase()]) {
+            return { ok: false, mensagem: `plano desconhecido: ${item}` }
+        }
+        const plano = PLANO_UNICO
+        const atual = await prisma.clinica.findUnique({
+            where: { id: clinicaId },
+            select: { configuracoes: true },
+        })
+        if (!atual) return { ok: false, mensagem: `clínica ${clinicaId} não encontrada` }
+        const cfgPago = limparPendencia((atual.configuracoes as Record<string, unknown>) || {})
 
         await prisma.clinica.update({
             where: { id: clinicaId },
             data: {
                 nivel: plano.nivel,
-                plano: item,
+                plano: PLANO_UNICO_CHAVE,
                 status: 'ativo',
+                configuracoes: cfgPago as object,
+                maxInstanciasWhatsapp: plano.whatsapps,
+                maxInstanciasInstagram: plano.instagrams,
                 creditosMensais: plano.creditos,
                 creditosDisponiveis: plano.creditos,
                 proximaRenovacao: proximaCobranca ?? new Date(Date.now() + 30 * 24 * 3600 * 1000),
@@ -145,20 +183,27 @@ export async function ativarCompra(dados: {
 }
 
 /**
- * Suspende uma compra: cancelamento, estorno ou parcela não paga.
+ * Suspende uma compra.
  *
- * Plano cancelado volta para o Essencial em vez de bloquear o acesso — a
- * clínica continua atendendo, só perde o que era do plano maior. Cortar o
- * atendimento de quem esqueceu de pagar o cartão gera mais dano que a
- * mensalidade perdida.
+ * gravidade 'atraso' (cartão recusado, assinatura cancelada, parcela não
+ * paga): o plano entra em carência de CARENCIA_PAGAMENTO_DIAS — a IARA
+ * continua atendendo, o PIX aparece na tela de planos, e só depois da
+ * carência a catraca para de responder.
+ *
+ * gravidade 'estorno' (reembolso, chargeback): o dinheiro voltou, a IARA
+ * para na hora.
+ *
+ * Pacote (voz) é desligado nos dois casos — a clínica volta para a voz
+ * padrão, sem parar de atender.
  */
 export async function suspenderCompra(dados: {
     clinicaId: number
     tipo: TipoItem
     item: string
     motivo: string
+    gravidade: 'atraso' | 'estorno'
 }): Promise<{ ok: boolean; mensagem: string }> {
-    const { clinicaId, tipo, item, motivo } = dados
+    const { clinicaId, tipo, item, motivo, gravidade } = dados
     await garantirTabelas()
 
     if (tipo === 'pacote') {
@@ -173,24 +218,29 @@ export async function suspenderCompra(dados: {
             data: { configuracoes: { ...cfg, [pacote.chave]: false } },
         })
     } else {
-        // Os créditos precisam cair junto com o nível. Sem isso a clínica
-        // cancelava o Premium e seguia com o teto de 15.000 do plano grande.
-        const essencial = PLANOS.essencial
         const atual = await prisma.clinica.findUnique({
             where: { id: clinicaId },
-            select: { creditosDisponiveis: true },
+            select: { configuracoes: true },
         })
-        await prisma.clinica.update({
-            where: { id: clinicaId },
-            data: {
-                nivel: essencial.nivel,
-                plano: 'essencial',
-                creditosMensais: essencial.creditos,
-                // Não devolve crédito que ela já gastou: se usou mais do que o
-                // Essencial dá, fica com o que sobrou, não com o teto cheio.
-                creditosDisponiveis: Math.min(atual?.creditosDisponiveis ?? essencial.creditos, essencial.creditos),
-            },
-        })
+        if (!atual) return { ok: false, mensagem: `clínica ${clinicaId} não encontrada` }
+        const cfg = (atual.configuracoes as Record<string, unknown>) || {}
+
+        if (gravidade === 'estorno') {
+            await prisma.clinica.update({
+                where: { id: clinicaId },
+                data: { status: 'inativo' },
+            })
+        } else {
+            // Não reinicia a carência se ela já está correndo: dois avisos de
+            // cartão recusado não podem dar 14 dias.
+            const desde = typeof cfg.pagamento_pendente_desde === 'string'
+                ? cfg.pagamento_pendente_desde
+                : new Date().toISOString()
+            await prisma.clinica.update({
+                where: { id: clinicaId },
+                data: { configuracoes: { ...cfg, pagamento_pendente_desde: desde, pix_liberado: true } as object },
+            })
+        }
     }
 
     await prisma.$executeRaw`
@@ -198,6 +248,7 @@ export async function suspenderCompra(dados: {
         WHERE clinica_id = ${clinicaId} AND tipo = ${tipo} AND item = ${item}
     `
 
-    console.log(`[Pagamentos] ⛔ clínica ${clinicaId}: ${tipo} "${item}" suspenso (${motivo})`)
-    return { ok: true, mensagem: `${tipo} ${item} suspenso` }
+    const como = tipo === 'plano' ? (gravidade === 'estorno' ? 'IARA parada' : 'carência + PIX liberado') : 'pacote desligado'
+    console.log(`[Pagamentos] ⛔ clínica ${clinicaId}: ${tipo} "${item}" suspenso (${motivo}) → ${como}`)
+    return { ok: true, mensagem: `${tipo} ${item} suspenso: ${como}` }
 }

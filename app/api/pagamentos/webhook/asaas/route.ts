@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ativarCompra, suspenderCompra, registrarLog } from '@/lib/pagamentos/ativacao'
+import { ativarCompra, suspenderCompra, registrarLog, pagoDepoisDe } from '@/lib/pagamentos/ativacao'
 import { acharReferencia } from '@/lib/pagamentos/referencia'
 import { buscarCliente } from '@/lib/pagamentos/asaas'
 import { acharOuCriarClinica } from '@/lib/pagamentos/conta'
@@ -16,12 +16,15 @@ import { acharOuCriarClinica } from '@/lib/pagamentos/conta'
  */
 
 const LIBERA = new Set(['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED'])
+// PIX vencido sem pagar: mesma carência do cartão recusado.
+const ATRASA = new Set(['PAYMENT_OVERDUE'])
 const SUSPENDE = new Set([
     'PAYMENT_REFUNDED',
     'PAYMENT_CHARGEBACK_REQUESTED',
     'PAYMENT_RECEIVED_IN_CASH_UNDONE',
-    'PAYMENT_DELETED',
 ])
+// PAYMENT_DELETED fica de fora: apagar uma cobrança que ninguém pagou (PIX
+// gerado e depois pago no cartão) não é estorno e não pode parar a IARA.
 
 export async function POST(request: NextRequest) {
     const esperado = process.env.ASAAS_WEBHOOK_TOKEN || ''
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
                 email: cliente.email,
                 nome: cliente.nome,
                 telefone: cliente.telefone,
-                planoInicial: ref.tipo === 'plano' ? (ref.item as any) : 'essencial',
+                comPlano: ref.tipo === 'plano',
             })
             clinicaId = conta.clinicaId
             contaCriada = conta.criada
@@ -93,7 +96,18 @@ export async function POST(request: NextRequest) {
                 await registrarLog({ provedor: 'asaas', evento, idExterno: pagamento?.id, payload: corpo, resultado: 'estorno de compra sem conta' })
                 return NextResponse.json({ ok: true, ignorado: 'sem conta' })
             }
-            const r = await suspenderCompra({ clinicaId, tipo: ref.tipo, item: ref.item, motivo: evento })
+            const r = await suspenderCompra({ clinicaId, tipo: ref.tipo, item: ref.item, motivo: evento, gravidade: 'estorno' })
+            await registrarLog({ provedor: 'asaas', evento, idExterno: pagamento?.id, clinicaId, payload: corpo, resultado: r.mensagem })
+            return NextResponse.json(r)
+        }
+
+        if (ATRASA.has(evento) && clinicaId !== 0) {
+            // PIX esquecido vencendo não corta quem já pagou por outro caminho.
+            if (await pagoDepoisDe(clinicaId, ref.tipo, ref.item, pagamento?.dateCreated)) {
+                await registrarLog({ provedor: 'asaas', evento, idExterno: pagamento?.id, clinicaId, payload: corpo, resultado: 'PIX vencido ignorado: já pago por outro caminho depois dele' })
+                return NextResponse.json({ ok: true, ignorado: 'já pago' })
+            }
+            const r = await suspenderCompra({ clinicaId, tipo: ref.tipo, item: ref.item, motivo: evento, gravidade: 'atraso' })
             await registrarLog({ provedor: 'asaas', evento, idExterno: pagamento?.id, clinicaId, payload: corpo, resultado: r.mensagem })
             return NextResponse.json(r)
         }

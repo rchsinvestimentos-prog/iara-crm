@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { PLANO_UNICO } from '@/lib/planos'
 
 const CRON_SECRET = process.env.CRON_SECRET || ''
 
@@ -49,19 +50,13 @@ export async function GET(request: NextRequest) {
             })
         }
 
-        // Créditos por nível de plano
-        const creditosPorNivel: Record<number, number> = {
-            1: 1000,
-            2: 5000,
-            3: 5000,
-            4: 10000,
-        }
-
+        // Plano único: os créditos saem do catálogo. A tabela fixa que havia
+        // aqui dava 5.000 para o nível 3, que vende 15.000.
         const resultados: any[] = []
 
         for (const clinica of clinicas) {
-            const nivel = clinica.nivel || 1
-            const creditos = creditosPorNivel[nivel] || 1000
+            const nivel = PLANO_UNICO.nivel
+            const creditos = PLANO_UNICO.creditos
 
             // Renovar créditos
             await prisma.clinica.update({

@@ -1,5 +1,6 @@
 'use client'
 
+import { nomeDoNivel } from '@/lib/planos'
 import { useState, useEffect } from 'react'
 import { Building2, Plus, MapPin, Phone, ArrowRightLeft, Crown, Check, Loader2, ArrowRight, Lock, Sparkles } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
@@ -73,7 +74,7 @@ export default function ClinicasPage() {
     } catch {} finally { setSwitchingId(null) }
   }
 
-  const PLANO_NOMES: Record<number, string> = { 1: 'Essencial', 2: 'Pro', 3: 'Premium' }
+  const PLANO_NOMES: Record<number, string> = { 1: nomeDoNivel(1), 2: nomeDoNivel(2), 3: nomeDoNivel(3) }
 
   // ─── NÃO-PREMIUM: Página de upgrade persuasiva ───
   if (planoAtual < 3 && !loading) {

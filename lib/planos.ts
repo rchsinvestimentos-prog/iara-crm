@@ -1,70 +1,40 @@
 // ============================================
-// PLANOS IARA v2 — 3 Níveis (Foco: Agendamento)
+// PLANO ÚNICO DA IARA — desde 10/11/2026
 // ============================================
-// P1 Start:   R$197 / $47 / €47   — 600 conversas
-// P2 Master:  R$297 / $67 / €67   — 1.200 conversas
-// P3 Black:   R$497 / $99 / €99   — 2.500 conversas
+// R$497/mês com tudo liberado. Start (R$197) e Master (R$297) deixaram de
+// existir: não havia nenhuma clínica pagante neles.
 //
-// As CHAVES internas continuam essencial/pro/premium: já existem clínicas
-// com esses valores gravados, e renomear rebaixaria quem tem 'premium'
-// (R$497) para o que passaria a se chamar Premium (R$197). Só o nome de
-// exibição mudou. Por isso 'Premium' foi descartado como nome comercial.
+// A chave interna continua 'premium' e o nível continua 3 porque é o que já
+// está gravado no banco e nos links de pagamento. Qualquer nome antigo que
+// chegar (start, master, essencial, pro...) vira este plano — nunca um
+// plano menor, que não existe mais.
 //
-// Os créditos batem com os tetos de lib/feature-limits.ts: uma conversa tem
-// cerca de 6 mensagens, e o teto lá é contado em mensagens.
+// Limites de uso: lib/feature-limits.ts
 //
-// Limites de features: lib/feature-limits.ts
-//
-// PARA MUDAR ALGO: Edite aqui e tudo atualiza automaticamente
-// (sidebar, página de planos, webhook Hotmart, catraca, etc.)
+// PARA MUDAR O NOME OU O PREÇO: edite aqui e tudo atualiza
+// (tela de planos, checkout, webhooks, admin).
 
 export const PLANOS = {
-    essencial: {
-        nivel: 1,
-        nome: 'Start',
-        hotmart: 'Secretaria',
-        creditos: 3600,
-        conversas: 600,
-        whatsapps: 1,
-        instagrams: 0,
-        idiomas: ['pt-BR'],
-        vozClonada: false,
-        equipe: false,
-        multiClinica: false,
-        precos: { brl: 197, usd: 47, eur: 47 },
-        precosAnuais: { brl: 157, usd: 37, eur: 37 },
-    },
-    pro: {
-        nivel: 2,
-        nome: 'Master',
-        hotmart: 'Estrategista',
-        creditos: 7200,
-        conversas: 1200,
-        whatsapps: 1,
-        instagrams: 1,
-        idiomas: ['pt-BR', 'pt-PT', 'en-US', 'es'],
-        vozClonada: false,
-        equipe: false,
-        multiClinica: false,
-        precos: { brl: 297, usd: 67, eur: 67 },
-        precosAnuais: { brl: 237, usd: 54, eur: 54 },
-    },
     premium: {
         nivel: 3,
         nome: 'Black',
-        hotmart: 'Designer',
+        hotmart: 'IARA',
         creditos: 15000,
         conversas: 2500,
         whatsapps: 2,
         instagrams: 1,
         idiomas: ['pt-BR', 'pt-PT', 'en-US', 'es'],
-        vozClonada: true,
+        vozClonada: false,   // clonagem é pacote à parte (PACOTES.clonagem)
         equipe: true,
         multiClinica: true,
         precos: { brl: 497, usd: 99, eur: 99 },
         precosAnuais: { brl: 397, usd: 79, eur: 79 },
     },
 } as const
+
+/** O único plano à venda. Use isto em vez de escolher por nível. */
+export const PLANO_UNICO = PLANOS.premium
+export const PLANO_UNICO_CHAVE = 'premium' as const
 
 // ============================================
 // PACOTES ADICIONAIS
@@ -123,44 +93,27 @@ export const AVATAR_VIDEO_HABILITADO = false
 export const INSTAGRAM_HABILITADO = false
 export const CAMPANHAS_HABILITADAS = false
 
-// Aliases (compatibilidade com nomes antigos do banco/Hotmart)
+// Nomes antigos do banco, da Hotmart e da Assiny. Todos apontam para o plano
+// único: o que importa é a clínica nunca cair num plano que não existe.
 export const PLAN_ALIASES: Record<string, PlanoKey> = {
-    // Nomes atuais
-    essencial: 'essencial',
-    pro: 'pro',
-    premium: 'premium',
-    // Nomes antigos → mapeiam pros novos
-    secretaria: 'essencial',
-    starter: 'essencial',
-    estrategista: 'pro',
-    designer: 'premium',
-    // Nomes comerciais atuais
-    start: 'essencial',
-    master: 'pro',        // ERA 'premium': Master vale R$297, não R$497.
-    black: 'premium',
-    // P4 antigo → mapeia pro P3 (maior plano disponível)
-    audiovisual: 'premium',
+    essencial: 'premium', pro: 'premium', premium: 'premium',
+    secretaria: 'premium', starter: 'premium', estrategista: 'premium', designer: 'premium',
+    start: 'premium', master: 'premium', black: 'premium', audiovisual: 'premium', iara: 'premium',
 }
 
-// Converter texto do banco → nível numérico
-export function planoToNivel(plano: string | number | null): number {
-    if (typeof plano === 'number') return Math.min(MAX_NIVEL, Math.max(1, plano))
-    if (!plano) return 1
-    const key = PLAN_ALIASES[plano.toLowerCase()]
-    return key ? PLANOS[key].nivel : 1
+// Texto ou número do banco → nível. Com um plano só, é sempre o nível dele.
+export function planoToNivel(_plano: string | number | null): number {
+    return PLANO_UNICO.nivel
 }
 
-// Converter nível numérico → dados do plano
-export function nivelToPlano(nivel: number): PlanoInfo {
-    // Clamp pro max disponível
-    const n = Math.min(MAX_NIVEL, Math.max(1, nivel))
-    const entries = Object.values(PLANOS)
-    return entries.find(p => p.nivel === n) || entries[0]
+// Nível → dados do plano. Sempre o plano único.
+export function nivelToPlano(_nivel: number): PlanoInfo {
+    return PLANO_UNICO
 }
 
-// Converter texto do banco → dados do plano
-export function getPlanoInfo(plano: string | number | null): PlanoInfo {
-    return nivelToPlano(planoToNivel(plano))
+// Texto do banco → dados do plano
+export function getPlanoInfo(_plano: string | number | null): PlanoInfo {
+    return PLANO_UNICO
 }
 
 // Verificar se um feature está disponível no nível
@@ -179,35 +132,23 @@ export function precoInstanciaExtra(nivel: number): { usd: number; eur: number; 
     }
 }
 
-// Lista de features por nível (usado na página de planos e sidebar)
-export function getFeaturesPorNivel(nivel: number): string[] {
-    const features: string[] = []
-
-    // P1 — Todos os planos
-    features.push('WhatsApp IA (atendimento + agendamento)')
-    features.push('Agendamento automático')
-    features.push('Follow-ups inteligentes')
-    features.push('Promoções e combos')
-    features.push('CRM (Kanban + Contatos)')
-    features.push('Análise inteligente de mídias')
-    features.push('Estilo de atendimento (Direta/Consultiva)')
-    features.push(`${nivelToPlano(nivel).creditos.toLocaleString()} créditos/mês`)
-
-    // P2+
-    if (nivel >= 2) {
-        features.push('Instagram DM IA')
-        features.push('4 idiomas (PT-BR, PT-PT, EN, ES)')
-    }
-
-    // P3+
-    if (nivel >= 3) {
-        features.push('Equipe / Multi-profissional')
-        features.push('Voz Clonada (ElevenLabs)')
-        features.push('Multi-clínica')
-        features.push(`${nivelToPlano(nivel).whatsapps} WhatsApps`)
-    }
-
-    return features
+// Lista do que o plano tem (página de planos e sidebar)
+export function getFeaturesPorNivel(_nivel?: number): string[] {
+    return [
+        'WhatsApp IA (atendimento + agendamento)',
+        'Agendamento automático',
+        'Follow-ups inteligentes',
+        'Promoções e combos',
+        'CRM (Kanban + Contatos)',
+        'Análise inteligente de mídias',
+        'Estilo de atendimento (Direta/Consultiva)',
+        `${PLANO_UNICO.creditos.toLocaleString()} créditos/mês`,
+        INSTAGRAM_HABILITADO ? 'Instagram DM IA' : 'Instagram DM IA (em breve)',
+        '4 idiomas (PT-BR, PT-PT, EN, ES)',
+        'Equipe / Multi-profissional',
+        'Multi-clínica',
+        `${PLANO_UNICO.whatsapps} WhatsApps`,
+    ]
 }
 
 
@@ -218,8 +159,6 @@ export function getFeaturesPorNivel(nivel: number): string[] {
  * arquivos, e a troca de Essencial/Pro/Premium para Start/Master/Black
  * deixaria metade deles mostrando o nome antigo.
  */
-export function nomeDoNivel(nivel: number | null | undefined): string {
-    const n = Math.min(Math.max(Number(nivel) || 1, 1), MAX_NIVEL)
-    const chave = (Object.keys(PLANOS) as PlanoKey[]).find(k => PLANOS[k].nivel === n)
-    return chave ? PLANOS[chave].nome : PLANOS.essencial.nome
+export function nomeDoNivel(_nivel?: number | null): string {
+    return PLANO_UNICO.nome
 }

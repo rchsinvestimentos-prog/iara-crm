@@ -164,9 +164,9 @@ export const authOptions: NextAuthOptions = {
                                     nome: 'Clínica de Teste IARA',
                                     nomeClinica: 'IARA Beauty Lab 🧪',
                                     role: 'tester',
-                                    nivel: 1, // Plano 1 para testar o gate de upgrade!
+                                    nivel: 3, // plano único desde 10/11/2026
                                     status: 'ativo',
-                                    plano: 'Essencial',
+                                    plano: 'premium',
                                     configuracoes: {},
                                     integracoes: {}
                                 },

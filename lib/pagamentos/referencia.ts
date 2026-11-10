@@ -93,6 +93,8 @@ export function acharEmail(obj: unknown, profundidade = 0): string | null {
     return null
 }
 
+const PESSOA = /(customer|buyer|client|cliente|comprador|payer|pagador|user|usuario|seller|vendedor|producer|produtor|affiliate|afiliad|owner|contact|contato|address|endereco|card|cartao)/i
+
 /** Textos que possam ser o nome do produto comprado. */
 export function acharNomesDeProduto(obj: unknown, profundidade = 0): string[] {
     if (profundidade > 6 || obj == null) return []
@@ -101,6 +103,10 @@ export function acharNomesDeProduto(obj: unknown, profundidade = 0): string[] {
 
     const achados: string[] = []
     for (const [chave, valor] of Object.entries(obj as Record<string, unknown>)) {
+        // Dados de pessoa (compradora, vendedor, afiliado) ficam de fora: uma
+        // compradora chamada "Iara" casaria com o plano e liberaria R$497
+        // para quem comprou outra coisa.
+        if (PESSOA.test(chave)) continue
         if (typeof valor === 'string' && /(product|produto|plan|plano|item|offer|oferta|name|nome|title|titulo|description)/i.test(chave)) {
             if (valor.trim()) achados.push(valor.trim())
         } else if (typeof valor === 'object') {

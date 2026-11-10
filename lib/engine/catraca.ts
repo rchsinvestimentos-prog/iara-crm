@@ -8,6 +8,7 @@
 
 import { prisma } from '@/lib/prisma'
 import type { DadosClinica, ResultadoCatraca } from './types'
+import { carenciaVencida } from '@/lib/pagamentos/pendencia'
 
 /**
  * Busca a clínica pela instância Evolution ou pelo ID.
@@ -89,6 +90,16 @@ export async function checkAccess(
 
     // 3. Verificar status
     if (clinica.status !== 'ativo') {
+        return {
+            permitido: false,
+            motivo: 'inativo',
+            clinica,
+            isDoutora: false,
+        }
+    }
+
+    // 3b. Pagamento atrasado além da carência: para de atender.
+    if (carenciaVencida(clinica.configuracoes as Record<string, unknown> | null)) {
         return {
             permitido: false,
             motivo: 'inativo',

@@ -4,6 +4,7 @@ import { authOptions, hashSenha, isAdmin } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { enviarEmailBoasVindas } from '@/lib/email'
 import { getPermissions } from '@/lib/permissions'
+import { PLANO_UNICO, PLANO_UNICO_CHAVE } from '@/lib/planos'
 
 function gerarSenhaAleatoria(len = 10): string {
     const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#'
@@ -117,6 +118,9 @@ export async function GET() {
             aceite_termos: c.aceiteTermos,
             voz_realista: !!((c.configuracoes as Record<string, unknown> | null)?.pacote_voz_realista),
             clonagem: !!((c.configuracoes as Record<string, unknown> | null)?.pacote_clonagem),
+            pix_liberado: (c.configuracoes as Record<string, unknown> | null)?.pix_liberado === true,
+            pix_valor: Number((c.configuracoes as Record<string, unknown> | null)?.pix_valor) || null,
+            pagamento_pendente_desde: ((c.configuracoes as Record<string, unknown> | null)?.pagamento_pendente_desde as string) || null,
             onboarding: (() => {
                 const whatsConnected = statusMap.get(c.id) === 'conectado'
                 const temProcs = (procedimentosCounts.get(c.id) ?? 0) > 0
@@ -184,10 +188,11 @@ export async function POST(request: Request) {
             }
         }
 
-        // Plano labels
-        const planoLabels: Record<number, string> = { 1: 'essencial', 2: 'premium' }
-        const nivelFinal = nivel || 1
-        const creditosFinal = creditos || (nivelFinal === 2 ? 3000 : 1000)
+        // Plano único desde 10/11/2026: toda clínica criada no admin nasce nele.
+        // O campo nivel do formulário é ignorado de propósito.
+        void nivel
+        const nivelFinal = PLANO_UNICO.nivel
+        const creditosFinal = creditos || PLANO_UNICO.creditos
 
         const clinica = await prisma.clinica.create({
             data: {
@@ -197,8 +202,10 @@ export async function POST(request: Request) {
                 senha: senhaHash,
                 role: 'cliente',
                 nivel: nivelFinal,
-                plano: planoLabels[nivelFinal] || 'essencial',
+                plano: PLANO_UNICO_CHAVE,
                 status: 'ativo',
+                maxInstanciasWhatsapp: PLANO_UNICO.whatsapps,
+                maxInstanciasInstagram: PLANO_UNICO.instagrams,
                 creditosMensais: creditosFinal,
                 creditosDisponiveis: creditosFinal,
                 proximaRenovacao,
@@ -216,7 +223,7 @@ export async function POST(request: Request) {
                     email,
                     nome,
                     senha: senhaPlana,
-                    plano: planoLabels[nivelFinal] || 'essencial',
+                    plano: PLANO_UNICO.nome,
                 })
                 emailStatus = result ? '✅ enviado' : '❌ falhou (RESEND_API_KEY ausente ou erro)'
             } catch (emailErr: any) {
@@ -238,7 +245,7 @@ export async function POST(request: Request) {
                         if (!zapFormatado.startsWith(prefixo)) zapFormatado = prefixo + zapFormatado
                         const primeiroNome = nome.split(' ')[0] || nome
 
-                        const msgZap = `Olá ${primeiroNome}! 🎉\n\nSua conta na *IARA (${planoLabels[nivelFinal].toUpperCase()})* foi criada com sucesso!\n\n🔗 *Acesse seu painel:* https://app.iara.click\n📧 *Email:* ${email}\n🔑 *Senha:* ${senhaPlana}\n\nEntre lá e faça o Setup inicial para eu começar a atender os seus pacientes! 🚀`
+                        const msgZap = `Olá ${primeiroNome}! 🎉\n\nSua conta na *IARA (${PLANO_UNICO.nome.toUpperCase()})* foi criada com sucesso!\n\n🔗 *Acesse seu painel:* https://app.iara.click\n📧 *Email:* ${email}\n🔑 *Senha:* ${senhaPlana}\n\nEntre lá e faça o Setup inicial para eu começar a atender os seus pacientes! 🚀`
 
                         const zapRes = await fetch(`${evolutionUrl}/message/sendText/${adminInstance}`, {
                             method: 'POST',

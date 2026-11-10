@@ -29,9 +29,12 @@ function acharEvento(corpo: any): string {
     return ''
 }
 
-function classificar(evento: string): 'aprovado' | 'estornado' | 'outro' {
+// 'estornado' = o dinheiro voltou (IARA para na hora).
+// 'atrasado'  = o cartão não passou ou a assinatura foi cancelada (carência + PIX).
+function classificar(evento: string): 'aprovado' | 'estornado' | 'atrasado' | 'outro' {
     const e = evento.toLowerCase()
-    if (/(refund|estorn|chargeback|cancel|reembols|recus|declin|expir|fail|fraud)/.test(e)) return 'estornado'
+    if (/(refund|estorn|chargeback|reembols|fraud|contest)/.test(e)) return 'estornado'
+    if (/(cancel|recus|declin|expir|fail|atras|overdue|late|unpaid|inadimpl|past_due)/.test(e)) return 'atrasado'
     if (/(approv|aprovad|paid|pago|complet|confirm|success|sucesso|authorized|autorizad)/.test(e)) return 'aprovado'
     return 'outro'
 }
@@ -83,14 +86,18 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ ok: true, ignorado: 'sem e-mail' })
         }
 
-        if (classe === 'estornado') {
+        if (classe === 'estornado' || classe === 'atrasado') {
             const { prisma } = await import('@/lib/prisma')
             const clinica = await prisma.clinica.findFirst({ where: { email }, select: { id: true } })
             if (!clinica) {
                 await registrarLog({ provedor: 'assiny', evento, payload: corpo, resultado: `estorno de e-mail sem conta: ${email}` })
                 return NextResponse.json({ ok: true, ignorado: 'conta não encontrada' })
             }
-            const r = await suspenderCompra({ clinicaId: clinica.id, tipo: item.tipo, item: item.item, motivo: evento || 'estorno' })
+            const r = await suspenderCompra({
+                clinicaId: clinica.id, tipo: item.tipo, item: item.item,
+                motivo: evento || classe,
+                gravidade: classe === 'estornado' ? 'estorno' : 'atraso',
+            })
             await registrarLog({ provedor: 'assiny', evento, clinicaId: clinica.id, payload: corpo, resultado: r.mensagem })
             return NextResponse.json(r)
         }
@@ -99,7 +106,7 @@ export async function POST(request: NextRequest) {
         const conta = await acharOuCriarClinica({
             email,
             nome: textos.find(t => /^[A-Za-zÀ-ÿ' ]{4,60}$/.test(t)),
-            planoInicial: item.tipo === 'plano' ? (item.item as any) : 'essencial',
+            comPlano: item.tipo === 'plano',
         })
 
         const r = await ativarCompra({
