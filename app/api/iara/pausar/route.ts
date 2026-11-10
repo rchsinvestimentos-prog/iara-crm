@@ -19,11 +19,21 @@ export async function POST(request: NextRequest) {
 
         const novoStatus = acao === 'retomar' ? 'ativo' : 'pausado'
 
-        // Buscar config atual
+        // Buscar config e status atuais
         const clinicaAtual = await prisma.clinica.findUnique({
             where: { id: clinicaId },
-            select: { configuracoes: true },
+            select: { configuracoes: true, status: true },
         })
+        // A clínica só pausa e retoma o que ELA pausou. Desligada ou cancelada (pagamento, admin) não volta a 'ativo'
+        // por aqui — antes 'pausar' e depois 'retomar' reativava quem tinha parado de pagar.
+        // status vazio vale ativo, como no GET desta rota
+        const statusAtual = clinicaAtual?.status ?? 'ativo'
+        if (acao === 'retomar' && statusAtual !== 'pausado') {
+            return NextResponse.json({ error: statusAtual === 'ativo' ? 'A IARA já está ativa' : 'Sua conta está desligada. Fale com o suporte para reativar.' }, { status: 409 })
+        }
+        if (acao !== 'retomar' && statusAtual !== 'ativo' && statusAtual !== 'pausado') {
+            return NextResponse.json({ error: 'Sua conta está desligada. Fale com o suporte para reativar.' }, { status: 409 })
+        }
         const config = (clinicaAtual?.configuracoes as any) || {}
 
         // Montar update de configuracoes
@@ -56,15 +66,8 @@ export async function POST(request: NextRequest) {
 
         const nomeIA = clinica.nomeAssistente || 'IARA'
 
-        // 2. Tentar atualizar no banco N8N também
-        try {
-            await prisma.$executeRawUnsafe(
-                `UPDATE users SET status = $1, updated_at = NOW() WHERE nome_clinica ILIKE $2 OR whatsapp_pessoal = $3`,
-                novoStatus,
-                `%${clinica.nome}%`,
-                clinica.whatsappDoutora || ''
-            )
-        } catch { /* N8N table might not be accessible */ }
+        // (Saiu em 10/11/2026 o "atualizar no banco N8N também": era um UPDATE na MESMA tabela users casando por
+        //  nome parecido OU WhatsApp igual — pausar uma clínica pausava ou reativava outras, e com WhatsApp vazio, todas.)
 
         // 3. Mensagem de aviso para a Dra
         let mensagemAviso = ''

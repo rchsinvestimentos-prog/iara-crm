@@ -56,8 +56,9 @@ export async function middleware(request: NextRequest) {
             return NextResponse.redirect(loginUrl)
         }
 
-        // Precisa ser admin (userType do JWT)
-        if ((token as any).userType !== 'admin' && (token as any).role !== 'admin') {
+        // Precisa ser admin (userType do JWT, do login de admin). O role da clínica NÃO vale: até 10/11/2026 a própria
+        // clínica conseguia gravar role='admin' pela rota de configurações.
+        if ((token as any).userType !== 'admin') {
             return NextResponse.redirect(new URL('/login', request.url))
         }
 
@@ -86,14 +87,24 @@ export async function middleware(request: NextRequest) {
     // dados de todas as clínicas. Nenhuma tela usa essas rotas, e várias fazem
     // ação só de abrir (GET). 404 para não confirmar que existem.
     if (pathname === '/api/debug' || pathname.startsWith('/api/debug/')) {
-        if ((token as any).userType !== 'admin' && (token as any).role !== 'admin') {
+        if ((token as any).userType !== 'admin') {
             return NextResponse.json({ error: 'Not found' }, { status: 404 })
         }
     }
 
-    // Rotas admin — precisa ser admin
+    // APIs do admin — só quem entrou pelo login de admin (userType 'admin', da tabela admin_users). Antes só as
+    // PÁGINAS /admin eram barradas: qualquer clínica logada chamava /api/admin/* (recarregar créditos, mudar plano,
+    // o suporte-ia que roda SQL, a lista de todas as clínicas). O papel (role) da clínica NÃO vale aqui: até 10/11/2026
+    // a própria clínica conseguia gravar role='admin' pela rota de configurações. 404, como o /api/debug.
+    if (pathname === '/api/admin' || pathname.startsWith('/api/admin/')) {
+        if ((token as any).userType !== 'admin') {
+            return NextResponse.json({ error: 'Not found' }, { status: 404 })
+        }
+    }
+
+    // Rotas admin — precisa ser admin (pelo login de admin; o role da clínica não conta, ver acima)
     if (pathname.startsWith('/admin')) {
-        if ((token as any).userType !== 'admin' && (token as any).role !== 'admin') {
+        if ((token as any).userType !== 'admin') {
             return NextResponse.redirect(new URL('/dashboard', request.url))
         }
     }

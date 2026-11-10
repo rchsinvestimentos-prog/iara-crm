@@ -1,3 +1,4 @@
+import { manterProtegidas } from '@/lib/chaves-protegidas'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
@@ -114,10 +115,13 @@ export async function PUT(request: Request) {
         })
 
         // Campos aceitos pelo Prisma (model Clinica)
+        // Fora daqui de propósito (10/11/2026): e-mail, papel, conta-mãe, plano, nível, status, créditos, token de
+        // entrada, renovação, limites de instância e as conexões (WhatsApp, Twilio, Google). Antes a própria clínica
+        // mudava tudo isso por esta rota: virava admin com {role:'admin'}, subia o plano de graça com {nivel: 4} e
+        // trocava o e-mail sem confirmação. Nenhuma tela manda esses campos aqui; quem muda são as rotas do admin,
+        // do pagamento e das conexões.
         const PRISMA_FIELDS = new Set([
-            'nome', 'email', 'telefone', 'role', 'parentId', 'aceiteTermos',
-            'plano', 'nivel', 'status', 'creditosMensais', 'creditosDisponiveis',
-            'totalAtendimentos', 'tokenAtivacao', 'proximaRenovacao',
+            'nome', 'telefone', 'aceiteTermos',
             'nomeClinica', 'endereco',
             'nomeAssistente', 'personalidadeVoz', 'vozAssistente', 'tomAtendimento',
             'horarioSemana', 'almocoSemana', 'atendeSabado', 'horarioSabado', 'almocoSabado',
@@ -125,8 +129,8 @@ export async function PUT(request: Request) {
             'atendeFeriado', 'horarioFeriado', 'almocoFeriado',
             'intervaloAtendimento', 'antecedenciaMinima',
             'aceitaDescontos', 'descontoMaximo',
-            'evolutionInstance', 'whatsappClinica', 'whatsappDoutora',
-            'nomeDoutora', 'tratamentoDoutora', 'evolutionApikey',
+            'whatsappClinica', 'whatsappDoutora',
+            'nomeDoutora', 'tratamentoDoutora',
             'aprendizadoContinuo', 'diferenciais', 'daCursos',
             'humor', 'emojis', 'fraseDespedida', 'funcionalidades', 'feedbacks',
             'modoIA', 'sempreLigada', 'blacklist',
@@ -134,9 +138,7 @@ export async function PUT(request: Request) {
             'cobrarParaAgendar', 'valorSinalPadrao', 'mensagemSinal', 'minutosReservaSinal', 'linkPagamentoSinal',
             'mensagemAniversario', 'mensagemForaHorario', 'diasAtendimento',
             'idioma', 'pais', 'moeda', 'timezone', 'canalPrincipal',
-            'telefoneTwilio', 'twilioSid',
-            'maxInstanciasWhatsapp', 'maxInstanciasInstagram',
-            'googleCalendarToken', 'googleCalendarRefreshToken', 'googleCalendarId', 'googleTokenExpires',
+            'googleCalendarId',
             'avatarFotos', 'avatarVideo', 'paletaCores', 'vozClonada',
             'faqPersonalizado', 'cuidadosPos', 'autorizouCuidadosPos',
             'politicaCancelamento', 'formasPagamento', 'linkMaps', 'redesSociais',
@@ -146,10 +148,24 @@ export async function PUT(request: Request) {
 
         // Filtrar: só campos válidos do Prisma e com valor definido
         const dataToUpdate: Record<string, unknown> = {}
+        const ignorados: string[] = []
         for (const [key, value] of Object.entries(validated)) {
             if (value !== undefined && PRISMA_FIELDS.has(key)) {
                 dataToUpdate[key] = value
+            } else if (value !== undefined) {
+                ignorados.push(key)
             }
+        }
+        if (ignorados.length) console.warn('[api/clinica] PUT ignorou campos que esta rota não grava', clinicaId, ignorados.join(','))
+
+        // Pacotes pagos e o "só o painel" moram dentro de configuracoes. A tela de voz grava o JSON inteiro de volta,
+        // então para essas chaves vale SEMPRE o que está no banco (lib/chaves-protegidas.ts).
+        if (dataToUpdate.configuracoes && typeof dataToUpdate.configuracoes === 'object' && !Array.isArray(dataToUpdate.configuracoes)) {
+            const nova = manterProtegidas(dataToUpdate.configuracoes as Record<string, unknown>, dadosAntigos?.configuracoes)
+            dataToUpdate.configuracoes = nova
+        } else if ('configuracoes' in dataToUpdate) {
+            delete dataToUpdate.configuracoes
+            console.warn('[api/clinica] PUT ignorou configuracoes que não é objeto', clinicaId)
         }
 
         // Forçar atualização do updatedAt para invalidar cache de IA

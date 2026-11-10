@@ -18,6 +18,8 @@ export default function PausarIARA() {
     const [dataRetorno, setDataRetorno] = useState('')
     const [feriasSalvo, setFeriasSalvo] = useState('')
     const [mensagemFerias, setMensagemFerias] = useState('')
+    // o motivo quando a rota recusa (conta desligada, já ativa): antes o botão girava e voltava sem dizer nada
+    const [erro, setErro] = useState<string | null>(null)
 
     useEffect(() => {
         fetch('/api/iara/pausar')
@@ -40,13 +42,17 @@ export default function PausarIARA() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ acao: pausada ? 'retomar' : 'pausar' }),
             })
-            const data = await res.json()
+            const data = await res.json().catch(() => ({}))
             if (data.ok) {
+                setErro(null)
                 setPausada(data.status === 'pausado')
                 setFeriasSalvo('')
+            } else {
+                setErro(typeof data.error === 'string' ? data.error : 'Não consegui mudar agora. Tente de novo.')
             }
         } catch (err) {
             console.error('Erro ao alternar:', err)
+            setErro('Não consegui mudar agora (a internet caiu?). Tente de novo.')
         } finally {
             setToggling(false)
         }
@@ -65,14 +71,18 @@ export default function PausarIARA() {
                     mensagemFerias: mensagemFerias || `Olá! Estou de férias e retorno em ${new Date(dataRetorno + 'T12:00:00').toLocaleDateString('pt-BR')}. Responderei assim que voltar! 🌴`,
                 }),
             })
-            const data = await res.json()
+            const data = await res.json().catch(() => ({}))
             if (data.ok) {
+                setErro(null)
                 setPausada(true)
                 setFeriasSalvo(dataRetorno)
                 setShowFerias(false)
+            } else {
+                setErro(typeof data.error === 'string' ? data.error : 'Não consegui ativar as férias agora. Tente de novo.')
             }
         } catch (err) {
             console.error('Erro ao ativar férias:', err)
+            setErro('Não consegui ativar as férias agora (a internet caiu?). Tente de novo.')
         } finally {
             setToggling(false)
         }
@@ -87,6 +97,7 @@ export default function PausarIARA() {
 
     return (
         <div className="relative flex items-center gap-2">
+            {erro && <span role="alert" className="text-[11px] text-red-500 max-w-[220px] leading-tight" data-erro-pausar>{erro}</span>}
             {/* Modo Férias Button */}
             <button
                 onClick={() => setShowFerias(!showFerias)}

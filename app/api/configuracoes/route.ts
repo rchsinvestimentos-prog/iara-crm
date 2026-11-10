@@ -1,3 +1,5 @@
+import { Prisma } from '@prisma/client'
+import { manterProtegidas } from '@/lib/chaves-protegidas'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
@@ -38,7 +40,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
-    const body = await request.json()
+    const body = await request.json().catch(() => null)
 
     const clinica = await prisma.clinica.findUnique({
         where: { id: clinicaId },
@@ -46,12 +48,18 @@ export async function PATCH(request: NextRequest) {
     })
     const configAtual = (clinica?.configuracoes as any) || {}
 
-    // Merge raso — cada chave do body sobreescreve a chave correspondente
-    const novasConfigs = { ...configAtual, ...body }
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        return NextResponse.json({ error: 'corpo inválido' }, { status: 400 })
+    }
+    // Merge raso — cada chave do body sobreescreve a chave correspondente, MENOS as protegidas (pacotes pagos e o
+    // "só o painel"): para essas vale o banco (lib/chaves-protegidas.ts). Antes a clínica ligava a voz clonada por aqui.
+    const novasConfigs = manterProtegidas({ ...configAtual, ...body }, configAtual)
+    const recusadas = Object.keys(body).filter((k) => !(k in novasConfigs) || novasConfigs[k] !== (body as Record<string, unknown>)[k])
+    if (recusadas.length) console.warn('[api/configuracoes] PATCH manteve do banco as chaves protegidas', clinicaId, recusadas.join(','))
 
     await prisma.clinica.update({
         where: { id: clinicaId },
-        data: { configuracoes: novasConfigs },
+        data: { configuracoes: novasConfigs as Prisma.InputJsonValue },
     })
 
     return NextResponse.json({ ok: true })

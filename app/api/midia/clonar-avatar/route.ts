@@ -56,9 +56,10 @@ export async function POST(request: NextRequest) {
 
         // Salvar avatar_id no banco N8N
         try {
+            // pela id (antes casava por nome parecido e gravava o avatar na ficha de outras clínicas)
             await prisma.$executeRawUnsafe(
-                `UPDATE users SET avatar_id = $1, avatar_provider = 'heygen', updated_at = NOW() WHERE nome_clinica ILIKE $2`,
-                avatarId, `%${clinica.nome}%`
+                `UPDATE users SET avatar_id = $1, avatar_provider = 'heygen', updated_at = NOW() WHERE id = $2`,
+                avatarId, clinicaId
             )
         } catch { /* column might not exist */ }
 
