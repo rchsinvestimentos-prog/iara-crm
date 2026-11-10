@@ -26,7 +26,7 @@ const RELATORIO = process.env.BANCO_BOOT_RELATORIO || '/tmp/iara-banco-no-boot.j
 const SCHEMA = path.join(__dirname, '..', 'prisma', 'schema.prisma')
 
 const inicio = Date.now()
-const relatorio = { quando: new Date().toISOString(), ok: false, tentativas: 0, colunasAdicionadas: [], avisos: [], erro: null }
+const relatorio = { quando: new Date().toISOString(), ok: false, tentativas: 0, colunasAdicionadas: [], dadosMudados: [], avisos: [], erro: null }
 
 function gravarRelatorio() {
   relatorio.duracaoMs = Date.now() - inicio
@@ -58,6 +58,78 @@ function urlComUmaConexao() {
   return url + (url.includes('?') ? '&' : '?') + 'connection_limit=1'
 }
 
+// ----------------------------------------------------------------------------
+// Mudanças de DADOS que rodam uma vez só.
+//
+// Cada uma tem um nome; quando roda, grava o nome em migracoes_dados junto com
+// os valores de antes (para desfazer à mão, se precisar). Nos boots seguintes
+// o nome já está lá e nada acontece. Tudo num comando só: ou muda e marca,
+// ou não faz nada.
+// ----------------------------------------------------------------------------
+const UMA_VEZ = [
+    {
+        // 10/11/2026: plano único de R$497 (lib/planos.ts). Clínica ativa
+        // gravada no nível 1 ou 2 via "sem plano ativo" na tela do plano,
+        // mesmo com tudo liberado. Passa para o nível 3 com os números dele.
+        // Créditos: soma a diferença deste mês (de 1.000 para 15.000, soma
+        // 14.000), sem tirar nada de ninguém.
+        nome: 'plano-unico-nivel-3-2026-11-10',
+        sql: `
+            WITH ja AS (SELECT 1 FROM migracoes_dados WHERE nome = $1),
+            alvo AS (
+                SELECT id, email, nivel, plano, creditos_mensais, creditos_disponiveis,
+                       max_instancias_whatsapp, max_instancias_instagram
+                FROM users
+                WHERE nivel < 3 AND status = 'ativo' AND NOT EXISTS (SELECT 1 FROM ja)
+                FOR UPDATE
+            ),
+            mudou AS (
+                UPDATE users u SET
+                    nivel = 3,
+                    plano = 'premium',
+                    creditos_disponiveis = COALESCE(u.creditos_disponiveis, 0)
+                        + GREATEST(15000 - COALESCE(alvo.creditos_mensais, 0), 0),
+                    creditos_mensais = GREATEST(COALESCE(u.creditos_mensais, 0), 15000),
+                    max_instancias_whatsapp = GREATEST(COALESCE(u.max_instancias_whatsapp, 0), 2),
+                    max_instancias_instagram = GREATEST(COALESCE(u.max_instancias_instagram, 0), 1)
+                FROM alvo WHERE u.id = alvo.id
+                RETURNING u.id
+            ),
+            marca AS (
+                INSERT INTO migracoes_dados (nome, antes)
+                SELECT $1, COALESCE((SELECT jsonb_agg(to_jsonb(alvo)) FROM alvo), '[]'::jsonb)
+                WHERE NOT EXISTS (SELECT 1 FROM ja)
+                ON CONFLICT (nome) DO NOTHING
+                RETURNING nome
+            )
+            SELECT (SELECT COUNT(*) FROM marca)::int AS rodou, (SELECT COUNT(*) FROM mudou)::int AS linhas`,
+    },
+]
+
+async function rodarUmaVez(prisma) {
+    await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS migracoes_dados (
+            nome VARCHAR(120) PRIMARY KEY,
+            rodada_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            antes JSONB
+        )
+    `)
+    for (const m of UMA_VEZ) {
+        try {
+            const [r] = await prisma.$queryRawUnsafe(m.sql, m.nome)
+            if (r && r.rodou) {
+                console.log(`[banco-no-boot] 🔁 ${m.nome}: ${r.linhas} linha(s) mudada(s)`)
+                relatorio.dadosMudados.push(`${m.nome}: ${r.linhas}`)
+            }
+        } catch (e) {
+            // Não derruba o boot (nada foi gravado: é um comando só), mas grita.
+            const msg = `${m.nome} FALHOU: ${String((e && e.message) || e).split('\n').pop().slice(0, 200)}`
+            berrar(`[banco-no-boot] ${msg}`)
+            relatorio.avisos.push(msg)
+        }
+    }
+}
+
 async function umaTentativa() {
   const prisma = new PrismaClient({ datasources: { db: { url: urlComUmaConexao() } } })
   try {
@@ -79,6 +151,8 @@ async function umaTentativa() {
     const { adicionadas, avisos } = await sincronizarColunasDoSchema(prisma, Prisma.dmmf, schemaTexto)
     relatorio.colunasAdicionadas.push(...adicionadas)
     relatorio.avisos.push(...avisos)
+
+    await rodarUmaVez(prisma)
   } finally {
     await prisma.$disconnect().catch(() => {})
   }
@@ -89,6 +163,7 @@ async function main() {
     relatorio.tentativas = n
     relatorio.avisos = []
     relatorio.colunasAdicionadas = []
+    relatorio.dadosMudados = []
     try {
       await umaTentativa()
       relatorio.ok = true
