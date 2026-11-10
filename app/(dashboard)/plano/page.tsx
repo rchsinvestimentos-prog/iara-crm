@@ -268,7 +268,7 @@ export default function PlanoPage() {
                                         boxShadow: `0 4px 20px ${plano.cor}30`,
                                     }}
                                 >
-                                    {isAtual ? 'Pagar agora' : `Assinar o ${plano.nome}`}
+                                    {isAtual ? 'Pagar agora' : `Assinar a ${plano.nome}`}
                                 </button>
                             )}
                         </div>

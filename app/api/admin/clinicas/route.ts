@@ -245,7 +245,7 @@ export async function POST(request: Request) {
                         if (!zapFormatado.startsWith(prefixo)) zapFormatado = prefixo + zapFormatado
                         const primeiroNome = nome.split(' ')[0] || nome
 
-                        const msgZap = `Olá ${primeiroNome}! 🎉\n\nSua conta na *IARA (${PLANO_UNICO.nome.toUpperCase()})* foi criada com sucesso!\n\n🔗 *Acesse seu painel:* https://app.iara.click\n📧 *Email:* ${email}\n🔑 *Senha:* ${senhaPlana}\n\nEntre lá e faça o Setup inicial para eu começar a atender os seus pacientes! 🚀`
+                        const msgZap = `Olá ${primeiroNome}! 🎉\n\nSua conta na *IARA* foi criada com sucesso!\n\n🔗 *Acesse seu painel:* https://app.iara.click\n📧 *Email:* ${email}\n🔑 *Senha:* ${senhaPlana}\n\nEntre lá e faça o Setup inicial para eu começar a atender os seus pacientes! 🚀`
 
                         const zapRes = await fetch(`${evolutionUrl}/message/sendText/${adminInstance}`, {
                             method: 'POST',

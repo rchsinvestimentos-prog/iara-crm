@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
             ? (produto as typeof PLANOS.premium).precos.brl
             : (produto as typeof PACOTES.clonagem).preco
         let valor: number = precoCheio
-        const descricao = `IARA — ${produto.nome}`
+        const descricao = produto.nome === 'IARA' ? 'IARA' : `IARA — ${produto.nome}`
 
         // ---------- CARTÃO: link do Assiny ----------
         if (metodo === 'cartao') {

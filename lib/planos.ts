@@ -17,7 +17,7 @@
 export const PLANOS = {
     premium: {
         nivel: 3,
-        nome: 'Black',
+        nome: 'IARA',
         hotmart: 'IARA',
         creditos: 15000,
         conversas: 2500,
