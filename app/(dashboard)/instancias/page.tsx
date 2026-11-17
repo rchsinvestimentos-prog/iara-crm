@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import UpgradeOverlay from '@/components/UpgradeOverlay';
 import { INSTAGRAM_HABILITADO } from '@/lib/planos';
+import { useT } from '@/components/IdiomaProvider';
 
 interface Instancia {
     id: number;
@@ -27,6 +28,7 @@ interface Limites {
 }
 
 export default function ConexoesPage() {
+    const { t } = useT();
     const [instancias, setInstancias] = useState<Instancia[]>([]);
     const [limites, setLimites] = useState<Limites>({ max_instancias_whatsapp: 1, max_instancias_instagram: 0 });
     const [plano, setPlano] = useState(1);
@@ -172,13 +174,13 @@ export default function ConexoesPage() {
             });
             const data = await res.json();
             if (!res.ok) {
-                alert(data.error || 'Erro ao conectar');
+                alert(data.error || t('Erro ao conectar'));
                 return;
             }
             await fetchInstancias();
         } catch (e) {
             console.error(e);
-            alert('Erro ao criar conexão');
+            alert(t('Erro ao criar conexão'));
         }
         setConectando(false);
     }
@@ -198,13 +200,13 @@ export default function ConexoesPage() {
             });
             const data = await res.json();
             if (!res.ok) {
-                alert(data.error || 'Erro ao conectar');
+                alert(data.error || t('Erro ao conectar'));
                 return;
             }
             await fetchInstancias();
         } catch (e) {
             console.error(e);
-            alert('Erro ao criar conexão');
+            alert(t('Erro ao criar conexão'));
         }
         setConectando(false);
     }
@@ -262,7 +264,7 @@ export default function ConexoesPage() {
             setQrModal(prev => ({
                 ...prev,
                 loading: false,
-                error: `Erro de rede: ${e?.message || 'tente novamente'}`,
+                error: t('Erro de rede: {erro}', { erro: e?.message || t('tente novamente') }),
             }));
         }
     }
@@ -374,13 +376,13 @@ export default function ConexoesPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                alert(data.error || 'Erro ao desconectar');
+                alert(data.error || t('Erro ao desconectar'));
             } else {
                 await fetchInstancias();
             }
         } catch (e) {
             console.error(e);
-            alert('Erro ao desconectar');
+            alert(t('Erro ao desconectar'));
         }
 
         setDesconectando(null);
@@ -423,7 +425,7 @@ export default function ConexoesPage() {
         return (
             <div style={{ maxWidth: 700, margin: '0 auto', padding: '60px 16px', textAlign: 'center' }}>
                 <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
-                <p style={{ color: '#64748b', fontSize: 15 }}>Verificando suas conexões...</p>
+                <p style={{ color: '#64748b', fontSize: 15 }}>{t('Verificando suas conexões...')}</p>
             </div>
         );
     }
@@ -433,10 +435,10 @@ export default function ConexoesPage() {
             {/* Header */}
             <div style={{ marginBottom: 32 }}>
                 <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: '#0F4C61' }}>
-                    Conexões
+                    {t('Conexões')}
                 </h1>
                 <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: 14 }}>
-                    Conecte seus canais para a IARA começar a atender
+                    {t('Conecte seus canais para a IARA começar a atender')}
                 </p>
             </div>
 
@@ -457,8 +459,8 @@ export default function ConexoesPage() {
                         <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>WhatsApp</h2>
                         <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
                             {whatsappsConectados.length > 0
-                                ? `${whatsappsConectados.length} número${whatsappsConectados.length > 1 ? 's' : ''} conectado${whatsappsConectados.length > 1 ? 's' : ''}`
-                                : temWhatsApp ? 'Nenhum número conectado' : 'Conecte seu número para a IARA atender'
+                                ? t(whatsappsConectados.length > 1 ? '{n} números conectados' : '{n} número conectado', { n: whatsappsConectados.length })
+                                : temWhatsApp ? t('Nenhum número conectado') : t('Conecte seu número para a IARA atender')
                             }
                         </p>
                     </div>
@@ -473,7 +475,7 @@ export default function ConexoesPage() {
                                 opacity: conectando ? 0.6 : 1, whiteSpace: 'nowrap'
                             }}
                         >
-                            {conectando ? '⏳ Conectando...' : '+ Conectar'}
+                            {conectando ? `⏳ ${t('Conectando...')}` : `+ ${t('Conectar')}`}
                         </button>
                     )}
                 </div>
@@ -499,7 +501,7 @@ export default function ConexoesPage() {
                                     </span>
                                 </div>
                                 <div style={{ fontSize: 12, color: status.color, fontWeight: 500, marginTop: 3, marginLeft: 22 }}>
-                                    {status.label}
+                                    {t(status.label)}
                                     {inst.status_conexao === 'conectado' && inst.numero_whatsapp && (
                                         <span style={{ color: '#94a3b8', fontWeight: 400, marginLeft: 8 }}>
                                             {inst.numero_whatsapp}
@@ -516,7 +518,7 @@ export default function ConexoesPage() {
                                             borderRadius: 10, padding: '8px 16px', cursor: 'pointer',
                                             fontWeight: 600, fontSize: 13
                                         }}
-                                    >📱 Escanear QR</button>
+                                    >📱 {t('Escanear QR')}</button>
                                 )}
                                 {inst.status_conexao === 'conectado' && (
                                     <button
@@ -528,9 +530,9 @@ export default function ConexoesPage() {
                                             fontSize: 12, color: '#ef4444', fontWeight: 500,
                                             opacity: isDesconectando ? 0.5 : 1,
                                         }}
-                                        title="Desconectar WhatsApp"
+                                        title={t('Desconectar WhatsApp')}
                                     >
-                                        {isDesconectando ? '⏳' : '🔌 Desconectar'}
+                                        {isDesconectando ? '⏳' : `🔌 ${t('Desconectar')}`}
                                     </button>
                                 )}
                                 <button
@@ -542,7 +544,7 @@ export default function ConexoesPage() {
                                         fontSize: 13, color: '#94a3b8',
                                         opacity: isDesconectando ? 0.5 : 1,
                                     }}
-                                    title="Desconectar canal"
+                                    title={t('Desconectar canal')}
                                 >🔌</button>
                             </div>
                         </div>
@@ -560,7 +562,7 @@ export default function ConexoesPage() {
                             color: '#25D366', fontWeight: 600, fontSize: 14,
                             cursor: 'pointer', marginTop: 4
                         }}
-                    >+ Adicionar outro número</button>
+                    >+ {t('Adicionar outro número')}</button>
                 )}
             </div>
 
@@ -583,17 +585,17 @@ export default function ConexoesPage() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
                             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>
-                                WhatsApp Oficial
+                                {t('WhatsApp Oficial')}
                             </h2>
                             <span style={{
                                 background: '#eef2f7', color: '#64748b',
                                 fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
                                 padding: '3px 9px', borderRadius: 999, textTransform: 'uppercase' as const,
                                 whiteSpace: 'nowrap' as const
-                            }}>Em breve</span>
+                            }}>{t('Em breve')}</span>
                         </div>
                         <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
-                            Conexão direta com a Meta, com selo de empresa verificada
+                            {t('Conexão direta com a Meta, com selo de empresa verificada')}
                         </p>
                     </div>
                 </div>
@@ -609,7 +611,7 @@ export default function ConexoesPage() {
                     ].map(([icone, texto]) => (
                         <div key={texto} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <span style={{ fontSize: 15, flexShrink: 0 }}>{icone}</span>
-                            <span style={{ fontSize: 13.5, color: '#475569' }}>{texto}</span>
+                            <span style={{ fontSize: 13.5, color: '#475569' }}>{t(texto)}</span>
                         </div>
                     ))}
                 </div>
@@ -617,9 +619,7 @@ export default function ConexoesPage() {
                 <p style={{
                     margin: '16px 0 0', fontSize: 12.5, color: '#94a3b8', lineHeight: 1.5
                 }}>
-                    Estamos em processo de aprovação junto à Meta. Você não precisa fazer
-                    nada agora — sua conexão atual continua funcionando normalmente, e
-                    avisaremos assim que puder migrar.
+                    {t('Estamos em processo de aprovação junto à Meta. Você não precisa fazer nada agora — sua conexão atual continua funcionando normalmente, e avisaremos assim que puder migrar.')}
                 </p>
             </div>
 
@@ -627,14 +627,14 @@ export default function ConexoesPage() {
             <UpgradeOverlay
                 planoAtual={plano}
                 planoMinimo={2}
-                nomeFeature="Instagram DM com IA"
-                descricao="A IARA responde DMs do Instagram automaticamente, 24/7. Faça upgrade para o plano Pro!"
+                nomeFeature={t('Instagram DM com IA')}
+                descricao={t('A IARA responde DMs do Instagram automaticamente, 24/7. Faça upgrade para o plano Pro!')}
                 beneficios={[
-                    'Respostas automáticas no Instagram DM',
-                    'Atendimento 24/7 também pelo Instagram',
-                    'A IARA agenda consultas pelo DM',
-                    'Até 3 profissionais na equipe',
-                    '12 vozes ultra realistas',
+                    t('Respostas automáticas no Instagram DM'),
+                    t('Atendimento 24/7 também pelo Instagram'),
+                    t('A IARA agenda consultas pelo DM'),
+                    t('Até 3 profissionais na equipe'),
+                    t('12 vozes ultra realistas'),
                 ]}
             >
             <div style={{
@@ -658,15 +658,15 @@ export default function ConexoesPage() {
                                     fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
                                     padding: '3px 9px', borderRadius: 999,
                                     textTransform: 'uppercase' as const, whiteSpace: 'nowrap' as const
-                                }}>Em breve</span>
+                                }}>{t('Em breve')}</span>
                             )}
                         </div>
                         <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
                             {!INSTAGRAM_HABILITADO
-                                ? 'A IARA vai responder as DMs automaticamente'
+                                ? t('A IARA vai responder as DMs automaticamente')
                                 : temInstagram
-                                    ? `${instagrams.length} conta${instagrams.length > 1 ? 's' : ''} conectada${instagrams.length > 1 ? 's' : ''}`
-                                    : 'Conecte para a IARA responder DMs'
+                                    ? t(instagrams.length > 1 ? '{n} contas conectadas' : '{n} conta conectada', { n: instagrams.length })
+                                    : t('Conecte para a IARA responder DMs')
                             }
                         </p>
                     </div>
@@ -681,7 +681,7 @@ export default function ConexoesPage() {
                                 opacity: conectando ? 0.6 : 1, whiteSpace: 'nowrap' as const
                             }}
                         >
-                            {conectando ? '⏳ Conectando...' : '+ Conectar'}
+                            {conectando ? `⏳ ${t('Conectando...')}` : `+ ${t('Conectar')}`}
                         </button>
                     )}
                 </div>
@@ -703,7 +703,7 @@ export default function ConexoesPage() {
                                     <span style={{ fontWeight: 600, fontSize: 15, color: '#1e293b' }}>{getNomeAmigavel(inst)}</span>
                                 </div>
                                 <div style={{ fontSize: 12, color: status.color, fontWeight: 500, marginTop: 3, marginLeft: 22 }}>
-                                    {status.label}
+                                    {t(status.label)}
                                 </div>
                             </div>
                             {INSTAGRAM_HABILITADO && inst.status_conexao !== 'conectado' && (
@@ -715,11 +715,11 @@ export default function ConexoesPage() {
                                             if (data.authUrl) {
                                                 window.open(data.authUrl, '_blank');
                                             } else {
-                                                alert(data.error || 'Erro ao iniciar conexão com Instagram');
+                                                alert(data.error || t('Erro ao iniciar conexão com Instagram'));
                                             }
                                         } catch (e) {
                                             console.error(e);
-                                            alert('Erro ao conectar Instagram');
+                                            alert(t('Erro ao conectar Instagram'));
                                         }
                                     }}
                                     style={{
@@ -728,7 +728,7 @@ export default function ConexoesPage() {
                                         padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 13,
                                         whiteSpace: 'nowrap' as const
                                     }}
-                                >📲 Conectar</button>
+                                >📲 {t('Conectar')}</button>
                             )}
                             <button
                                 onClick={() => pedirDesconectar(inst.id, false)}
@@ -737,7 +737,7 @@ export default function ConexoesPage() {
                                     borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
                                     fontSize: 13, color: '#94a3b8'
                                 }}
-                                title="Desconectar canal"
+                                title={t('Desconectar canal')}
                             >🔌</button>
                         </div>
                     );
@@ -762,17 +762,17 @@ export default function ConexoesPage() {
                     }}>🗓️</div>
                     <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>Google Agenda</h2>
+                            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>{t('Google Agenda')}</h2>
                             {calendarConnected && <span style={{ fontSize: 14 }}>{agenda?.funcionando === false ? '🟠' : '🟢'}</span>}
                         </div>
                         <p style={{ margin: '2px 0 0', fontSize: 13, color: agenda && !agenda.funcionando && calendarConnected ? '#b45309' : '#94a3b8' }}>
                             {!calendarConnected
-                                ? 'Conecte para a IARA agendar consultas na sua agenda'
+                                ? t('Conecte para a IARA agendar consultas na sua agenda')
                                 : agenda === null
-                                    ? 'Verificando a conexão...'
+                                    ? t('Verificando a conexão...')
                                     : agenda.funcionando
-                                        ? 'Funcionando — IARA agenda e verifica horários automaticamente'
-                                        : agenda.problemas[0] || 'A agenda não está sincronizando.'
+                                        ? t('Funcionando — IARA agenda e verifica horários automaticamente')
+                                        : agenda.problemas[0] || t('A agenda não está sincronizando.')
                             }
                         </p>
                         {agenda && !agenda.funcionando && agenda.problemas.length > 1 && (
@@ -794,7 +794,7 @@ export default function ConexoesPage() {
                                 whiteSpace: 'nowrap'
                             }}
                         >
-                            {calendarConnected ? '🔄 Reconectar' : '+ Conectar'}
+                            {calendarConnected ? `🔄 ${t('Reconectar')}` : `+ ${t('Conectar')}`}
                         </button>
                         {/* Só o Apple Calendar tinha como desconectar. No Google, quem
                             quisesse parar de sincronizar precisava revogar o acesso
@@ -802,7 +802,7 @@ export default function ConexoesPage() {
                         {calendarConnected && (
                             <button
                                 onClick={async () => {
-                                    if (!confirm('Desconectar o Google Agenda? A IARA para de criar e consultar eventos nele. Os agendamentos já feitos continuam no seu Google.')) return
+                                    if (!confirm(t('Desconectar o Google Agenda? A IARA para de criar e consultar eventos nele. Os agendamentos já feitos continuam no seu Google.'))) return
                                     setConectando(true)
                                     try {
                                         const r = await fetch('/api/auth/google-calendar/disconnect', {
@@ -811,9 +811,9 @@ export default function ConexoesPage() {
                                             body: JSON.stringify({}),
                                         })
                                         if (r.ok) window.location.reload()
-                                        else alert('Não consegui desconectar. Tente de novo.')
+                                        else alert(t('Não consegui desconectar. Tente de novo.'))
                                     } catch {
-                                        alert('Não consegui desconectar. Tente de novo.')
+                                        alert(t('Não consegui desconectar. Tente de novo.'))
                                     } finally {
                                         setConectando(false)
                                     }
@@ -826,7 +826,7 @@ export default function ConexoesPage() {
                                     whiteSpace: 'nowrap', opacity: conectando ? 0.6 : 1,
                                 }}
                             >
-                                Desconectar
+                                {t('Desconectar')}
                             </button>
                         )}
                     </div>
@@ -855,20 +855,20 @@ export default function ConexoesPage() {
                         </div>
                         <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
                             {appleCalendarConnected
-                                ? 'Conectada — IARA agenda no Apple Calendar automaticamente'
-                                : 'Alternativa ao Google Agenda para quem usa iPhone/Mac'
+                                ? t('Conectada — IARA agenda no Apple Calendar automaticamente')
+                                : t('Alternativa ao Google Agenda para quem usa iPhone/Mac')
                             }
                         </p>
                     </div>
                     {appleCalendarConnected ? (
                         <button
                             onClick={async () => {
-                                if (!confirm('Desconectar Apple Calendar?')) return;
+                                if (!confirm(t('Desconectar Apple Calendar?'))) return;
                                 try {
                                     await fetch('/api/auth/apple-calendar/disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
                                     setAppleCalendarConnected(false);
                                     setCalendarProvider('google');
-                                } catch { alert('Erro ao desconectar'); }
+                                } catch { alert(t('Erro ao desconectar')); }
                             }}
                             style={{
                                 background: 'rgba(239,68,68,0.08)', color: '#ef4444',
@@ -876,7 +876,7 @@ export default function ConexoesPage() {
                                 padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
                                 whiteSpace: 'nowrap' as const
                             }}
-                        >🔌 Desconectar</button>
+                        >🔌 {t('Desconectar')}</button>
                     ) : (
                         <button
                             onClick={() => setAppleModal(prev => ({ ...prev, open: true, error: '', success: false }))}
@@ -886,7 +886,7 @@ export default function ConexoesPage() {
                                 padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
                                 whiteSpace: 'nowrap' as const
                             }}
-                        >+ Conectar</button>
+                        >+ {t('Conectar')}</button>
                     )}
                 </div>
             </div>
@@ -905,9 +905,9 @@ export default function ConexoesPage() {
                         fontSize: 22, flexShrink: 0
                     }}>👥</div>
                     <div style={{ flex: 1 }}>
-                        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>Google Contatos</h2>
+                        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>{t('Google Contatos')}</h2>
                         <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
-                            Importe contatos do Google para o CRM
+                            {t('Importe contatos do Google para o CRM')}
                         </p>
                     </div>
                     <a
@@ -918,7 +918,7 @@ export default function ConexoesPage() {
                             padding: '10px 20px', fontWeight: 600, fontSize: 14,
                             textDecoration: 'none', whiteSpace: 'nowrap'
                         }}
-                    >📂 Importar</a>
+                    >📂 {t('Importar')}</a>
                 </div>
             </div>
 
@@ -928,11 +928,10 @@ export default function ConexoesPage() {
                 border: '1px solid rgba(15,76,97,0.1)', marginTop: 8
             }}>
                 <p style={{ margin: 0, fontSize: 14, color: '#0F4C61', fontWeight: 600, marginBottom: 6 }}>
-                    💡 Dica
+                    💡 {t('Dica')}
                 </p>
                 <p style={{ margin: 0, fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
-                    Para conectar o WhatsApp, basta escanear o QR Code com seu celular — como no WhatsApp Web.
-                    A IARA vai começar a atender automaticamente assim que conectar!
+                    {t('Para conectar o WhatsApp, basta escanear o QR Code com seu celular — como no WhatsApp Web. A IARA vai começar a atender automaticamente assim que conectar!')}
                 </p>
             </div>
 
@@ -956,7 +955,7 @@ export default function ConexoesPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
                             <span style={{ fontSize: 28 }}>🍎</span>
                             <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#1e293b' }}>
-                                Conectar Apple Calendar
+                                {t('Conectar Apple Calendar')}
                             </h3>
                         </div>
 
@@ -966,15 +965,15 @@ export default function ConexoesPage() {
                             marginBottom: 20, border: '1px solid rgba(255,149,0,0.15)',
                         }}>
                             <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#d97706', marginBottom: 8 }}>
-                                📋 Como gerar a Senha de App:
+                                📋 {t('Como gerar a Senha de App:')}
                             </p>
                             <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#64748b', lineHeight: 1.8 }}>
-                                <li>Acesse <a href="https://appleid.apple.com/account/manage" target="_blank" rel="noopener" style={{ color: '#0066CC', fontWeight: 600 }}>appleid.apple.com</a></li>
-                                <li>Faça login com seu Apple ID</li>
-                                <li>Vá em <strong>Segurança</strong> → <strong>Senhas de App</strong></li>
-                                <li>Clique em <strong>Gerar senha de app</strong></li>
-                                <li>Dê o nome <strong>"IARA"</strong> e clique em <strong>Criar</strong></li>
-                                <li>Copie a senha gerada e cole abaixo</li>
+                                <li>{t('Acesse')} <a href="https://appleid.apple.com/account/manage" target="_blank" rel="noopener" style={{ color: '#0066CC', fontWeight: 600 }}>appleid.apple.com</a></li>
+                                <li>{t('Faça login com seu Apple ID')}</li>
+                                <li>{t('Vá em')} <strong>{t('Segurança')}</strong> → <strong>{t('Senhas de App')}</strong></li>
+                                <li>{t('Clique em')} <strong>{t('Gerar senha de app')}</strong></li>
+                                <li>{t('Dê o nome')} <strong>"IARA"</strong> {t('e clique em')} <strong>{t('Criar')}</strong></li>
+                                <li>{t('Copie a senha gerada e cole abaixo')}</li>
                             </ol>
                         </div>
 
@@ -984,10 +983,10 @@ export default function ConexoesPage() {
                             }}>
                                 <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
                                 <p style={{ fontSize: 16, fontWeight: 600, color: '#16a34a', margin: '0 0 8px' }}>
-                                    Apple Calendar conectado!
+                                    {t('Apple Calendar conectado!')}
                                 </p>
                                 <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
-                                    A IARA agora vai sincronizar agendamentos com o seu Apple Calendar.
+                                    {t('A IARA agora vai sincronizar agendamentos com o seu Apple Calendar.')}
                                 </p>
                                 <button
                                     onClick={() => { setAppleModal(prev => ({ ...prev, open: false })); fetchInstancias(); }}
@@ -996,18 +995,18 @@ export default function ConexoesPage() {
                                         color: '#fff', border: 'none', borderRadius: 12,
                                         padding: '10px 24px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
                                     }}
-                                >Fechar</button>
+                                >{t('Fechar')}</button>
                             </div>
                         ) : (
                             <>
                                 {/* Form */}
                                 <div style={{ marginBottom: 14 }}>
                                     <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-                                        Apple ID (email)
+                                        {t('Apple ID (email)')}
                                     </label>
                                     <input
                                         type="email"
-                                        placeholder="seu@icloud.com"
+                                        placeholder={t('seu@icloud.com')}
                                         value={appleModal.email}
                                         onChange={(e) => setAppleModal(prev => ({ ...prev, email: e.target.value, error: '' }))}
                                         style={{
@@ -1019,7 +1018,7 @@ export default function ConexoesPage() {
                                 </div>
                                 <div style={{ marginBottom: 20 }}>
                                     <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-                                        Senha de App (gerada acima)
+                                        {t('Senha de App (gerada acima)')}
                                     </label>
                                     <input
                                         type="password"
@@ -1041,7 +1040,7 @@ export default function ConexoesPage() {
                                         border: '1px solid rgba(239,68,68,0.15)',
                                     }}>
                                         <p style={{ margin: 0, fontSize: 13, color: '#ef4444', fontWeight: 500 }}>
-                                            ❌ {appleModal.error}
+                                            ❌ {t(appleModal.error)}
                                         </p>
                                     </div>
                                 )}
@@ -1055,7 +1054,7 @@ export default function ConexoesPage() {
                                             border: 'none', borderRadius: 12,
                                             padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
                                         }}
-                                    >Cancelar</button>
+                                    >{t('Cancelar')}</button>
                                     <button
                                         onClick={async () => {
                                             if (!appleModal.email || !appleModal.password) {
@@ -1092,7 +1091,7 @@ export default function ConexoesPage() {
                                             fontWeight: 600, fontSize: 14,
                                         }}
                                     >
-                                        {appleModal.loading ? '⏳ Verificando...' : '🔗 Conectar'}
+                                        {appleModal.loading ? `⏳ ${t('Verificando...')}` : `🔗 ${t('Conectar')}`}
                                     </button>
                                 </div>
                             </>
@@ -1122,12 +1121,12 @@ export default function ConexoesPage() {
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 20 }}>
                             <span style={{ fontSize: 28 }}>📱</span>
                             <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#1e293b' }}>
-                                Escaneie o QR Code
+                                {t('Escaneie o QR Code')}
                             </h3>
                         </div>
 
                         <p style={{ color: '#64748b', fontSize: 14, margin: '0 0 20px', lineHeight: 1.5 }}>
-                            Abra o WhatsApp no celular → Menu (⋮) → Aparelhos conectados → Conectar
+                            {t('Abra o WhatsApp no celular → Menu (⋮) → Aparelhos conectados → Conectar')}
                         </p>
 
                         {/* QR Code display */}
@@ -1139,7 +1138,7 @@ export default function ConexoesPage() {
                                     animation: 'spin 1s linear infinite',
                                     margin: '0 auto 12px',
                                 }} />
-                                <p style={{ color: '#94a3b8', fontSize: 14 }}>Gerando QR Code...</p>
+                                <p style={{ color: '#94a3b8', fontSize: 14 }}>{t('Gerando QR Code...')}</p>
                                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                             </div>
                         )}
@@ -1151,7 +1150,7 @@ export default function ConexoesPage() {
                                 border: '1px solid rgba(239,68,68,0.15)',
                             }}>
                                 <p style={{ color: '#ef4444', fontSize: 14, margin: 0, fontWeight: 500 }}>
-                                    ❌ {qrModal.error}
+                                    ❌ {t(qrModal.error)}
                                 </p>
                             </div>
                         )}
@@ -1167,7 +1166,7 @@ export default function ConexoesPage() {
                             }}>
                                 <img
                                     src={qrModal.qrcode.startsWith('data:') ? qrModal.qrcode : `data:image/png;base64,${qrModal.qrcode}`}
-                                    alt="QR Code WhatsApp"
+                                    alt={t('QR Code WhatsApp')}
                                     style={{ width: 280, height: 280, display: 'block' }}
                                 />
                             </div>
@@ -1181,7 +1180,7 @@ export default function ConexoesPage() {
                                 marginBottom: 16,
                                 border: '1px solid rgba(37,211,102,0.15)',
                             }}>
-                                <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Código de pareamento:</p>
+                                <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>{t('Código de pareamento:')}</p>
                                 <p style={{ margin: '4px 0 0', fontSize: 22, fontWeight: 700, color: '#1e293b', letterSpacing: 4 }}>
                                     {qrModal.pairingCode}
                                 </p>
@@ -1200,7 +1199,7 @@ export default function ConexoesPage() {
                                     animation: 'pulse 1.5s ease-in-out infinite',
                                 }} />
                                 <p style={{ margin: 0, fontSize: 13, color: '#25D366', fontWeight: 500 }}>
-                                    Aguardando leitura do QR Code... ({qrModal.elapsed}s)
+                                    {t('Aguardando leitura do QR Code... ({s}s)', { s: qrModal.elapsed })}
                                 </p>
                                 <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
                             </div>
@@ -1215,7 +1214,7 @@ export default function ConexoesPage() {
                                 border: '1px solid rgba(234,179,8,0.2)',
                             }}>
                                 <p style={{ margin: 0, fontSize: 13, color: '#d97706', fontWeight: 500 }}>
-                                    ⚠️ QR Code pode ter expirado.
+                                    ⚠️ {t('QR Code pode ter expirado.')}
                                 </p>
                             </div>
                         )}
@@ -1229,7 +1228,7 @@ export default function ConexoesPage() {
                                     color: '#fff', border: 'none', borderRadius: 12,
                                     padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
                                 }}
-                            >🔄 Gerar novo QR</button>
+                            >🔄 {t('Gerar novo QR')}</button>
                             <button
                                 onClick={fecharQR}
                                 style={{
@@ -1237,7 +1236,7 @@ export default function ConexoesPage() {
                                     border: 'none', borderRadius: 12,
                                     padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
                                 }}
-                            >Fechar</button>
+                            >{t('Fechar')}</button>
                         </div>
                     </div>
                 </div>
@@ -1261,10 +1260,10 @@ export default function ConexoesPage() {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div style={{ fontSize: 20, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>
-                            ⚠️ Confirmar
+                            ⚠️ {t('Confirmar')}
                         </div>
                         <div style={{ fontSize: 14, color: '#64748b', lineHeight: 1.6, marginBottom: 24 }}>
-                            {confirmModal.message}
+                            {t(confirmModal.message)}
                         </div>
                         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
                             <button
@@ -1274,7 +1273,7 @@ export default function ConexoesPage() {
                                     border: 'none', borderRadius: 12,
                                     padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
                                 }}
-                            >Cancelar</button>
+                            >{t('Cancelar')}</button>
                             <button
                                 onClick={executarDesconectar}
                                 style={{
@@ -1282,7 +1281,7 @@ export default function ConexoesPage() {
                                     border: 'none', borderRadius: 12,
                                     padding: '10px 20px', cursor: 'pointer', fontWeight: 600, fontSize: 14,
                                 }}
-                            >Sim, remover</button>
+                            >{t('Sim, remover')}</button>
                         </div>
                     </div>
                 </div>

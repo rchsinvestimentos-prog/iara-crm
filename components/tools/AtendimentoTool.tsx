@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { MessageCircle, Plus, Trash2, Save, Sparkles, Shield, ToggleLeft, ToggleRight, Loader2, Check, Bot, Clock, Ban, Cake, MessageSquareText, Pencil, X } from 'lucide-react'
 import VozTool from './VozTool'
+import { useT } from '@/components/IdiomaProvider'
 
 // Funcionalidades que a IARA pode fazer — a Dra liga/desliga
 // hidden = true → sempre ativo mas não aparece para o cliente
@@ -23,6 +24,7 @@ const funcionalidadesDefault = [
 ]
 
 export default function AtendimentoTool() {
+    const { t } = useT()
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
@@ -264,11 +266,11 @@ export default function AtendimentoTool() {
             style={{ backgroundColor: 'rgba(15,76,97,0.1)', color: '#0F4C61', border: '1px solid rgba(15,76,97,0.2)' }}
         >
             {savingBloco === blocoId ? (
-                <><Loader2 size={14} className="animate-spin" /> Salvando...</>
+                <><Loader2 size={14} className="animate-spin" /> {t('Salvando...')}</>
             ) : savedBloco === blocoId ? (
-                <><Check size={14} /> Salvo! ✅</>
+                <><Check size={14} /> {t('Salvo!')} ✅</>
             ) : (
-                <><Save size={14} /> {label || 'Salvar'}</>
+                <><Save size={14} /> {label || t('Salvar')}</>
             )}
         </button>
     )
@@ -277,7 +279,7 @@ export default function AtendimentoTool() {
         return (
             <div className="flex items-center justify-center py-20">
                 <Loader2 size={24} className="animate-spin text-[#D99773]" />
-                <span className="ml-3 text-sm" style={{ color: 'var(--text-muted)' }}>Carregando configurações da secretária...</span>
+                <span className="ml-3 text-sm" style={{ color: 'var(--text-muted)' }}>{t('Carregando configurações da secretária...')}</span>
             </div>
         )
     }
@@ -292,10 +294,10 @@ export default function AtendimentoTool() {
             {/* ============ MODO DA IA ============ */}
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
-                    💬 Como a {nomeIA || 'IARA'} se apresenta
+                    💬 {t('Como a {nome} se apresenta', { nome: nomeIA || 'IARA' })}
                 </h3>
                 <p className="text-[10px] mb-4" style={{ color: 'var(--text-muted)' }}>
-                    A única diferença entre os dois é se ela diz o nome dela para a paciente.
+                    {t('A única diferença entre os dois é se ela diz o nome dela para a paciente.')}
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -310,15 +312,15 @@ export default function AtendimentoTool() {
                         <div className="flex items-center gap-2 mb-2">
                             <span className="text-xl">💬</span>
                             <span className="text-[13px] font-bold" style={{ color: modoIA === 'secretaria' ? '#D99773' : 'var(--text-primary)' }}>
-                                Ela se apresenta
+                                {t('Ela se apresenta')}
                             </span>
                             {modoIA === 'secretaria' && <Check size={14} className="text-[#D99773] ml-auto" />}
                         </div>
                         <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                            Ela diz o nome dela e que cuida da agenda. A paciente sabe que está falando com a secretária da clínica.
+                            {t('Ela diz o nome dela e que cuida da agenda. A paciente sabe que está falando com a secretária da clínica.')}
                         </p>
                         <p className="text-[10px] mt-2 italic" style={{ color: 'var(--text-muted)', opacity: 0.75 }}>
-                            “Oi! Sou a {nomeIA || 'IARA'}, secretária da clínica 😊”
+                            “{t('Oi! Sou a {nome}, secretária da clínica', { nome: nomeIA || 'IARA' })} 😊”
                         </p>
                     </button>
 
@@ -333,27 +335,25 @@ export default function AtendimentoTool() {
                         <div className="flex items-center gap-2 mb-2">
                             <span className="text-xl">🤖</span>
                             <span className="text-[13px] font-bold" style={{ color: modoIA === 'ia_pura' ? '#8B5CF6' : 'var(--text-primary)' }}>
-                                Ela responde direto
+                                {t('Ela responde direto')}
                             </span>
                             {modoIA === 'ia_pura' && <Check size={14} className="text-[#8B5CF6] ml-auto" />}
                         </div>
                         <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                            Ela não diz nome nem cargo. Responde como se você mesma estivesse digitando.
+                            {t('Ela não diz nome nem cargo. Responde como se você mesma estivesse digitando.')}
                         </p>
                         <p className="text-[10px] mt-2 italic" style={{ color: 'var(--text-muted)', opacity: 0.75 }}>
-                            “Oi! Me conta, qual procedimento te interessa?”
+                            “{t('Oi! Me conta, qual procedimento te interessa?')}”
                         </p>
                         <p className="text-[10px] mt-2 font-medium" style={{ color: '#8B5CF6' }}>
-                            Recomendado se você clonou a sua voz — assim o áudio na sua voz não diz que é outra pessoa falando.
+                            {t('Recomendado se você clonou a sua voz — assim o áudio na sua voz não diz que é outra pessoa falando.')}
                         </p>
                     </button>
                 </div>
                 <div className="mt-3 p-2.5 rounded-lg text-[10px] leading-relaxed" style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
-                    Nos dois casos, se a paciente perguntar direto se está falando com um robô, ela assume
-                    que é a assistente da clínica. Ela nunca finge ser humana — é isso que evita a paciente
-                    se sentir enganada depois.
+                    {t('Nos dois casos, se a paciente perguntar direto se está falando com um robô, ela assume que é a assistente da clínica. Ela nunca finge ser humana — é isso que evita a paciente se sentir enganada depois.')}
                 </div>
-                <BotaoSalvarBloco blocoId="modo" dados={{ modoIA }} label="Salvar" />
+                <BotaoSalvarBloco blocoId="modo" dados={{ modoIA }} label={t('Salvar')} />
             </div>
 
             {/* ============ HORÁRIO DE OPERAÇÃO DA IARA ============ */}
@@ -362,10 +362,10 @@ export default function AtendimentoTool() {
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
                     <Clock size={15} className="text-[#D99773]" />
-                    Horário de Operação da {nomeIA || 'IARA'}
+                    {t('Horário de Operação da {nome}', { nome: nomeIA || 'IARA' })}
                 </h3>
                 <p className="text-[10px] mb-4" style={{ color: 'var(--text-muted)' }}>
-                    Defina quando a {nomeIA || 'IARA'} responde automaticamente. Fora do horário, pode enviar uma mensagem automática.
+                    {t('Defina quando a {nome} responde automaticamente. Fora do horário, pode enviar uma mensagem automática.', { nome: nomeIA || 'IARA' })}
                 </p>
 
                 {/* Toggle Sempre Ligada */}
@@ -381,12 +381,12 @@ export default function AtendimentoTool() {
                         <div className="flex items-center gap-2">
                             <span className="text-lg">⚡</span>
                             <span className="text-[12px] font-bold" style={{ color: sempreLigada ? '#06D6A0' : 'var(--text-primary)' }}>
-                                Sempre Ligada (24/7)
+                                {t('Sempre Ligada (24/7)')}
                             </span>
                             {sempreLigada && <Check size={14} className="text-green-400 ml-auto" />}
                         </div>
                         <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                            A {nomeIA || 'IARA'} responde a qualquer hora, todos os dias.
+                            {t('A {nome} responde a qualquer hora, todos os dias.', { nome: nomeIA || 'IARA' })}
                         </p>
                     </button>
 
@@ -401,12 +401,12 @@ export default function AtendimentoTool() {
                         <div className="flex items-center gap-2">
                             <span className="text-lg">🕐</span>
                             <span className="text-[12px] font-bold" style={{ color: !sempreLigada ? '#D99773' : 'var(--text-primary)' }}>
-                                Horários Específicos
+                                {t('Horários Específicos')}
                             </span>
                             {!sempreLigada && <Check size={14} className="text-[#D99773] ml-auto" />}
                         </div>
                         <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                            A {nomeIA || 'IARA'} atende somente nos horários e dias definidos.
+                            {t('A {nome} atende somente nos horários e dias definidos.', { nome: nomeIA || 'IARA' })}
                         </p>
                     </button>
                 </div>
@@ -415,8 +415,7 @@ export default function AtendimentoTool() {
                 {!sempreLigada && (
                     <div className="space-y-3 p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)' }}>
                         <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                            Marque os dias e os horários de cada um. Pode ter mais de um período no mesmo dia —
-                            atender cedo, parar, e voltar à noite.
+                            {t('Marque os dias e os horários de cada um. Pode ter mais de um período no mesmo dia — atender cedo, parar, e voltar à noite.')}
                         </p>
 
                         {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((nomeDia, d) => {
@@ -436,11 +435,11 @@ export default function AtendimentoTool() {
                                                 className="rounded"
                                             />
                                             <span className="text-[12px] font-semibold" style={{ color: atende ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                                                {nomeDia}
+                                                {t(nomeDia)}
                                             </span>
                                         </label>
                                         {!atende && (
-                                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>não atende</span>
+                                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{t('não atende')}</span>
                                         )}
                                     </div>
 
@@ -450,12 +449,12 @@ export default function AtendimentoTool() {
                                                 <div key={i} className="flex items-center gap-2">
                                                     <input type="time" value={faixa[0]} className={inputClass} style={inputStyle}
                                                         onChange={e => mudar(faixas.map((f, j) => j === i ? [e.target.value, f[1]] as [string, string] : f))} />
-                                                    <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>até</span>
+                                                    <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t('até')}</span>
                                                     <input type="time" value={faixa[1]} className={inputClass} style={inputStyle}
                                                         onChange={e => mudar(faixas.map((f, j) => j === i ? [f[0], e.target.value] as [string, string] : f))} />
                                                     {faixas.length > 1 && (
                                                         <button onClick={() => mudar(faixas.filter((_, j) => j !== i))}
-                                                            aria-label={`Remover período ${i + 1} de ${nomeDia}`}
+                                                            aria-label={t('Remover período {n} de {dia}', { n: i + 1, dia: t(nomeDia) })}
                                                             className="text-[11px] px-2 py-1 rounded-lg" style={{ color: 'var(--text-muted)' }}>
                                                             ✕
                                                         </button>
@@ -474,7 +473,7 @@ export default function AtendimentoTool() {
                                                         mudar([...faixas, [ini, fim]])
                                                     }}
                                                         className="text-[10px] font-medium" style={{ color: '#D99773' }}>
-                                                        + outro período neste dia
+                                                        + {t('outro período neste dia')}
                                                     </button>
                                                 )}
                                                 <button
@@ -484,7 +483,7 @@ export default function AtendimentoTool() {
                                                         return copia
                                                     })}
                                                     className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                                                    copiar para todos os dias
+                                                    {t('copiar para todos os dias')}
                                                 </button>
                                             </div>
                                         </div>
@@ -494,19 +493,19 @@ export default function AtendimentoTool() {
                         })}
 
                         <div className="p-2.5 rounded-lg text-[10px] leading-relaxed" style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
-                            A {nomeIA || 'IARA'} pode atender em dia que a clínica está fechada — ela agenda para outro dia normalmente.
-                            Período que vira a noite (22:00 até 02:00) é aceito.
+                            {t('A {nome} pode atender em dia que a clínica está fechada — ela agenda para outro dia normalmente.', { nome: nomeIA || 'IARA' })}{' '}
+                            {t('Período que vira a noite (22:00 até 02:00) é aceito.')}
                         </div>
 
                         <div>
-                            <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>💬 Mensagem fora do horário (opcional)</label>
+                            <label className="text-[11px] block mb-1" style={{ color: 'var(--text-muted)' }}>💬 {t('Mensagem fora do horário (opcional)')}</label>
                             <textarea value={mensagemForaHorario} onChange={e => setMensagemForaHorario(e.target.value)} rows={2}
                                 className={`w-full ${inputClass} resize-none`} style={inputStyle}
-                                placeholder="Deixe em branco para a IARA ficar em silêncio fora do horário." />
+                                placeholder={t('Deixe em branco para a IARA ficar em silêncio fora do horário.')} />
                         </div>
                     </div>
                 )}
-                <BotaoSalvarBloco blocoId="horario" dados={{ sempreLigada, horariosIara: JSON.stringify(agenda), mensagemForaHorario }} label="Salvar Horário" />
+                <BotaoSalvarBloco blocoId="horario" dados={{ sempreLigada, horariosIara: JSON.stringify(agenda), mensagemForaHorario }} label={t('Salvar Horário')} />
             </div>
             )}
 
@@ -515,56 +514,56 @@ export default function AtendimentoTool() {
                 <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                     <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}>
                         <Sparkles size={15} className="text-[#D99773]" />
-                        Personalidade da {nomeIA || 'IARA'}
+                        {t('Personalidade da {nome}', { nome: nomeIA || 'IARA' })}
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Nome da Assistente</label>
+                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>{t('Nome da Assistente')}</label>
                             <input
                                 className={inputClass}
                                 style={inputStyle}
                                 value={nomeIA} onChange={(e) => setNomeIA(e.target.value)}
-                                placeholder="Ex: Sofia, Luna, Bella..."
+                                placeholder={t('Ex: Sofia, Luna, Bella...')}
                             />
-                            <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>As clientes vão conhecer a IA pelo nome: <strong>{nomeIA}</strong></p>
+                            <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>{t('As clientes vão conhecer a IA pelo nome:')} <strong>{nomeIA}</strong></p>
                         </div>
                         <div>
-                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Humor / Personalidade</label>
+                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>{t('Humor / Personalidade')}</label>
                             <select className={inputClass} style={inputStyle} value={humor} onChange={(e) => setHumor(e.target.value)}>
-                                <option value="amigavel">🎀 Melhor Amiga (BFF) — alegre, próxima</option>
-                                <option value="profissional">💼 Profissional — direta e objetiva</option>
-                                <option value="luxo">💎 Elegante — sofisticada e premium</option>
-                                <option value="acolhedora">🤗 Acolhedora — carinhosa e empática</option>
-                                <option value="energetica">⚡ Energética — entusiasmada e motivada</option>
+                                <option value="amigavel">🎀 {t('Melhor Amiga (BFF) — alegre, próxima')}</option>
+                                <option value="profissional">💼 {t('Profissional — direta e objetiva')}</option>
+                                <option value="luxo">💎 {t('Elegante — sofisticada e premium')}</option>
+                                <option value="acolhedora">🤗 {t('Acolhedora — carinhosa e empática')}</option>
+                                <option value="energetica">⚡ {t('Energética — entusiasmada e motivada')}</option>
                             </select>
                         </div>
                         <div>
-                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Tom de Conversa</label>
+                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>{t('Tom de Conversa')}</label>
                             <select className={inputClass} style={inputStyle} value={tom} onChange={(e) => setTom(e.target.value)}>
-                                <option value="informal">💬 Informal — tipo WhatsApp com amiga</option>
-                                <option value="semi_formal">📋 Semi-formal — simpática mas profissional</option>
-                                <option value="formal">🏥 Formal — linguagem técnica e séria</option>
+                                <option value="informal">💬 {t('Informal — tipo WhatsApp com amiga')}</option>
+                                <option value="semi_formal">📋 {t('Semi-formal — simpática mas profissional')}</option>
+                                <option value="formal">🏥 {t('Formal — linguagem técnica e séria')}</option>
                             </select>
                         </div>
                         <div>
-                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Uso de Emojis</label>
+                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>{t('Uso de Emojis')}</label>
                             <select className={inputClass} style={inputStyle} value={emojis} onChange={(e) => setEmojis(e.target.value)}>
-                                <option value="nenhum">🚫 Nenhum emoji</option>
-                                <option value="moderado">😊 Moderado (1 por mensagem)</option>
-                                <option value="bastante">😍🎉 Bastante (2-3 por mensagem)</option>
+                                <option value="nenhum">🚫 {t('Nenhum emoji')}</option>
+                                <option value="moderado">😊 {t('Moderado (1 por mensagem)')}</option>
+                                <option value="bastante">😍🎉 {t('Bastante (2-3 por mensagem)')}</option>
                             </select>
                         </div>
                         <div className="md:col-span-2">
-                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Frase de Despedida</label>
+                            <label className="text-[12px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>{t('Frase de Despedida')}</label>
                             <input
                                 className={inputClass}
                                 style={inputStyle}
                                 value={fraseFavorita} onChange={(e) => setFraseFavorita(e.target.value)}
-                                placeholder="Ex: Qualquer coisa me chama! 💜"
+                                placeholder={`${t('Ex: Qualquer coisa me chama!')} 💜`}
                             />
                         </div>
                     </div>
-                    <BotaoSalvarBloco blocoId="personalidade" dados={{ nomeAssistente: nomeIA, humor, tomAtendimento: tom, emojis, fraseDespedida: fraseFavorita }} label="Salvar Personalidade" />
+                    <BotaoSalvarBloco blocoId="personalidade" dados={{ nomeAssistente: nomeIA, humor, tomAtendimento: tom, emojis, fraseDespedida: fraseFavorita }} label={t('Salvar Personalidade')} />
                 </div>
             )}
 
@@ -572,25 +571,25 @@ export default function AtendimentoTool() {
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
                     <MessageSquareText size={15} className="text-[#D99773]" />
-                    Mensagem de Boas-Vindas
+                    {t('Mensagem de Boas-Vindas')}
                 </h3>
                 <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>
-                    Enviada automaticamente quando uma nova cliente conversa pela primeira vez. Deixe vazio para usar o padrão.
+                    {t('Enviada automaticamente quando uma nova cliente conversa pela primeira vez. Deixe vazio para usar o padrão.')}
                 </p>
                 <textarea value={mensagemBoasVindas} onChange={e => setMensagemBoasVindas(e.target.value)} rows={3}
                     className={`w-full ${inputClass} resize-none`} style={inputStyle}
-                    placeholder="Olá! 👋 Seja bem-vinda! Sou a IARA, assistente virtual da clínica..." />
-                <BotaoSalvarBloco blocoId="boasvindas" dados={{ mensagemBoasVindas }} label="Salvar Mensagem" />
+                    placeholder={`${t('Olá!')} 👋 ${t('Seja bem-vinda! Sou a IARA, assistente virtual da clínica...')}`} />
+                <BotaoSalvarBloco blocoId="boasvindas" dados={{ mensagemBoasVindas }} label={t('Salvar Mensagem')} />
             </div>
 
             {/* ============ FUNCIONALIDADES (toggles) ============ */}
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
                     <Shield size={15} className="text-[#D99773]" />
-                    O que a {nomeIA || 'IARA'} pode fazer
+                    {t('O que a {nome} pode fazer', { nome: nomeIA || 'IARA' })}
                 </h3>
                 <p className="text-[10px] mb-4" style={{ color: 'var(--text-muted)' }}>
-                    Ative ou desative funcionalidades. Alterações são salvas ao clicar em &quot;Salvar&quot;.
+                    {t('Ative ou desative funcionalidades. Alterações são salvas ao clicar em "Salvar".')}
                 </p>
                 <div className="space-y-1">
                     {funcionalidades.filter(f => !f.hidden).map((f) => (
@@ -601,9 +600,9 @@ export default function AtendimentoTool() {
                         >
                             <div className="flex-1 mr-4">
                                 <p className="text-[12px] font-medium" style={{ color: f.ativo ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                                    {f.label}
+                                    {t(f.label)}
                                 </p>
-                                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{f.desc}</p>
+                                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{t(f.desc)}</p>
                             </div>
                             <button onClick={() => toggleFunc(f.id)} className="flex-shrink-0">
                                 {f.ativo ? (
@@ -615,16 +614,16 @@ export default function AtendimentoTool() {
                         </div>
                     ))}
                 </div>
-                <BotaoSalvarBloco blocoId="funcionalidades" dados={{ funcionalidades: JSON.stringify(funcionalidades.reduce((acc: Record<string, boolean>, f) => ({ ...acc, [f.id]: f.ativo }), {})) }} label="Salvar Funcionalidades" />
+                <BotaoSalvarBloco blocoId="funcionalidades" dados={{ funcionalidades: JSON.stringify(funcionalidades.reduce((acc: Record<string, boolean>, f) => ({ ...acc, [f.id]: f.ativo }), {})) }} label={t('Salvar Funcionalidades')} />
             </div>
 
             {/* ============ BLACKLIST ============ */}
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
                     <Ban size={15} className="text-red-400" />
-                    Números Bloqueados
+                    {t('Números Bloqueados')}
                 </h3>
-                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>A {nomeIA || 'IARA'} ignora esses números completamente.</p>
+                <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>{t('A {nome} ignora esses números completamente.', { nome: nomeIA || 'IARA' })}</p>
 
                 {/* Input para adicionar novo número */}
                 <div className="flex gap-2 mb-3">
@@ -692,7 +691,7 @@ export default function AtendimentoTool() {
                                         <button
                                             type="button"
                                             className="p-1 rounded-lg transition-colors hover:bg-red-500/20"
-                                            title="Editar"
+                                            title={t('Editar')}
                                             onClick={() => {
                                                 const nums = blacklist.split('\n').filter(n => n.trim())
                                                 const raw = nums[idx].startsWith('55') ? nums[idx].slice(2) : nums[idx]
@@ -707,7 +706,7 @@ export default function AtendimentoTool() {
                                         <button
                                             type="button"
                                             className="p-1 rounded-lg transition-colors hover:bg-red-500/20"
-                                            title="Excluir"
+                                            title={t('Excluir')}
                                             onClick={() => {
                                                 const nums = blacklist.split('\n').filter(n => n.trim())
                                                 nums.splice(idx, 1)
@@ -721,11 +720,11 @@ export default function AtendimentoTool() {
                             )
                         })}
                         <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                            {blacklist.split('\n').filter(n => n.trim()).length} número(s) bloqueado(s)
+                            {t('{n} número(s) bloqueado(s)', { n: blacklist.split('\n').filter(n => n.trim()).length })}
                         </p>
                     </div>
                 )}
-                <BotaoSalvarBloco blocoId="blacklist" dados={{ blacklist }} label="Salvar Blacklist" />
+                <BotaoSalvarBloco blocoId="blacklist" dados={{ blacklist }} label={t('Salvar Blacklist')} />
             </div>
 
             {/* Aniversário movido para /contatos */}
@@ -734,10 +733,10 @@ export default function AtendimentoTool() {
             <div className="backdrop-blur-xl rounded-2xl p-5" style={cardStyle}>
                 <h3 className="text-[13px] font-semibold flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
                     <MessageCircle size={15} className="text-[#D99773]" />
-                    Instruções para a {nomeIA || 'IARA'}
+                    {t('Instruções para a {nome}', { nome: nomeIA || 'IARA' })}
                 </h3>
                 <p className="text-[10px] mb-4" style={{ color: 'var(--text-muted)' }}>
-                    Ensine a {nomeIA || 'IARA'} como se comportar! Escreva suas próprias regras abaixo.
+                    {t('Ensine a {nome} como se comportar! Escreva suas próprias regras abaixo.', { nome: nomeIA || 'IARA' })}
                 </p>
 
                 {/* Lista de feedbacks existentes */}
@@ -762,7 +761,7 @@ export default function AtendimentoTool() {
                         style={inputStyle}
                         value={novoFeedback}
                         onChange={(e) => setNovoFeedback(e.target.value)}
-                        placeholder='Ex: Nunca falar preço, sempre puxar para avaliação...'
+                        placeholder={t('Ex: Nunca falar preço, sempre puxar para avaliação...')}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && novoFeedback.trim()) {
                                 setFeedbacks([...feedbacks, novoFeedback.trim()])
@@ -782,7 +781,7 @@ export default function AtendimentoTool() {
                         <Plus size={14} />
                     </button>
                 </div>
-                <BotaoSalvarBloco blocoId="feedbacks" dados={{ feedbacks: JSON.stringify(feedbacks) }} label="Salvar Instruções" />
+                <BotaoSalvarBloco blocoId="feedbacks" dados={{ feedbacks: JSON.stringify(feedbacks) }} label={t('Salvar Instruções')} />
             </div>
 
             {/* Salvar Tudo */}
@@ -792,11 +791,11 @@ export default function AtendimentoTool() {
                 className="w-full py-3 bg-[#0F4C61] text-white rounded-xl text-[13px] font-medium flex items-center justify-center gap-2 hover:bg-[#0F4C61]/90 transition-colors disabled:opacity-50"
             >
                 {saving ? (
-                    <><Loader2 size={16} className="animate-spin" /> Salvando...</>
+                    <><Loader2 size={16} className="animate-spin" /> {t('Salvando...')}</>
                 ) : saved ? (
-                    <><Check size={16} /> Salvo com sucesso! ✅</>
+                    <><Check size={16} /> {t('Salvo com sucesso!')} ✅</>
                 ) : (
-                    <><Save size={16} /> Salvar Configurações da Secretária</>
+                    <><Save size={16} /> {t('Salvar Configurações da Secretária')}</>
                 )}
             </button>
 

@@ -1,0 +1,46 @@
+// Traduções do login (app/login/page.tsx). Chave = o texto em português, exatamente como está no código.
+import type { Dicionario } from '@/components/IdiomaProvider'
+
+export const es: Dicionario = {
+    'Bem-vinda à': 'Bienvenida a',
+    'Acesse o painel da sua clínica': 'Accede al panel de tu clínica',
+    'E-mail': 'Correo electrónico',
+    'seu@email.com': 'tu@correo.com',
+    'Senha': 'Contraseña',
+    'Esqueci minha senha': 'He olvidado mi contraseña',
+    'Entrar': 'Entrar',
+    'E-mail ou senha incorretos': 'Correo o contraseña incorrectos',
+    'Erro ao conectar. Tente novamente.': 'Error de conexión. Inténtalo de nuevo.',
+    'Link inválido ou expirado. Solicite um novo.': 'Enlace no válido o caducado. Solicita uno nuevo.',
+    'Email enviado!': '¡Correo enviado!',
+    'Se o email estiver cadastrado, você receberá uma nova senha em instantes.': 'Si el correo está registrado, recibirás una contraseña nueva en unos instantes.',
+    'Voltar ao login': 'Volver al inicio de sesión',
+    'Esqueceu a senha?': '¿Has olvidado la contraseña?',
+    'Digite seu email e enviaremos uma nova senha.': 'Escribe tu correo y te enviaremos una contraseña nueva.',
+    'Enviar nova senha': 'Enviar contraseña nueva',
+    'Precisa de ajuda?': '¿Necesitas ayuda?',
+    'Fale com o suporte': 'Habla con soporte',
+    'Termos de Serviço': 'Términos del servicio',
+}
+
+export const en: Dicionario = {
+    'Bem-vinda à': 'Welcome to',
+    'Acesse o painel da sua clínica': "Sign in to your clinic's dashboard",
+    'E-mail': 'Email',
+    'seu@email.com': 'you@email.com',
+    'Senha': 'Password',
+    'Esqueci minha senha': 'Forgot my password',
+    'Entrar': 'Sign in',
+    'E-mail ou senha incorretos': 'Incorrect email or password',
+    'Erro ao conectar. Tente novamente.': 'Connection error. Please try again.',
+    'Link inválido ou expirado. Solicite um novo.': 'Invalid or expired link. Please request a new one.',
+    'Email enviado!': 'Email sent!',
+    'Se o email estiver cadastrado, você receberá uma nova senha em instantes.': "If this email is registered, you'll receive a new password shortly.",
+    'Voltar ao login': 'Back to sign in',
+    'Esqueceu a senha?': 'Forgot your password?',
+    'Digite seu email e enviaremos uma nova senha.': "Enter your email and we'll send you a new password.",
+    'Enviar nova senha': 'Send new password',
+    'Precisa de ajuda?': 'Need help?',
+    'Fale com o suporte': 'Contact support',
+    'Termos de Serviço': 'Terms of Service',
+}

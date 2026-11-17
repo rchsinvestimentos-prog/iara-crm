@@ -16,6 +16,7 @@ import {
     type MomentoAnexo,
     type TipoAnexo,
 } from '@/lib/anexos-procedimento'
+import { useT } from '@/components/IdiomaProvider'
 
 interface AnexoTela {
     id: string
@@ -36,6 +37,7 @@ function mb(bytes: number) {
 }
 
 export default function AnexosProcedimento({ procedimentoId }: { procedimentoId: number }) {
+    const { t } = useT()
     const [anexos, setAnexos] = useState<AnexoTela[]>([])
     const [carregando, setCarregando] = useState(true)
     const [erro, setErro] = useState('')
@@ -83,11 +85,17 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
 
         const avisos: string[] = []
         if (grandes.length) {
-            avisos.push(`${grandes.map(f => `"${f.name}" (${mb(f.size)})`).join(', ')} passa${grandes.length > 1 ? 'm' : ''} de ${mb(MAX_BYTES_ANEXO)}, o limite do WhatsApp, e ficou de fora.`)
+            const vars = { arquivos: grandes.map(f => `"${f.name}" (${mb(f.size)})`).join(', '), limite: mb(MAX_BYTES_ANEXO) }
+            avisos.push(grandes.length > 1
+                ? t('{arquivos} passam de {limite}, o limite do WhatsApp, e ficaram de fora.', vars)
+                : t('{arquivos} passa de {limite}, o limite do WhatsApp, e ficou de fora.', vars))
         }
         const semLugar = todos.length - grandes.length - aceitos.length
         if (semLugar > 0) {
-            avisos.push(`Cada procedimento guarda até ${MAX_ANEXOS_POR_PROCEDIMENTO} arquivos: ${semLugar} ficou${semLugar > 1 ? 'aram' : ''} de fora.`)
+            const vars = { max: MAX_ANEXOS_POR_PROCEDIMENTO, n: semLugar }
+            avisos.push(semLugar > 1
+                ? t('Cada procedimento guarda até {max} arquivos: {n} ficaram de fora.', vars)
+                : t('Cada procedimento guarda até {max} arquivos: {n} ficou de fora.', vars))
         }
         if (avisos.length) setErro(avisos.join(' '))
 
@@ -96,8 +104,8 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
     }
 
     const enviar = async () => {
-        if (!arquivos.length) return setErro('Escolha um arquivo.')
-        if (!descricao.trim()) return setErro('Escreva o que é o arquivo, para a IARA saber quando mandar.')
+        if (!arquivos.length) return setErro(t('Escolha um arquivo.'))
+        if (!descricao.trim()) return setErro(t('Escreva o que é o arquivo, para a IARA saber quando mandar.'))
         setEnviando(true)
         setErro('')
         // Um por vez: se um falhar, os que já subiram ficam e o resto
@@ -114,7 +122,7 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                 const res = await fetch(base, { method: 'POST', body: fd })
                 const d = await res.json().catch(() => ({}))
                 if (!res.ok || !d.anexo) {
-                    setErro(`"${arquivo.name}": ${d.error || 'erro ao enviar o arquivo.'}`)
+                    setErro(`"${arquivo.name}": ${d.error || t('erro ao enviar o arquivo.')}`)
                     return
                 }
                 setAnexos(prev => [...prev, d.anexo])
@@ -123,7 +131,7 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
             setDescricao('')
             setMomento('perguntar')
         } catch {
-            setErro(`Erro de conexão ao enviar "${faltam[0]?.name}".`)
+            setErro(t('Erro de conexão ao enviar "{arquivo}".', { arquivo: faltam[0]?.name ?? '' }))
         } finally {
             // O que faltou fica no estado; o campo é limpo para dar para
             // escolher os mesmos arquivos de novo.
@@ -144,7 +152,7 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
         }).catch(() => null)
         if (!res || !res.ok) {
             setAnexos(prev => prev.map(x => x.id === a.id ? { ...x, momento: antes } : x))
-            setErro('Não consegui salvar a mudança.')
+            setErro(t('Não consegui salvar a mudança.'))
         }
     }
 
@@ -157,15 +165,15 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
             body: JSON.stringify({ anexoId: a.id, descricao: nova }),
         }).catch(() => null)
         if (res && res.ok) setAnexos(prev => prev.map(x => x.id === a.id ? { ...x, descricao: nova } : x))
-        else setErro('Não consegui salvar a descrição.')
+        else setErro(t('Não consegui salvar a descrição.'))
     }
 
     const apagar = async (a: AnexoTela) => {
-        if (!confirm(`Apagar "${a.nomeArquivo}"? A IARA para de enviar este arquivo.`)) return
+        if (!confirm(t('Apagar "{arquivo}"? A IARA para de enviar este arquivo.', { arquivo: a.nomeArquivo }))) return
         setApagando(a.id)
         const res = await fetch(`${base}?anexoId=${a.id}`, { method: 'DELETE' }).catch(() => null)
         if (res && res.ok) setAnexos(prev => prev.filter(x => x.id !== a.id))
-        else setErro('Não consegui apagar o arquivo.')
+        else setErro(t('Não consegui apagar o arquivo.'))
         setApagando(null)
     }
 
@@ -175,28 +183,28 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
         <div className="p-3 rounded-lg" style={{ backgroundColor: 'var(--bg-card)' }}>
             <div className="flex items-center justify-between mb-1">
                 <p className="text-[11px] font-medium flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
-                    <Paperclip size={12} /> Anexos para a IARA enviar
+                    <Paperclip size={12} /> {t('Anexos para a IARA enviar')}
                 </p>
                 {!carregando && !falhouCarregar && (
                     <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{anexos.length}/{MAX_ANEXOS_POR_PROCEDIMENTO}</span>
                 )}
             </div>
             <p className="text-[9px] mb-3" style={{ color: 'var(--text-muted)' }}>
-                Foto, vídeo (até 15 MB) ou PDF. A IARA manda pelo WhatsApp no momento que você escolher, uma vez por paciente.
+                {t('Foto, vídeo (até 15 MB) ou PDF. A IARA manda pelo WhatsApp no momento que você escolher, uma vez por paciente.')}
             </p>
 
             {carregando ? (
                 <div className="py-3 flex justify-center"><Loader2 size={14} className="animate-spin text-[#D99773]" /></div>
             ) : falhouCarregar ? (
                 <div className="py-2 flex items-center justify-between gap-2">
-                    <p className="text-[10px] text-red-500">Não consegui carregar os anexos deste procedimento.</p>
+                    <p className="text-[10px] text-red-500">{t('Não consegui carregar os anexos deste procedimento.')}</p>
                     <button
                         type="button"
-                        onClick={() => setTentativa(t => t + 1)}
+                        onClick={() => setTentativa(n => n + 1)}
                         className="text-[11px] font-medium px-3 py-1.5 rounded-md flex-shrink-0"
                         style={{ border: '1px solid #D99773', color: '#C07A55' }}
                     >
-                        Tentar de novo
+                        {t('Tentar de novo')}
                     </button>
                 </div>
             ) : (
@@ -213,10 +221,10 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                                         <p className="text-[11px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>{a.nomeArquivo}</p>
                                         <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{mb(a.tamanho)}</p>
                                     </div>
-                                    <a href={a.url} target="_blank" rel="noreferrer" className="p-1.5 rounded-md" style={{ color: 'var(--text-muted)' }} title="Abrir">
+                                    <a href={a.url} target="_blank" rel="noreferrer" className="p-1.5 rounded-md" style={{ color: 'var(--text-muted)' }} title={t('Abrir')}>
                                         <ExternalLink size={13} />
                                     </a>
-                                    <button type="button" onClick={() => apagar(a)} disabled={apagando === a.id} className="p-1.5 rounded-md text-red-400 hover:text-red-500" title="Apagar">
+                                    <button type="button" onClick={() => apagar(a)} disabled={apagando === a.id} className="p-1.5 rounded-md text-red-400 hover:text-red-500" title={t('Apagar')}>
                                         {apagando === a.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                                     </button>
                                 </div>
@@ -234,7 +242,7 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                                     className="w-full mt-1.5 px-2.5 py-1.5 text-[11px] rounded-md focus:outline-none"
                                     style={inputStyle}
                                 >
-                                    {MOMENTOS.map(m => <option key={m.valor} value={m.valor}>Enviar: {m.rotulo}</option>)}
+                                    {MOMENTOS.map(m => <option key={m.valor} value={m.valor}>{t('Enviar: {momento}', { momento: t(m.rotulo) })}</option>)}
                                 </select>
                             </div>
                         )
@@ -269,13 +277,13 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                                 <span className="min-w-0">
                                     <span className="block text-[12px] font-semibold truncate" style={{ color: '#C07A55' }}>
                                         {arquivos.length === 0
-                                            ? 'Clique para escolher os arquivos'
-                                            : arquivos.length === 1 ? arquivos[0].name : `${arquivos.length} arquivos escolhidos`}
+                                            ? t('Clique para escolher os arquivos')
+                                            : arquivos.length === 1 ? arquivos[0].name : t('{n} arquivos escolhidos', { n: arquivos.length })}
                                     </span>
                                     <span className="block text-[10px]" style={{ color: 'var(--text-muted)' }}>
                                         {arquivos.length
-                                            ? `${mb(arquivos.reduce((s, f) => s + f.size, 0))} · clique para trocar`
-                                            : `ou arraste aqui · até ${MAX_ANEXOS_POR_PROCEDIMENTO - anexos.length} de uma vez · foto, vídeo MP4 até 15 MB ou PDF`}
+                                            ? t('{tamanho} · clique para trocar', { tamanho: mb(arquivos.reduce((s, f) => s + f.size, 0)) })
+                                            : t('ou arraste aqui · até {n} de uma vez · foto, vídeo MP4 até 15 MB ou PDF', { n: MAX_ANEXOS_POR_PROCEDIMENTO - anexos.length })}
                                     </span>
                                 </span>
                             </label>
@@ -285,8 +293,8 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                                 maxLength={MAX_DESCRICAO_ANEXO}
                                 rows={2}
                                 placeholder={arquivos.length > 1
-                                    ? 'O que são estes arquivos? Ex: Fotos de trabalhos da doutora, antes e depois de micropigmentação labial'
-                                    : 'O que é este arquivo? Ex: Vídeo de antes e depois de uma cliente que fez fio a fio'}
+                                    ? t('O que são estes arquivos? Ex: Fotos de trabalhos da doutora, antes e depois de micropigmentação labial')
+                                    : t('O que é este arquivo? Ex: Vídeo de antes e depois de uma cliente que fez fio a fio')}
                                 className="w-full px-2.5 py-1.5 text-[11px] rounded-md focus:outline-none resize-none"
                                 style={inputStyle}
                             />
@@ -296,7 +304,7 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                                 className="w-full px-2.5 py-1.5 text-[11px] rounded-md focus:outline-none"
                                 style={inputStyle}
                             >
-                                {MOMENTOS.map(m => <option key={m.valor} value={m.valor}>Enviar: {m.rotulo}</option>)}
+                                {MOMENTOS.map(m => <option key={m.valor} value={m.valor}>{t('Enviar: {momento}', { momento: t(m.rotulo) })}</option>)}
                             </select>
                             <button
                                 type="button"
@@ -305,7 +313,7 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                                 className="text-[11px] font-medium px-3 py-1.5 bg-[#D99773] text-white rounded-md flex items-center gap-1.5 disabled:opacity-50"
                             >
                                 {enviando ? <Loader2 size={12} className="animate-spin" /> : <Paperclip size={12} />}
-                                {enviando ? `Enviando${progresso ? ` ${progresso}` : ''}...` : arquivos.length > 1 ? `Anexar ${arquivos.length}` : 'Anexar'}
+                                {enviando ? (progresso ? t('Enviando {progresso}...', { progresso }) : t('Enviando...')) : arquivos.length > 1 ? t('Anexar {n}', { n: arquivos.length }) : t('Anexar')}
                             </button>
                         </div>
                     )}

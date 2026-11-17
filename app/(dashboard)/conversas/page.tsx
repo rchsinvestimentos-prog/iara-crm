@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, MessageSquare, Loader2, Sparkles, User, Bot, ArrowLeft, Instagram, Send, AlertCircle } from 'lucide-react'
 import MidiaNaConversa, { type MidiaNaConversaProps } from '@/components/MidiaNaConversa'
+import { useT } from '@/components/IdiomaProvider'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,37 +39,39 @@ interface Mensagem {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function timeAgo(dateStr: string): string {
+type FuncaoT = ReturnType<typeof useT>['t']
+
+function timeAgo(dateStr: string, t: FuncaoT): string {
     if (!dateStr) return ''
     const diffMs = Date.now() - new Date(dateStr).getTime()
     const mins = Math.floor(diffMs / 60000)
-    if (mins < 1) return 'agora'
+    if (mins < 1) return t('agora')
     if (mins < 60) return `${mins}m`
     const hrs = Math.floor(mins / 60)
     if (hrs < 24) return `${hrs}h`
     return `${Math.floor(hrs / 24)}d`
 }
 
-function formatTime(dateStr: string): string {
-    try { return new Date(dateStr).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) } catch { return '' }
+function formatTime(dateStr: string, locale: string): string {
+    try { return new Date(dateStr).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) } catch { return '' }
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string, t: FuncaoT, locale: string): string {
     try {
         const d = new Date(dateStr)
         const hoje = new Date()
-        if (d.toDateString() === hoje.toDateString()) return 'Hoje'
+        if (d.toDateString() === hoje.toDateString()) return t('Hoje')
         const ontem = new Date(); ontem.setDate(ontem.getDate() - 1)
-        if (d.toDateString() === ontem.toDateString()) return 'Ontem'
-        return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+        if (d.toDateString() === ontem.toDateString()) return t('Ontem')
+        return d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: '2-digit' })
     } catch { return '' }
 }
 
-function groupByDate(msgs: Mensagem[]) {
+function groupByDate(msgs: Mensagem[], t: FuncaoT, locale: string) {
     const groups: { date: string; msgs: Mensagem[] }[] = []
     let cur = ''
     for (const msg of msgs) {
-        const d = formatDate(msg.data)
+        const d = formatDate(msg.data, t, locale)
         if (d !== cur) { cur = d; groups.push({ date: d, msgs: [] }) }
         groups[groups.length - 1].msgs.push(msg)
     }
@@ -82,6 +85,7 @@ type Tab = 'whatsapp' | 'instagram'
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ConversasPage() {
+    const { t, locale } = useT()
     const [tab, setTab] = useState<Tab>('whatsapp')
 
     // WhatsApp state
@@ -169,10 +173,10 @@ export default function ConversasPage() {
     const filtWA = conversas.filter(c =>
         c.nome.toLowerCase().includes(busca.toLowerCase()) || c.telefone.includes(busca)
     )
-    const filtIG = igThreads.filter(t =>
-        t.nome.toLowerCase().includes(busca.toLowerCase()) || t.senderId.includes(busca)
+    const filtIG = igThreads.filter(th =>
+        th.nome.toLowerCase().includes(busca.toLowerCase()) || th.senderId.includes(busca)
     )
-    const grouped = groupByDate(mensagens)
+    const grouped = groupByDate(mensagens, t, locale)
     const loading = tab === 'whatsapp' ? loadingWA : loadingIG
 
     // ─── Render ────────────────────────────────────────────────────────────────
@@ -181,8 +185,8 @@ export default function ConversasPage() {
         <div className="animate-fade-in">
             {/* Header */}
             <div className="mb-5">
-                <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Conversas</h1>
-                <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Acompanhe os atendimentos da IARA</p>
+                <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>{t('Conversas')}</h1>
+                <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{t('Acompanhe os atendimentos da IARA')}</p>
             </div>
 
             {/* Tabs */}
@@ -237,7 +241,7 @@ export default function ConversasPage() {
                             type="text"
                             value={busca}
                             onChange={e => setBusca(e.target.value)}
-                            placeholder="Buscar..."
+                            placeholder={t('Buscar...')}
                             className="w-full pl-9 pr-4 py-2 text-sm rounded-xl focus:outline-none"
                             style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                         />
@@ -252,8 +256,8 @@ export default function ConversasPage() {
                             filtWA.length === 0 ? (
                                 <EmptyState
                                     icon="💬"
-                                    msg="Nenhuma conversa no WhatsApp ainda."
-                                    sub="Quando um cliente enviar uma mensagem para o número conectado, ela aparecerá aqui automaticamente."
+                                    msg={t('Nenhuma conversa no WhatsApp ainda.')}
+                                    sub={t('Quando um cliente enviar uma mensagem para o número conectado, ela aparecerá aqui automaticamente.')}
                                 />
                             ) : filtWA.map(c => (
                                 <ThreadItem
@@ -273,21 +277,21 @@ export default function ConversasPage() {
                             filtIG.length === 0 ? (
                                 <EmptyState
                                     icon="📷"
-                                    msg="Nenhuma mensagem do Instagram ainda."
-                                    sub="Quando alguém enviar uma DM para o perfil conectado, a conversa aparecerá aqui."
+                                    msg={t('Nenhuma mensagem do Instagram ainda.')}
+                                    sub={t('Quando alguém enviar uma DM para o perfil conectado, a conversa aparecerá aqui.')}
                                 />
-                            ) : filtIG.map(t => (
+                            ) : filtIG.map(th => (
                                 <ThreadItem
-                                    key={t.senderId}
-                                    id={t.senderId}
-                                    nome={t.nome}
-                                    preview={t.ultimaMensagem}
-                                    time={t.ultimaData}
-                                    count={t.totalMensagens}
-                                    selected={selecionado === t.senderId}
-                                    onClick={() => abrirIG(t.senderId, t.nome)}
+                                    key={th.senderId}
+                                    id={th.senderId}
+                                    nome={th.nome}
+                                    preview={th.ultimaMensagem}
+                                    time={th.ultimaData}
+                                    count={th.totalMensagens}
+                                    selected={selecionado === th.senderId}
+                                    onClick={() => abrirIG(th.senderId, th.nome)}
                                     accentColor="#E1306C"
-                                    falha={t.falhaEnvio}
+                                    falha={th.falhaEnvio}
                                     isInstagram
                                 />
                             ))
@@ -303,7 +307,7 @@ export default function ConversasPage() {
                     {!selecionado ? (
                         <div className="flex-1 flex flex-col items-center justify-center gap-3">
                             <MessageSquare size={48} className="opacity-10" style={{ color: 'var(--text-muted)' }} />
-                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Selecione uma conversa</p>
+                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('Selecione uma conversa')}</p>
                         </div>
                     ) : (
                         <>
@@ -338,7 +342,7 @@ export default function ConversasPage() {
                                 <div className="flex-1 min-w-0">
                                     <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{nomeSelecionado}</p>
                                     <p className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
-                                        {tab === 'instagram' ? `Instagram DM · ID ${selecionado}` : selecionado}
+                                        {tab === 'instagram' ? t('Instagram DM · ID {id}', { id: selecionado }) : selecionado}
                                     </p>
                                 </div>
                                 {tab === 'instagram' && (
@@ -360,7 +364,7 @@ export default function ConversasPage() {
                                     </div>
                                 ) : mensagens.length === 0 ? (
                                     <div className="text-center py-12">
-                                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sem mensagens</p>
+                                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('Sem mensagens')}</p>
                                     </div>
                                 ) : grouped.map(group => (
                                     <div key={group.date}>
@@ -375,7 +379,7 @@ export default function ConversasPage() {
                                                     <div key={msg.id} className="flex justify-center mb-2">
                                                         <div className="max-w-[85%] px-3 py-2 rounded-xl text-[12px] leading-relaxed"
                                                             style={{ backgroundColor: '#f59e0b14', border: '1px dashed #f59e0b66', color: 'var(--text-primary)' }}>
-                                                            <p className="text-[10px] font-semibold mb-0.5" style={{ color: '#b45309' }}>📝 Nota interna da Doutora (a cliente não vê)</p>
+                                                            <p className="text-[10px] font-semibold mb-0.5" style={{ color: '#b45309' }}>📝 {t('Nota interna da Doutora (a cliente não vê)')}</p>
                                                             <p className="whitespace-pre-wrap">{msg.content.replace(/^\[NOTA INTERNA[^\]]*\]\n?/, '')}</p>
                                                         </div>
                                                     </div>
@@ -399,11 +403,11 @@ export default function ConversasPage() {
                                                         <div className="flex items-center gap-1.5 mb-1">
                                                             {isBot ? <Bot size={11} style={{ color: accentColor }} /> : <User size={11} style={{ color: 'var(--text-muted)' }} />}
                                                             <span className="text-[10px] font-medium" style={{ color: isBot ? accentColor : 'var(--text-muted)' }}>
-                                                                {isBot ? 'IARA' : (msg.pushName || 'Cliente')}
+                                                                {isBot ? 'IARA' : (msg.pushName || t('Cliente'))}
                                                             </span>
                                                             {isFalha && (
                                                                 <span className="text-[9px] px-1 rounded" style={{ backgroundColor: '#ef444420', color: '#ef4444' }}>
-                                                                    ⚠ não enviado
+                                                                    ⚠ {t('não enviado')}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -414,7 +418,7 @@ export default function ConversasPage() {
                                                             </p>
                                                         )}
                                                         <p className="text-right mt-1">
-                                                            <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{formatTime(msg.data)}</span>
+                                                            <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{formatTime(msg.data, locale)}</span>
                                                         </p>
                                                     </div>
                                                 </div>
@@ -433,8 +437,8 @@ export default function ConversasPage() {
                                             style={{ backgroundColor: '#ef444415', border: '1px solid #ef444430', color: '#ef4444' }}>
                                             <AlertCircle size={12} />
                                             {erroEnvio.includes('acesso avançado') || erroEnvio.includes('Advanced Access')
-                                                ? 'Envio bloqueado pela Meta. Advanced Access pendente de aprovação.'
-                                                : erroEnvio
+                                                ? t('Envio bloqueado pela Meta. Advanced Access pendente de aprovação.')
+                                                : t(erroEnvio)
                                             }
                                         </div>
                                     )}
@@ -444,7 +448,7 @@ export default function ConversasPage() {
                                             value={textoEnvio}
                                             onChange={e => setTextoEnvio(e.target.value)}
                                             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && enviarIG()}
-                                            placeholder="Responder via Instagram DM..."
+                                            placeholder={t('Responder via Instagram DM...')}
                                             className="flex-1 px-4 py-2.5 text-sm rounded-xl focus:outline-none"
                                             style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                                         />
@@ -463,14 +467,14 @@ export default function ConversasPage() {
                                     </div>
                                     <p className="text-[10px] text-center mt-2 flex items-center justify-center gap-1" style={{ color: 'var(--text-muted)' }}>
                                         <Sparkles size={9} style={{ color: '#E1306C' }} />
-                                        A IARA responde automaticamente · Envio manual disponível quando aprovado pela Meta
+                                        {t('A IARA responde automaticamente · Envio manual disponível quando aprovado pela Meta')}
                                     </p>
                                 </div>
                             ) : (
                                 <div className="px-5 py-3 text-center" style={{ borderTop: '1px solid var(--border-subtle)' }}>
                                     <p className="text-[10px] flex items-center justify-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
                                         <Sparkles size={11} className="text-[#D99773]" />
-                                        Conversa gerenciada pela IARA · Somente leitura
+                                        {t('Conversa gerenciada pela IARA · Somente leitura')}
                                     </p>
                                 </div>
                             )}
@@ -500,6 +504,7 @@ function ThreadItem({
     id: string; nome: string; preview: string; time: string; count: number
     selected: boolean; onClick: () => void; accentColor: string; falha?: boolean; isInstagram?: boolean; fotoUrl?: string | null
 }) {
+    const { t } = useT()
     const initials = nome.startsWith('@')
         ? nome.replace('@', '').slice(0, 2).toUpperCase()
         : nome.split(' ').map((n: string) => n[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || '??'
@@ -531,7 +536,7 @@ function ThreadItem({
             <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
                     <p className="text-[12px] font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{nome}</p>
-                    <span className="text-[9px] flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{timeAgo(time)}</span>
+                    <span className="text-[9px] flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{timeAgo(time, t)}</span>
                 </div>
                 <div className="flex items-center gap-1">
                     {falha && <span style={{ color: '#ef4444', fontSize: 9 }}>⚠</span>}

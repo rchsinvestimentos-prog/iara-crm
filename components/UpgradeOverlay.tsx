@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Lock, Crown, ArrowRight, Check } from 'lucide-react'
+import { useT } from '@/components/IdiomaProvider'
 
 interface UpgradeOverlayProps {
     planoAtual: number
@@ -60,6 +61,8 @@ export default function UpgradeOverlay({
     children,
     variante = 'section',
 }: UpgradeOverlayProps) {
+    // Antes do return de baixo: hook não pode ficar depois de um return.
+    const { t } = useT()
     // Plano único desde 10/11/2026: não existe plano maior para oferecer,
     // então nada fica trancado por nível. O componente continua aqui para
     // não mexer nas telas que o usam; o bloqueio abaixo não roda mais.
@@ -68,7 +71,7 @@ export default function UpgradeOverlay({
         return <>{children}</>
     }
 
-    const nomePlano = PLANO_NOMES[planoMinimo] || 'Pro'
+    const nomePlano = t(PLANO_NOMES[planoMinimo] || 'Pro')
     const corPlano = PLANO_CORES[planoMinimo] || '#8B5CF6'
     const precoPlano = PLANO_PRECOS[planoMinimo] || ''
     const listaBeneficios = beneficios || BENEFICIOS_PADRAO[planoMinimo] || []
@@ -107,7 +110,7 @@ export default function UpgradeOverlay({
                         }}
                     >
                         <Lock size={12} />
-                        Plano {nomePlano}
+                        {t('Plano {nome}', { nome: nomePlano })}
                         <ArrowRight size={12} />
                     </Link>
                 </div>
@@ -166,10 +169,10 @@ export default function UpgradeOverlay({
 
                 {/* Título */}
                 <h4 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: '#1e293b' }}>
-                    {nomeFeature}
+                    {t(nomeFeature)}
                 </h4>
                 <p style={{ margin: '0 0 14px', fontSize: 13, color: '#64748b', maxWidth: 320, lineHeight: 1.5 }}>
-                    {descricao || `Disponível no plano ${nomePlano}. Faça upgrade para desbloquear!`}
+                    {descricao ? t(descricao) : t('Disponível no plano {plano}. Faça upgrade para desbloquear!', { plano: nomePlano })}
                 </p>
 
                 {/* Lista de benefícios */}
@@ -187,7 +190,7 @@ export default function UpgradeOverlay({
                         }}
                     >
                         <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: corPlano, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            ✨ O que você ganha no {nomePlano}
+                            ✨ {t('O que você ganha no {plano}', { plano: nomePlano })}
                         </p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                             {listaBeneficios.map((b, i) => (
@@ -206,7 +209,7 @@ export default function UpgradeOverlay({
                                     >
                                         <Check size={11} style={{ color: corPlano }} strokeWidth={3} />
                                     </div>
-                                    <span style={{ fontSize: 12, color: '#334155', lineHeight: 1.3 }}>{b}</span>
+                                    <span style={{ fontSize: 12, color: '#334155', lineHeight: 1.3 }}>{t(b)}</span>
                                 </div>
                             ))}
                         </div>
@@ -216,13 +219,13 @@ export default function UpgradeOverlay({
                 {/* Badge do plano atual + preço */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <span style={{ fontSize: 11, color: '#94a3b8' }}>
-                        Seu plano: <span style={{ fontWeight: 600, color: '#0F4C61' }}>{PLANO_NOMES[planoAtual] || 'Essencial'}</span>
+                        {t('Seu plano:')} <span style={{ fontWeight: 600, color: '#0F4C61' }}>{t(PLANO_NOMES[planoAtual] || 'Essencial')}</span>
                     </span>
                     {precoPlano && (
                         <>
                             <span style={{ color: '#e2e8f0' }}>•</span>
                             <span style={{ fontSize: 11, color: '#64748b' }}>
-                                {nomePlano}: <span style={{ fontWeight: 700, color: corPlano }}>{precoPlano}/mês</span>
+                                {nomePlano}: <span style={{ fontWeight: 700, color: corPlano }}>{t('{preco}/mês', { preco: precoPlano })}</span>
                             </span>
                         </>
                     )}
@@ -247,7 +250,7 @@ export default function UpgradeOverlay({
                     }}
                 >
                     <Crown size={16} />
-                    Fazer Upgrade para {nomePlano}
+                    {t('Fazer Upgrade para {plano}', { plano: nomePlano })}
                     <ArrowRight size={16} />
                 </Link>
             </div>

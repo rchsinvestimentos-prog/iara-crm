@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Pause, Play, Loader2, PalmtreeIcon, X, Calendar } from 'lucide-react'
+import { useT } from '@/components/IdiomaProvider'
 
 /**
  * PausarIARA — Botão de pausar + Modo Férias
@@ -10,6 +11,7 @@ import { Pause, Play, Loader2, PalmtreeIcon, X, Calendar } from 'lucide-react'
  * Quando a data chega, o cron de renovação reativa automaticamente.
  */
 export default function PausarIARA() {
+    const { t, locale } = useT()
     const [pausada, setPausada] = useState(false)
     const [nomeIA, setNomeIA] = useState('IARA')
     const [loading, setLoading] = useState(true)
@@ -97,7 +99,7 @@ export default function PausarIARA() {
 
     return (
         <div className="relative flex items-center gap-2">
-            {erro && <span role="alert" className="text-[11px] text-red-500 max-w-[220px] leading-tight" data-erro-pausar>{erro}</span>}
+            {erro && <span role="alert" className="text-[11px] text-red-500 max-w-[220px] leading-tight" data-erro-pausar>{t(erro)}</span>}
             {/* Modo Férias Button */}
             <button
                 onClick={() => setShowFerias(!showFerias)}
@@ -107,9 +109,9 @@ export default function PausarIARA() {
                     color: feriasSalvo ? '#8B5CF6' : 'var(--text-muted)',
                     border: `1px solid ${feriasSalvo ? 'rgba(139,92,246,0.25)' : 'var(--border-default)'}`,
                 }}
-                title="Modo Férias"
+                title={t('Modo Férias')}
             >
-                🌴 {feriasSalvo ? `Férias até ${new Date(feriasSalvo + 'T12:00:00').toLocaleDateString('pt-BR')}` : 'Férias'}
+                🌴 {feriasSalvo ? t('Férias até {data}', { data: new Date(feriasSalvo + 'T12:00:00').toLocaleDateString(locale) }) : t('Férias')}
             </button>
 
             {/* Pause/Resume */}
@@ -122,7 +124,7 @@ export default function PausarIARA() {
                     color: pausada ? '#06D6A0' : '#EF4444',
                     border: `1px solid ${pausada ? 'rgba(6,214,160,0.25)' : 'rgba(239,68,68,0.2)'}`,
                 }}
-                title={pausada ? `Retomar ${nomeIA}` : `Pausar ${nomeIA}`}
+                title={pausada ? t('Retomar {nome}', { nome: nomeIA }) : t('Pausar {nome}', { nome: nomeIA })}
             >
                 {toggling ? (
                     <Loader2 size={15} className="animate-spin" />
@@ -131,7 +133,7 @@ export default function PausarIARA() {
                 ) : (
                     <Pause size={15} />
                 )}
-                {pausada ? `Retomar ${nomeIA}` : `Pausar ${nomeIA}`}
+                {pausada ? t('Retomar {nome}', { nome: nomeIA }) : t('Pausar {nome}', { nome: nomeIA })}
             </button>
 
             {/* Modal Férias */}
@@ -141,7 +143,7 @@ export default function PausarIARA() {
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                             <span className="text-lg">🌴</span>
-                            <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>Modo Férias</p>
+                            <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>{t('Modo Férias')}</p>
                         </div>
                         <button onClick={() => setShowFerias(false)} style={{ color: 'var(--text-muted)' }}>
                             <X size={14} />
@@ -149,13 +151,13 @@ export default function PausarIARA() {
                     </div>
 
                     <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
-                        A {nomeIA} fica pausada até a data de retorno e reativa automaticamente!
+                        {t('A {nome} fica pausada até a data de retorno e reativa automaticamente!', { nome: nomeIA })}
                     </p>
 
                     <div className="space-y-3">
                         <div>
                             <label className="text-[11px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>
-                                📅 Data de retorno
+                                📅 {t('Data de retorno')}
                             </label>
                             <input
                                 type="date"
@@ -169,18 +171,18 @@ export default function PausarIARA() {
 
                         <div>
                             <label className="text-[11px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>
-                                💬 Mensagem automática (opcional)
+                                💬 {t('Mensagem automática (opcional)')}
                             </label>
                             <textarea
                                 value={mensagemFerias}
                                 onChange={e => setMensagemFerias(e.target.value)}
                                 rows={3}
-                                placeholder={`Olá! Estou de férias e retorno em breve. 🌴`}
+                                placeholder={`${t('Olá! Estou de férias e retorno em breve.')} 🌴`}
                                 className="w-full px-3 py-2 text-[11px] rounded-xl outline-none resize-none"
                                 style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                             />
                             <p className="text-[9px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                                Enviada automaticamente para quem mandar mensagem durante as férias
+                                {t('Enviada automaticamente para quem mandar mensagem durante as férias')}
                             </p>
                         </div>
 
@@ -190,7 +192,7 @@ export default function PausarIARA() {
                             className="w-full py-2.5 rounded-xl text-[12px] font-semibold transition-all disabled:opacity-40"
                             style={{ background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)', color: 'white' }}
                         >
-                            {toggling ? '⏳ Ativando...' : '🌴 Ativar Modo Férias'}
+                            {toggling ? `⏳ ${t('Ativando...')}` : `🌴 ${t('Ativar Modo Férias')}`}
                         </button>
 
                         {feriasSalvo && (
@@ -199,7 +201,7 @@ export default function PausarIARA() {
                                 className="w-full py-2 rounded-xl text-[11px] transition-all"
                                 style={{ color: '#EF4444', border: '1px solid rgba(239,68,68,0.2)' }}
                             >
-                                Cancelar Férias e Retomar Agora
+                                {t('Cancelar Férias e Retomar Agora')}
                             </button>
                         )}
                     </div>

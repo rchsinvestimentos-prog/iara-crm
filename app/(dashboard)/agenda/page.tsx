@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Loader2, ChevronLeft, ChevronRight, Clock, Phone, Settings, CalendarDays, Link2, ExternalLink, CheckCircle2, XCircle, Plus, User, X, Filter } from 'lucide-react'
+import { useT } from '@/components/IdiomaProvider'
 
 interface ProcedimentoProf {
     id: number
@@ -77,6 +78,7 @@ const STATUS_LABELS: Record<string, string> = {
 const cardStyle = { backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }
 
 export default function AgendaPage() {
+    const { t, locale } = useT()
     const [agendamentos, setAgendamentos] = useState<Agendamento[]>([])
     const [profissionais, setProfissionais] = useState<Profissional[]>([])
     const [loading, setLoading] = useState(true)
@@ -213,7 +215,12 @@ export default function AgendaPage() {
     const mes = mesAtual.getMonth()
     const primeiroDia = new Date(ano, mes, 1).getDay()
     const totalDias = new Date(ano, mes + 1, 0).getDate()
-    const nomeMes = mesAtual.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    const nomeMes = mesAtual.toLocaleDateString(locale, { month: 'long', year: 'numeric' })
+    // Dom, Seg, ... no idioma do painel (1/1/2023 foi domingo)
+    const diasSemana = Array.from({ length: 7 }, (_, i) => {
+        const s = new Date(2023, 0, 1 + i).toLocaleDateString(locale, { weekday: 'short' }).replace('.', '').slice(0, 3)
+        return s.charAt(0).toUpperCase() + s.slice(1)
+    })
 
     const hoje = new Date()
     const isHoje = (dia: number) => hoje.getFullYear() === ano && hoje.getMonth() === mes && hoje.getDate() === dia
@@ -275,9 +282,9 @@ export default function AgendaPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Agenda 🗓</h1>
+                    <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>{t('Agenda')} 🗓</h1>
                     <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                        {agendamentos.length} agendamento{agendamentos.length !== 1 ? 's' : ''} {filtroProf !== 'todos' ? `• ${profissionais.find(p => p.id === filtroProf)?.nome}` : ''}
+                        {t(agendamentos.length !== 1 ? '{n} agendamentos' : '{n} agendamento', { n: agendamentos.length })} {filtroProf !== 'todos' ? `• ${profissionais.find(p => p.id === filtroProf)?.nome}` : ''}
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -287,7 +294,7 @@ export default function AgendaPage() {
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all hover:opacity-80"
                         style={{ backgroundColor: '#D99773', color: '#FFF' }}
                     >
-                        <Plus size={14} /> Novo
+                        <Plus size={14} /> {t('Novo')}
                     </button>
 
                     {/* Filtro profissional */}
@@ -300,7 +307,7 @@ export default function AgendaPage() {
                                 className="text-[11px] font-medium bg-transparent border-none outline-none cursor-pointer"
                                 style={{ color: 'var(--text-primary)' }}
                             >
-                                <option value="todos">Todos</option>
+                                <option value="todos">{t('Todos')}</option>
                                 {profissionais.map(p => (
                                     <option key={p.id} value={p.id}>{p.nome}</option>
                                 ))}
@@ -320,7 +327,7 @@ export default function AgendaPage() {
                                     color: viewMode === mode ? '#FFF' : 'var(--text-muted)',
                                 }}
                             >
-                                {mode === 'diario' ? 'Diário' : mode === 'mensal' ? 'Mensal' : 'Semanal'}
+                                {mode === 'diario' ? t('Diário') : mode === 'mensal' ? t('Mensal') : t('Semanal')}
                             </button>
                         ))}
                     </div>
@@ -339,7 +346,7 @@ export default function AgendaPage() {
             {viewMode === 'mensal' && (
                 <div className="rounded-2xl overflow-hidden mb-6" style={cardStyle}>
                     <div className="grid grid-cols-7">
-                        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
+                        {diasSemana.map(d => (
                             <div key={d} className="text-center py-2 text-[11px] font-semibold" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)' }}>
                                 {d}
                             </div>
@@ -372,7 +379,7 @@ export default function AgendaPage() {
                                         </div>
                                     ))}
                                     {agendDia.length > 3 && (
-                                        <p className="text-[8px] px-1" style={{ color: 'var(--text-muted)' }}>+{agendDia.length - 3} mais</p>
+                                        <p className="text-[8px] px-1" style={{ color: 'var(--text-muted)' }}>{t('+{n} mais', { n: agendDia.length - 3 })}</p>
                                     )}
                                 </div>
                             )
@@ -401,7 +408,7 @@ export default function AgendaPage() {
                                 >
                                     <p className={`text-[10px] font-semibold mb-1 ${isSel || isToday ? 'text-[#D99773]' : ''}`}
                                         style={{ color: isSel || isToday ? '#D99773' : 'var(--text-muted)' }}>
-                                        {d.toLocaleDateString('pt-BR', { weekday: 'short' })} {d.getDate()}
+                                        {d.toLocaleDateString(locale, { weekday: 'short' })} {d.getDate()}
                                     </p>
                                     {dayAgend.map(ag => (
                                         <div key={ag.id} className="mb-1 px-1.5 py-1 rounded text-[10px]"
@@ -426,7 +433,7 @@ export default function AgendaPage() {
                             <ChevronLeft size={16} style={{ color: 'var(--text-muted)' }} />
                         </button>
                         <h3 className="text-[15px] font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>
-                            {diaSelecionado.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                            {diaSelecionado.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })}
                         </h3>
                         <button onClick={() => setDiaSelecionado(new Date(diaSelecionado.getFullYear(), diaSelecionado.getMonth(), diaSelecionado.getDate() + 1))}
                             className="p-2 rounded-xl hover:opacity-70" style={cardStyle}>
@@ -436,7 +443,7 @@ export default function AgendaPage() {
                     {agendDiaSel.length === 0 ? (
                         <div className="text-center py-8">
                             <p className="text-2xl mb-1">☀️</p>
-                            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Nenhum agendamento neste dia</p>
+                            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>{t('Nenhum agendamento neste dia')}</p>
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -453,8 +460,8 @@ export default function AgendaPage() {
                 <div className="mb-6">
                     <h3 className="text-[14px] font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
                         📋 {diaSelecionado.toDateString() === hoje.toDateString()
-                            ? 'Agendamentos de Hoje'
-                            : `Agendamentos — ${diaSelecionado.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}`
+                            ? t('Agendamentos de Hoje')
+                            : t('Agendamentos — {data}', { data: diaSelecionado.toLocaleDateString(locale, { day: 'numeric', month: 'short' }) })
                         }
                     </h3>
                     <div className="space-y-2">
@@ -462,7 +469,7 @@ export default function AgendaPage() {
                             <div className="rounded-xl p-4 text-center" style={cardStyle}>
                                 <p className="text-2xl mb-1">☀️</p>
                                 <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                                    Nenhum agendamento {diaSelecionado.toDateString() === hoje.toDateString() ? 'para hoje' : 'neste dia'}
+                                    {diaSelecionado.toDateString() === hoje.toDateString() ? t('Nenhum agendamento para hoje') : t('Nenhum agendamento neste dia')}
                                 </p>
                             </div>
                         ) : (
@@ -477,7 +484,7 @@ export default function AgendaPage() {
                 {Object.entries(STATUS_LABELS).map(([key, label]) => (
                     <div key={key} className="flex items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: STATUS_CORES[key] }} />
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{label}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{t(label)}</span>
                     </div>
                 ))}
             </div>
@@ -494,14 +501,14 @@ export default function AgendaPage() {
                             <div className="flex items-center gap-1.5">
                                 <CheckCircle2 size={12} className="text-green-400" />
                                 <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                                    Vinculado • Sync ativada
+                                    {t('Vinculado • Sync ativada')}
                                 </span>
                             </div>
                         ) : (
                             <div className="flex items-center gap-1.5">
                                 <XCircle size={12} className="text-red-400" />
                                 <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                                    Não conectado — Agenda funciona independente
+                                    {t('Não conectado — Agenda funciona independente')}
                                 </span>
                             </div>
                         )}
@@ -509,13 +516,13 @@ export default function AgendaPage() {
                     {!googleConectado && (
                         <a href="/instancias" className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all hover:opacity-80"
                             style={{ backgroundColor: '#D99773', color: '#FFF' }}>
-                            <Link2 size={12} /> Conectar
+                            <Link2 size={12} /> {t('Conectar')}
                         </a>
                     )}
                     {googleConectado && (
                         <a href="/instancias" className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all hover:opacity-80" style={cardStyle}>
                             <ExternalLink size={12} style={{ color: 'var(--text-muted)' }} />
-                            <span style={{ color: 'var(--text-muted)' }}>Gerenciar</span>
+                            <span style={{ color: 'var(--text-muted)' }}>{t('Gerenciar')}</span>
                         </a>
                     )}
                 </div>
@@ -525,7 +532,7 @@ export default function AgendaPage() {
             <div className="rounded-2xl overflow-hidden" style={cardStyle}>
                 <button onClick={() => setConfigAberta(!configAberta)} className="w-full flex items-center gap-3 p-4 transition-all hover:opacity-80">
                     <Settings size={18} style={{ color: '#D99773' }} />
-                    <span className="text-[13px] font-semibold flex-1 text-left" style={{ color: 'var(--text-primary)' }}>Configurações da Agenda</span>
+                    <span className="text-[13px] font-semibold flex-1 text-left" style={{ color: 'var(--text-primary)' }}>{t('Configurações da Agenda')}</span>
                     <ChevronRight size={14} className={`transition-transform duration-300 ${configAberta ? 'rotate-90' : ''}`} style={{ color: 'var(--text-muted)' }} />
                 </button>
 
@@ -534,19 +541,19 @@ export default function AgendaPage() {
                         <div className="h-px" style={{ backgroundColor: 'var(--border-subtle)' }} />
 
                         <div>
-                            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Horário de atendimento (Seg-Sex)</label>
+                            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>{t('Horário de atendimento (Seg-Sex)')}</label>
                             <input type="text" value={config.horarioSemana} onChange={e => setConfig(p => ({ ...p, horarioSemana: e.target.value }))}
-                                className="w-full px-3 py-2 rounded-xl text-[13px]" style={{ ...cardStyle, color: 'var(--text-primary)' }} placeholder="Ex: 08:00 às 18:00" />
+                                className="w-full px-3 py-2 rounded-xl text-[13px]" style={{ ...cardStyle, color: 'var(--text-primary)' }} placeholder={t('Ex: 08:00 às 18:00')} />
                         </div>
 
                         <div>
-                            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Horário de almoço (Seg-Sex)</label>
+                            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>{t('Horário de almoço (Seg-Sex)')}</label>
                             <input type="text" value={config.almocoSemana} onChange={e => setConfig(p => ({ ...p, almocoSemana: e.target.value }))}
-                                className="w-full px-3 py-2 rounded-xl text-[13px]" style={{ ...cardStyle, color: 'var(--text-primary)' }} placeholder="Ex: 12:00 às 13:00" />
+                                className="w-full px-3 py-2 rounded-xl text-[13px]" style={{ ...cardStyle, color: 'var(--text-primary)' }} placeholder={t('Ex: 12:00 às 13:00')} />
                         </div>
 
                         <div>
-                            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Intervalo entre atendimentos (min)</label>
+                            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>{t('Intervalo entre atendimentos (min)')}</label>
                             <input type="number" value={config.intervaloAtendimento} onChange={e => setConfig(p => ({ ...p, intervaloAtendimento: Number(e.target.value) }))}
                                 className="w-24 px-3 py-2 rounded-xl text-[13px]" style={{ ...cardStyle, color: 'var(--text-primary)' }} min={0} max={120} />
                         </div>
@@ -556,41 +563,41 @@ export default function AgendaPage() {
                         <div className="flex items-center gap-3">
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" checked={config.atendeSabado} onChange={e => setConfig(p => ({ ...p, atendeSabado: e.target.checked }))} className="rounded accent-[#D99773]" />
-                                <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>Atende sábado</span>
+                                <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{t('Atende sábado')}</span>
                             </label>
                         </div>
                         {config.atendeSabado && (
                             <div className="ml-6"><input type="text" value={config.horarioSabado} onChange={e => setConfig(p => ({ ...p, horarioSabado: e.target.value }))}
-                                className="w-full px-3 py-2 rounded-xl text-[12px]" style={{ ...cardStyle, color: 'var(--text-primary)' }} placeholder="Horário do sábado" /></div>
+                                className="w-full px-3 py-2 rounded-xl text-[12px]" style={{ ...cardStyle, color: 'var(--text-primary)' }} placeholder={t('Horário do sábado')} /></div>
                         )}
 
                         <div className="flex items-center gap-3">
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" checked={config.atendeDomingo} onChange={e => setConfig(p => ({ ...p, atendeDomingo: e.target.checked }))} className="rounded accent-[#D99773]" />
-                                <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>Atende domingo</span>
+                                <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{t('Atende domingo')}</span>
                             </label>
                         </div>
                         {config.atendeDomingo && (
                             <div className="ml-6"><input type="text" value={config.horarioDomingo} onChange={e => setConfig(p => ({ ...p, horarioDomingo: e.target.value }))}
-                                className="w-full px-3 py-2 rounded-xl text-[12px]" style={{ ...cardStyle, color: 'var(--text-primary)' }} placeholder="Horário do domingo" /></div>
+                                className="w-full px-3 py-2 rounded-xl text-[12px]" style={{ ...cardStyle, color: 'var(--text-primary)' }} placeholder={t('Horário do domingo')} /></div>
                         )}
 
                         <div className="flex items-center gap-3">
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" checked={config.atendeFeriado} onChange={e => setConfig(p => ({ ...p, atendeFeriado: e.target.checked }))} className="rounded accent-[#D99773]" />
-                                <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>Atende feriados</span>
+                                <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>{t('Atende feriados')}</span>
                             </label>
                         </div>
                         {config.atendeFeriado && (
                             <div className="ml-6"><input type="text" value={config.horarioFeriado} onChange={e => setConfig(p => ({ ...p, horarioFeriado: e.target.value }))}
-                                className="w-full px-3 py-2 rounded-xl text-[12px]" style={{ ...cardStyle, color: 'var(--text-primary)' }} placeholder="Horário dos feriados" /></div>
+                                className="w-full px-3 py-2 rounded-xl text-[12px]" style={{ ...cardStyle, color: 'var(--text-primary)' }} placeholder={t('Horário dos feriados')} /></div>
                         )}
 
                         <div className="pt-2">
                             <button onClick={salvarConfig} disabled={savingConfig}
                                 className="px-5 py-2 rounded-xl text-[12px] font-semibold transition-all hover:opacity-80 disabled:opacity-50"
                                 style={{ backgroundColor: '#D99773', color: '#FFF' }}>
-                                {savingConfig ? 'Salvando...' : 'Salvar configurações'}
+                                {savingConfig ? t('Salvando...') : t('Salvar configurações')}
                             </button>
                         </div>
                     </div>
@@ -614,6 +621,7 @@ export default function AgendaPage() {
 // Card de agendamento com botões de status
 // ==========================================
 function AgendamentoCard({ ag, onStatus }: { ag: Agendamento; onStatus: (id: string, status: string) => void }) {
+    const { t } = useT()
     const [menuAberto, setMenuAberto] = useState(false)
 
     return (
@@ -621,7 +629,7 @@ function AgendamentoCard({ ag, onStatus }: { ag: Agendamento; onStatus: (id: str
             <div className="w-1 h-12 rounded-full" style={{ backgroundColor: STATUS_CORES[ag.status] || '#D99773' }} />
             <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>{ag.nomePaciente}</p>
-                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{ag.procedimento || 'Consulta'}</p>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{ag.procedimento || t('Consulta')}</p>
                 {ag.profissional && (
                     <div className="flex items-center gap-1 mt-0.5">
                         <User size={9} style={{ color: '#D99773' }} />
@@ -648,7 +656,7 @@ function AgendamentoCard({ ag, onStatus }: { ag: Agendamento; onStatus: (id: str
                     className="px-2 py-0.5 rounded-full text-[9px] font-medium cursor-pointer hover:opacity-80 transition-all"
                     style={{ backgroundColor: `${STATUS_CORES[ag.status] || '#D99773'}15`, color: STATUS_CORES[ag.status] || '#D99773' }}
                 >
-                    {STATUS_LABELS[ag.status] || ag.status}
+                    {STATUS_LABELS[ag.status] ? t(STATUS_LABELS[ag.status]) : ag.status}
                 </button>
                 {menuAberto && (
                     <div className="absolute right-0 top-6 z-50 rounded-xl shadow-lg py-1 min-w-[140px]" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
@@ -660,7 +668,7 @@ function AgendamentoCard({ ag, onStatus }: { ag: Agendamento; onStatus: (id: str
                                 style={{ color: 'var(--text-primary)' }}
                             >
                                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: STATUS_CORES[key] }} />
-                                {label}
+                                {t(label)}
                             </button>
                         ))}
                     </div>
@@ -679,6 +687,7 @@ function NovoAgendamentoModal({ profissionais, diaSelecionado, onClose, onCriado
     onClose: () => void
     onCriado: () => void
 }) {
+    const { t } = useT()
     const [form, setForm] = useState({
         profissionalId: profissionais[0]?.id || '',
         nomePaciente: '',
@@ -723,14 +732,14 @@ function NovoAgendamentoModal({ profissionais, diaSelecionado, onClose, onCriado
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
             <div className="w-full max-w-md rounded-2xl p-6 mx-4 max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--bg-card)' }}>
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-[16px] font-bold" style={{ color: 'var(--text-primary)' }}>Novo Agendamento</h2>
+                    <h2 className="text-[16px] font-bold" style={{ color: 'var(--text-primary)' }}>{t('Novo Agendamento')}</h2>
                     <button onClick={onClose} className="p-1 rounded-lg hover:opacity-70"><X size={18} style={{ color: 'var(--text-muted)' }} /></button>
                 </div>
 
                 <div className="space-y-3">
                     {/* Profissional */}
                     <div>
-                        <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Profissional</label>
+                        <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>{t('Profissional')}</label>
                         <select value={form.profissionalId} onChange={e => setForm(p => ({ ...p, profissionalId: e.target.value }))}
                             className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle}>
                             {profissionais.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
@@ -739,21 +748,21 @@ function NovoAgendamentoModal({ profissionais, diaSelecionado, onClose, onCriado
 
                     {/* Nome */}
                     <div>
-                        <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Nome da paciente *</label>
+                        <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>{t('Nome da paciente')} *</label>
                         <input type="text" value={form.nomePaciente} onChange={e => setForm(p => ({ ...p, nomePaciente: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle} placeholder="Ex: Maria Silva" />
+                            className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle} placeholder={t('Ex: Maria Silva')} />
                     </div>
 
                     {/* Telefone */}
                     <div>
                         <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>WhatsApp *</label>
                         <input type="tel" value={form.telefone} onChange={e => setForm(p => ({ ...p, telefone: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle} placeholder="Ex: 41 99520-7443" />
+                            className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle} placeholder={t('Ex: 41 99520-7443')} />
                     </div>
 
                     {/* Procedimento — select dinâmico com procedimentos do profissional */}
                     <div>
-                        <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Procedimento *</label>
+                        <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>{t('Procedimento')} *</label>
                         {(() => {
                             const profSel = profissionais.find(p => String(p.id) === String(form.profissionalId))
                             const procs = profSel?.procedimentos || []
@@ -764,12 +773,12 @@ function NovoAgendamentoModal({ profissionais, diaSelecionado, onClose, onCriado
                                     setForm(p => ({ ...p, procedimento: nome, duracao: proc?.duracao || p.duracao }))
                                 }}
                                     className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle}>
-                                    <option value="">Selecione...</option>
+                                    <option value="">{t('Selecione...')}</option>
                                     {procs.map(pp => <option key={pp.id} value={pp.nome}>{pp.nome} — R$ {Number(pp.valor).toFixed(0)}</option>)}
                                 </select>
                             ) : (
                                 <input type="text" value={form.procedimento} onChange={e => setForm(p => ({ ...p, procedimento: e.target.value }))}
-                                    className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle} placeholder="Ex: Botox" />
+                                    className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle} placeholder={t('Ex: Botox')} />
                             )
                         })()}
                     </div>
@@ -777,12 +786,12 @@ function NovoAgendamentoModal({ profissionais, diaSelecionado, onClose, onCriado
                     {/* Data + Horário */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Data</label>
+                            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>{t('Data')}</label>
                             <input type="date" value={form.data} onChange={e => setForm(p => ({ ...p, data: e.target.value }))}
                                 className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle} />
                         </div>
                         <div>
-                            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Horário</label>
+                            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>{t('Horário')}</label>
                             <input type="time" value={form.horario} onChange={e => setForm(p => ({ ...p, horario: e.target.value }))}
                                 className="w-full px-3 py-2 rounded-xl text-[13px]" style={inputStyle} />
                         </div>
@@ -790,24 +799,24 @@ function NovoAgendamentoModal({ profissionais, diaSelecionado, onClose, onCriado
 
                     {/* Duração */}
                     <div>
-                        <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Duração (min)</label>
+                        <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>{t('Duração (min)')}</label>
                         <input type="number" value={form.duracao} onChange={e => setForm(p => ({ ...p, duracao: Number(e.target.value) }))}
                             className="w-24 px-3 py-2 rounded-xl text-[13px]" style={inputStyle} min={5} max={480} />
                     </div>
 
                     {/* Observação */}
                     <div>
-                        <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>Observação</label>
+                        <label className="text-[11px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }}>{t('Observação')}</label>
                         <textarea value={form.observacao} onChange={e => setForm(p => ({ ...p, observacao: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-xl text-[13px] min-h-[60px]" style={inputStyle} placeholder="Notas internas..." />
+                            className="w-full px-3 py-2 rounded-xl text-[13px] min-h-[60px]" style={inputStyle} placeholder={t('Notas internas...')} />
                     </div>
 
-                    {erro && <p className="text-[11px] text-red-400">{erro}</p>}
+                    {erro && <p className="text-[11px] text-red-400">{t(erro)}</p>}
 
                     <button onClick={salvar} disabled={salvando}
                         className="w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-80 disabled:opacity-50"
                         style={{ backgroundColor: '#D99773', color: '#FFF' }}>
-                        {salvando ? 'Criando...' : '✓ Criar Agendamento'}
+                        {salvando ? t('Criando...') : `✓ ${t('Criar Agendamento')}`}
                     </button>
                 </div>
             </div>

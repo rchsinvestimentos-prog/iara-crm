@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Mic, Play, Pause, Check, RefreshCw, Volume2, Lock, Crown, Sparkles, Radio, Square, Headphones, Loader2, X } from 'lucide-react'
 import CheckoutModal from '@/components/CheckoutModal'
 import { PACOTES } from '@/lib/planos'
+import { useT } from '@/components/IdiomaProvider'
 
 // ============================================
 // VOZES PADRÃO (Azure pt-BR) — inclusas em todos os planos
@@ -43,6 +44,7 @@ const vozesUltra = [
 type TipoVoz = 'tts' | 'ultra' | 'clone'
 
 export default function VozTool() {
+    const { t } = useT()
     const [nivel, setNivel] = useState(1)
     const [tipoVozAtiva, setTipoVozAtiva] = useState<TipoVoz>('tts')
     const [vozTTSSelecionada, setVozTTSSelecionada] = useState('pt-BR-FranciscaNeural')
@@ -208,7 +210,7 @@ export default function VozTool() {
                 })
             }, 1000)
         } catch {
-            alert('Permita o acesso ao microfone para gravar.')
+            alert(t('Permita o acesso ao microfone para gravar.'))
         }
     }
 
@@ -360,9 +362,9 @@ export default function VozTool() {
             <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                 <h3 className="text-[13px] font-semibold text-[#0F4C61] mb-1 flex items-center gap-2">
                     <Radio size={15} className="text-[#D99773]" />
-                    Qual voz a IARA vai usar?
+                    {t('Qual voz a IARA vai usar?')}
                 </h3>
-                <p className="text-[10px] text-gray-400 mb-4">Selecione o tipo de voz que a sua assistente vai usar nos áudios</p>
+                <p className="text-[10px] text-gray-400 mb-4">{t('Selecione o tipo de voz que a sua assistente vai usar nos áudios')}</p>
 
                 <div className="grid grid-cols-2 gap-3">
                     {/* TTS */}
@@ -371,9 +373,9 @@ export default function VozTool() {
                         className={`p-4 rounded-xl border-2 transition-all text-left ${tipoVozAtiva === 'tts' ? 'border-[#0F4C61] bg-[#0F4C61]/5' : 'border-gray-100 hover:border-gray-200'}`}
                     >
                         <Volume2 size={14} className={tipoVozAtiva === 'tts' ? 'text-[#0F4C61]' : 'text-gray-400'} />
-                        <p className="text-[11px] font-semibold text-gray-700 mt-1">Voz Digital</p>
-                        <p className="text-[9px] text-gray-400">Naturais e rápidas</p>
-                        <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 font-medium mt-2 inline-block">Todos os planos</span>
+                        <p className="text-[11px] font-semibold text-gray-700 mt-1">{t('Voz Digital')}</p>
+                        <p className="text-[9px] text-gray-400">{t('Naturais e rápidas')}</p>
+                        <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 font-medium mt-2 inline-block">{t('Todos os planos')}</span>
                         {tipoVozAtiva === 'tts' && <Check size={14} className="text-[#0F4C61] mt-1" />}
                     </button>
 
@@ -386,13 +388,13 @@ export default function VozTool() {
                     >
                         {!podeAtivarUltra && <Lock size={12} className="absolute top-3 right-3 text-gray-300" />}
                         <Sparkles size={14} className={tipoVozAtiva === 'ultra' ? 'text-[#D99773]' : 'text-gray-400'} />
-                        <p className="text-[11px] font-semibold text-gray-700 mt-1">Ultra Realista</p>
-                        <p className="text-[9px] text-gray-400">Parecem humanos de verdade</p>
+                        <p className="text-[11px] font-semibold text-gray-700 mt-1">{t('Ultra Realista')}</p>
+                        <p className="text-[9px] text-gray-400">{t('Parecem humanos de verdade')}</p>
                         {/* Dizia "Plano 2+", de quando a voz vinha no plano. O
                             cliente do plano 3 olhava, achava que tinha direito e
                             abria chamado. Agora é pacote à parte. */}
                         <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium mt-2 inline-block">
-                            {podeAtivarUltra ? 'Liberada' : `Pacote R$ ${PACOTES.voz_realista.preco}/mês`}
+                            {podeAtivarUltra ? t('Liberada') : t('Pacote R$ {preco}/mês', { preco: PACOTES.voz_realista.preco })}
                         </span>
                         {tipoVozAtiva === 'ultra' && <Check size={14} className="text-[#D99773] mt-1" />}
                     </button>
@@ -404,7 +406,7 @@ export default function VozTool() {
                     className="mt-4 w-full py-2.5 rounded-xl text-[12px] font-medium transition-all flex items-center justify-center gap-2"
                     style={{ background: salvo ? '#22c55e' : '#0F4C61', color: 'white' }}
                 >
-                    {salvo ? <><Check size={14} /> Voz salva!</> : salvando ? 'Salvando...' : 'Salvar escolha de voz'}
+                    {salvo ? <><Check size={14} /> {t('Voz salva!')}</> : salvando ? t('Salvando...') : t('Salvar escolha de voz')}
                 </button>
             </div>
 
@@ -414,9 +416,9 @@ export default function VozTool() {
             <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                 <h3 className="text-[13px] font-semibold text-[#0F4C61] mb-1 flex items-center gap-2">
                     <Volume2 size={15} className="text-[#0F4C61]" />
-                    Vozes Digitais
+                    {t('Vozes Digitais')}
                 </h3>
-                <p className="text-[10px] text-gray-400 mb-4">Ouça e escolha a voz que combina com a personalidade da sua clínica</p>
+                <p className="text-[10px] text-gray-400 mb-4">{t('Ouça e escolha a voz que combina com a personalidade da sua clínica')}</p>
 
                 <div className="space-y-2">
                     {vozesTTS.map(voz => (
@@ -433,9 +435,9 @@ export default function VozTool() {
                             </div>
                             <div className="flex-1 text-left">
                                 <p className="text-[12px] font-medium text-gray-700">{voz.nome}</p>
-                                <p className="text-[9px] text-gray-400">{voz.desc}</p>
+                                <p className="text-[9px] text-gray-400">{t(voz.desc)}</p>
                             </div>
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{voz.tom}</span>
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{t(voz.tom)}</span>
                             {vozTTSSelecionada === voz.id && tipoVozAtiva === 'tts' && <Check size={14} className="text-[#0F4C61]" />}
                         </div>
                     ))}
@@ -449,15 +451,15 @@ export default function VozTool() {
                 <div className="flex items-center justify-between mb-1">
                     <h3 className="text-[13px] font-semibold text-[#0F4C61] flex items-center gap-2">
                         <Sparkles size={15} className="text-[#D99773]" />
-                        Voz Ultra Realista
+                        {t('Voz Ultra Realista')}
                     </h3>
                     {!podeAtivarUltra && (
                         <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium flex items-center gap-1">
-                            <Lock size={9} /> Pacote R$ {PACOTES.voz_realista.preco}/mês
+                            <Lock size={9} /> {t('Pacote R$ {preco}/mês', { preco: PACOTES.voz_realista.preco })}
                         </span>
                     )}
                 </div>
-                <p className="text-[10px] text-gray-400 mb-4">Vozes tão realistas que parecem humanos de verdade falando. Ouça e sinta a diferença!</p>
+                <p className="text-[10px] text-gray-400 mb-4">{t('Vozes tão realistas que parecem humanos de verdade falando. Ouça e sinta a diferença!')}</p>
 
                 <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-1">
                     {vozesUltra.map(voz => (
@@ -478,9 +480,9 @@ export default function VozTool() {
                             </div>
                             <div className="flex-1 text-left">
                                 <p className="text-[12px] font-medium text-gray-700">{voz.nome}</p>
-                                <p className="text-[9px] text-gray-400">{voz.desc}</p>
+                                <p className="text-[9px] text-gray-400">{t(voz.desc)}</p>
                             </div>
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#D99773]/10 text-[#D99773]">{voz.tom}</span>
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#D99773]/10 text-[#D99773]">{t(voz.tom)}</span>
                             {podeAtivarUltra && vozUltraSelecionada === voz.id && tipoVozAtiva === 'ultra' && <Check size={14} className="text-[#D99773]" />}
                         </div>
                     ))}
@@ -490,11 +492,11 @@ export default function VozTool() {
                     <div className="mt-4 p-3 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 flex items-center gap-3">
                         <Headphones size={16} className="text-amber-500 flex-shrink-0" />
                         <div className="flex-1">
-                            <p className="text-[11px] font-medium text-gray-700">Gostou? Faça upgrade para ativar</p>
-                            <p className="text-[9px] text-gray-400">Suas clientes não vão perceber que é IA</p>
+                            <p className="text-[11px] font-medium text-gray-700">{t('Gostou? Faça upgrade para ativar')}</p>
+                            <p className="text-[9px] text-gray-400">{t('Suas clientes não vão perceber que é IA')}</p>
                         </div>
                         <a href="/plano" className="text-[10px] font-medium px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center gap-1">
-                            <Crown size={10} /> Ativar
+                            <Crown size={10} /> {t('Ativar')}
                         </a>
                     </div>
                 )}
@@ -509,10 +511,10 @@ export default function VozTool() {
             <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                 <h3 className="text-[13px] font-semibold text-[#0F4C61] mb-1 flex items-center gap-2">
                     <Headphones size={15} className="text-[#0F4C61]" />
-                    Como a IARA fala certas palavras
+                    {t('Como a IARA fala certas palavras')}
                 </h3>
                 <p className="text-[10px] text-gray-400 mb-4">
-                    Nome da clínica, procedimento em inglês, sobrenome — se a IARA lê errado, ensine aqui como deve soar.
+                    {t('Nome da clínica, procedimento em inglês, sobrenome — se a IARA lê errado, ensine aqui como deve soar.')}
                 </p>
 
                 {/* Lista do que já foi ensinado */}
@@ -522,20 +524,20 @@ export default function VozTool() {
                             <div key={p.escrita} className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50">
                                 <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
                                     <span className="text-[12px] font-medium text-gray-700">{p.escrita}</span>
-                                    <span className="text-[11px] text-gray-300">fala</span>
+                                    <span className="text-[11px] text-gray-300">{t('fala')}</span>
                                     <span className="text-[12px] font-medium text-[#D99773]">{p.falada}</span>
                                 </div>
                                 <button
                                     onClick={() => ouvirPronuncia(p.escrita, p.falada)}
                                     disabled={testandoPronuncia}
-                                    title="Ouvir"
+                                    title={t('Ouvir')}
                                     className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors"
                                 >
                                     <Play size={13} className="text-[#0F4C61]" />
                                 </button>
                                 <button
                                     onClick={() => { setPronuncias(prev => prev.filter(x => x.escrita !== p.escrita)); setPronunciasSalvas(false) }}
-                                    title="Remover"
+                                    title={t('Remover')}
                                     className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-gray-300 hover:text-red-400"
                                 >
                                     <X size={13} />
@@ -548,7 +550,7 @@ export default function VozTool() {
                 {/* Ensinar uma palavra nova */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                     <div>
-                        <label className="text-[10px] text-gray-400 mb-1 block">Como se escreve</label>
+                        <label className="text-[10px] text-gray-400 mb-1 block">{t('Como se escreve')}</label>
                         <input
                             value={novaEscrita}
                             onChange={e => setNovaEscrita(e.target.value)}
@@ -557,7 +559,7 @@ export default function VozTool() {
                         />
                     </div>
                     <div>
-                        <label className="text-[10px] text-gray-400 mb-1 block">Como deve soar</label>
+                        <label className="text-[10px] text-gray-400 mb-1 block">{t('Como deve soar')}</label>
                         <input
                             value={novaFalada}
                             onChange={e => setNovaFalada(e.target.value)}
@@ -568,7 +570,7 @@ export default function VozTool() {
                     </div>
                 </div>
                 <p className="text-[10px] text-gray-400 mb-3">
-                    Escreva do jeito que se fala, não do jeito certo. Ex.: <strong>peeling</strong> → <strong>pílin</strong>
+                    {t('Escreva do jeito que se fala, não do jeito certo. Ex.:')} <strong>peeling</strong> → <strong>pílin</strong>
                 </p>
 
                 <div className="flex gap-2">
@@ -579,7 +581,7 @@ export default function VozTool() {
                         style={{ borderColor: 'var(--border-default)', color: '#0F4C61' }}
                     >
                         {testandoPronuncia ? <Loader2 size={13} className="animate-spin" /> : <Volume2 size={13} />}
-                        Ouvir
+                        {t('Ouvir')}
                     </button>
                     <button
                         onClick={adicionarPronuncia}
@@ -587,7 +589,7 @@ export default function VozTool() {
                         className="flex-1 px-4 py-2 rounded-xl text-[12px] font-semibold text-white disabled:opacity-40"
                         style={{ background: 'linear-gradient(135deg, #0F4C61, #1a6e8b)' }}
                     >
-                        Adicionar à lista
+                        {t('Adicionar à lista')}
                     </button>
                 </div>
 
@@ -600,7 +602,7 @@ export default function VozTool() {
                     >
                         {salvandoPronuncias ? <Loader2 size={14} className="animate-spin" />
                             : pronunciasSalvas ? <Check size={14} /> : <Sparkles size={14} />}
-                        {pronunciasSalvas ? 'Salvo! A IARA já fala assim' : 'Salvar palavras'}
+                        {pronunciasSalvas ? t('Salvo! A IARA já fala assim') : t('Salvar palavras')}
                     </button>
                 )}
             </div>
@@ -631,13 +633,13 @@ export default function VozTool() {
                             <div>
                                 <h3 className="text-[16px] font-bold text-gray-800 leading-tight">
                                     {ofertaAberta === 'realista'
-                                        ? 'Essa voz pode ser a da sua clínica'
-                                        : 'Sua própria voz atendendo por você'}
+                                        ? t('Essa voz pode ser a da sua clínica')
+                                        : t('Sua própria voz atendendo por você')}
                                 </h3>
                                 <p className="text-[12px] text-gray-500 mt-1 leading-relaxed">
                                     {ofertaAberta === 'realista'
-                                        ? 'Você acabou de ouvir a diferença. Suas clientes não percebem que é IA.'
-                                        : 'A IARA aprende a sua voz e atende com ela. A cliente sente que falou com você.'}
+                                        ? t('Você acabou de ouvir a diferença. Suas clientes não percebem que é IA.')
+                                        : t('A IARA aprende a sua voz e atende com ela. A cliente sente que falou com você.')}
                                 </p>
                             </div>
                         </div>
@@ -647,12 +649,12 @@ export default function VozTool() {
                                 <span className="text-[26px] font-bold text-[#D99773]">
                                     {ofertaAberta === 'realista' ? 'R$ 97' : 'R$ 147'}
                                 </span>
-                                <span className="text-[12px] text-gray-500">por mês</span>
+                                <span className="text-[12px] text-gray-500">{t('por mês')}</span>
                             </div>
                             <p className="text-[11.5px] text-gray-600 leading-relaxed">
                                 {ofertaAberta === 'realista'
-                                    ? 'Some ao seu plano atual, seja ele qual for. Cancela quando quiser.'
-                                    : 'Some ao seu plano atual. Inclui a clonagem e a troca de voz sempre que quiser.'}
+                                    ? t('Some ao seu plano atual, seja ele qual for. Cancela quando quiser.')
+                                    : t('Some ao seu plano atual. Inclui a clonagem e a troca de voz sempre que quiser.')}
                             </p>
                         </div>
 
@@ -665,13 +667,13 @@ export default function VozTool() {
                                 className="w-full py-3 rounded-xl text-[14px] font-semibold text-white text-center"
                                 style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)' }}
                             >
-                                Quero ativar
+                                {t('Quero ativar')}
                             </button>
                             <button
                                 onClick={() => setOfertaAberta(null)}
                                 className="w-full py-2 text-[12.5px] font-medium text-gray-400 hover:text-gray-600"
                             >
-                                Agora não
+                                {t('Agora não')}
                             </button>
                         </div>
                     </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { MessageSquare, Users, Calendar, TrendingUp, ArrowUpRight, Sparkles, Loader2, Clock, DollarSign, UserPlus, Target, WifiOff, Wifi, UserX, Star } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import { useT } from '@/components/IdiomaProvider'
 
 const OnboardingChecklist = dynamic(() => import('@/components/OnboardingChecklist'), { ssr: false })
 const PausarIARA = dynamic(() => import('@/components/PausarIARA'), { ssr: false })
@@ -46,22 +47,22 @@ interface AgendamentoReal {
     status: string
 }
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: (texto: string) => string): string {
     const now = new Date()
     const date = new Date(dateStr)
     const diffMs = now.getTime() - date.getTime()
     const mins = Math.floor(diffMs / 60000)
-    if (mins < 1) return 'agora'
+    if (mins < 1) return t('agora')
     if (mins < 60) return `${mins} min`
     const hrs = Math.floor(mins / 60)
     if (hrs < 24) return `${hrs}h`
     return `${Math.floor(hrs / 24)}d`
 }
 
-function formatHora(dateStr: string, horario: string): string {
+function formatHora(dateStr: string, horario: string, locale: string): string {
     if (horario) return horario
     try {
-        return new Date(dateStr).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        return new Date(dateStr).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
     } catch {
         return '—'
     }
@@ -74,6 +75,7 @@ function isToday(dateStr: string): boolean {
 }
 
 export default function Dashboard() {
+    const { t, locale } = useT()
     const [stats, setStats] = useState<Stats | null>(null)
     const [agendamentos, setAgendamentos] = useState<AgendamentoReal[]>([])
     const [loading, setLoading] = useState(true)
@@ -137,9 +139,9 @@ export default function Dashboard() {
 
     const saudacao = () => {
         const h = new Date().getHours()
-        if (h < 12) return 'Bom dia'
-        if (h < 18) return 'Boa tarde'
-        return 'Boa noite'
+        if (h < 12) return t('Bom dia')
+        if (h < 18) return t('Boa tarde')
+        return t('Boa noite')
     }
 
     return (
@@ -153,7 +155,7 @@ export default function Dashboard() {
             <div className="animate-fade-in">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1">
                     <h1 className="text-lg sm:text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                        {loading ? 'Carregando...' : `${saudacao()}, ${stats?.nomeClinica || 'Dra.'}`}
+                        {loading ? t('Carregando...') : `${saudacao()}, ${stats?.nomeClinica || t('Dra.')}`}
                     </h1>
                     <span className="text-xl sm:text-2xl">👋</span>
                     <div className="ml-auto">
@@ -161,7 +163,7 @@ export default function Dashboard() {
                     </div>
                 </div>
                 <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                    {loading ? 'Buscando dados da sua clínica...' : <>Aqui está o resumo da sua assistente <strong>{stats?.nomeIA || 'IARA'}</strong></>}
+                    {loading ? t('Buscando dados da sua clínica...') : <>{t('Aqui está o resumo da sua assistente')} <strong>{stats?.nomeIA || 'IARA'}</strong></>}
                 </p>
             </div>
 
@@ -174,11 +176,11 @@ export default function Dashboard() {
                     style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
                     <WifiOff size={18} className="text-red-400 flex-shrink-0" />
                     <div className="flex-1">
-                        <p className="text-[13px] font-medium text-red-400">WhatsApp desconectado</p>
-                        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Sua IARA não está recebendo mensagens. Reconecte para continuar atendendo.</p>
+                        <p className="text-[13px] font-medium text-red-400">{t('WhatsApp desconectado')}</p>
+                        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t('Sua IARA não está recebendo mensagens. Reconecte para continuar atendendo.')}</p>
                     </div>
                     <Link href="/instancias" className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all">
-                        Reconectar
+                        {t('Reconectar')}
                     </Link>
                 </div>
             )}
@@ -186,7 +188,7 @@ export default function Dashboard() {
             {whatsappConectado === true && !loading && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg animate-fade-in text-[11px]"
                     style={{ backgroundColor: 'rgba(6, 214, 160, 0.06)', border: '1px solid rgba(6, 214, 160, 0.12)', color: '#06D6A0' }}>
-                    <Wifi size={13} /> WhatsApp conectado e ativo
+                    <Wifi size={13} /> {t('WhatsApp conectado e ativo')}
                 </div>
             )}
 
@@ -199,27 +201,27 @@ export default function Dashboard() {
                     <p className="text-4xl mb-3">{whatsappConectado ? '🎉' : '🚀'}</p>
                     <h3 className="text-[16px] font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
                         {whatsappConectado
-                            ? 'Tudo pronto! Aguardando a primeira cliente.'
-                            : 'Tudo pronto! Agora é só conectar o WhatsApp.'
+                            ? t('Tudo pronto! Aguardando a primeira cliente.')
+                            : t('Tudo pronto! Agora é só conectar o WhatsApp.')
                         }
                     </h3>
                     <p className="text-[12px] mb-4 max-w-md mx-auto" style={{ color: 'var(--text-muted)' }}>
                         {whatsappConectado
-                            ? `Sua ${stats.nomeIA || 'IARA'} está conectada e pronta para atender. Quando uma cliente mandar uma mensagem, ela vai aparecer aqui automaticamente!`
-                            : `Sua ${stats.nomeIA || 'IARA'} está configurada e aguardando a conexão do WhatsApp. Conecte para começar a atender!`
+                            ? t('Sua {nome} está conectada e pronta para atender. Quando uma cliente mandar uma mensagem, ela vai aparecer aqui automaticamente!', { nome: stats.nomeIA || 'IARA' })
+                            : t('Sua {nome} está configurada e aguardando a conexão do WhatsApp. Conecte para começar a atender!', { nome: stats.nomeIA || 'IARA' })
                         }
                     </p>
                     <div className="flex flex-wrap items-center justify-center gap-2">
                         {!whatsappConectado && (
                             <Link href="/instancias" className="px-4 py-2 rounded-xl text-[12px] font-semibold text-white transition-all hover:scale-105" style={{ background: 'linear-gradient(135deg, #06D6A0, #059669)' }}>
-                                📱 Conectar WhatsApp
+                                📱 {t('Conectar WhatsApp')}
                             </Link>
                         )}
                         <Link href="/configuracoes" className="px-4 py-2 rounded-xl text-[12px] font-medium transition-all" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}>
-                            ⚙️ Configurar Clínica
+                            ⚙️ {t('Configurar Clínica')}
                         </Link>
                         <Link href="/cofre" className="px-4 py-2 rounded-xl text-[12px] font-medium transition-all" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}>
-                            🧠 Personalizar IA
+                            🧠 {t('Personalizar IA')}
                         </Link>
                     </div>
                 </div>
@@ -237,10 +239,10 @@ export default function Dashboard() {
                             </div>
                             <div className="flex-1">
                                 <p className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                                    {stats.clientesSumidos} clientes sumiram
+                                    {t('{n} clientes sumiram', { n: stats.clientesSumidos ?? 0 })}
                                 </p>
                                 <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                                    Sem contato há mais de 30 dias • Clique para reengajar
+                                    {t('Sem contato há mais de 30 dias • Clique para reengajar')}
                                 </p>
                             </div>
                             <ArrowUpRight size={16} className="text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -259,7 +261,7 @@ export default function Dashboard() {
                                     NPS: {stats.npsMedio} / 5
                                 </p>
                                 <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                                    {stats.totalAvaliacoes} avaliações • Ver pesquisa de satisfação
+                                    {t('{n} avaliações • Ver pesquisa de satisfação', { n: stats.totalAvaliacoes ?? 0 })}
                                 </p>
                             </div>
                             <ArrowUpRight size={16} className="text-yellow-400 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -283,10 +285,10 @@ export default function Dashboard() {
                             </div>
                             <div>
                                 <h3 className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                                    O que a {stats.nomeIA} fez por você este mês
+                                    {t('O que a {nome} fez por você este mês', { nome: stats.nomeIA })}
                                 </h3>
                                 <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                                    Resultados em tempo real
+                                    {t('Resultados em tempo real')}
                                 </p>
                             </div>
                         </div>
@@ -296,35 +298,35 @@ export default function Dashboard() {
                             <div className="text-center p-4 rounded-xl" style={{ backgroundColor: 'rgba(217,151,115,0.08)', border: '1px solid rgba(217,151,115,0.15)' }}>
                                 <Clock size={22} className="mx-auto mb-2 text-[#D99773]" strokeWidth={1.5} />
                                 <p className="text-2xl font-bold" style={{ color: '#D99773' }}>{stats.roi.tempoEconomizadoHoras}h</p>
-                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Tempo economizado</p>
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>{t('Tempo economizado')}</p>
                             </div>
 
                             {/* Faturamento estimado */}
                             <div className="text-center p-4 rounded-xl" style={{ backgroundColor: 'rgba(6,214,160,0.08)', border: '1px solid rgba(6,214,160,0.15)' }}>
                                 <DollarSign size={22} className="mx-auto mb-2 text-[#06D6A0]" strokeWidth={1.5} />
                                 <p className="text-2xl font-bold" style={{ color: '#06D6A0' }}>R$ {stats.roi.faturamentoEstimado.toLocaleString('pt-BR')}</p>
-                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Faturamento estimado</p>
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>{t('Faturamento estimado')}</p>
                             </div>
 
                             {/* Contatos novos */}
                             <div className="text-center p-4 rounded-xl" style={{ backgroundColor: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.15)' }}>
                                 <UserPlus size={22} className="mx-auto mb-2 text-[#8B5CF6]" strokeWidth={1.5} />
                                 <p className="text-2xl font-bold" style={{ color: '#8B5CF6' }}>{stats.roi.contatosMes}</p>
-                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Contatos captados</p>
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>{t('Contatos captados')}</p>
                             </div>
 
                             {/* Agendamentos */}
                             <div className="text-center p-4 rounded-xl" style={{ backgroundColor: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
                                 <Target size={22} className="mx-auto mb-2 text-[#3B82F6]" strokeWidth={1.5} />
                                 <p className="text-2xl font-bold" style={{ color: '#3B82F6' }}>{stats.roi.agendamentosMes}</p>
-                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Agendamentos no mês</p>
+                                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>{t('Agendamentos no mês')}</p>
                             </div>
                         </div>
 
                         {/* Barra de créditos */}
                         <div className="mt-4 p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)' }}>
                             <div className="flex items-center justify-between mb-2">
-                                <span className="text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>Créditos usados</span>
+                                <span className="text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>{t('Créditos usados')}</span>
                                 <span className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>
                                     {stats.roi.creditosUsados} / {stats.roi.creditosMensais}
                                 </span>
@@ -373,7 +375,7 @@ export default function Dashboard() {
                             ) : (
                                 <>
                                     <p className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>{k.valor}</p>
-                                    <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>{k.label} • {k.sub}</p>
+                                    <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>{t(k.label)} • {t(k.sub)}</p>
                                 </>
                             )}
                         </div>
@@ -388,10 +390,10 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                         <h3 className="text-[13px] font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                             <Calendar size={15} className="text-[#D99773]" strokeWidth={1.8} />
-                            Próximos Agendamentos
+                            {t('Próximos Agendamentos')}
                         </h3>
                         <Link href="/habilidades/agendamento" className="text-[11px] hover:text-[#D99773] transition-colors flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                            Ver agenda <ArrowUpRight size={11} />
+                            {t('Ver agenda')} <ArrowUpRight size={11} />
                         </Link>
                     </div>
                     <div>
@@ -402,16 +404,16 @@ export default function Dashboard() {
                         ) : agendamentos.length === 0 ? (
                             <div className="text-center py-12">
                                 <Calendar size={32} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--text-muted)' }} />
-                                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum agendamento próximo</p>
-                                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Sua IARA agenda automaticamente 💜</p>
+                                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('Nenhum agendamento próximo')}</p>
+                                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{t('Sua IARA agenda automaticamente')} 💜</p>
                             </div>
                         ) : (
                             agendamentos.slice(0, 4).map((a, i) => (
                                 <div key={a.id || i} className="flex items-center justify-between px-5 py-4 transition-all duration-300" style={{ borderBottom: i < Math.min(agendamentos.length - 1, 3) ? '1px solid var(--border-subtle)' : 'none' }}>
                                     <div className="flex items-center gap-4">
                                         <div className="text-center min-w-[48px]">
-                                            <p className="text-lg font-bold leading-none" style={{ color: 'var(--text-primary)' }}>{formatHora(a.data_agendamento, a.horario)}</p>
-                                            <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{isToday(a.data_agendamento) ? 'Hoje' : new Date(a.data_agendamento).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</p>
+                                            <p className="text-lg font-bold leading-none" style={{ color: 'var(--text-primary)' }}>{formatHora(a.data_agendamento, a.horario, locale)}</p>
+                                            <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{isToday(a.data_agendamento) ? t('Hoje') : new Date(a.data_agendamento).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}</p>
                                         </div>
                                         <div className="w-px h-8 bg-gradient-to-b from-[#D99773]/30 to-transparent" />
                                         <div>
@@ -420,7 +422,7 @@ export default function Dashboard() {
                                         </div>
                                     </div>
                                     <span className={`text-[10px] font-medium px-2.5 py-1 rounded-lg ${a.status === 'confirmado' ? 'text-green-500 bg-green-500/10' : 'text-amber-500 bg-amber-500/10'}`}>
-                                        {a.status || 'pendente'}
+                                        {t(a.status || 'pendente')}
                                     </span>
                                 </div>
                             ))
@@ -433,10 +435,10 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                         <h3 className="text-[13px] font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                             <MessageSquare size={15} className="text-[#D99773]" strokeWidth={1.8} />
-                            Conversas
+                            {t('Conversas')}
                         </h3>
                         <Link href="/conversas" className="text-[11px] hover:text-[#D99773] transition-colors flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                            Ver todas <ArrowUpRight size={11} />
+                            {t('Ver todas')} <ArrowUpRight size={11} />
                         </Link>
                     </div>
                     <div>
@@ -447,8 +449,8 @@ export default function Dashboard() {
                         ) : !stats?.conversasRecentes?.length ? (
                             <div className="text-center py-12">
                                 <MessageSquare size={32} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--text-muted)' }} />
-                                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhuma conversa ainda</p>
-                                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Aparecerá aqui quando sua IARA começar a atender</p>
+                                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('Nenhuma conversa ainda')}</p>
+                                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{t('Aparecerá aqui quando sua IARA começar a atender')}</p>
                             </div>
                         ) : (
                             stats.conversasRecentes.map((c, i) => (
@@ -461,7 +463,7 @@ export default function Dashboard() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between">
                                             <p className="text-[12px] truncate font-semibold" style={{ color: 'var(--text-primary)' }}>{c.nome}</p>
-                                            <span className="text-[10px] flex-shrink-0 ml-2" style={{ color: 'var(--text-muted)' }}>{timeAgo(c.ultimaData)}</span>
+                                            <span className="text-[10px] flex-shrink-0 ml-2" style={{ color: 'var(--text-muted)' }}>{timeAgo(c.ultimaData, t)}</span>
                                         </div>
                                         <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{c.ultimaMensagem}</p>
                                     </div>
@@ -486,29 +488,29 @@ export default function Dashboard() {
                                 <Sparkles size={16} className="text-[#D99773]" />
                             </div>
                             <h3 className="text-[14px] font-semibold text-white">
-                                {stats?.nomeIA || 'IARA'} está ativa
+                                {t('{nome} está ativa', { nome: stats?.nomeIA || 'IARA' })}
                             </h3>
                             <div className="relative">
                                 <div className="w-2 h-2 rounded-full bg-green-400" />
                                 <div className="absolute inset-0 w-2 h-2 rounded-full bg-green-400 animate-ping opacity-75" />
                             </div>
                         </div>
-                        <p className="text-[12px] text-white/50 ml-[42px]">Respondendo automaticamente • Plano {stats?.plano ?? 1}</p>
+                        <p className="text-[12px] text-white/50 ml-[42px]">{t('Respondendo automaticamente • Plano {n}', { n: stats?.plano ?? 1 })}</p>
                     </div>
                     <div className="flex items-center gap-4 sm:gap-8 ml-0 sm:ml-0">
                         <div className="text-center">
                             <p className="text-xl font-bold text-white">24/7</p>
-                            <p className="text-[10px] text-white/40 mt-0.5">Online</p>
+                            <p className="text-[10px] text-white/40 mt-0.5">{t('Online')}</p>
                         </div>
                         <div className="w-px h-8 bg-white/10" />
                         <div className="text-center">
                             <p className="text-xl font-bold text-white">{stats?.mensagensHoje ?? '—'}</p>
-                            <p className="text-[10px] text-white/40 mt-0.5">Msgs hoje</p>
+                            <p className="text-[10px] text-white/40 mt-0.5">{t('Msgs hoje')}</p>
                         </div>
                         <div className="w-px h-8 bg-white/10" />
                         <div className="text-center">
                             <p className="text-xl font-bold text-[#06D6A0]">{stats?.creditosRestantes ?? '—'}</p>
-                            <p className="text-[10px] text-white/40 mt-0.5">Créditos</p>
+                            <p className="text-[10px] text-white/40 mt-0.5">{t('Créditos')}</p>
                         </div>
                     </div>
                 </div>

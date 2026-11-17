@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Volume2, X, Sparkles, Loader2, Bot, User, Mic, Square, Paperclip } from 'lucide-react'
 import { linhaHistoricoAnexo } from '@/lib/anexos-procedimento'
+import { useT } from '@/components/IdiomaProvider'
+
+// Saudação inicial: fica guardada em português (o filtro abaixo a reconhece
+// por "Faça um teste" para não mandá-la como histórico) e a tela traduz.
+const SAUDACAO = 'Olá! Eu sou a {nome}. Faça um teste simulando uma cliente me chamando no WhatsApp.'
 
 type SimMsg = {
     role: 'user' | 'assistant'
@@ -39,6 +44,7 @@ interface SimulatorDrawerProps {
 export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: SimulatorDrawerProps) {
     // Em edição, vale o nome que está sendo digitado; fora dela, o salvo.
     const nomeAssistente = config?.nomeIA || nomeIA || 'IARA'
+    const { t } = useT()
     const [simInput, setSimInput] = useState('')
     const [simHistory, setSimHistory] = useState<SimMsg[]>([])
     const [simLoading, setSimLoading] = useState(false)
@@ -75,7 +81,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
         if (isOpen && simHistory.length === 0) {
             setSimHistory([{
                 role: 'assistant',
-                content: `Olá! Eu sou a ${nomeAssistente}. Faça um teste simulando uma cliente me chamando no WhatsApp.`
+                content: SAUDACAO.replace('{nome}', nomeAssistente)
             }])
         }
     }, [isOpen, nomeAssistente])
@@ -138,13 +144,13 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
             const data = await res.json()
 
             if (data.error) {
-                setSimHistory(prev => [...prev, { role: 'assistant', content: `❌ Erro: ${data.error}` }])
+                setSimHistory(prev => [...prev, { role: 'assistant', content: `❌ ${t('Erro')}: ${data.error}` }])
             } else {
                 setSimHistory(prev => [...prev, { role: 'assistant', content: data.text, audioBase64: data.audioBase64, anexos: data.anexos }])
             }
         } catch (err) {
             console.error(err)
-            setSimHistory(prev => [...prev, { role: 'assistant', content: '❌ Erro de conexão ao simular.' }])
+            setSimHistory(prev => [...prev, { role: 'assistant', content: `❌ ${t('Erro de conexão ao simular.')}` }])
         } finally {
             setSimLoading(false)
         }
@@ -182,9 +188,9 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
                     })
                     const data = await res.json()
                     if (data.texto) sendSimulation(data.texto, URL.createObjectURL(blob))
-                    else setSimHistory(prev => [...prev, { role: 'assistant', content: `❌ ${data.error || 'Não consegui entender o áudio.'}` }])
+                    else setSimHistory(prev => [...prev, { role: 'assistant', content: `❌ ${data.error || t('Não consegui entender o áudio.')}` }])
                 } catch {
-                    setSimHistory(prev => [...prev, { role: 'assistant', content: '❌ Erro ao enviar o áudio.' }])
+                    setSimHistory(prev => [...prev, { role: 'assistant', content: `❌ ${t('Erro ao enviar o áudio.')}` }])
                 } finally {
                     setTranscrevendo(false)
                 }
@@ -200,7 +206,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
                 })
             }, 1000)
         } catch {
-            alert('Permita o acesso ao microfone para gravar.')
+            alert(t('Permita o acesso ao microfone para gravar.'))
         }
     }
 
@@ -251,12 +257,12 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
                         </div>
                         <div>
                             <h3 className="font-semibold text-[14px]" style={{ color: 'var(--text-primary)' }}>
-                                Simulador · {nomeAssistente}
+                                {t('Simulador')} · {nomeAssistente}
                             </h3>
                             <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                                 {config
-                                    ? 'Teste suas configurações (não salvas)'
-                                    : 'Responde igual ao WhatsApp, com o que está salvo'}
+                                    ? t('Teste suas configurações (não salvas)')
+                                    : t('Responde igual ao WhatsApp, com o que está salvo')}
                             </p>
                         </div>
                     </div>
@@ -278,7 +284,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
                                     <div className="flex items-center gap-1.5 mb-1.5 opacity-70">
                                         {isUser ? <User size={12} /> : <Bot size={12} />}
                                         <span className="text-[10px] font-medium uppercase tracking-wider">
-                                            {isUser ? 'Você (Cliente)' : nomeAssistente}
+                                            {isUser ? t('Você (Cliente)') : nomeAssistente}
                                         </span>
                                     </div>
                                     {/* Mensagem de voz — a que a pessoa gravou ou a que a
@@ -290,7 +296,9 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
                                         if (!src) {
                                             return (
                                                 <p className="text-[13px] whitespace-pre-wrap" style={!isUser ? { color: 'var(--text-primary)' } : undefined}>
-                                                    {msg.content}
+                                                    {i === 0 && !isUser && msg.content.includes('Faça um teste')
+                                                        ? t(SAUDACAO, { nome: nomeAssistente })
+                                                        : msg.content}
                                                 </p>
                                             )
                                         }
@@ -321,7 +329,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
                                                         ))}
                                                     </span>
                                                     <span className="text-[10px] opacity-60 flex-shrink-0">
-                                                        {ativo ? 'tocando' : 'ouvir'}
+                                                        {ativo ? t('tocando') : t('ouvir')}
                                                     </span>
                                                 </button>
                                                 <p className="text-[11.5px] mt-2 whitespace-pre-wrap opacity-60" style={!isUser ? { color: 'var(--text-muted)' } : undefined}>
@@ -379,7 +387,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
                                         sendSimulation()
                                     }
                                 }}
-                                placeholder="Digite como se fosse uma cliente..."
+                                placeholder={t('Digite como se fosse uma cliente...')}
                                 className="w-full rounded-2xl px-4 py-3 pr-12 text-[13px] outline-none resize-none min-h-[48px] max-h-[120px]"
                                 style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-subtle)' }}
                             />
@@ -396,7 +404,7 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
                         <button
                             onClick={gravando ? pararGravacao : iniciarGravacao}
                             disabled={simLoading || transcrevendo}
-                            title={gravando ? 'Parar e enviar' : 'Gravar um áudio'}
+                            title={gravando ? t('Parar e enviar') : t('Gravar um áudio')}
                             className="flex-shrink-0 flex items-center gap-2 rounded-full transition-all disabled:opacity-50"
                             style={{
                                 padding: gravando ? '12px 16px' : '13px',
@@ -414,9 +422,9 @@ export default function SimulatorDrawer({ isOpen, onClose, config, nomeIA }: Sim
                         </button>
                     </div>
                     <p className="text-[10px] text-center mt-3" style={{ color: 'var(--text-muted)' }}>
-                        {transcrevendo ? 'Entendendo o que você falou...'
-                            : gravando ? 'Gravando — clique no quadrado para enviar'
-                                : 'Igual ao WhatsApp: mandou áudio, ela responde em áudio. Digitou, ela responde em texto.'}
+                        {transcrevendo ? t('Entendendo o que você falou...')
+                            : gravando ? t('Gravando — clique no quadrado para enviar')
+                                : t('Igual ao WhatsApp: mandou áudio, ela responde em áudio. Digitou, ela responde em texto.')}
                     </p>
                 </div>
             </div>

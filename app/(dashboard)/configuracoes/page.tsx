@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Building2, Bot, Sparkles, Star } from 'lucide-react'
+import { useT } from '@/components/IdiomaProvider'
 
 const ConfiguracoesTool = dynamic(() => import('@/components/tools/ConfiguracoesTool'))
 const AtendimentoTool = dynamic(() => import('@/components/tools/AtendimentoTool'))
@@ -17,13 +18,14 @@ const tabs = [
 type TabId = typeof tabs[number]['id']
 
 export default function ConfiguracoesPage() {
+    const { t } = useT()
     const [activeTab, setActiveTab] = useState<TabId>('clinica')
 
     return (
         <div className="max-w-4xl">
             <div className="mb-6">
-                <h1 className="text-2xl font-bold text-[#0F4C61] tracking-tight">Configurações ⚙️</h1>
-                <p className="text-sm text-gray-400 mt-1">Tudo em um só lugar — clínica, IARA, serviços e mais</p>
+                <h1 className="text-2xl font-bold text-[#0F4C61] tracking-tight">{t('Configurações')} ⚙️</h1>
+                <p className="text-sm text-gray-400 mt-1">{t('Tudo em um só lugar — clínica, IARA, serviços e mais')}</p>
             </div>
 
             {/* ====== TABS ====== */}
@@ -42,7 +44,7 @@ export default function ConfiguracoesPage() {
                             }}
                         >
                             <span className="text-sm">{tab.emoji}</span>
-                            <span className="hidden sm:inline">{tab.label}</span>
+                            <span className="hidden sm:inline">{t(tab.label)}</span>
                         </button>
                     )
                 })}

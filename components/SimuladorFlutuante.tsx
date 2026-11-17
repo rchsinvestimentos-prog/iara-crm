@@ -14,9 +14,11 @@
 import { useState, useEffect } from 'react'
 import { MessageCircle } from 'lucide-react'
 import SimulatorDrawer from './tools/SimulatorDrawer'
+import { useT } from './IdiomaProvider'
 
 export default function SimuladorFlutuante() {
     const [aberto, setAberto] = useState(false)
+    const { t } = useT()
 
     // O botão usa o nome que a clínica deu à assistente. Se ela batizou de
     // "Nicole", o menu e o botão precisam dizer Nicole — chamar de IARA no
@@ -35,7 +37,7 @@ export default function SimuladorFlutuante() {
             {!aberto && (
                 <button
                     onClick={() => setAberto(true)}
-                    aria-label={`Testar ${nomeIA || 'a IARA'}`}
+                    aria-label={nomeIA ? t('Testar {nome}', { nome: nomeIA }) : t('Testar a IARA')}
                     className="fixed z-40 flex items-center gap-2 rounded-full shadow-lg transition-transform hover:scale-105"
                     style={{
                         right: 20,
@@ -49,7 +51,7 @@ export default function SimuladorFlutuante() {
                     }}
                 >
                     <MessageCircle size={17} />
-                    <span className="text-[13px] font-semibold">Testar {nomeIA || 'a IARA'}</span>
+                    <span className="text-[13px] font-semibold">{nomeIA ? t('Testar {nome}', { nome: nomeIA }) : t('Testar a IARA')}</span>
                 </button>
             )}
 

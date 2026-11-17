@@ -6,6 +6,7 @@ import {
     X, Edit3, Trash2, Send, Loader2, MessageSquare, Calendar,
     ChevronDown, Check, Sparkles, AlertCircle
 } from 'lucide-react'
+import { useT } from '@/components/IdiomaProvider'
 
 // ============================================
 // TYPES
@@ -38,11 +39,11 @@ function getTagColor(tag: string) {
 
 // Templates de mensagem rápida
 const MSG_TEMPLATES = [
-    { label: '👋 Retorno padrão', texto: 'Oi {nome}! 😊 Passando para ver se ficou com alguma dúvida e se posso te ajudar em algo. Como você está se sentindo?' },
-    { label: '📅 Lembrete de agendamento', texto: 'Oi {nome}! Passando para lembrar do seu agendamento amanhã. Qualquer dúvida estou aqui! 💜' },
-    { label: '⭐ Pós-procedimento', texto: 'Oi {nome}! Como você está se sentindo após seu procedimento? Tem alguma dúvida sobre os cuidados? 💆‍♀️' },
-    { label: '🎁 Oferta especial', texto: 'Oi {nome}! Tenho uma novidade especial que pode te interessar. Posso te contar?' },
-    { label: '🔄 Retomar conversa', texto: 'Oi {nome}! Vi que conversamos há um tempo e queria saber se ainda posso te ajudar com alguma coisa. 😊' },
+    { emoji: '👋', label: 'Retorno padrão', texto: 'Oi {nome}! 😊 Passando para ver se ficou com alguma dúvida e se posso te ajudar em algo. Como você está se sentindo?' },
+    { emoji: '📅', label: 'Lembrete de agendamento', texto: 'Oi {nome}! Passando para lembrar do seu agendamento amanhã. Qualquer dúvida estou aqui! 💜' },
+    { emoji: '⭐', label: 'Pós-procedimento', texto: 'Oi {nome}! Como você está se sentindo após seu procedimento? Tem alguma dúvida sobre os cuidados? 💆‍♀️' },
+    { emoji: '🎁', label: 'Oferta especial', texto: 'Oi {nome}! Tenho uma novidade especial que pode te interessar. Posso te contar?' },
+    { emoji: '🔄', label: 'Retomar conversa', texto: 'Oi {nome}! Vi que conversamos há um tempo e queria saber se ainda posso te ajudar com alguma coisa. 😊' },
 ]
 
 // ============================================
@@ -57,6 +58,7 @@ function TagInput({
     onChange: (tags: string[]) => void
     sugestoes?: string[]
 }) {
+    const { t } = useT()
     const [input, setInput] = useState('')
     const [showSugestoes, setShowSugestoes] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
@@ -119,7 +121,7 @@ function TagInput({
                     onKeyDown={handleKey}
                     onFocus={() => setShowSugestoes(true)}
                     onBlur={() => setTimeout(() => setShowSugestoes(false), 150)}
-                    placeholder={tags.length === 0 ? 'Digite uma tag e pressione Enter...' : ''}
+                    placeholder={tags.length === 0 ? t('Digite uma tag e pressione Enter...') : ''}
                     className="flex-1 min-w-[100px] bg-transparent outline-none text-[12px]"
                     style={{ color: 'var(--text-primary)' }}
                 />
@@ -160,13 +162,13 @@ function TagInput({
                             }}
                         >
                             <Plus size={12} />
-                            Criar tag "<strong>{input.trim().toLowerCase()}</strong>"
+                            {t('Criar tag')} "<strong>{input.trim().toLowerCase()}</strong>"
                         </button>
                     )}
                 </div>
             )}
             <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                Pressione Enter ou vírgula para adicionar
+                {t('Pressione Enter ou vírgula para adicionar')}
             </p>
         </div>
     )
@@ -176,6 +178,7 @@ function TagInput({
 // MAIN PAGE
 // ============================================
 export default function CrmPage() {
+    const { t, locale } = useT()
     const [colunas, setColunas] = useState<Coluna[]>([])
     const [contatos, setContatos] = useState<Contato[]>([])
     const [loading, setLoading] = useState(true)
@@ -238,7 +241,7 @@ export default function CrmPage() {
             })
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}))
-                setFormError(data.error || `Erro ${res.status}`)
+                setFormError(data.error || t('Erro {status}', { status: res.status }))
                 return
             }
             setShowAddModal(false)
@@ -261,7 +264,7 @@ export default function CrmPage() {
             })
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}))
-                setFormError(data.error || `Erro ${res.status}`)
+                setFormError(data.error || t('Erro {status}', { status: res.status }))
                 return
             }
             setShowEditModal(null)
@@ -272,7 +275,7 @@ export default function CrmPage() {
 
     // ── Contato — Delete ───────────────────
     const deleteContact = async (id: string) => {
-        if (!confirm('Excluir este contato?')) return
+        if (!confirm(t('Excluir este contato?'))) return
         await fetch(`/api/contatos/${id}`, { method: 'DELETE' })
         fetchData()
     }
@@ -323,7 +326,7 @@ export default function CrmPage() {
     }
 
     const cancelarMensagem = async (contatoId: string) => {
-        if (!confirm('Cancelar a mensagem agendada?')) return
+        if (!confirm(t('Cancelar a mensagem agendada?'))) return
         await fetch(`/api/contatos/${contatoId}/mensagem-agendada`, { method: 'DELETE' })
         fetchData()
     }
@@ -347,7 +350,7 @@ export default function CrmPage() {
     }
 
     const deleteColumn = async (id: string) => {
-        if (!confirm('Excluir esta coluna?')) return
+        if (!confirm(t('Excluir esta coluna?'))) return
         await fetch('/api/crm-colunas', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
@@ -416,7 +419,7 @@ export default function CrmPage() {
         if (!isoStr) return null
         const d = new Date(isoStr)
         if (isNaN(d.getTime())) return null
-        return d.toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+        return d.toLocaleString(locale, { weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
     }
 
     if (loading) {
@@ -430,8 +433,8 @@ export default function CrmPage() {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>CRM</h1>
                     <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        {filteredContatos.length} de {contatos.length} contatos
-                        {tagFiltro && <span className="ml-1">• filtrando por <strong>{tagFiltro}</strong></span>}
+                        {t('{n} de {total} contatos', { n: filteredContatos.length, total: contatos.length })}
+                        {tagFiltro && <span className="ml-1">• {t('filtrando por')} <strong>{tagFiltro}</strong></span>}
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -439,20 +442,20 @@ export default function CrmPage() {
                     <div className="relative">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
                         <input type="text" value={busca} onChange={e => setBusca(e.target.value)}
-                            placeholder="Buscar..."
+                            placeholder={t('Buscar...')}
                             className="pl-8 pr-4 py-2 text-[12px] rounded-xl w-36"
                             style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }} />
                     </div>
 
                     {/* Botões */}
                     <button onClick={() => setShowImportModal(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}>
-                        <Upload size={13} /> Importar
+                        <Upload size={13} /> {t('Importar')}
                     </button>
                     <button onClick={() => { resetForm(); setShowAddModal(true) }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold bg-[#D99773] text-white hover:bg-[#C4875F] transition-all">
-                        <Plus size={13} /> Adicionar
+                        <Plus size={13} /> {t('Adicionar')}
                     </button>
                     <button onClick={() => setShowColModal(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all" style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-muted)' }}>
-                        <Plus size={13} /> Coluna
+                        <Plus size={13} /> {t('Coluna')}
                     </button>
                 </div>
             </div>
@@ -461,7 +464,7 @@ export default function CrmPage() {
             {allTags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-4">
                     <span className="text-[11px] self-center mr-1" style={{ color: 'var(--text-muted)' }}>
-                        <Tag size={11} className="inline mr-1" />Filtrar:
+                        <Tag size={11} className="inline mr-1" />{t('Filtrar:')}
                     </span>
                     {allTags.map(tag => {
                         const color = getTagColor(tag)
@@ -487,7 +490,7 @@ export default function CrmPage() {
                     })}
                     {tagFiltro && (
                         <button onClick={() => setTagFiltro(null)} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] transition-all" style={{ color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>
-                            <X size={10} /> Limpar filtro
+                            <X size={10} /> {t('Limpar filtro')}
                         </button>
                     )}
                 </div>
@@ -505,12 +508,12 @@ export default function CrmPage() {
                             <div key={col.id} className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: col.cor }} />
-                                    <p className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{col.nome}</p>
+                                    <p className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{t(col.nome)}</p>
                                 </div>
                                 <p className="text-[20px] font-bold" style={{ color: 'var(--text-primary)' }}>{count}</p>
                                 {conversion !== null && (
                                     <p className="text-[9px]" style={{ color: conversion >= 50 ? '#06D6A0' : conversion >= 25 ? '#EAB308' : '#EF4444' }}>
-                                        {conversion}% conversão
+                                        {t('{n}% conversão', { n: conversion })}
                                     </p>
                                 )}
                                 <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-subtle)' }}>
@@ -538,7 +541,7 @@ export default function CrmPage() {
                             <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                                 <div className="flex items-center gap-2">
                                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: col.cor }} />
-                                    <span className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>{col.nome}</span>
+                                    <span className="text-[13px] font-semibold" style={{ color: 'var(--text-primary)' }}>{t(col.nome)}</span>
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
                                         {colContatos.length}
                                     </span>
@@ -573,15 +576,15 @@ export default function CrmPage() {
                                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1">
                                                     <button
                                                         onClick={() => openMsgModal(contato)}
-                                                        title="Programar mensagem"
+                                                        title={t('Programar mensagem')}
                                                         className="p-0.5 rounded-md hover:bg-[#EC4899]/10 transition-colors"
                                                     >
                                                         <MessageSquare size={11} className="text-[#EC4899]" />
                                                     </button>
-                                                    <button onClick={() => openEdit(contato)} title="Editar" className="p-0.5 rounded-md hover:bg-black/5 transition-colors">
+                                                    <button onClick={() => openEdit(contato)} title={t('Editar')} className="p-0.5 rounded-md hover:bg-black/5 transition-colors">
                                                         <Edit3 size={11} style={{ color: 'var(--text-muted)' }} />
                                                     </button>
-                                                    <button onClick={() => deleteContact(contato.id)} title="Excluir" className="p-0.5 rounded-md hover:bg-red-500/10 transition-colors">
+                                                    <button onClick={() => deleteContact(contato.id)} title={t('Excluir')} className="p-0.5 rounded-md hover:bg-red-500/10 transition-colors">
                                                         <Trash2 size={11} className="text-red-400" />
                                                     </button>
                                                 </div>
@@ -602,7 +605,7 @@ export default function CrmPage() {
                                                         border: `1px solid ${msgPassada ? 'rgba(239,68,68,0.3)' : 'rgba(236,72,153,0.25)'}`,
                                                     }}
                                                     onClick={() => openMsgModal(contato)}
-                                                    title="Clique para editar a mensagem"
+                                                    title={t('Clique para editar a mensagem')}
                                                 >
                                                     <div className="flex items-center gap-1.5">
                                                         {msgPassada
@@ -610,14 +613,14 @@ export default function CrmPage() {
                                                             : <Clock size={10} className="flex-shrink-0" style={{ color: '#EC4899' }} />
                                                         }
                                                         <span className="text-[10px] font-medium" style={{ color: msgPassada ? '#EF4444' : '#EC4899' }}>
-                                                            {msgPassada ? 'Atrasado · ' : ''}
-                                                            {msgDate.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                                            {msgPassada ? `${t('Atrasado')} · ` : ''}
+                                                            {msgDate.toLocaleString(locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                                                         </span>
                                                     </div>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); cancelarMensagem(contato.id) }}
                                                         className="opacity-0 group-hover/msg:opacity-100 transition-opacity"
-                                                        title="Cancelar mensagem"
+                                                        title={t('Cancelar mensagem')}
                                                     >
                                                         <X size={9} className="text-red-400" />
                                                     </button>
@@ -635,7 +638,7 @@ export default function CrmPage() {
                                                                 onClick={() => setTagFiltro(tagFiltro === tag ? null : tag)}
                                                                 className="text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-all hover:scale-105"
                                                                 style={{ backgroundColor: color.bg, color: color.text, border: `1px solid ${color.border}` }}
-                                                                title={`Filtrar por "${tag}"`}
+                                                                title={t('Filtrar por "{tag}"', { tag })}
                                                             >
                                                                 {tag}
                                                             </button>
@@ -657,7 +660,7 @@ export default function CrmPage() {
                                         <div className="w-8 h-8 rounded-full mb-2 flex items-center justify-center" style={{ backgroundColor: col.cor + '20' }}>
                                             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: col.cor }} />
                                         </div>
-                                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Nenhum contato</p>
+                                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{t('Nenhum contato')}</p>
                                     </div>
                                 )}
                             </div>
@@ -667,8 +670,8 @@ export default function CrmPage() {
 
                 {colunas.length === 0 && (
                     <div className="flex-1 flex flex-col items-center justify-center py-16 opacity-60">
-                        <p className="text-[14px] mb-2" style={{ color: 'var(--text-secondary)' }}>Sem colunas ainda</p>
-                        <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Clique em "+ Coluna" para começar</p>
+                        <p className="text-[14px] mb-2" style={{ color: 'var(--text-secondary)' }}>{t('Sem colunas ainda')}</p>
+                        <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>{t('Clique em "+ Coluna" para começar')}</p>
                     </div>
                 )}
             </div>
@@ -677,47 +680,47 @@ export default function CrmPage() {
 
             {/* Add Contact */}
             {showAddModal && (
-                <Modal title="Novo Contato" onClose={() => setShowAddModal(false)}>
-                    <MInput label="Nome *" value={formNome} onChange={setFormNome} />
-                    <MInput label="Telefone *" value={formTel} onChange={setFormTel} placeholder="5511999998888" />
-                    <MInput label="Email" value={formEmail} onChange={setFormEmail} />
-                    <MInput label="Notas" value={formNotas} onChange={setFormNotas} textarea />
+                <Modal title={t('Novo Contato')} onClose={() => setShowAddModal(false)}>
+                    <MInput label={t('Nome *')} value={formNome} onChange={setFormNome} />
+                    <MInput label={t('Telefone *')} value={formTel} onChange={setFormTel} placeholder="5511999998888" />
+                    <MInput label={t('Email')} value={formEmail} onChange={setFormEmail} />
+                    <MInput label={t('Notas')} value={formNotas} onChange={setFormNotas} textarea />
                     <div className="mb-3">
                         <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                            <Tag size={11} className="inline mr-1" />Tags
+                            <Tag size={11} className="inline mr-1" />{t('Tags')}
                         </label>
                         <TagInput tags={formTags} onChange={setFormTags} sugestoes={sugestoesTags} />
                     </div>
-                    {formError && <p className="text-[11px] text-red-400 mb-2">{formError}</p>}
-                    <MBtn onClick={addContact} loading={saving}>Salvar Contato</MBtn>
+                    {formError && <p className="text-[11px] text-red-400 mb-2">{t(formError)}</p>}
+                    <MBtn onClick={addContact} loading={saving}>{t('Salvar Contato')}</MBtn>
                 </Modal>
             )}
 
             {/* Edit Contact */}
             {showEditModal && (
-                <Modal title={`Editar — ${showEditModal.nome}`} onClose={() => setShowEditModal(null)}>
-                    <MInput label="Nome" value={formNome} onChange={setFormNome} />
-                    <MInput label="Telefone" value={formTel} onChange={setFormTel} />
-                    <MInput label="Email" value={formEmail} onChange={setFormEmail} />
-                    <MInput label="Notas" value={formNotas} onChange={setFormNotas} textarea />
+                <Modal title={`${t('Editar')} — ${showEditModal.nome}`} onClose={() => setShowEditModal(null)}>
+                    <MInput label={t('Nome')} value={formNome} onChange={setFormNome} />
+                    <MInput label={t('Telefone')} value={formTel} onChange={setFormTel} />
+                    <MInput label={t('Email')} value={formEmail} onChange={setFormEmail} />
+                    <MInput label={t('Notas')} value={formNotas} onChange={setFormNotas} textarea />
                     <div className="mb-3">
                         <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                            <Tag size={11} className="inline mr-1" />Tags
+                            <Tag size={11} className="inline mr-1" />{t('Tags')}
                         </label>
                         <TagInput tags={formTags} onChange={setFormTags} sugestoes={sugestoesTags} />
                     </div>
-                    {formError && <p className="text-[11px] text-red-400 mb-2">{formError}</p>}
-                    <MBtn onClick={editContact} loading={saving}>Salvar Alterações</MBtn>
+                    {formError && <p className="text-[11px] text-red-400 mb-2">{t(formError)}</p>}
+                    <MBtn onClick={editContact} loading={saving}>{t('Salvar Alterações')}</MBtn>
                 </Modal>
             )}
 
             {/* Programar Mensagem */}
             {showMsgModal && (
-                <Modal title={`💬 Programar Mensagem — ${showMsgModal.nome?.split(' ')[0]}`} onClose={() => { setShowMsgModal(null); setFormError('') }}>
+                <Modal title={`💬 ${t('Programar Mensagem')} — ${showMsgModal.nome?.split(' ')[0]}`} onClose={() => { setShowMsgModal(null); setFormError('') }}>
                     {/* Data/Hora */}
                     <div className="mb-4">
                         <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                            <Calendar size={11} className="inline mr-1" />Data e Hora de Envio
+                            <Calendar size={11} className="inline mr-1" />{t('Data e Hora de Envio')}
                         </label>
                         <input
                             type="datetime-local"
@@ -729,7 +732,7 @@ export default function CrmPage() {
                         />
                         {msgData && formatDataPreview(msgData) && (
                             <p className="text-[11px] mt-1.5 font-medium" style={{ color: '#06D6A0' }}>
-                                ✓ Será enviada {formatDataPreview(msgData)}
+                                ✓ {t('Será enviada {data}', { data: formatDataPreview(msgData) || '' })}
                             </p>
                         )}
                     </div>
@@ -737,23 +740,23 @@ export default function CrmPage() {
                     {/* Templates Rápidos */}
                     <div className="mb-3">
                         <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                            <Sparkles size={11} className="inline mr-1" />Templates Rápidos
+                            <Sparkles size={11} className="inline mr-1" />{t('Templates Rápidos')}
                         </label>
                         <div className="grid grid-cols-1 gap-1.5">
-                            {MSG_TEMPLATES.map(t => (
+                            {MSG_TEMPLATES.map(tpl => (
                                 <button
-                                    key={t.label}
-                                    onClick={() => applyTemplate(t)}
+                                    key={tpl.label}
+                                    onClick={() => applyTemplate(tpl)}
                                     className="text-left px-3 py-2 rounded-xl text-[11px] transition-all hover:scale-[1.01]"
                                     style={{
                                         backgroundColor: 'var(--bg-subtle)',
-                                        border: msgTexto === t.texto.replace(/{nome}/g, showMsgModal?.nome?.split(' ')[0] || 'você')
+                                        border: msgTexto === tpl.texto.replace(/{nome}/g, showMsgModal?.nome?.split(' ')[0] || 'você')
                                             ? '1px solid #D99773'
                                             : '1px solid var(--border-subtle)',
                                         color: 'var(--text-secondary)',
                                     }}
                                 >
-                                    {t.label}
+                                    {tpl.emoji} {t(tpl.label)}
                                 </button>
                             ))}
                         </div>
@@ -762,7 +765,7 @@ export default function CrmPage() {
                     {/* Mensagem */}
                     <div className="mb-3">
                         <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                            <MessageSquare size={11} className="inline mr-1" />Mensagem
+                            <MessageSquare size={11} className="inline mr-1" />{t('Mensagem')}
                         </label>
                         <textarea
                             value={msgTexto}
@@ -773,13 +776,13 @@ export default function CrmPage() {
                             style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                         />
                         <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                            {msgTexto.length} caracteres
+                            {t('{n} caracteres', { n: msgTexto.length })}
                         </p>
                     </div>
 
                     {formError && (
                         <p className="flex items-center gap-1.5 text-[11px] text-red-400 mb-2">
-                            <AlertCircle size={12} />{formError}
+                            <AlertCircle size={12} />{t(formError)}
                         </p>
                     )}
 
@@ -788,7 +791,7 @@ export default function CrmPage() {
                         loading={saving}
                         disabled={!msgData || !msgTexto.trim()}
                     >
-                        <Send size={14} /> Agendar Envio
+                        <Send size={14} /> {t('Agendar Envio')}
                     </MBtn>
 
                     {showMsgModal.retornoData && !showMsgModal.retornoEnviado && (
@@ -796,7 +799,7 @@ export default function CrmPage() {
                             onClick={() => cancelarMensagem(showMsgModal.id)}
                             className="w-full mt-2 py-2 rounded-xl text-[12px] text-red-400 hover:bg-red-500/10 transition-colors"
                         >
-                            Cancelar mensagem existente
+                            {t('Cancelar mensagem existente')}
                         </button>
                     )}
                 </Modal>
@@ -804,9 +807,9 @@ export default function CrmPage() {
 
             {/* Import */}
             {showImportModal && (
-                <Modal title="Importar Contatos" onClose={() => setShowImportModal(false)}>
+                <Modal title={t('Importar Contatos')} onClose={() => setShowImportModal(false)}>
                     <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
-                        Cole uma lista com Nome e Telefone (separados por vírgula, tab ou ponto-e-vírgula). Um contato por linha.
+                        {t('Cole uma lista com Nome e Telefone (separados por vírgula, tab ou ponto-e-vírgula). Um contato por linha.')}
                     </p>
                     <textarea
                         value={importText} onChange={e => setImportText(e.target.value)}
@@ -815,19 +818,19 @@ export default function CrmPage() {
                         style={{ backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                     />
                     <p className="text-[10px] mt-1 mb-3" style={{ color: 'var(--text-muted)' }}>
-                        {importText.split('\n').filter(Boolean).length} linhas detectadas
+                        {t('{n} linhas detectadas', { n: importText.split('\n').filter(Boolean).length })}
                     </p>
-                    <MBtn onClick={importContacts} loading={saving}>Importar</MBtn>
+                    <MBtn onClick={importContacts} loading={saving}>{t('Importar')}</MBtn>
                 </Modal>
             )}
 
             {/* New Column */}
             {showColModal && (
-                <Modal title="Nova Coluna" onClose={() => setShowColModal(false)}>
-                    <MInput label="Nome da Coluna" value={newColNome} onChange={setNewColNome} placeholder="Ex: Pós-operatório" />
-                    <label className="block text-[11px] font-medium mb-1 mt-3" style={{ color: 'var(--text-muted)' }}>Cor</label>
+                <Modal title={t('Nova Coluna')} onClose={() => setShowColModal(false)}>
+                    <MInput label={t('Nome da Coluna')} value={newColNome} onChange={setNewColNome} placeholder={t('Ex: Pós-operatório')} />
+                    <label className="block text-[11px] font-medium mb-1 mt-3" style={{ color: 'var(--text-muted)' }}>{t('Cor')}</label>
                     <input type="color" value={newColCor} onChange={e => setNewColCor(e.target.value)} className="w-10 h-10 rounded-lg border-0 cursor-pointer" />
-                    <MBtn onClick={addColumn} loading={saving}>Criar Coluna</MBtn>
+                    <MBtn onClick={addColumn} loading={saving}>{t('Criar Coluna')}</MBtn>
                 </Modal>
             )}
         </div>

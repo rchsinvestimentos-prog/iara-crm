@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react'
 import { useTheme } from './ThemeProvider'
+import { useT } from './IdiomaProvider'
 import Image from 'next/image'
 
 interface UserMenuDropdownProps {
@@ -29,11 +30,12 @@ export default function UserMenuDropdown({
   avatarUrl,
 }: UserMenuDropdownProps) {
   const { data: session } = useSession()
+  const { t } = useT()
   const { theme, toggleTheme } = useTheme()
   const isDark = theme === 'dark'
   const ref = useRef<HTMLDivElement>(null)
 
-  const userName = (session?.user as any)?.name || session?.user?.email || 'Usuário'
+  const userName = (session?.user as any)?.name || session?.user?.email || t('Usuário')
   const userEmail = session?.user?.email || ''
   const userType = (session?.user as any)?.userType || ''
   const initials = userName
@@ -43,9 +45,9 @@ export default function UserMenuDropdown({
     .join('')
     .toUpperCase()
 
-  const userTypeBadge: Record<string, { label: string; color: string }> = {
-    admin: { label: '👑 Admin', color: '#D99773' },
-    profissional: { label: '👩‍⚕️ Profissional', color: '#06D6A0' },
+  const userTypeBadge: Record<string, { icone: string; label: string; color: string }> = {
+    admin: { icone: '👑', label: 'Admin', color: '#D99773' },
+    profissional: { icone: '👩‍⚕️', label: 'Profissional', color: '#06D6A0' },
   }
   const badge = userTypeBadge[userType]
 
@@ -129,7 +131,7 @@ export default function UserMenuDropdown({
               className="text-[10px] font-medium px-2 py-0.5 rounded-full mt-0.5 inline-block"
               style={{ color: badge.color, backgroundColor: `${badge.color}18` }}
             >
-              {badge.label}
+              {badge.icone} {t(badge.label)}
             </span>
           )}
         </div>
@@ -138,7 +140,7 @@ export default function UserMenuDropdown({
           onClick={onClose}
           className="w-7 h-7 flex items-center justify-center rounded-lg transition-all hover:scale-110"
           style={{ color: textMuted, backgroundColor: itemHoverBg }}
-          title="Fechar"
+          title={t('Fechar')}
         >
           <X size={13} />
         </button>
@@ -152,8 +154,8 @@ export default function UserMenuDropdown({
         {/* Foto de Perfil */}
         <MenuItem
           icon={<Camera size={15} />}
-          label="Foto de Perfil"
-          description="Altere sua foto do painel"
+          label={t('Foto de Perfil')}
+          description={t('Altere sua foto do painel')}
           onClick={() => { onOpenFotoPerfil(); onClose() }}
           accentColor="#D99773"
           isDark={isDark}
@@ -165,8 +167,8 @@ export default function UserMenuDropdown({
         {/* Redefinir Senha */}
         <MenuItem
           icon={<Lock size={15} />}
-          label="Trocar senha"
-          description="Senha atual e a nova, sem precisar de email"
+          label={t('Trocar senha')}
+          description={t('Senha atual e a nova, sem precisar de email')}
           onClick={() => { onOpenTrocarSenha(); onClose() }}
           accentColor="#0F4C61"
           isDark={isDark}
@@ -193,9 +195,9 @@ export default function UserMenuDropdown({
             {isDark ? <Sun size={14} /> : <Moon size={14} />}
           </span>
           <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-medium">{isDark ? 'Modo Claro' : 'Modo Escuro'}</p>
+            <p className="text-[12px] font-medium">{isDark ? t('Modo Claro') : t('Modo Escuro')}</p>
             <p className="text-[10px]" style={{ color: textMuted }}>
-              {isDark ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+              {isDark ? t('Mudar para tema claro') : t('Mudar para tema escuro')}
             </p>
           </div>
           <div
@@ -232,7 +234,7 @@ export default function UserMenuDropdown({
           >
             <LogOut size={14} />
           </span>
-          <p className="text-[12px] font-medium">Sair da Conta</p>
+          <p className="text-[12px] font-medium">{t('Sair da Conta')}</p>
         </button>
       </div>
     </div>

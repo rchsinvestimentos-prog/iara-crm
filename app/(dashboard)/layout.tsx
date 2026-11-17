@@ -1,7 +1,7 @@
 'use client'
 
 import Sidebar from '@/components/Sidebar'
-import { IdiomaProvider } from '@/components/IdiomaProvider'
+import { IdiomaProvider, useT } from '@/components/IdiomaProvider'
 import TermosModal from '@/components/TermosModal'
 import TrocarSenhaModal from '@/components/TrocarSenhaModal'
 import TesterPlanSwitcher from '@/components/TesterPlanSwitcher'
@@ -10,6 +10,25 @@ import { SessionProvider } from 'next-auth/react'
 import { useState, useEffect, Suspense } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+
+// Fica dentro do IdiomaProvider; o layout em si está fora dele.
+function RodapePainel() {
+    const { t } = useT()
+    return (
+        <footer className="mt-8 pt-4 text-center" style={{ borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.06))' }}>
+            <p className="text-[10px]" style={{ color: 'var(--text-muted, #4B5563)' }}>
+                {t('A IARA é uma Inteligência Artificial. Ela pode cometer erros. Todas as conversas são armazenadas para fins de segurança e qualidade.')}
+            </p>
+            <p className="text-[9px] mt-1 space-x-2" style={{ color: 'var(--text-muted, #374151)' }}>
+                <Link href="/termos" className="hover:underline">{t('Termos de Uso')}</Link>
+                <span>·</span>
+                <Link href="/privacidade" className="hover:underline">{t('Política de Privacidade')}</Link>
+                <span>·</span>
+                <span>© {new Date().getFullYear()} IARA</span>
+            </p>
+        </footer>
+    )
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
@@ -46,18 +65,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     flex flex-col
                 ">
                     <div className="flex-1">{children}</div>
-                    <footer className="mt-8 pt-4 text-center" style={{ borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.06))' }}>
-                        <p className="text-[10px]" style={{ color: 'var(--text-muted, #4B5563)' }}>
-                            A IARA é uma Inteligência Artificial. Ela pode cometer erros. Todas as conversas são armazenadas para fins de segurança e qualidade.
-                        </p>
-                        <p className="text-[9px] mt-1 space-x-2" style={{ color: 'var(--text-muted, #374151)' }}>
-                            <Link href="/termos" className="hover:underline">Termos de Uso</Link>
-                            <span>·</span>
-                            <Link href="/privacidade" className="hover:underline">Política de Privacidade</Link>
-                            <span>·</span>
-                            <span>© {new Date().getFullYear()} IARA</span>
-                        </p>
-                    </footer>
+                    <RodapePainel />
                 </main>
             </div>
 

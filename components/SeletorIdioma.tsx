@@ -28,7 +28,7 @@ export default function SeletorIdioma() {
                 }}
             >
                 <Globe size={16} />
-                <span className="flex-1 text-left text-xs">{flag} {t.idioma}</span>
+                <span className="flex-1 text-left text-xs">{flag} {t('Idioma')}</span>
             </button>
 
             {aberto && (

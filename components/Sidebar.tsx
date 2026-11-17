@@ -35,6 +35,7 @@ import {
 import { useState, useEffect } from 'react'
 import { useTheme } from './ThemeProvider'
 import SeletorIdioma from './SeletorIdioma'
+import { useT } from './IdiomaProvider'
 import dynamic from 'next/dynamic'
 import UserMenuDropdown from './UserMenuDropdown'
 import TrocarSenhaModal from './TrocarSenhaModal'
@@ -49,12 +50,13 @@ interface ClinicaItem {
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const { t } = useT()
   const { theme, toggleTheme } = useTheme()
   const { data: session } = useSession()
   const isAdmin = (session?.user as any)?.userType === 'admin'
   const isProfissional = (session?.user as any)?.userType === 'profissional'
   const isTester = (session?.user as any)?.role === 'tester'
-  const profissionalNome = isProfissional ? (session?.user as any)?.name || 'Profissional' : ''
+  const profissionalNome = isProfissional ? (session?.user as any)?.name || t('Profissional') : ''
   const [mobileOpen, setMobileOpen] = useState(false)
   const [planoAtual, setPlanoAtual] = useState(1)
   const [nomeClinica, setNomeClinica] = useState('')
@@ -224,7 +226,7 @@ export default function Sidebar() {
                       <span>👩‍⚕️</span>
                       <span style={{ color: '#D99773' }}>{profissionalNome}</span>
                     </span>
-                  ) : 'Painel'}
+                  ) : t('Painel')}
                 </p>
               </div>
             </div>
@@ -237,7 +239,7 @@ export default function Sidebar() {
                   backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,76,97,0.06)',
                   color: isDark ? '#D99773' : '#0F4C61',
                 }}
-                title={isDark ? 'Modo claro' : 'Modo escuro'}
+                title={isDark ? t('Modo claro') : t('Modo escuro')}
               >
                 {isDark ? <Sun size={15} /> : <Moon size={15} />}
               </button>
@@ -266,62 +268,62 @@ export default function Sidebar() {
               <div className="mb-1">
                 <Link href="/dashboard" className={linkClass('/dashboard')}>
                   <LayoutDashboard size={17} strokeWidth={1.8} />
-                  <span>Dashboard</span>
+                  <span>{t('Dashboard')}</span>
                 </Link>
               </div>
 
               <div className="flex items-center gap-2 px-3 mb-2 mt-4">
-                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>Meu Painel</span>
+                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>{t('Meu Painel')}</span>
                 <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
               </div>
 
               <Link href="/habilidades/agendamento" className={linkClass('/habilidades/agendamento')}>
                 <Calendar size={17} strokeWidth={1.8} />
-                <span>Minha Agenda</span>
+                <span>{t('Minha Agenda')}</span>
               </Link>
               <Link href="/meu-perfil" className={linkClass('/meu-perfil')}>
                 <User size={17} strokeWidth={1.8} />
-                <span>Meu Perfil</span>
+                <span>{t('Meu Perfil')}</span>
               </Link>
               <Link href="/link-agendamento" className={linkClass('/link-agendamento')}>
                 <Link2 size={17} strokeWidth={1.8} />
-                <span>Link de Agendamento</span>
+                <span>{t('Link de Agendamento')}</span>
               </Link>
 
               <div className="flex items-center gap-2 px-3 mb-2 mt-4">
-                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>Serviços</span>
+                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>{t('Serviços')}</span>
                 <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
               </div>
 
               <Link href="/meus-procedimentos" className={linkClass('/meus-procedimentos')}>
                 <Stethoscope size={17} strokeWidth={1.8} />
-                <span>Procedimentos</span>
+                <span>{t('Procedimentos')}</span>
               </Link>
               <Link href="/meus-cursos" className={linkClass('/meus-cursos')}>
                 <BookOpen size={17} strokeWidth={1.8} />
-                <span>Cursos</span>
+                <span>{t('Cursos')}</span>
               </Link>
               <Link href="/meus-combos" className={linkClass('/meus-combos')}>
                 <Package size={17} strokeWidth={1.8} />
-                <span>Combos</span>
+                <span>{t('Combos')}</span>
               </Link>
               <Link href="/minhas-promocoes" className={linkClass('/minhas-promocoes')}>
                 <Tag size={17} strokeWidth={1.8} />
-                <span>Promoções</span>
+                <span>{t('Promoções')}</span>
               </Link>
 
               <div className="flex items-center gap-2 px-3 mb-2 mt-4">
-                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>Status</span>
+                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>{t('Status')}</span>
                 <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
               </div>
 
               <Link href="/ferias" className={linkClass('/ferias')}>
                 <Palmtree size={17} strokeWidth={1.8} />
-                <span>Modo Férias</span>
+                <span>{t('Modo Férias')}</span>
               </Link>
               <Link href="/meu-perfil" className={linkClass('/meu-perfil')}>
                 <Settings size={17} strokeWidth={1.8} />
-                <span>Configurações</span>
+                <span>{t('Configurações')}</span>
               </Link>
             </>
           ) : (
@@ -331,37 +333,37 @@ export default function Sidebar() {
               <div className="space-y-0.5 mb-4">
                 <Link href="/dashboard" className={linkClass('/dashboard')}>
                   <LayoutDashboard size={17} strokeWidth={1.8} />
-                  <span>Dashboard</span>
+                  <span>{t('Dashboard')}</span>
                 </Link>
                 <Link href="/conversas" className={linkClass('/conversas')}>
                   <MessageCircle size={17} strokeWidth={1.8} />
-                  <span>Conversas</span>
+                  <span>{t('Conversas')}</span>
                 </Link>
                 <Link href="/agenda" className={linkClass('/agenda')}>
                   <Calendar size={17} strokeWidth={1.8} />
-                  <span>Agenda</span>
+                  <span>{t('Agenda')}</span>
                 </Link>
                 <Link href="/crm" className={linkClass('/crm')}>
                   <Users size={17} strokeWidth={1.8} />
-                  <span>CRM / Contatos</span>
+                  <span>{t('CRM / Contatos')}</span>
                 </Link>
 
               </div>
 
               {/* Separator */}
               <div className="flex items-center gap-2 px-3 mb-2">
-                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>Conta</span>
+                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: isDark ? '#374151' : '#CBD5E1' }}>{t('Conta')}</span>
                 <div className="flex-1 h-px" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,76,97,0.08)' }} />
               </div>
 
               <div className="space-y-0.5">
                 <Link href="/equipe" className={linkClass('/equipe')}>
                   <UsersRound size={17} strokeWidth={1.8} />
-                  <span>Equipe</span>
+                  <span>{t('Equipe')}</span>
                 </Link>
                 <Link href="/configuracoes" className={linkClass('/configuracoes')}>
                   <Settings size={17} strokeWidth={1.8} />
-                  <span>Configurar IARA</span>
+                  <span>{t('Configurar IARA')}</span>
                 </Link>
                 <Link href="/instancias" className={linkClass('/instancias')}>
                   <Smartphone size={17} strokeWidth={1.8} />
@@ -369,7 +371,7 @@ export default function Sidebar() {
                 </Link>
                 <Link href="/plano" className={linkClass('/plano')}>
                   <CreditCard size={17} strokeWidth={1.8} />
-                  <span>Meu Plano</span>
+                  <span>{t('Meu Plano')}</span>
                 </Link>
                 {/* Anamnese, Clientes, Follow UP e Integração de Agenda ficaram
                     meses só para contas de teste: as telas funcionavam, mas
@@ -379,13 +381,13 @@ export default function Sidebar() {
                   <>
                     <div className="flex items-center gap-2 px-3 mb-2 mt-4">
                       <span className="text-[10px] font-semibold uppercase tracking-widest text-[#D99773]">
-                        {isTester && planoAtual < 2 ? 'Novos Recursos 🧪' : 'Recursos Pro'}
+                        {isTester && planoAtual < 2 ? <>{t('Novos Recursos')} 🧪</> : t('Recursos Pro')}
                       </span>
                       <div className="flex-1 h-px bg-white/5" />
                     </div>
                     <Link href="/anamnese" className={linkClass('/anamnese')}>
                       <Stethoscope size={17} strokeWidth={1.8} />
-                      <span>Ficha de Anamnese</span>
+                      <span>{t('Ficha de Anamnese')}</span>
                     </Link>
                     <Link href="/follow-up" className={linkClass('/follow-up')}>
                       <Clock size={17} strokeWidth={1.8} />
@@ -393,7 +395,7 @@ export default function Sidebar() {
                     </Link>
                     <Link href="/clientes" className={linkClass('/clientes')}>
                       <UserCheck size={17} strokeWidth={1.8} />
-                      <span>Clientes</span>
+                      <span>{t('Clientes')}</span>
                     </Link>
                     {/* O link para /integracoes-agenda foi removido: a página nunca
                         existiu e dava 404. A conexão com Google e Apple Calendar
@@ -442,9 +444,9 @@ export default function Sidebar() {
 
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-[11px] font-semibold truncate" style={{ color: isDark ? '#E5E7EB' : '#0F4C61' }}>
-                  {(session?.user as any)?.name || session?.user?.email || 'Minha conta'}
+                  {(session?.user as any)?.name || session?.user?.email || t('Minha conta')}
                 </p>
-                <p className="text-[9px]" style={{ color: isDark ? '#4B5563' : '#94A3B8' }}>Configurações da conta</p>
+                <p className="text-[9px]" style={{ color: isDark ? '#4B5563' : '#94A3B8' }}>{t('Configurações da conta')}</p>
               </div>
 
               <ChevronUp
@@ -476,8 +478,8 @@ export default function Sidebar() {
                 <span className="text-[11px] font-bold text-white">{nomeClinica ? nomeClinica.slice(0, 2).toUpperCase() : 'IA'}</span>
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <p className="text-[12px] font-semibold truncate" style={{ color: isDark ? '#FFFFFF' : '#0F4C61' }}>{nomeClinica || 'Minha Clínica'}</p>
-                <p className="text-[10px]" style={{ color: isDark ? '#374151' : '#94A3B8' }}>Plano {nomePlano}</p>
+                <p className="text-[12px] font-semibold truncate" style={{ color: isDark ? '#FFFFFF' : '#0F4C61' }}>{nomeClinica || t('Minha Clínica')}</p>
+                <p className="text-[10px]" style={{ color: isDark ? '#374151' : '#94A3B8' }}>{t('Plano {nome}', { nome: nomePlano })}</p>
               </div>
               {clinicas.length > 1 && (
                 <ChevronDown size={13} className={`transition-transform ${showClinicaDropdown ? 'rotate-180' : ''}`} style={{ color: isDark ? '#4B5563' : '#94A3B8' }} />
@@ -502,7 +504,7 @@ export default function Sidebar() {
                     <Building2 size={13} style={{ color: clinicaAtiva === c.id ? '#D99773' : isDark ? '#4B5563' : '#94A3B8' }} />
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] font-medium truncate" style={{ color: clinicaAtiva === c.id ? '#D99773' : isDark ? '#FFFFFF' : '#0F4C61' }}>
-                        {c.nomeClinica || c.nome || 'Clínica'}
+                        {c.nomeClinica || c.nome || t('Clínica')}
                       </p>
                       {c.endereco && <p className="text-[9px] truncate" style={{ color: isDark ? '#374151' : '#94A3B8' }}>{c.endereco}</p>}
                     </div>
@@ -515,7 +517,7 @@ export default function Sidebar() {
 
           <button onClick={() => signOut({ callbackUrl: '/login' })} className="flex items-center gap-3 px-3 py-2 rounded-xl text-[12px] w-full transition-all text-gray-400 hover:text-red-400 hover:bg-red-500/5">
             <LogOut size={15} strokeWidth={1.8} />
-            <span>Sair</span>
+            <span>{t('Sair')}</span>
           </button>
         </div>
 

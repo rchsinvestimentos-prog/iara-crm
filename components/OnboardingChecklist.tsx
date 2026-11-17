@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2, Circle, ChevronRight, Sparkles, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { useT } from '@/components/IdiomaProvider'
 
 interface ChecklistItem {
     id: string
@@ -51,6 +52,7 @@ interface OnboardingStatus {
 }
 
 export default function OnboardingChecklist() {
+    const { t } = useT()
     const [status, setStatus] = useState<OnboardingStatus | null>(null)
     const [loading, setLoading] = useState(true)
     const [collapsed, setCollapsed] = useState(false)
@@ -71,7 +73,7 @@ export default function OnboardingChecklist() {
         return (
             <div className="backdrop-blur-xl rounded-2xl p-5 animate-fade-in flex items-center gap-3" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-default)' }}>
                 <Loader2 size={16} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
-                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Verificando configurações...</span>
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('Verificando configurações...')}</span>
             </div>
         )
     }
@@ -98,7 +100,7 @@ export default function OnboardingChecklist() {
                     <div className="flex items-center gap-2 mb-1.5">
                         <Sparkles size={15} className="text-[#D99773]" />
                         <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                            Primeiros passos — {done}/{total} concluídos
+                            {t('Primeiros passos — {done}/{total} concluídos', { done, total })}
                         </span>
                     </div>
                     {/* Progress bar */}
@@ -131,16 +133,16 @@ export default function OnboardingChecklist() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className={`text-sm font-medium ${isDone ? 'line-through' : ''}`} style={{ color: 'var(--text-primary)' }}>
-                                        {item.titulo}
+                                        {t(item.titulo)}
                                     </p>
-                                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{item.descricao}</p>
+                                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{t(item.descricao)}</p>
                                 </div>
                                 {!isDone && (
                                     <Link
                                         href={item.link}
                                         className="text-[11px] font-semibold text-[#D99773] hover:text-[#C07A55] flex-shrink-0 flex items-center gap-0.5"
                                     >
-                                        {item.linkLabel} <ChevronRight size={11} />
+                                        {t(item.linkLabel)} <ChevronRight size={11} />
                                     </Link>
                                 )}
                             </div>

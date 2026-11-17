@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react'
 import { ArrowUpRight, Sparkles, X } from 'lucide-react'
 import Link from 'next/link'
+import { useT } from '@/components/IdiomaProvider'
 
 /**
  * Componente de upsell — aparece quando créditos atingem 80%.
  * Incentiva upgrade de plano.
  */
 export default function UpsellBanner() {
+    const { t } = useT()
     const [show, setShow] = useState(false)
     const [percentual, setPercentual] = useState(0)
     const [plano, setPlano] = useState(1)
@@ -47,7 +49,7 @@ export default function UpsellBanner() {
         3: 'Audiovisual',
     }
 
-    const proximoPlano = NOMES_PLANOS[plano] || 'próximo plano'
+    const proximoPlano = NOMES_PLANOS[plano] || t('próximo plano')
 
     return (
         <div
@@ -65,10 +67,10 @@ export default function UpsellBanner() {
                 </div>
                 <div className="flex-1">
                     <p className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        Você já usou {percentual}% dos créditos! 🔥
+                        {t('Você já usou {n}% dos créditos!', { n: percentual })} 🔥
                     </p>
                     <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                        Libere até 5x mais créditos com o plano {proximoPlano}
+                        {t('Libere até 5x mais créditos com o plano {plano}', { plano: proximoPlano })}
                     </p>
                 </div>
                 <Link
@@ -76,7 +78,7 @@ export default function UpsellBanner() {
                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:scale-105"
                     style={{ background: 'linear-gradient(135deg, #D99773, #8B5CF6)', color: 'white' }}
                 >
-                    Upgrade <ArrowUpRight size={12} />
+                    {t('Upgrade')} <ArrowUpRight size={12} />
                 </Link>
                 <button onClick={dismiss} className="p-1 rounded-lg hover:bg-white/10 transition-all" style={{ color: 'var(--text-muted)' }}>
                     <X size={14} />
