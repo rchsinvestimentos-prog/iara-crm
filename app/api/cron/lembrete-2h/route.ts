@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { idiomaDaPaciente } from '@/lib/engine/idioma'
+import { lembreteDuasHoras } from '@/lib/mensagens-paciente'
 
 const CRON_SECRET = process.env.CRON_SECRET || ''
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
@@ -41,6 +43,7 @@ export async function GET(request: NextRequest) {
                         linkMaps: true,
                         funcionalidades: true,
                         configuracoes: true,
+                        idioma: true,
                     },
                 },
             },
@@ -75,14 +78,11 @@ export async function GET(request: NextRequest) {
 
             const nomeIA = ag.clinica.nomeAssistente || 'IARA'
             const nomeClinica = ag.clinica.nomeClinica || 'Clínica'
+            const idioma = await idiomaDaPaciente(ag.clinica.id, ag.telefone, ag.clinica.idioma)
             const primeiroNome = (ag.nomePaciente || 'Cliente').split(' ')[0]
             const hora = ag.horario
 
-            const mensagem = `Oi ${primeiroNome}! 😊 Aqui é a ${nomeIA}, da ${nomeClinica}.
-
-Só passando pra lembrar que seu agendamento é *daqui a 2 horas* (às *${hora}*)! ⏰
-
-${ag.clinica.linkMaps ? `📍 ${ag.clinica.linkMaps}\n` : ''}Se precisar de algo, é só me chamar! 💛`
+            const mensagem = lembreteDuasHoras({ idioma, nome: primeiroNome, nomeIA, nomeClinica, hora, linkMaps: ag.clinica.linkMaps })
 
             try {
                 const apiKey = ag.clinica.evolutionApikey || EVOLUTION_API_KEY

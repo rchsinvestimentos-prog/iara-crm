@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { idiomaDaPaciente } from '@/lib/engine/idioma'
+import { followupAbandono } from '@/lib/mensagens-paciente'
 
 const CRON_SECRET = process.env.CRON_SECRET || ''
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
@@ -32,6 +34,7 @@ export async function GET(request: NextRequest) {
                 evolutionApikey: true,
                 funcionalidades: true,
                 configuracoes: true,
+                idioma: true,
             },
         })
 
@@ -85,11 +88,8 @@ export async function GET(request: NextRequest) {
 
                     const primeiroNome = (lead.nome || 'Cliente').split(' ')[0]
 
-                    const mensagem = `Oi ${primeiroNome}! 😊 Aqui é a ${nomeIA}, da ${nomeClinica}.
-
-Vi que a gente ficou de conversar e não quero que você perca essa oportunidade! 💫
-
-Quer que eu te ajude a encontrar o melhor horário? É rapidinho! 📅`
+                    const idioma = await idiomaDaPaciente(clinica.id, lead.telefone, clinica.idioma)
+                    const mensagem = followupAbandono({ idioma, nome: primeiroNome, nomeIA, nomeClinica })
 
                     try {
                         const res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${instanceName}`, {

@@ -9,6 +9,7 @@
 import { prisma } from '@/lib/prisma'
 import type { DadosClinica, ResultadoCatraca } from './types'
 import { carenciaVencida } from '@/lib/pagamentos/pendencia'
+import { normalizarIdioma } from './idioma'
 
 /**
  * Busca a clínica pela instância Evolution ou pelo ID.
@@ -157,7 +158,7 @@ export async function descontarCredito(clinicaId: number): Promise<void> {
  */
 function buildMensagemBloqueio(motivo: string, clinica: DadosClinica): string {
     const nomeClinica = clinica.nomeClinica || 'a clínica'
-    const idioma = clinica.idioma || 'pt-BR'
+    const idioma = normalizarIdioma(clinica.idioma)
 
     if (motivo === 'sem_creditos') {
         if (idioma === 'en-US') {

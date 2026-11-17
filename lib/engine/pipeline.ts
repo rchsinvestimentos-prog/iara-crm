@@ -44,6 +44,8 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as triagem from '@/lib/triagem'
 import { ANOTACAO_RECEBIDO_WHATSAPP } from '@/lib/midia-na-conversa'
+import { idiomaDaPaciente, normalizarIdioma } from './idioma'
+import { midiaRecebida, midiaParaTriagem, semOuvirAudio } from '@/lib/mensagens-paciente'
 
 // ============================================
 // HELPER: Emoji-safe — respeita config da clínica
@@ -190,7 +192,8 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         } else {
             // Encaminhar foto desligado — manda ack simples sem alertar profissionais
             const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
-            await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, 'Recebi! ✨ Vou encaminhar pra equipe, tá? 😊'))
+            const idiomaPaciente = await idiomaDaPaciente(clinica.id, msg.telefone, clinica.idioma)
+            await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, midiaRecebida(idiomaPaciente)))
             await memory.saveToHistory(clinica.id, msg.telefone, 'user', `[${msg.tipoMensagem.toUpperCase()} ENVIADO]`, msg.pushName)
             console.log(`[Pipeline] 📸 Mídia recebida mas encaminhar_foto=OFF — sem alerta`)
         }
@@ -282,7 +285,8 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         if (!funcs.transcrever_audio) {
             await logPipeline('SKIP', `transcrever_audio=OFF — não transcreve áudio`)
             const sendOpts = { instancia: msg.instancia, telefone: msg.telefone, apikey: clinica.evolutionApikey || undefined }
-            await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, 'Oi! No momento não estou conseguindo ouvir áudios 🙈 Pode me mandar por texto? Assim consigo te ajudar rapidinho! 😊'))
+            const idiomaPaciente = await idiomaDaPaciente(clinica.id, msg.telefone, clinica.idioma)
+            await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, semOuvirAudio(idiomaPaciente)))
             await memory.saveToHistory(clinica.id, msg.telefone, 'user', '[ÁUDIO - não transcrito]', msg.pushName)
             return
         }
@@ -308,7 +312,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
         if (audioData) {
             // Salvar o arquivo de áudio recebido fisicamente
             incomingAudioUrl = await audio.saveAudioFile(audioData, 'incoming', clinica.id)
-            const transcricao = await audio.transcribeAudio(audioData)
+            const transcricao = await audio.transcribeAudio(audioData, 'audio/ogg', 'audio.ogg', clinica.idioma)
             if (transcricao) {
                 textoMensagem = `[ÁUDIO RECEBIDO E TRANSCRITO PARA VOCÊ]: ${transcricao}`
                 tipoEntrada = 'audio'
@@ -316,7 +320,7 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
             } else {
                 // Whisper falhou na transcrição — pedir pra repetir de forma natural
                 textoMensagem = '[A cliente enviou um áudio mas o sistema não conseguiu baixar o áudio. Peça com carinho para ela enviar a mensagem por texto, dizendo que no momento está com dificuldade em ouvir áudios.]'
-                console.log(`[Pipeline] ⚠️ Whisper falhou na transcrição`)
+                console.error(`[Pipeline] ⚠️ Transcrição do áudio falhou (modelo principal e reserva) — paciente vai ser pedida para escrever`)
             }
         } else {
             // Não conseguiu baixar o áudio de jeito nenhum
@@ -900,7 +904,8 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
         // Foto de outra rodada (a anterior ainda sem parecer): a cliente ouve
         // "recebi" de novo; a doutora fica com os lembretes de 15 min
         if (avisarCliente) {
-            await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, `Recebi ${msg.tipoMensagem === 'document' ? 'seu documento' : 'sua ' + tipoLabel}! ✨ Já encaminhei pra Doutora, junto com o que você mandou antes. Assim que ela analisar, te damos o retorno 😊`))
+            const idiomaPaciente = await idiomaDaPaciente(clinica.id, msg.telefone, clinica.idioma)
+            await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, midiaParaTriagem(idiomaPaciente, msg.tipoMensagem, true)))
         }
         await memory.saveToHistory(clinica.id, msg.telefone, 'user', `[${msg.tipoMensagem.toUpperCase()} ENVIADO]`, msg.pushName)
         console.log(`[Pipeline] ${tipoEmoji} Mais uma ${tipoLabel} de ${nomeCliente} na mesma leva — sem novo alerta (lembrete a cada 15 min)${avisarCliente ? '; cliente avisada' : ''}`)
@@ -908,7 +913,8 @@ async function handleMediaTriage(clinica: DadosClinica, msg: MensagemRecebida): 
     }
 
     // 5. Avisa a cliente que recebeu
-    await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, `Recebi ${msg.tipoMensagem === 'document' ? 'seu documento' : 'sua ' + tipoLabel}! ✨ Já encaminhei agora mesmo pra Doutora dar uma olhada. Assim que ela ver, já te damos um retorno, tá? 😊`))
+    const idiomaPaciente = await idiomaDaPaciente(clinica.id, msg.telefone, clinica.idioma)
+    await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, midiaParaTriagem(idiomaPaciente, msg.tipoMensagem, false)))
 
     // 6. Alerta a Dra e profissionais no WhatsApp com o link direto de triagem
     const panelUrl = process.env.NEXTAUTH_URL || 'https://app.iara.click'
@@ -1015,7 +1021,7 @@ function buildMsgFechado(clinica: DadosClinica, voltaQuando: string): string {
     }
 
     const nomeClinica = clinica.nomeClinica || 'o studio'
-    const idioma = clinica.idioma || 'pt-BR'
+    const idioma = normalizarIdioma(clinica.idioma)
 
     if (idioma === 'en-US') {
         return stripEmojisIfNeeded(clinica, `Hey! 😊 We're currently closed. We'll be back at ${voltaQuando}. Leave your message and we'll reach out as soon as we open! ✨`)

@@ -14,6 +14,7 @@
 // → Ou mude via painel: clinica.configuracoes.cofre_iara
 
 import { getCofreParaClinica, getLabels } from './cofre'
+import { idiomaDaMensagem, detectarLingua, linguaDoIdioma } from './idioma'
 import type { DadosClinica, Procedimento, FeedbackDra, MemoriaCliente, RespostaIA, ProfissionalAtivo } from './types'
 import { textoAnexosParaPrompt } from '@/lib/anexos-procedimento'
 import { parseFuncionalidades } from './types'
@@ -43,6 +44,22 @@ interface PromptContext {
 }
 
 /**
+ * Regra de idioma, igual para todas as clínicas (fica no trecho do cache).
+ * O resto do prompt é em português; sem esta regra a IA respondia em
+ * português a quem escrevia em espanhol, e chegou a dizer "aqui eu cuido dos
+ * agendamentos em português mesmo".
+ */
+const REGRA_IDIOMA = `
+🌍 IDIOMA (vale mais que qualquer regra de estilo acima):
+- Responda SEMPRE na língua em que a cliente está escrevendo: espanhol → espanhol, inglês → inglês, português → português.
+- Espanhol: use o da Espanha ("vale", "genial", "móvil", "vosotros" no plural). Se ela escrever claramente como latino-americana, acompanhe o jeito dela.
+- Os exemplos deste prompt estão em português: traduza a ideia, nunca copie as palavras. "100% brasileiro" só vale quando a conversa é em português.
+- NUNCA diga que só atende em português, nunca peça para ela trocar de idioma e nunca misture duas línguas na mesma mensagem.
+- Marcadores do sistema ([AGENDAR: ...] e afins) continuam exatamente como estão, em português.`
+
+const NOME_LINGUA = { pt: 'PORTUGUÊS', es: 'ESPANHOL', en: 'INGLÊS' } as const
+
+/**
  * Monta o system prompt completo da IARA.
  * 
  * Junta tudo: identidade + procedimentos + feedbacks + memória
@@ -59,25 +76,18 @@ export function buildSystemPromptPartes(ctx: PromptContext): { estavel: string; 
 
     const nivel = clinica.nivel || 1
 
-    // --- Auto-detect idioma da cliente (multilíngue) ---
-    // Se a clínica tem idioma configurado, usa esse.
-    // Se não, detecta automaticamente pelo texto da mensagem.
-    const detectLanguage = (msg: string): string => {
-        const m = msg.toLowerCase()
-        // Inglês
-        if (/\b(hello|hi|hey|how|what|where|when|why|please|thank|appointment|price|schedule)\b/.test(m)) return 'en-US'
-        // Espanhol
-        if (/\b(hola|buenos|cómo|qué|cuánto|quisiera|precio|cita|gracias|necesito)\b/.test(m)) return 'es-ES'
-        // Italiano
-        if (/\b(ciao|buongiorno|quanto|che|come|quando|appuntamento|grazie|vorrei)\b/.test(m)) return 'it-IT'
-        // Francês
-        if (/\b(bonjour|salut|comment|combien|quand|rendez-vous|merci|je voudrais)\b/.test(m)) return 'fr-FR'
-        return 'pt-BR'
-    }
-
-    const idiomaClinica = clinica.idioma || 'pt-BR'
-    // Mantém idioma da clínica se configurado, senão auto-detecta
-    const idioma = idiomaClinica !== 'pt-BR' ? idiomaClinica : detectLanguage(mensagem)
+    // --- Idioma da conversa ---
+    // A paciente pode escrever num idioma diferente do da clínica (turista no
+    // Brasil, brasileira em Madri). Mensagem com pista clara → idioma dela;
+    // sem pista ("ok", "👍") → idioma da clínica. A regra 🌍 IDIOMA, no fim
+    // do prompt, cuida do resto: a IA acompanha a língua da conversa.
+    //
+    // Antes: a detecção devolvia 'es-ES', que não existe nos rótulos (lá é
+    // 'es'), e a paciente que escrevia em espanhol recebia resposta em
+    // português. "hablas español?" nem era reconhecido.
+    const idioma = idiomaDaMensagem(clinica.idioma, mensagem)
+    const linguaMensagem = detectarLingua(mensagem)
+    const linguaClinica = linguaDoIdioma(clinica.idioma)
     const labels = getLabels(idioma)
     const cofre = getCofreParaClinica(clinica)
 
@@ -647,14 +657,21 @@ ${funcs.vendas_7_passos ? cofreRoteiroFinal : '(Método de vendas desativado pel
 ${cofreObjecoesFinal}
 ${textoMateriais}
 ${comoFalarFinal}
+${REGRA_IDIOMA}
 NÃO VÁ DIRETO PARA A SONDAGEM. Primeiro, acolhimento. Siga PASSO A PASSO, uma mensagem por vez.
 EXCEÇÃO: Se a cliente quer AGENDAR e já sabe o que quer, é FECHAMENTO — não enrole.
 ${configDonaTexto}`
 
     // Tudo que muda de conversa para conversa fica aqui, DEPOIS do trecho cacheado.
+    // Quando a mensagem é claramente de outra língua, avisa no fim do prompt
+    // (o que vem por último pesa mais para a IA).
+    const avisoIdioma = linguaMensagem && linguaMensagem !== linguaClinica
+        ? `\n🌍 A cliente escreveu esta mensagem em ${NOME_LINGUA[linguaMensagem]}. Responda em ${NOME_LINGUA[linguaMensagem]}.\n`
+        : ''
+
     const volatil = `${memoriaTexto}${agendaTexto}
-NOME DA CLIENTE COM QUEM VOCÊ ESTÁ FALANDO AGORA: ${nomeCliente}
-${tipoEntrada === 'audio' ? `\n🎤 REGRA DE ÁUDIO: Sua resposta será convertida em VOZ. Escreva TODAS as palavras POR EXTENSO:\n- NUNCA use: HRS, h, min, Dra., Dr., nº, R$, %, etc.\n- Escreva: "horas", "minutos", "Doutora", "Doutor", "número", "reais", "por cento"\n- Escreva números de telefone dígito por dígito\n- NÃO use emojis (eles não são falados)\n` : ''}
+NOME DA CLIENTE COM QUEM VOCÊ ESTÁ FALANDO AGORA: ${nomeCliente}${avisoIdioma}
+${tipoEntrada === 'audio' ? `\n🎤 REGRA DE ÁUDIO: Sua resposta será convertida em VOZ. Escreva TODAS as palavras POR EXTENSO, no idioma da resposta:\n- NUNCA use: HRS, h, min, Dra., Dr., nº, R$, %, etc.\n- Escreva: "horas", "minutos", "Doutora", "Doutor", "número", "reais", "por cento"\n- Escreva números de telefone dígito por dígito\n- NÃO use emojis (eles não são falados)\n` : ''}
 ${temHistorico ? `\n🔁 LEMBRETE FINAL: NÃO comece com "Oi" — esta conversa já está em andamento.` : ''}`
 
     return { estavel, volatil }

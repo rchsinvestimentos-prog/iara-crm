@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions, getClinicaId } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 import { transcribeAudio } from '@/lib/engine/audio'
 
 /**
  * POST /api/voz/transcrever
  * Body: { audioBase64: string, mimeType?: string }
  *
- * Converte um áudio gravado no navegador em texto, pelo mesmo Whisper que a
- * IARA usa quando a paciente manda áudio no WhatsApp.
+ * Converte um áudio gravado no navegador em texto, pela mesma transcrição que a
+ * IARA usa quando a paciente manda áudio no WhatsApp (em qualquer idioma).
  *
  * Serve ao simulador: gravar e mandar áudio testa também a compreensão, não
  * só a resposta. Sotaque, ruído de fundo e nome de procedimento mal
@@ -43,7 +44,19 @@ export async function POST(request: NextRequest) {
             : tipo.includes('mpeg') ? 'mp3'
             : tipo.includes('wav') ? 'wav'
             : 'ogg'
-        const texto = await transcribeAudio(audioBase64, tipo || 'audio/ogg', `audio.${extensao}`)
+        // O idioma da clínica só é usado se a transcrição principal falhar e
+        // cair na reserva (que precisa saber o idioma de antemão).
+        let idiomaClinica: string | null = null
+        try {
+            const clinicaId = await getClinicaId(session)
+            const clinica = clinicaId
+                ? await prisma.clinica.findUnique({ where: { id: clinicaId }, select: { idioma: true } })
+                : null
+            idiomaClinica = clinica?.idioma ?? null
+        } catch (err) {
+            console.error('[Transcrever] Não consegui ler o idioma da clínica — reserva fica em português:', err)
+        }
+        const texto = await transcribeAudio(audioBase64, tipo || 'audio/ogg', `audio.${extensao}`, idiomaClinica)
         if (!texto) {
             return NextResponse.json({ error: 'Não consegui entender o áudio' }, { status: 502 })
         }

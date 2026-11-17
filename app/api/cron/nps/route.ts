@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { idiomaDaPaciente } from '@/lib/engine/idioma'
+import { pesquisaNps } from '@/lib/mensagens-paciente'
 
 const CRON_SECRET = process.env.CRON_SECRET || ''
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
@@ -46,6 +48,7 @@ export async function GET(request: NextRequest) {
                         evolutionInstance: true,
                         status: true,
                         configuracoes: true,
+                        idioma: true,
                         // Link Google Maps/Review — salvo em configuracoes
                     },
                 },
@@ -73,11 +76,8 @@ export async function GET(request: NextRequest) {
             const primeiroNome = (agend.nomePaciente || 'Cliente').split(' ')[0]
             const linkGoogle = config.linkGoogleReview || ''
 
-            const mensagem = `Oi ${primeiroNome}! 😊 Aqui é a ${nomeIA}, da ${nomeClinica}.
-
-Passando rapidinho pra saber como foi sua experiência ontem! 💛
-
-De 0 a 10, como você avalia nosso atendimento?${linkGoogle ? `\n\nSe puder também deixar uma avaliaçãozinha no Google, ajuda muito a gente! ⭐\n${linkGoogle}` : ''}`
+            const idioma = await idiomaDaPaciente(clinica.id, agend.telefone, clinica.idioma)
+            const mensagem = pesquisaNps({ idioma, nome: primeiroNome, nomeIA, nomeClinica, linkGoogle })
 
             try {
                 const res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${clinica.evolutionInstance}`, {

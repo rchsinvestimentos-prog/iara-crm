@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { idiomaDaPaciente } from '@/lib/engine/idioma'
+import { lembreteVespera, diaPorExtenso, horaCurta } from '@/lib/mensagens-paciente'
 
 const CRON_SECRET = process.env.CRON_SECRET || ''
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
@@ -42,6 +44,7 @@ export async function GET(request: NextRequest) {
                 linkMaps: true,
                 configuracoes: true,
                 funcionalidades: true,
+                idioma: true,
             },
         })
 
@@ -89,18 +92,14 @@ export async function GET(request: NextRequest) {
             const novoLembretes = [...lembretes]
 
             for (const agend of pendentes) {
+                // Idioma em que a paciente conversa (espanhol, inglês...), senão o da clínica
+                const idioma = await idiomaDaPaciente(clinica.id, agend.telefone, clinica.idioma)
                 const primeiroNome = (agend.nomePaciente || 'Cliente').split(' ')[0]
                 const dataAgend = new Date(agend.data)
-                const hora = dataAgend.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                const dia = dataAgend.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+                const hora = horaCurta(dataAgend, idioma)
+                const dia = diaPorExtenso(dataAgend, idioma)
 
-                const mensagem = `Oi ${primeiroNome}! 😊 Aqui é a ${nomeIA}, da ${nomeClinica}.
-
-Passando para lembrar do seu agendamento de amanhã! 📅
-
-🗓 *${dia}* às *${hora}*${linkMaps ? `\n📍 ${linkMaps}` : ''}
-
-Se precisar remarcar ou tiver alguma dúvida, é só falar aqui! 💛`
+                const mensagem = lembreteVespera({ idioma, nome: primeiroNome, nomeIA, nomeClinica, dia, hora, linkMaps })
 
                 try {
                     const res = await fetch(`${EVOLUTION_API_URL}/message/sendText/${instanceName}`, {

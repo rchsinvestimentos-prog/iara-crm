@@ -234,6 +234,11 @@ export interface ConfigSaida {
     provedorVoz: 'azure' | 'elevenlabs' | 'fish' | 'openai_tts' | null
     voiceId: string | null
     /**
+     * Idioma da clínica. A voz segue a língua do texto da resposta; este é o
+     * desempate quando o texto não dá pista ("Perfeito!", "Ok").
+     */
+    idiomaClinica?: string | null
+    /**
      * Palavras que a clínica ensinou a IARA a pronunciar.
      * 'escrita' é como aparece no texto; 'falada' é o que vai para a voz.
      * Ex.: { escrita: 'peeling', falada: 'pílin' }

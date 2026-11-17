@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { idiomaDaPaciente } from '@/lib/engine/idioma'
+import {
+    aniversarioDoMes, parabensDoDia, extrasDoParabens,
+    descontoAniversario7Dias, descontoAniversario15Dias, descontoAniversarioUltimoAviso,
+} from '@/lib/mensagens-paciente'
 
 const CRON_SECRET = process.env.CRON_SECRET || ''
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ''
@@ -33,7 +38,7 @@ export async function GET(request: NextRequest) {
             select: {
                 id: true, nomeClinica: true, nomeAssistente: true,
                 evolutionInstance: true, evolutionApikey: true,
-                configuracoes: true, whatsappDoutora: true,
+                configuracoes: true, whatsappDoutora: true, idioma: true,
             },
         })
 
@@ -83,8 +88,9 @@ export async function GET(request: NextRequest) {
                             const key = `mensal_${c.id}`
                             if (anivEnviados.includes(key)) continue
                             const nome1 = (c.nome || 'Cliente').split(' ')[0]
+                            const idioma = await idiomaDaPaciente(clinica.id, c.telefone, clinica.idioma)
                             const msg = montarMsg(anivConfig.mensagemDesconto || '', nome1, nomeClinica, anivConfig)
-                                || `💜 ${nome1}, seu aniversário é esse mês! A ${nomeClinica} preparou algo especial pra você! 🎁✨`
+                                || aniversarioDoMes({ idioma, nome: nome1, nomeClinica })
                             const ok = await enviarMsg(clinica, c.telefone, msg)
                             if (ok) { enviados++; anivEnviados.push(key) } else erros++
                         }
@@ -103,12 +109,14 @@ export async function GET(request: NextRequest) {
                     const key = `parabens_${c.id}`
                     if (anivEnviados.includes(key)) continue
                     const nome1 = (c.nome || 'Cliente').split(' ')[0]
+                    const idioma = await idiomaDaPaciente(clinica.id, c.telefone, clinica.idioma)
+                    const extras = extrasDoParabens(idioma)
                     let msg = montarMsg(anivConfig.mensagemParabens || '', nome1, nomeClinica, anivConfig)
-                        || `🎂 Parabéns, ${nome1}!!! 🎉\n\nAqui é da ${nomeClinica}! Que esse dia seja tão especial quanto você! 💜✨`
+                        || parabensDoDia({ idioma, nome: nome1, nomeClinica })
 
                     // Adicionar desconto se ativo
                     if (anivConfig.descontoAtivo) {
-                        msg += `\n\n🎁 Presente: ${anivConfig.descontoPct || 10}% de desconto válido por ${anivConfig.descontoValidade || 30} dias!`
+                        msg += extras.presente(anivConfig.descontoPct || 10, anivConfig.descontoValidade || 30)
                     }
                     // Combo
                     if (anivConfig.comboAtivo && anivConfig.comboDescricao) {
@@ -117,7 +125,7 @@ export async function GET(request: NextRequest) {
                     // Cupom
                     if (anivConfig.cupomAtivo) {
                         const cupom = `${anivConfig.cupomPrefixo || 'ANIV'}-${nome1.toUpperCase()}-${hoje.getFullYear()}`
-                        msg += `\n\n🎟️ Seu cupom: ${cupom}`
+                        msg += extras.cupom(cupom)
                     }
 
                     const ok = await enviarMsg(clinica, c.telefone, msg)
@@ -141,7 +149,8 @@ export async function GET(request: NextRequest) {
                     if (diasDepois === 7 && anivConfig.lembretePos7) {
                         const key = `lembrete7_${c.id}`
                         if (!anivEnviados.includes(key)) {
-                            const msg = `💜 ${nome1}, ainda dá tempo! Seu desconto de aniversário de ${desconto}% continua valendo! Faltam ${validade - 7} dias. Quer agendar? 😊`
+                            const idioma = await idiomaDaPaciente(clinica.id, c.telefone, clinica.idioma)
+                            const msg = descontoAniversario7Dias({ idioma, nome: nome1, nomeClinica, desconto, faltam: validade - 7 })
                             const ok = await enviarMsg(clinica, c.telefone, msg)
                             if (ok) { enviados++; anivEnviados.push(key) } else erros++
                         }
@@ -151,7 +160,8 @@ export async function GET(request: NextRequest) {
                     if (diasDepois === 15 && anivConfig.lembretePos15) {
                         const key = `lembrete15_${c.id}`
                         if (!anivEnviados.includes(key)) {
-                            const msg = `✨ ${nome1}, seu presente de aniversário (${desconto}% OFF) ainda está disponível! Restam ${validade - 15} dias. Aproveite! 🎁`
+                            const idioma = await idiomaDaPaciente(clinica.id, c.telefone, clinica.idioma)
+                            const msg = descontoAniversario15Dias({ idioma, nome: nome1, nomeClinica, desconto, faltam: validade - 15 })
                             const ok = await enviarMsg(clinica, c.telefone, msg)
                             if (ok) { enviados++; anivEnviados.push(key) } else erros++
                         }
@@ -161,7 +171,8 @@ export async function GET(request: NextRequest) {
                     if (diasDepois === 25 && anivConfig.ultimoAviso25) {
                         const key = `ultimo_${c.id}`
                         if (!anivEnviados.includes(key)) {
-                            const msg = `🔔 ${nome1}, ÚLTIMO AVISO! Seu desconto de aniversário de ${desconto}% expira em ${validade - 25} dias! Não deixe essa chance passar! 💜`
+                            const idioma = await idiomaDaPaciente(clinica.id, c.telefone, clinica.idioma)
+                            const msg = descontoAniversarioUltimoAviso({ idioma, nome: nome1, nomeClinica, desconto, faltam: validade - 25 })
                             const ok = await enviarMsg(clinica, c.telefone, msg)
                             if (ok) { enviados++; anivEnviados.push(key) } else erros++
                         }

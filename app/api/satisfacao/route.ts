@@ -2,6 +2,8 @@ import { NextResponse, NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions, getClinicaId } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { idiomaDaPaciente } from '@/lib/engine/idioma'
+import { pedidoAvaliacaoGoogle } from '@/lib/mensagens-paciente'
 
 // GET /api/satisfacao — Listar avaliações + NPS
 export async function GET(req: NextRequest) {
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
             try {
                 const clinica = await prisma.clinica.findUnique({
                     where: { id: clinicaId },
-                    select: { configuracoes: true, evolutionInstance: true, evolutionApikey: true },
+                    select: { configuracoes: true, evolutionInstance: true, evolutionApikey: true, idioma: true },
                 })
 
                 const config = (clinica?.configuracoes as any) || {}
@@ -90,8 +92,9 @@ export async function POST(req: NextRequest) {
                     const EVOLUTION_URL = process.env.EVOLUTION_API_URL || 'https://evolution.belivv.com'
                     const EVOLUTION_KEY = clinica.evolutionApikey || process.env.EVOLUTION_API_KEY || ''
 
+                    const idioma = await idiomaDaPaciente(clinicaId, telefone, clinica.idioma)
                     const mensagem = config?.mensagemGoogleReview
-                        || `Oi ${nome || ''}! 😊 Ficamos muito felizes com sua avaliação! Se puder, deixe um comentário no nosso Google também: ${linkGoogle} — Agradecemos demais! 💜`
+                        || pedidoAvaliacaoGoogle({ idioma, nome, linkGoogle })
 
                     await fetch(`${EVOLUTION_URL}/message/sendText/${clinica.evolutionInstance}`, {
                         method: 'POST',

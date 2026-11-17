@@ -100,7 +100,7 @@ async function transcreverParaOLote(
     try {
         const clinica = await prisma.clinica.findFirst({
             where: { evolutionInstance: msg.instancia },
-            select: { id: true, funcionalidades: true, evolutionApikey: true },
+            select: { id: true, funcionalidades: true, evolutionApikey: true, idioma: true },
         })
         if (!clinica) return null
 
@@ -116,7 +116,7 @@ async function transcreverParaOLote(
         if (!dados) return null
 
         const audioUrl = await audio.saveAudioFile(dados, 'incoming', clinica.id)
-        const transcricao = await audio.transcribeAudio(dados)
+        const transcricao = await audio.transcribeAudio(dados, 'audio/ogg', 'audio.ogg', clinica.idioma)
         if (!transcricao) return null
 
         console.log(`[Agrupador] 🎤 áudio transcrito: "${transcricao.slice(0, 60)}..."`)

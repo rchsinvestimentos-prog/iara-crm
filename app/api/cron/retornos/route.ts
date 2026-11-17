@@ -14,6 +14,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendText } from '@/lib/engine/sender'
+import { idiomaDaPaciente } from '@/lib/engine/idioma'
+import { retornoCombinado } from '@/lib/mensagens-paciente'
 
 const CRON_SECRET = process.env.CRON_SECRET || ''
 
@@ -58,7 +60,10 @@ export async function GET(req: NextRequest) {
                 continue
             }
 
-            const mensagem = contato.retornoMensagem || 'Olá! Estamos entrando em contato conforme combinado. 😊'
+            const mensagem = contato.retornoMensagem
+                || retornoCombinado(contato.clinicaId
+                    ? await idiomaDaPaciente(contato.clinicaId, contato.telefone, contato.clinica?.idioma)
+                    : contato.clinica?.idioma)
 
             try {
                 const ok = await sendText(

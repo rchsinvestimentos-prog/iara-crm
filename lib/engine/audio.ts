@@ -10,6 +10,7 @@
 // - P3+ (Designer/Audiovisual): ElevenLabs com voz clonada da Dra
 
 import type { DadosClinica, ConfigSaida } from './types'
+import { detectarLingua, linguaDoIdioma, type Lingua } from './idioma'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -17,37 +18,68 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ''
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || ''
 
 // ============================================
-// TRANSCRIÇÃO (Whisper)
+// TRANSCRIÇÃO
 // ============================================
 
 /**
- * Transcreve áudio usando OpenAI Whisper.
- * 
- * Recebe: áudio em base64
- * Retorna: texto transcrito
+ * Modelo da transcrição. O gpt-4o-transcribe descobre sozinho o idioma do
+ * áudio e acerta até áudio de uma palavra ("Sim.", "Sí.", "Yes.").
+ *
+ * Antes era o whisper-1 com language='pt' fixo: ele TRADUZIA para português
+ * tudo o que não era português, e errava no caminho — "jueves" (quinta)
+ * virava "jovem" e "Thursday" (quinta) virava "quarta-feira". Paciente de
+ * Madri ou turista marcava no dia errado. O whisper-1 sem idioma fixo também
+ * não serve: "Sim." curtinho sai como "Sing", em inglês.
+ *
+ * Mesmo preço por minuto do whisper-1. Trocável sem deploy pelo ambiente.
+ */
+const MODELO_TRANSCRICAO = process.env.MODELO_TRANSCRICAO || 'gpt-4o-transcribe'
+
+/**
+ * Transcreve o áudio da paciente, no idioma em que ela falou.
+ *
+ * idiomaClinica só é usado na reserva: se o modelo principal falhar, o
+ * whisper-1 entra com o idioma da clínica fixo (sem ele, áudio curto em
+ * português pode sair em inglês).
+ *
+ * Retorna: texto transcrito, ou '' se nada funcionou.
  */
 export async function transcribeAudio(
     audioBase64: string,
     // Áudio do WhatsApp é ogg. O gravado no painel vem do navegador: webm no
-    // Chrome, mp4 no iPhone — o Whisper decide o formato pelo nome do arquivo.
+    // Chrome, mp4 no iPhone — a OpenAI decide o formato pelo nome do arquivo.
     mimeType: string = 'audio/ogg',
     nomeArquivo: string = 'audio.ogg',
+    idiomaClinica?: string | null,
 ): Promise<string> {
     if (!audioBase64 || !OPENAI_API_KEY) {
         console.error('[Audio] Sem áudio base64 ou API key')
         return ''
     }
 
-    try {
-        // Converter base64 para buffer
-        const audioBuffer = Buffer.from(audioBase64, 'base64')
+    const audioBuffer = Buffer.from(audioBase64, 'base64')
 
-        // Montar FormData com o arquivo
+    const principal = await chamarTranscricao(audioBuffer, mimeType, nomeArquivo, MODELO_TRANSCRICAO)
+    if (principal) return principal
+
+    // Reserva: whisper-1 com o idioma da clínica fixo
+    const lingua = linguaDoIdioma(idiomaClinica)
+    console.warn(`[Audio] ⚠️ ${MODELO_TRANSCRICAO} falhou → tentando whisper-1 em '${lingua}'`)
+    return chamarTranscricao(audioBuffer, mimeType, nomeArquivo, 'whisper-1', lingua)
+}
+
+async function chamarTranscricao(
+    audioBuffer: Buffer,
+    mimeType: string,
+    nomeArquivo: string,
+    modelo: string,
+    lingua?: string,
+): Promise<string> {
+    try {
         const formData = new FormData()
-        const audioBlob = new Blob([audioBuffer], { type: mimeType })
-        formData.append('file', audioBlob, nomeArquivo)
-        formData.append('model', 'whisper-1')
-        formData.append('language', 'pt') // detecta automatico se não for PT
+        formData.append('file', new Blob([new Uint8Array(audioBuffer)], { type: mimeType }), nomeArquivo)
+        formData.append('model', modelo)
+        if (lingua) formData.append('language', lingua)
 
         const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
             method: 'POST',
@@ -55,21 +87,24 @@ export async function transcribeAudio(
                 'Authorization': `Bearer ${OPENAI_API_KEY}`,
             },
             body: formData,
+            signal: AbortSignal.timeout(45000),
         })
 
         if (!res.ok) {
-            const err = await res.text()
-            console.error('[Audio] Erro Whisper:', err)
+            console.error(`[Audio] Erro na transcrição (${modelo}) HTTP ${res.status}:`, (await res.text()).slice(0, 300))
             return ''
         }
 
         const data = await res.json()
         const texto = (data.text || '').trim()
-        console.log(`[Audio] ✅ Transcrito: "${texto.slice(0, 80)}..."`)
+        if (!texto) {
+            console.error(`[Audio] Transcrição (${modelo}) voltou vazia`)
+            return ''
+        }
+        console.log(`[Audio] ✅ Transcrito (${modelo}): "${texto.slice(0, 80)}..."`)
         return texto
-
     } catch (err) {
-        console.error('[Audio] Erro na transcrição:', err)
+        console.error(`[Audio] Erro na transcrição (${modelo}):`, err)
         return ''
     }
 }
@@ -261,7 +296,7 @@ export function determineOutputType(
     if (escolha === 'clone' && temPacoteClonagem && vozClonadaId) {
         if (cotaClonadaDisponivel) {
             console.log('[Audio] 🎙️ voz: clone (Fish Audio)')
-            return { tipoSaida: 'audio', provedorVoz: 'fish', voiceId: vozClonadaId, pronuncias }
+            return { tipoSaida: 'audio', provedorVoz: 'fish', voiceId: vozClonadaId, pronuncias, idiomaClinica: clinica.idioma }
         }
         console.log('[Audio] 🎙️ cota de voz clonada esgotada — usando a voz seguinte')
     }
@@ -276,7 +311,7 @@ export function determineOutputType(
     if (escolha === 'realista' && temPacoteRealista && elevenVoiceId) {
         if (cotaRealistaDisponivel) {
             console.log('[Audio] 🎙️ voz: realista (ElevenLabs)')
-            return { tipoSaida: 'audio', provedorVoz: 'elevenlabs', voiceId: elevenVoiceId, pronuncias }
+            return { tipoSaida: 'audio', provedorVoz: 'elevenlabs', voiceId: elevenVoiceId, pronuncias, idiomaClinica: clinica.idioma }
         }
         console.log('[Audio] 🎙️ cota de voz realista esgotada no mês — usando Azure')
     }
@@ -285,7 +320,7 @@ export function determineOutputType(
     // PADRÃO — Azure, incluída em todos os planos
     // -----------------------------------------------
     console.log(`[Audio] 🎙️ voz: padrão (Azure ${azureVoiceId})`)
-    return { tipoSaida: 'audio', provedorVoz: 'azure', voiceId: azureVoiceId, pronuncias }
+    return { tipoSaida: 'audio', provedorVoz: 'azure', voiceId: azureVoiceId, pronuncias, idiomaClinica: clinica.idioma }
 }
 
 /**
@@ -351,6 +386,25 @@ export const VOZES_AZURE = [
 export const VOZ_AZURE_PADRAO = 'pt-BR-FranciscaNeural'
 
 /**
+ * Voz da Azure para quando a resposta não é em português. As vozes do painel
+ * são todas brasileiras: lendo espanhol, saía espanhol com sotaque do Brasil.
+ * Espanhol usa voz da Espanha (é o mercado principal fora do Brasil).
+ */
+const VOZ_AZURE_POR_LINGUA: Record<Lingua, string> = {
+    pt: VOZ_AZURE_PADRAO,
+    es: 'es-ES-ElviraNeural',
+    en: 'en-US-JennyNeural',
+}
+
+/** A voz escolhida pela clínica, se ela fala a língua da resposta; senão a voz nativa dessa língua. */
+export function vozAzureParaLingua(lingua: Lingua, escolhida?: string | null): string {
+    if (escolhida && escolhida.toLowerCase().startsWith(lingua + '-')) return escolhida
+    // Voz multilíngue da Azure fala qualquer língua: respeita a escolha
+    if (escolhida && /multilingual/i.test(escolhida)) return escolhida
+    return VOZ_AZURE_POR_LINGUA[lingua]
+}
+
+/**
  * Gera áudio com a Azure (voz padrão de todos os planos).
  *
  * Custa quase o mesmo da OpenAI e soa muito melhor em português: a OpenAI
@@ -375,7 +429,9 @@ export async function generateTTS_Azure(
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
 
-    const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="pt-BR">`
+    // O idioma do SSML acompanha a voz (pt-BR-..., es-ES-..., en-US-...)
+    const idiomaVoz = /^[a-z]{2}-[A-Z]{2}/.exec(voiceId)?.[0] || 'pt-BR'
+    const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${idiomaVoz}">`
         + `<voice name="${voiceId}"><prosody rate="+4%">${escapado}</prosody></voice></speak>`
 
     try {
@@ -498,9 +554,20 @@ export async function generateTTS_ElevenLabs(
  * Pré-processa texto antes de enviar ao TTS.
  * Expande abreviações, remove emojis, normaliza números para pronunça natural.
  */
+/** Como a voz lê abreviações, valores e horas em cada língua. */
+const PALAVRAS_TTS: Record<Lingua, {
+    horas: string | null; e: string; minutos: string; doutora: string; doutor: string
+    reais: string; centavos: string; dolares: string; porCento: string; numero: string
+}> = {
+    pt: { horas: 'horas', e: 'e', minutos: 'minutos', doutora: 'Doutora', doutor: 'Doutor', reais: 'reais', centavos: 'centavos', dolares: 'dólares', porCento: 'por cento', numero: 'número' },
+    es: { horas: 'horas', e: 'y', minutos: 'minutos', doutora: 'Doctora', doutor: 'Doctor', reais: 'reales', centavos: 'céntimos', dolares: 'dólares', porCento: 'por ciento', numero: 'número' },
+    en: { horas: null, e: 'and', minutos: 'minutes', doutora: 'Doctor', doutor: 'Doctor', reais: 'reais', centavos: 'cents', dolares: 'dollars', porCento: 'percent', numero: 'number' },
+}
+
 function prepareTextForTTS(
     texto: string,
-    pronuncias?: { escrita: string; falada: string }[]
+    pronuncias?: { escrita: string; falada: string }[],
+    lingua: Lingua = 'pt',
 ): string {
     // As pronúncias da clínica vêm primeiro: são nomes próprios (marca da
     // clínica, nome de procedimento, sobrenome da profissional) que as regras
@@ -523,38 +590,49 @@ function prepareTextForTTS(
         }
     }
 
-    return base
+    const w = PALAVRAS_TTS[lingua]
+    let t = base
         // Asteriscos de formatação WhatsApp (negrito)
         .replace(/\*/g, '')
-        // Horas: "15hrs" → "15 horas", "15h" → "15 horas", "15h30" → "15 horas e 30"
-        .replace(/(\d{1,2})\s*hrs?\b/gi, '$1 horas')
-        .replace(/(\d{1,2})\s*hs?\b/gi, '$1 horas')
-        .replace(/(\d{1,2})h(\d{2})\b/gi, '$1 horas e $2')
-        .replace(/(\d{1,2})h\b/gi, '$1 horas')
+    // Horas: "15hrs" → "15 horas", "15h" → "15 horas", "15h30" → "15 horas e 30".
+    // Em inglês "15h" não se usa (é "3pm"), então a regra não se aplica.
+    if (w.horas) {
+        t = t
+            .replace(/(\d{1,2})\s*hrs?\b/gi, `$1 ${w.horas}`)
+            .replace(/(\d{1,2})\s*hs?\b/gi, `$1 ${w.horas}`)
+            .replace(/(\d{1,2})h(\d{2})\b/gi, `$1 ${w.horas} ${w.e} $2`)
+            .replace(/(\d{1,2})h\b/gi, `$1 ${w.horas}`)
+    }
+    t = t
         // Minutos: "30min" → "30 minutos"
-        .replace(/(\d+)\s*min\b/gi, '$1 minutos')
+        .replace(/(\d+)\s*min\b/gi, `$1 ${w.minutos}`)
         // Dra. / Dr.
-        .replace(/\bDra\.\s*/gi, 'Doutora ')
-        .replace(/\bDr\.\s*/gi, 'Doutor ')
+        .replace(/\bDra\.\s*/gi, `${w.doutora} `)
+        .replace(/\bDr\.\s*/gi, `${w.doutor} `)
         // R$ valores: "R$ 150,00" → "150 reais", "R$ 1.500" → "1500 reais"
-        .replace(/R\$\s*(\d+)\.(\d{3}),(\d{2})/g, '$1$2 reais e $3 centavos')
-        .replace(/R\$\s*(\d+)\.(\d{3})/g, '$1$2 reais')
-        .replace(/R\$\s*(\d+),(\d{2})/g, '$1 reais e $2 centavos')
-        .replace(/R\$\s*(\d+)/g, '$1 reais')
+        .replace(/R\$\s*(\d+)\.(\d{3}),(\d{2})/g, `$1$2 ${w.reais} ${w.e} $3 ${w.centavos}`)
+        .replace(/R\$\s*(\d+)\.(\d{3})/g, `$1$2 ${w.reais}`)
+        .replace(/R\$\s*(\d+),(\d{2})/g, `$1 ${w.reais} ${w.e} $2 ${w.centavos}`)
+        .replace(/R\$\s*(\d+)/g, `$1 ${w.reais}`)
         // US$ / € / $
-        .replace(/US\$\s*(\d+)/g, '$1 dólares')
+        .replace(/US\$\s*(\d+)/g, `$1 ${w.dolares}`)
         .replace(/\u20ac\s*(\d+)/g, '$1 euros')
         // Porcentagem: "10%" → "10 por cento"
-        .replace(/(\d+)%/g, '$1 por cento')
+        .replace(/(\d+)%/g, `$1 ${w.porCento}`)
         // Endereço
-        .replace(/\bnº\s*/gi, 'número ')
-        .replace(/\bN\.\s*(\d)/gi, 'número $1')
-        // Abreviações comuns
-        .replace(/\bobs\b/gi, 'observação')
-        .replace(/\btel\b/gi, 'telefone')
-        .replace(/\bqtd\b/gi, 'quantidade')
-        .replace(/\bex\b/gi, 'exemplo')
-        .replace(/\bprof\b/gi, 'profissional')
+        .replace(/\bnº\s*/gi, `${w.numero} `)
+        .replace(/\bN\.\s*(\d)/gi, `${w.numero} $1`)
+    // Abreviações comuns do português — em espanhol e inglês "ex", "tel" e
+    // "prof" ou não existem ou querem dizer outra coisa.
+    if (lingua === 'pt') {
+        t = t
+            .replace(/\bobs\b/gi, 'observação')
+            .replace(/\btel\b/gi, 'telefone')
+            .replace(/\bqtd\b/gi, 'quantidade')
+            .replace(/\bex\b/gi, 'exemplo')
+            .replace(/\bprof\b/gi, 'profissional')
+    }
+    return t
         // Emojis (remover para TTS — não são pronúncias)
         .replace(/[\u{1F600}-\u{1F64F}]/gu, '')
         .replace(/[\u{1F300}-\u{1F5FF}]/gu, '')
@@ -584,8 +662,14 @@ export async function generateTTS(
 ): Promise<string | null> {
     if (config.tipoSaida !== 'audio' || !config.provedorVoz) return null
 
+    // Língua do que vai ser falado: a IARA responde no idioma da paciente,
+    // que pode não ser o da clínica. Texto sem pista → idioma da clínica.
+    // Exige 3 pontos: "Botox ou lips?" numa clínica brasileira não pode sair
+    // na voz americana. Resposta inteira em espanhol passa disso fácil.
+    const lingua: Lingua = detectarLingua(texto, 3) || linguaDoIdioma(config.idiomaClinica)
+
     // Pré-processar texto para pronunça natural
-    const textoProcessado = prepareTextForTTS(texto, config.pronuncias)
+    const textoProcessado = prepareTextForTTS(texto, config.pronuncias, lingua)
     console.log(`[TTS] Texto processado: "${textoProcessado.slice(0, 80)}..."`)
 
     // Contabiliza o custo de voz: na ElevenLabs 1 caractere = 1 crédito, e o
@@ -602,7 +686,9 @@ export async function generateTTS(
     // Antes a queda era direto para a OpenAI e ninguém era avisado — foi
     // assim que clínicas pagando pelos planos 2 e 3 ficaram meses com a voz
     // robótica depois que a chave da ElevenLabs foi revogada.
-    const azureId = VOZ_AZURE_PADRAO
+    // Voz da Azure para esta resposta: a escolhida no painel quando ela fala
+    // a língua da resposta, senão uma voz nativa (espanhol → Espanha).
+    const azureId = vozAzureParaLingua(lingua, config.provedorVoz === 'azure' ? config.voiceId : null)
 
     if (config.provedorVoz === 'fish' && config.voiceId) {
         const audio = await generateTTS_Fish(textoProcessado, config.voiceId)
@@ -621,7 +707,7 @@ export async function generateTTS(
     }
 
     if (config.provedorVoz === 'azure') {
-        const audio = await generateTTS_Azure(textoProcessado, config.voiceId || azureId)
+        const audio = await generateTTS_Azure(textoProcessado, azureId)
         if (audio) return audio
         console.warn('[TTS] ⚠️ Azure falhou → caindo para OpenAI')
         return generateTTS_OpenAI(textoProcessado, 'nova')

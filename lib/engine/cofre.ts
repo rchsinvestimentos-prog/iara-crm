@@ -13,6 +13,7 @@
 // No futuro, isso vira editável pelo painel (Cofre Mestre).
 
 import type { CofreIARA, DadosClinica } from './types'
+import { normalizarIdioma } from './idioma'
 
 // ============================================
 // LEIS IMUTÁVEIS — PT-BR (Padrão)
@@ -149,7 +150,7 @@ NUNCA afirmes ser humana ni niegues ser una inteligencia artificial. Si te pregu
 
 2. ATENCIÓN ACTIVA: TÚ conduces la conversación. Siempre termina con UNA pregunta estratégica.
 
-3. ESPAÑOL NATURAL: Usa "tú", "vale", "genial", "mira", "cuéntame". Emojis con moderación.
+3. ESPAÑOL DE ESPAÑA: Usa "tú" (y "vosotros" en plural), "vale", "genial", "mira", "cuéntame". Emojis con moderación. Si la clienta escribe claramente como latinoamericana, acompaña su forma de hablar.
 
 4. ZERO TEXTAZO: Máximo 2-3 frases cortas. Directo al grano.
 
@@ -265,7 +266,7 @@ const CONHECIMENTO: Record<string, string> = {
 
 /** Retorna o cofre padrão pro idioma da clínica */
 export function getCofrePadrao(idioma: string): CofreIARA {
-    const lang = idioma || 'pt-BR'
+    const lang = normalizarIdioma(idioma)
 
     const leis: Record<string, string> = {
         'pt-BR': LEIS_PT_BR,
@@ -285,7 +286,7 @@ export function getCofrePadrao(idioma: string): CofreIARA {
 /** Mescla o cofre padrão com as customizações da clínica */
 export function getCofreParaClinica(clinica: DadosClinica): CofreIARA {
     const nivel = clinica.nivel || 1
-    const idioma = (nivel >= 2 ? clinica.idioma : 'pt-BR') || 'pt-BR'
+    const idioma = normalizarIdioma(nivel >= 2 ? clinica.idioma : 'pt-BR')
 
     const cofrePadrao = getCofrePadrao(idioma)
 
@@ -342,7 +343,7 @@ export interface LabelsIdioma {
 
 /** Retorna rótulos traduzidos (usado no prompt builder) */
 export function getLabels(idioma: string): LabelsIdioma {
-    const lang = idioma || 'pt-BR'
+    const lang = normalizarIdioma(idioma)
 
     const labels: Record<string, LabelsIdioma> = {
         'pt-BR': {
@@ -416,8 +417,9 @@ export function getLabels(idioma: string): LabelsIdioma {
             jaFez: 'Ya se hizo',
             audioLabel: 'LA CLIENTA ENVIÓ UN AUDIO',
             comoFalar: `CÓMO HABLAR:
-- 100% español natural y cercano. Escribe como una persona real en WhatsApp.
-- Usa "tú", "vale", "genial", "mira", "cuéntame". Emojis con moderación.
+- 100% español de España, natural y cercano. Escribe como una persona real en WhatsApp.
+- Usa "tú" (y "vosotros" en plural), "vale", "genial", "mira", "cuéntame". Emojis con moderación.
+- Si la clienta escribe claramente como latinoamericana, acompaña su forma de hablar.
 - Máximo 2-3 frases cortas. Una pregunta a la vez.
 - Si ya hay conversación arriba, NO saludes de nuevo. Ve al grano.
 - Si viene audio, responde como si lo hubieras escuchado.`,
