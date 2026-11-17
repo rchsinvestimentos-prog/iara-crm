@@ -9,6 +9,7 @@ import * as sender from './sender'
 import {
     normalizarAnexos,
     linhaHistoricoAnexo,
+    idsDeAnexosEnviados,
     MAX_ANEXOS_POR_RESPOSTA,
     type AnexoProcedimento,
 } from '@/lib/anexos-procedimento'
@@ -34,6 +35,25 @@ async function jaEnviado(clinicaId: number, telefone: string, anexoId: string): 
         return r.length > 0
     } catch {
         return false
+    }
+}
+
+/**
+ * Anexos que já saíram para esta paciente, na conversa inteira (o histórico do
+ * prompt só tem as últimas mensagens). null se o banco falhar: aí o prompt
+ * usa o histórico que tiver, e o envio continua barrando repetição.
+ */
+export async function anexosJaEnviados(clinicaId: number, telefone: string): Promise<Set<string> | null> {
+    try {
+        const linhas = await prisma.$queryRaw<{ content: string | null }[]>`
+            SELECT content FROM historico_conversas
+            WHERE user_id = ${clinicaId} AND telefone_cliente = ${telefone}
+              AND role = 'assistant' AND content LIKE ${'%📎 Arquivo enviado%'}
+        `
+        return idsDeAnexosEnviados(linhas.map(l => l.content))
+    } catch (err) {
+        console.error(`[Anexos] ⚠️ Não consegui ler os anexos já enviados para ${telefone}:`, err)
+        return null
     }
 }
 

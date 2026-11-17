@@ -169,6 +169,10 @@ export async function sendMedia(
     try {
         const numero = normalizarTelefone(telefone)
         const res = await fetch(`${EVOLUTION_URL}/message/sendMedia/${instancia}`, {
+            // Até 5 arquivos saem um atrás do outro dentro do atendimento:
+            // Evolution travada não pode segurar a conversa para sempre.
+            // 90 s cabe um vídeo de 15 MB em base64.
+            signal: AbortSignal.timeout(90_000),
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

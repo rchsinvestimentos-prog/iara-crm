@@ -1166,7 +1166,7 @@ export default function ConfiguracoesTool({ section = 'all' }: { section?: 'clin
                             {/* Anexos sobem na hora, então precisam do procedimento já criado. */}
                             <div className="col-span-2">
                                 {editandoProc ? (
-                                    <AnexosProcedimento procedimentoId={Number(editandoProc)} />
+                                    <AnexosProcedimento key={editandoProc} procedimentoId={Number(editandoProc)} />
                                 ) : (
                                     <p className="text-[10px] p-3 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-muted)' }}>
                                         📎 Depois de salvar, abra o procedimento de novo para anexar fotos, vídeos ou PDFs que a IARA pode enviar.

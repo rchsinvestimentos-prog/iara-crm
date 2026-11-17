@@ -1,8 +1,10 @@
 'use client'
 
-// Anexos do procedimento dentro do formulário de "Configurar IARA".
-// Cada arquivo sobe na hora (não espera o "Salvar" do procedimento), por isso
-// só aparece quando o procedimento já existe.
+// Anexos do procedimento, no formulário de "Configurar IARA" e no da tela
+// "Procedimentos". Cada arquivo sobe na hora (não espera o "Salvar" do
+// procedimento), por isso só aparece quando o procedimento já existe.
+// Aceita vários arquivos de uma vez: a clínica escolhe as 4 fotos de
+// trabalhos juntas e escreve uma descrição só.
 
 import { useEffect, useRef, useState } from 'react'
 import { Paperclip, Image as ImageIcon, Film, FileText, Trash2, Loader2, Upload, ExternalLink } from 'lucide-react'
@@ -38,58 +40,97 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
     const [carregando, setCarregando] = useState(true)
     const [erro, setErro] = useState('')
 
-    const [arquivo, setArquivo] = useState<File | null>(null)
+    const [arquivos, setArquivos] = useState<File[]>([])
     const [descricao, setDescricao] = useState('')
-    const [momento, setMomento] = useState<MomentoAnexo>('apos_falar')
+    const [momento, setMomento] = useState<MomentoAnexo>('perguntar')
     const [enviando, setEnviando] = useState(false)
+    const [progresso, setProgresso] = useState('')
     const [apagando, setApagando] = useState<string | null>(null)
     const [arrastando, setArrastando] = useState(false)
+    const [falhouCarregar, setFalhouCarregar] = useState(false)
+    const [tentativa, setTentativa] = useState(0)
     const inputRef = useRef<HTMLInputElement>(null)
 
     const base = `/api/procedimentos/${procedimentoId}/anexos`
 
     useEffect(() => {
+        // Quem usa passa key={procedimentoId}; mesmo assim, nada do
+        // procedimento anterior pode sobrar na tela nem chegar atrasado.
+        let cancelado = false
         setCarregando(true)
-        fetch(base)
-            .then(r => r.json())
-            .then(d => setAnexos(Array.isArray(d.anexos) ? d.anexos : []))
-            .catch(() => setErro('Não consegui carregar os anexos.'))
-            .finally(() => setCarregando(false))
-    }, [base])
-
-    const escolher = (f: File | null) => {
+        setFalhouCarregar(false)
+        setAnexos([])
         setErro('')
-        if (f && f.size > MAX_BYTES_ANEXO) {
-            setErro(`Esse arquivo tem ${mb(f.size)}. O máximo é ${mb(MAX_BYTES_ANEXO)}, limite do WhatsApp.`)
-            setArquivo(null)
-            if (inputRef.current) inputRef.current.value = ''
-            return
+        fetch(base)
+            .then(async r => {
+                const d = await r.json().catch(() => ({}))
+                if (!r.ok || !Array.isArray(d.anexos)) throw new Error(d.error || `HTTP ${r.status}`)
+                if (!cancelado) setAnexos(d.anexos)
+            })
+            // Lista que não carregou não pode parecer lista vazia: a clínica
+            // anexaria de novo o que já está lá. Some a área de anexar.
+            .catch(() => { if (!cancelado) setFalhouCarregar(true) })
+            .finally(() => { if (!cancelado) setCarregando(false) })
+        return () => { cancelado = true }
+    }, [base, tentativa])
+
+    const escolher = (lista: FileList | null) => {
+        setErro('')
+        const todos = Array.from(lista || [])
+        const grandes = todos.filter(f => f.size > MAX_BYTES_ANEXO)
+        const cabem = Math.max(0, MAX_ANEXOS_POR_PROCEDIMENTO - anexos.length)
+        const aceitos = todos.filter(f => f.size <= MAX_BYTES_ANEXO).slice(0, cabem)
+
+        const avisos: string[] = []
+        if (grandes.length) {
+            avisos.push(`${grandes.map(f => `"${f.name}" (${mb(f.size)})`).join(', ')} passa${grandes.length > 1 ? 'm' : ''} de ${mb(MAX_BYTES_ANEXO)}, o limite do WhatsApp, e ficou de fora.`)
         }
-        setArquivo(f)
+        const semLugar = todos.length - grandes.length - aceitos.length
+        if (semLugar > 0) {
+            avisos.push(`Cada procedimento guarda até ${MAX_ANEXOS_POR_PROCEDIMENTO} arquivos: ${semLugar} ficou${semLugar > 1 ? 'aram' : ''} de fora.`)
+        }
+        if (avisos.length) setErro(avisos.join(' '))
+
+        setArquivos(aceitos)
+        if (!aceitos.length && inputRef.current) inputRef.current.value = ''
     }
 
     const enviar = async () => {
-        if (!arquivo) return setErro('Escolha um arquivo.')
+        if (!arquivos.length) return setErro('Escolha um arquivo.')
         if (!descricao.trim()) return setErro('Escreva o que é o arquivo, para a IARA saber quando mandar.')
         setEnviando(true)
         setErro('')
+        // Um por vez: se um falhar, os que já subiram ficam e o resto
+        // continua escolhido para tentar de novo.
+        const faltam = [...arquivos]
         try {
-            const fd = new FormData()
-            fd.append('file', arquivo)
-            fd.append('descricao', descricao.trim())
-            fd.append('momento', momento)
-            const res = await fetch(base, { method: 'POST', body: fd })
-            const d = await res.json().catch(() => ({}))
-            if (!res.ok) return setErro(d.error || 'Erro ao enviar o arquivo.')
-            setAnexos(prev => [...prev, d.anexo])
-            setArquivo(null)
+            while (faltam.length) {
+                const arquivo = faltam[0]
+                if (arquivos.length > 1) setProgresso(`${arquivos.length - faltam.length + 1}/${arquivos.length}`)
+                const fd = new FormData()
+                fd.append('file', arquivo)
+                fd.append('descricao', descricao.trim())
+                fd.append('momento', momento)
+                const res = await fetch(base, { method: 'POST', body: fd })
+                const d = await res.json().catch(() => ({}))
+                if (!res.ok || !d.anexo) {
+                    setErro(`"${arquivo.name}": ${d.error || 'erro ao enviar o arquivo.'}`)
+                    return
+                }
+                setAnexos(prev => [...prev, d.anexo])
+                faltam.shift()
+            }
             setDescricao('')
-            setMomento('apos_falar')
-            if (inputRef.current) inputRef.current.value = ''
+            setMomento('perguntar')
         } catch {
-            setErro('Erro de conexão ao enviar o arquivo.')
+            setErro(`Erro de conexão ao enviar "${faltam[0]?.name}".`)
         } finally {
+            // O que faltou fica no estado; o campo é limpo para dar para
+            // escolher os mesmos arquivos de novo.
+            setArquivos(faltam)
+            if (inputRef.current) inputRef.current.value = ''
             setEnviando(false)
+            setProgresso('')
         }
     }
 
@@ -136,7 +177,9 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                 <p className="text-[11px] font-medium flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
                     <Paperclip size={12} /> Anexos para a IARA enviar
                 </p>
-                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{anexos.length}/{MAX_ANEXOS_POR_PROCEDIMENTO}</span>
+                {!carregando && !falhouCarregar && (
+                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{anexos.length}/{MAX_ANEXOS_POR_PROCEDIMENTO}</span>
+                )}
             </div>
             <p className="text-[9px] mb-3" style={{ color: 'var(--text-muted)' }}>
                 Foto, vídeo (até 15 MB) ou PDF. A IARA manda pelo WhatsApp no momento que você escolher, uma vez por paciente.
@@ -144,6 +187,18 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
 
             {carregando ? (
                 <div className="py-3 flex justify-center"><Loader2 size={14} className="animate-spin text-[#D99773]" /></div>
+            ) : falhouCarregar ? (
+                <div className="py-2 flex items-center justify-between gap-2">
+                    <p className="text-[10px] text-red-500">Não consegui carregar os anexos deste procedimento.</p>
+                    <button
+                        type="button"
+                        onClick={() => setTentativa(t => t + 1)}
+                        className="text-[11px] font-medium px-3 py-1.5 rounded-md flex-shrink-0"
+                        style={{ border: '1px solid #D99773', color: '#C07A55' }}
+                    >
+                        Tentar de novo
+                    </button>
+                </div>
             ) : (
                 <div className="space-y-2">
                     {anexos.map(a => {
@@ -193,7 +248,7 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                             <label
                                 onDragOver={e => { e.preventDefault(); setArrastando(true) }}
                                 onDragLeave={() => setArrastando(false)}
-                                onDrop={e => { e.preventDefault(); setArrastando(false); escolher(e.dataTransfer.files?.[0] || null) }}
+                                onDrop={e => { e.preventDefault(); setArrastando(false); escolher(e.dataTransfer.files) }}
                                 className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors"
                                 style={{
                                     border: '1.5px dashed #D99773',
@@ -203,8 +258,9 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                                 <input
                                     ref={inputRef}
                                     type="file"
+                                    multiple
                                     accept=".jpg,.jpeg,.png,.webp,.mp4,.pdf"
-                                    onChange={e => escolher(e.target.files?.[0] || null)}
+                                    onChange={e => escolher(e.target.files)}
                                     className="sr-only"
                                 />
                                 <span className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #D99773, #C07A55)' }}>
@@ -212,10 +268,14 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                                 </span>
                                 <span className="min-w-0">
                                     <span className="block text-[12px] font-semibold truncate" style={{ color: '#C07A55' }}>
-                                        {arquivo ? arquivo.name : 'Clique para escolher o arquivo'}
+                                        {arquivos.length === 0
+                                            ? 'Clique para escolher os arquivos'
+                                            : arquivos.length === 1 ? arquivos[0].name : `${arquivos.length} arquivos escolhidos`}
                                     </span>
                                     <span className="block text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                                        {arquivo ? `${mb(arquivo.size)} · clique para trocar` : 'ou arraste aqui · foto, vídeo MP4 até 15 MB ou PDF'}
+                                        {arquivos.length
+                                            ? `${mb(arquivos.reduce((s, f) => s + f.size, 0))} · clique para trocar`
+                                            : `ou arraste aqui · até ${MAX_ANEXOS_POR_PROCEDIMENTO - anexos.length} de uma vez · foto, vídeo MP4 até 15 MB ou PDF`}
                                     </span>
                                 </span>
                             </label>
@@ -224,7 +284,9 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                                 onChange={e => setDescricao(e.target.value)}
                                 maxLength={MAX_DESCRICAO_ANEXO}
                                 rows={2}
-                                placeholder="O que é este arquivo? Ex: Vídeo de antes e depois de uma cliente que fez fio a fio"
+                                placeholder={arquivos.length > 1
+                                    ? 'O que são estes arquivos? Ex: Fotos de trabalhos da doutora, antes e depois de micropigmentação labial'
+                                    : 'O que é este arquivo? Ex: Vídeo de antes e depois de uma cliente que fez fio a fio'}
                                 className="w-full px-2.5 py-1.5 text-[11px] rounded-md focus:outline-none resize-none"
                                 style={inputStyle}
                             />
@@ -239,11 +301,11 @@ export default function AnexosProcedimento({ procedimentoId }: { procedimentoId:
                             <button
                                 type="button"
                                 onClick={enviar}
-                                disabled={enviando || !arquivo}
+                                disabled={enviando || !arquivos.length}
                                 className="text-[11px] font-medium px-3 py-1.5 bg-[#D99773] text-white rounded-md flex items-center gap-1.5 disabled:opacity-50"
                             >
                                 {enviando ? <Loader2 size={12} className="animate-spin" /> : <Paperclip size={12} />}
-                                {enviando ? 'Enviando...' : 'Anexar'}
+                                {enviando ? `Enviando${progresso ? ` ${progresso}` : ''}...` : arquivos.length > 1 ? `Anexar ${arquivos.length}` : 'Anexar'}
                             </button>
                         </div>
                     )}

@@ -5,6 +5,7 @@ import {
     Plus, Trash2, Edit3, Save, X, Loader2,
     Stethoscope, DollarSign, Clock, ChevronDown, ChevronUp, Users, UserPlus
 } from 'lucide-react'
+import AnexosProcedimento from '@/components/tools/AnexosProcedimento'
 
 interface ProfissionalInfo {
     id: string; nome: string; tratamento: string | null
@@ -36,6 +37,7 @@ export default function MeusProcedimentosPage() {
     const [editId, setEditId] = useState<number | null>(null)
     const [showForm, setShowForm] = useState(false)
     const [expandedId, setExpandedId] = useState<number | null>(null)
+    const [acabouDeCriar, setAcabouDeCriar] = useState(false)
 
     // Equipe
     const [comEquipe, setComEquipe] = useState(false)
@@ -57,6 +59,7 @@ export default function MeusProcedimentosPage() {
         setForm({ nome: '', valor: '', desconto: '', parcelas: '', duracao: '', descricao: '', posProcedimento: '', profissionalIds: [] })
         setEditId(null)
         setShowForm(false)
+        setAcabouDeCriar(false)
     }
 
     const loadProcs = () => {
@@ -92,7 +95,9 @@ export default function MeusProcedimentosPage() {
             valor: Number(form.valor) || 0,
             desconto: Number(form.desconto) || 0,
             parcelas: form.parcelas ? Number(form.parcelas) : null,
-            duracao: form.duracao ? Number(form.duracao) : null,
+            // A API não aceita null aqui: com a duração em branco, criar ou
+            // salvar dava "Dados inválidos". 0 é o que Configurar IARA manda.
+            duracao: form.duracao ? Number(form.duracao) : 0,
             descricao: form.descricao || null,
             posProcedimento: form.posProcedimento || null,
             profissionalIds: comEquipe ? form.profissionalIds : [],
@@ -111,7 +116,15 @@ export default function MeusProcedimentosPage() {
                 return
             }
 
-            resetForm()
+            // Procedimento novo: o formulário continua aberto, já editando,
+            // para a clínica anexar as fotos sem ter de achar e abrir de novo.
+            const criado = editId ? null : await res.json().catch(() => null)
+            if (criado?.id) {
+                setEditId(Number(criado.id))
+                setAcabouDeCriar(true)
+            } else {
+                resetForm()
+            }
             loadProcs()
         } catch (err) {
             console.error(err)
@@ -134,6 +147,7 @@ export default function MeusProcedimentosPage() {
         })
         setEditId(p.id)
         setShowForm(true)
+        setAcabouDeCriar(false)
     }
 
     const handleDelete = async (id: number) => {
@@ -388,6 +402,21 @@ export default function MeusProcedimentosPage() {
                             <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Cuidados Pós-Procedimento</label>
                             <textarea value={form.posProcedimento} onChange={e => setForm({ ...form, posProcedimento: e.target.value })} rows={2} placeholder="Orientações pós-procedimento..." className="input-field" />
                         </div>
+
+                        {/* Fotos e vídeos que a IARA manda para a paciente. Sobem
+                            na hora, então precisam do procedimento já criado. */}
+                        {acabouDeCriar && (
+                            <p className="text-xs p-3 rounded-lg" style={{ background: 'rgba(16,185,129,0.1)', color: '#059669' }}>
+                                ✅ Procedimento criado. Se quiser, anexe abaixo fotos e vídeos de trabalhos para a IARA mostrar às pacientes.
+                            </p>
+                        )}
+                        {editId ? (
+                            <AnexosProcedimento key={editId} procedimentoId={editId} />
+                        ) : (
+                            <p className="text-xs p-3 rounded-lg" style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
+                                📎 Depois de criar, você pode anexar fotos, vídeos e PDFs que a IARA manda para as pacientes.
+                            </p>
+                        )}
 
                         {/* ===== MULTI-SELECT DE PROFISSIONAIS ===== */}
                         {comEquipe && profissionais.length > 0 && (

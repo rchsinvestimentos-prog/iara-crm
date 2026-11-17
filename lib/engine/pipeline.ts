@@ -449,8 +449,16 @@ export async function processMessage(msg: MensagemRecebida): Promise<void> {
     // Debug: logar tamanho do histórico e dados carregados
     await logPipeline('CONTEXT', `historico=${historico.length} procs=${procedimentosRaw.length} profs=${profissionaisRaw.length} cursos=${cursosAtivos.length} combos=${combosAtivos.length} feedbacks=${feedbacks.length} memoria=${memoriaCliente ? 'sim' : 'nao'} config.diferenciais=${!!(clinica as any).diferenciais}`)
 
+    // Só vale a consulta quando algum procedimento tem anexo.
+    const temAnexo = procedimentosRaw.some((p: any) => Array.isArray(p.anexos) && p.anexos.length > 0)
+    const anexosJaEnviados = temAnexo && msg.canal === 'whatsapp'
+        ? await anexos.anexosJaEnviados(clinica.id, msg.telefone)
+        : null
+
     const systemPrompt = aiEngine.buildSystemPromptPartes({
         clinica,
+        canal: msg.canal,
+        anexosJaEnviados,
         mensagem: textoMensagem,
         pushName: msg.pushName,
         tipoEntrada,

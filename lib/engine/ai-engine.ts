@@ -16,7 +16,7 @@
 import { getCofreParaClinica, getLabels } from './cofre'
 import { idiomaDaMensagem, detectarLingua, linguaDoIdioma } from './idioma'
 import type { DadosClinica, Procedimento, FeedbackDra, MemoriaCliente, RespostaIA, ProfissionalAtivo } from './types'
-import { textoAnexosParaPrompt } from '@/lib/anexos-procedimento'
+import { textoAnexosParaPrompt, lembreteAnexosPerguntar } from '@/lib/anexos-procedimento'
 import { parseFuncionalidades } from './types'
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
@@ -41,6 +41,10 @@ interface PromptContext {
     promocoesAtivas?: { nome: string; descricao: string | null; instrucaoIara: string | null; procedimentos: string[] }[]
     cursosAtivos?: { nome: string; modalidade: string; valor: number; duracao: string | null; descricao: string | null; link: string | null }[]
     combosAtivos?: { nome: string; descricao: string | null; valorOriginal: number; valorCombo: number; procedimentos: string[] }[]
+    /** Só o WhatsApp manda arquivo. Sem canal (simulador), conta como WhatsApp. */
+    canal?: 'whatsapp' | 'instagram'
+    /** Anexos que já saíram para esta paciente, lidos do banco (conversa inteira). */
+    anexosJaEnviados?: Set<string> | null
 }
 
 /**
@@ -622,7 +626,10 @@ precisa saber que chegou no lugar certo. Sem dizer seu nome, sem dizer seu cargo
     // e esquecia o material no momento "quando a paciente ficar em dúvida".
     // Vazio quando nenhum procedimento tem anexo. Todos os procedimentos da
     // clínica, com ou sem equipe.
-    const textoMateriais = textoAnexosParaPrompt(procedimentos)
+    // No Instagram o arquivo não sai (o pipeline descarta o marcador): sem a
+    // seção, a IARA não oferece foto que a paciente nunca vai receber.
+    const mandaArquivo = !ctx.canal || ctx.canal === 'whatsapp'
+    const textoMateriais = mandaArquivo ? textoAnexosParaPrompt(procedimentos, nomeProfissional, idioma) : ''
 
     const estavel = `${roleDesc}
 ${regraApresentacao}${regraHistorico}
@@ -669,7 +676,11 @@ ${configDonaTexto}`
         ? `\n🌍 A cliente escreveu esta mensagem em ${NOME_LINGUA[linguaMensagem]}. Responda em ${NOME_LINGUA[linguaMensagem]}.\n`
         : ''
 
-    const volatil = `${memoriaTexto}${agendaTexto}
+    const lembreteFotos = mandaArquivo
+        ? lembreteAnexosPerguntar(procedimentos, historico, nomeProfissional, idioma, ctx.anexosJaEnviados)
+        : ''
+
+    const volatil = `${memoriaTexto}${agendaTexto}${lembreteFotos}
 NOME DA CLIENTE COM QUEM VOCÊ ESTÁ FALANDO AGORA: ${nomeCliente}${avisoIdioma}
 ${tipoEntrada === 'audio' ? `\n🎤 REGRA DE ÁUDIO: Sua resposta será convertida em VOZ. Escreva TODAS as palavras POR EXTENSO, no idioma da resposta:\n- NUNCA use: HRS, h, min, Dra., Dr., nº, R$, %, etc.\n- Escreva: "horas", "minutos", "Doutora", "Doutor", "número", "reais", "por cento"\n- Escreva números de telefone dígito por dígito\n- NÃO use emojis (eles não são falados)\n` : ''}
 ${temHistorico ? `\n🔁 LEMBRETE FINAL: NÃO comece com "Oi" — esta conversa já está em andamento.` : ''}`
