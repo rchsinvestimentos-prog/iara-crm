@@ -22,6 +22,7 @@ import { foiEnviadaPelaIara } from '@/lib/engine/sender'
 import type { MensagemRecebida } from '@/lib/engine'
 import { ensureWebhook } from '@/lib/engine/webhook-sync'
 import { registrarQueda, registrarVolta } from '@/lib/whatsapp-queda'
+import { ehInstanciaOficial } from '@/lib/whatsapp-oficial'
 
 // Deduplicação: cache de requestIds já processados (evita resposta duplicada)
 const processedMessages = new Map<string, number>()
@@ -64,6 +65,14 @@ export async function POST(request: NextRequest) {
                 VALUES ($1, NOW())
             `, logPayload)
         } catch { /* tabela pode não existir */ }
+
+        // Número oficial só chega pelo webhook da Meta (assinado). Aqui o nome
+        // da instância vem do corpo: sem esta trava, um POST com
+        // "oficial_<id>" faria a IARA responder pelo número oficial da clínica.
+        if (ehInstanciaOficial(webhookInstance)) {
+            console.error(`[Webhook] ❌ Evento da Evolution com instância oficial (${webhookInstance}) recusado`)
+            return NextResponse.json({ error: 'Instância inválida' }, { status: 403 })
+        }
 
         // Validar secret (se configurado)
         if (WEBHOOK_SECRET) {

@@ -30,6 +30,9 @@ export async function middleware(request: NextRequest) {
         '/agendar/',
         '/anamnese/',
         '/api/anamnese/publico/',
+        // Formulário público de exclusão de dados (LGPD / Meta): atrás do
+        // login o pedido virava um 307 e nunca chegava.
+        '/api/legal/',
         '/api/setup-db'
     ]
     // Prefixo terminado em '/' abre a árvore inteira (é o caso de /a/ e

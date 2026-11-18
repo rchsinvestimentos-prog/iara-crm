@@ -89,7 +89,8 @@ async function fetchAndSaveProfilePhoto(
 
         let fotoUrl: string | null = null
 
-        if (canal === 'whatsapp' && instancia) {
+        // Número oficial (Cloud API) não tem consulta de foto de perfil: fica sem foto.
+        if (canal === 'whatsapp' && instancia && !instancia.startsWith('oficial_')) {
             // WhatsApp: buscar via Evolution API
             const evolutionUrl = process.env.EVOLUTION_API_URL || 'https://press-evolution.h4xd66.easypanel.host'
             const evolutionKey = apikey || process.env.EVOLUTION_API_KEY || ''

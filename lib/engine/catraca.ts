@@ -7,6 +7,7 @@
 // Era o F03 no n8n. Agora é uma função simples.
 
 import { prisma } from '@/lib/prisma'
+import { ehInstanciaOficial, contaDoNumero, phoneNumberIdDaInstancia } from '@/lib/whatsapp-oficial'
 import type { DadosClinica, ResultadoCatraca } from './types'
 import { carenciaVencida } from '@/lib/pagamentos/pendencia'
 import { normalizarIdioma } from './idioma'
@@ -20,6 +21,13 @@ import { normalizarIdioma } from './idioma'
  */
 export async function findClinicaByInstance(instanceName: string): Promise<DadosClinica | null> {
     if (!instanceName) return null
+
+    // Número do WhatsApp oficial (Cloud API): "oficial_<phone_number_id>"
+    if (ehInstanciaOficial(instanceName)) {
+        const conta = await contaDoNumero(phoneNumberIdDaInstancia(instanceName))
+        if (!conta) return null
+        return (await prisma.clinica.findFirst({ where: { id: conta.userId } })) as DadosClinica | null
+    }
 
     // Primeiro tenta tabela clinica (legado — campo evolution_instance direto)
     let clinica = await prisma.clinica.findFirst({
@@ -78,7 +86,12 @@ export async function checkAccess(
     }
     const telefoneLimpo = normalizar(telefoneRemetente)
     const whatsappDoutora = normalizar(clinica.whatsappDoutora || '')
-    const isDoutora = telefoneLimpo && whatsappDoutora && telefoneLimpo === whatsappDoutora
+    // Celular brasileiro antigo chega do WhatsApp sem o 9 (55 41 9988-7766 e
+    // 55 41 99988-7766 são o mesmo número). Compara DDD + 8 últimos dígitos;
+    // sem isso a doutora cadastrada com o 9 era tratada como paciente.
+    const semNono = (t: string) => (t.startsWith('55') && (t.length === 12 || t.length === 13) ? `${t.slice(2, 4)}${t.slice(-8)}` : t)
+    const isDoutora = !!telefoneLimpo && !!whatsappDoutora &&
+        (telefoneLimpo === whatsappDoutora || semNono(telefoneLimpo) === semNono(whatsappDoutora))
 
     // Se é a doutora, SEMPRE permite (mesmo sem créditos)
     if (isDoutora) {

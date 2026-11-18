@@ -4,25 +4,47 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function ExclusaoDeDados() {
     const [email, setEmail] = useState('')
     const [telefone, setTelefone] = useState('')
     const [motivo, setMotivo] = useState('')
-    const [enviado, setEnviado] = useState(false)
+    const [enviando, setEnviando] = useState(false)
+    const [erro, setErro] = useState('')
+    // Código do pedido: vem do envio do formulário ou da Meta (?codigo=...),
+    // quando a pessoa pediu a exclusão pelo Facebook ou Instagram.
+    const [codigo, setCodigo] = useState('')
+    const [veioDaMeta, setVeioDaMeta] = useState(false)
+
+    useEffect(() => {
+        const c = new URLSearchParams(window.location.search).get('codigo')
+        if (c) { setCodigo(c.slice(0, 40)); setVeioDaMeta(true) }
+    }, [])
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
-        // Em produção, isso vai pro backend
+        setEnviando(true)
+        setErro('')
+        // Só confirma o pedido se ele foi gravado. Antes a tela dizia
+        // "recebida" mesmo quando o envio falhava.
         try {
-            await fetch('/api/legal/exclusao', {
+            const res = await fetch('/api/legal/exclusao', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, telefone, motivo }),
             })
-        } catch {}
-        setEnviado(true)
+            const d = await res.json().catch(() => ({}))
+            if (!res.ok || !d.codigo) {
+                setErro(d.error || 'Não conseguimos registrar o pedido agora. Tente de novo ou escreva para suporte@iara.click.')
+                return
+            }
+            setCodigo(d.codigo)
+        } catch {
+            setErro('Sem conexão. Tente de novo ou escreva para suporte@iara.click.')
+        } finally {
+            setEnviando(false)
+        }
     }
 
     return (
@@ -43,10 +65,15 @@ export default function ExclusaoDeDados() {
                         Preencha o formulário abaixo e nossa equipe processará sua solicitação em até <strong>15 dias úteis</strong>.
                     </p>
 
-                    {enviado ? (
+                    {codigo ? (
                         <div style={{ padding: '24px', borderRadius: '12px', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', textAlign: 'center' }}>
                             <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>✅ Solicitação recebida!</p>
-                            <p style={{ fontSize: '14px', opacity: 0.8 }}>Processaremos sua solicitação em até 15 dias úteis. Você receberá uma confirmação por email.</p>
+                            <p style={{ fontSize: '14px', opacity: 0.8 }}>
+                                {veioDaMeta
+                                    ? 'Recebemos o pedido de exclusão dos dados ligados à sua conta do Facebook/Instagram. Guarde o código abaixo para acompanhar pelo suporte.'
+                                    : 'Processaremos sua solicitação em até 15 dias úteis. Você receberá uma confirmação por email.'}
+                            </p>
+                            <p style={{ fontSize: '14px', marginTop: '12px' }}>Código do pedido: <strong>{codigo}</strong></p>
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -81,11 +108,13 @@ export default function ExclusaoDeDados() {
                                     style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: '#e0e0e8', fontSize: '14px', outline: 'none', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
                                 />
                             </div>
+                            {erro && <p style={{ fontSize: '13px', color: '#f87171', margin: 0 }}>{erro}</p>}
                             <button
                                 type="submit"
-                                style={{ padding: '14px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #D99773, #C07A55)', color: 'white', fontWeight: '600', fontSize: '15px', cursor: 'pointer' }}
+                                disabled={enviando}
+                                style={{ padding: '14px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #D99773, #C07A55)', color: 'white', fontWeight: '600', fontSize: '15px', cursor: 'pointer', opacity: enviando ? 0.6 : 1 }}
                             >
-                                Solicitar Exclusão
+                                {enviando ? 'Enviando...' : 'Solicitar Exclusão'}
                             </button>
                         </form>
                     )}

@@ -619,10 +619,20 @@ async function finalizarResposta(
         apikey: clinica.evolutionApikey || undefined,
     }
 
+    // Resposta que não saiu (WhatsApp caído, token da Meta revogado, número
+    // bloqueado) não pode virar conversa "respondida" nem gastar crédito: a
+    // paciente ficou sem resposta. A mensagem dela fica no histórico, a da
+    // IARA não, e o erro vai para o log.
+    let respostaSaiu = true
     if (audioBase64Resposta) {
-        await sender.sendAudio(sendOpts, audioBase64Resposta)
+        respostaSaiu = await sender.sendAudio(sendOpts, audioBase64Resposta)
     } else if (respostaTexto) {
-        await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, respostaTexto))
+        respostaSaiu = await sender.sendText(sendOpts, stripEmojisIfNeeded(clinica, respostaTexto))
+    }
+    if (!respostaSaiu) {
+        console.error(`[Pipeline] ❌ Resposta para ${msg.telefone} (clínica ${clinica.id}, ${msg.instancia}) não foi enviada — sem crédito descontado`)
+        await memory.saveToHistory(clinica.id, msg.telefone, 'user', textoMensagemOriginal, msg.pushName, incomingAudioUrl || undefined)
+        return
     }
 
     // Anexos pedidos pela IA, logo depois da mensagem.

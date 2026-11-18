@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
-import { nivelToPlano } from '@/lib/planos';
+import { nivelToPlano, INSTAGRAM_HABILITADO } from '@/lib/planos';
+import { clinicaDeTesteDaMeta } from '@/lib/meta';
 
 // GET — Lista instâncias do usuário
 export async function GET(req: Request) {
@@ -91,6 +92,9 @@ export async function GET(req: Request) {
   return NextResponse.json({
     instancias,
     limites,
+    // Instagram aberto para todos só depois da aprovação da Meta; antes disso,
+    // só para as clínicas de teste (META_TESTE_EMAILS), que gravam a revisão.
+    instagramLiberado: INSTAGRAM_HABILITADO || clinicaDeTesteDaMeta(session.user.email),
     plano: user.nivel || 1,
     calendarConnected,
     calendarId,

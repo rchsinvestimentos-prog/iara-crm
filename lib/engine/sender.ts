@@ -8,6 +8,11 @@
 // - Texto → POST /message/sendText/{instancia}
 // - Áudio → POST /message/sendWhatsAppAudio/{instancia}
 // - Imagem → POST /message/sendMedia/{instancia}
+//
+// Número do WhatsApp oficial (instância "oficial_<phone_number_id>") sai pela
+// Cloud API da Meta (lib/whatsapp-oficial.ts), com as mesmas funções daqui.
+import * as oficial from '@/lib/whatsapp-oficial'
+
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || ''
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || ''
 
@@ -31,6 +36,48 @@ async function lembrarEnvio(res: Response): Promise<void> {
         }
     } catch {
         // Resposta sem JSON: o envio deu certo, só não dá para reconhecer o eco.
+    }
+}
+
+function lembrarId(id: string | undefined): void {
+    if (!id) return
+    const agora = Date.now()
+    ENVIADAS_PELA_IARA.set(id, agora)
+    if (ENVIADAS_PELA_IARA.size > 5000) {
+        for (const [k, t] of ENVIADAS_PELA_IARA) if (agora - t > VALIDADE_ENVIADA_MS) ENVIADAS_PELA_IARA.delete(k)
+    }
+}
+
+/**
+ * Envio pelo número oficial. Devolve null quando a instância não é oficial
+ * (aí segue o caminho da Evolution).
+ */
+async function pelaMeta(
+    opts: SendOptions,
+    tipo: string,
+    enviar: (conta: oficial.ContaOficial) => Promise<oficial.ResultadoEnvio>,
+): Promise<boolean | null> {
+    if (!oficial.ehInstanciaOficial(opts.instancia)) return null
+    try {
+        const conta = await oficial.contaDoNumero(oficial.phoneNumberIdDaInstancia(opts.instancia))
+        if (!conta) {
+            console.error(`[Sender] ❌ ${tipo} não enviado: número oficial ${opts.instancia} não está conectado`)
+            return false
+        }
+        const r = await enviar(conta)
+        if (r.ok) {
+            lembrarId(r.id)
+            console.log(`[Sender] ✅ ${tipo} enviado para ${opts.telefone} pela API oficial`)
+            return true
+        }
+        console.error(`[Sender] ❌ ${tipo} não enviado pela API oficial para ${opts.telefone}: ${r.erro}${r.foraDaJanela ? ' — passou a janela de 24 h, só modelo aprovado' : ''}`)
+        if (oficial.erroDeContaQuebrada(r.codigo)) {
+            await oficial.registrarErroConta({ phoneNumberId: conta.phoneNumberId }, r.erro || `código ${r.codigo}`)
+        }
+        return false
+    } catch (err) {
+        console.error(`[Sender] ❌ Erro no envio pela API oficial (${tipo}):`, err)
+        return false
     }
 }
 
@@ -71,6 +118,8 @@ export async function sendText(
         console.error('[Sender] Dados incompletos para enviar texto')
         return false
     }
+    const meta = await pelaMeta(opts, 'Texto', conta => oficial.enviarTexto(conta, telefone, texto))
+    if (meta !== null) return meta
 
     try {
         const numero = normalizarTelefone(telefone)
@@ -114,6 +163,8 @@ export async function sendAudio(
         console.error('[Sender] Dados incompletos para enviar áudio')
         return false
     }
+    const meta = await pelaMeta(opts, 'Áudio', conta => oficial.enviarAudio(conta, telefone, audioBase64))
+    if (meta !== null) return meta
 
     try {
         const numero = normalizarTelefone(telefone)
@@ -165,6 +216,11 @@ export async function sendMedia(
         console.error('[Sender] Dados incompletos para enviar arquivo')
         return false
     }
+    const meta = await pelaMeta(opts, `Arquivo (${arquivo.mediatype})`, conta => oficial.enviarArquivo(conta, telefone, {
+        tipo: arquivo.mediatype, base64: arquivo.base64, mimetype: arquivo.mimetype,
+        nomeArquivo: arquivo.fileName, legenda: arquivo.caption,
+    }))
+    if (meta !== null) return meta
 
     try {
         const numero = normalizarTelefone(telefone)
@@ -212,6 +268,8 @@ export async function sendImage(
     caption?: string
 ): Promise<boolean> {
     const { instancia, telefone, apikey } = opts
+    const meta = await pelaMeta(opts, 'Imagem', conta => oficial.enviarImagemPorLink(conta, telefone, imageUrl, caption))
+    if (meta !== null) return meta
 
     try {
         const numero = normalizarTelefone(telefone)

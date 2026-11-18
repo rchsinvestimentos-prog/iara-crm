@@ -9,6 +9,7 @@
 // - P2 (Estrategista): OpenAI TTS "nova" (ou ElevenLabs padrão se configurado)
 // - P3+ (Designer/Audiovisual): ElevenLabs com voz clonada da Dra
 
+import { ehInstanciaOficial, contaDoNumero, phoneNumberIdDaInstancia, baixarMidia } from '@/lib/whatsapp-oficial'
 import type { DadosClinica, ConfigSaida } from './types'
 import { detectarLingua, linguaDoIdioma, type Lingua } from './idioma'
 import * as fs from 'fs'
@@ -119,6 +120,22 @@ export async function downloadAudioFromEvolution(
     apikey?: string,
     rawMessage?: any
 ): Promise<string | null> {
+    // Número oficial: a mídia vem da Meta pelo id que o webhook guardou em
+    // rawMessage.mediaId (normalmente o webhook já baixou e mandou o base64).
+    if (ehInstanciaOficial(instanceName)) {
+        const mediaId = rawMessage?.mediaId
+        if (!mediaId) {
+            console.error(`[Audio] ❌ Mídia do número oficial ${instanceName} sem mediaId (msg ${messageId})`)
+            return null
+        }
+        const conta = await contaDoNumero(phoneNumberIdDaInstancia(instanceName))
+        if (!conta) {
+            console.error(`[Audio] ❌ Número oficial ${instanceName} não está conectado — mídia ${mediaId} não baixada`)
+            return null
+        }
+        return (await baixarMidia(conta, mediaId))?.base64 || null
+    }
+
     const EVOLUTION_URL = process.env.EVOLUTION_API_URL || ''
     const EVOLUTION_KEY = apikey || process.env.EVOLUTION_API_KEY || ''
 

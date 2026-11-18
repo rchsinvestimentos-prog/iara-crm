@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { MODELO_PADRAO } from '@/lib/engine/ai-engine'
-import crypto from 'crypto'
+import { assinaturaDoWebhookValida, META_GRAPH_URL } from '@/lib/meta'
 
 const META_VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || 'iara_instagram_2026'
 const META_APP_SECRET = process.env.META_APP_SECRET || ''
@@ -84,24 +84,22 @@ export async function POST(request: NextRequest) {
     try {
         const rawBody = await request.text()
 
+        // Só a Meta assina com o segredo do app. Antes a assinatura errada só
+        // gerava um aviso e o evento era processado: qualquer um podia mandar
+        // uma "DM" falsa, a IARA respondia e gastava crédito da clínica.
+        if (!assinaturaDoWebhookValida(rawBody, request.headers.get('x-hub-signature-256'))) {
+            console.error(`[IG Webhook] ❌ Assinatura ausente ou inválida — evento recusado${META_APP_SECRET ? '' : ' (META_APP_SECRET não configurado)'}`)
+            return NextResponse.json({ error: 'Assinatura inválida' }, { status: 401 })
+        }
+
         // === PROXY: repassar pro Be Livv (fire-and-forget) ===
+        // Depois da assinatura: evento forjado não é repassado.
         if (BELIVV_IG_WEBHOOK) {
             const headers: Record<string, string> = { 'Content-Type': 'application/json' }
             const sig = request.headers.get('x-hub-signature-256')
             if (sig) headers['x-hub-signature-256'] = sig
             fetch(BELIVV_IG_WEBHOOK, { method: 'POST', headers, body: rawBody })
                 .catch(err => console.error('[IG Proxy] Erro repassando pro Be Livv:', err.message))
-        }
-
-        // Verificar assinatura (warn-only mode para não bloquear)
-        if (META_APP_SECRET) {
-            const signature = request.headers.get('x-hub-signature-256')
-            if (signature) {
-                const expected = 'sha256=' + crypto.createHmac('sha256', META_APP_SECRET).update(rawBody).digest('hex')
-                if (signature !== expected) {
-                    console.warn('[IG Webhook] ⚠️ Assinatura inválida (processando mesmo assim)')
-                }
-            }
         }
 
         const body = JSON.parse(rawBody)
@@ -178,7 +176,7 @@ async function processInstagramEvent(body: any) {
 // ============================================
 async function fetchIGSenderName(senderId: string, pageToken: string): Promise<string | null> {
     try {
-        const r = await fetch(`https://graph.facebook.com/v22.0/${senderId}?fields=name,username&access_token=${pageToken}`)
+        const r = await fetch(`${META_GRAPH_URL}/${senderId}?fields=name,username&access_token=${pageToken}`)
         if (!r.ok) return null
         const d = await r.json()
         if (d.username) return `@${d.username}`
@@ -200,7 +198,7 @@ async function handleDM(config: any, msg: any, accessToken: string) {
     let senderName: string | null = null
     try {
         // Buscar page token para fazer a chamada
-        const ptRes = await fetch(`https://graph.facebook.com/v22.0/${config.page_id}?fields=access_token&access_token=${accessToken}`)
+        const ptRes = await fetch(`${META_GRAPH_URL}/${config.page_id}?fields=access_token&access_token=${accessToken}`)
         if (ptRes.ok) {
             const ptData = await ptRes.json()
             const pageToken = ptData.access_token || accessToken
@@ -243,7 +241,7 @@ async function handleDM(config: any, msg: any, accessToken: string) {
     if (config.page_id) {
         try {
             const ptRes = await fetch(
-                `https://graph.facebook.com/v22.0/${config.page_id}?fields=access_token&access_token=${accessToken}`
+                `${META_GRAPH_URL}/${config.page_id}?fields=access_token&access_token=${accessToken}`
             )
             if (ptRes.ok) {
                 const ptData = await ptRes.json()
@@ -262,7 +260,7 @@ async function handleDM(config: any, msg: any, accessToken: string) {
     // Enviar via Page ID (endpoint correto para Instagram DM via Page token)
     try {
         console.log(`[IG DM] Enviando via page_id ${config.page_id}/messages com Page token...`)
-        const res = await fetch(`https://graph.facebook.com/v22.0/${config.page_id}/messages`, {
+        const res = await fetch(`${META_GRAPH_URL}/${config.page_id}/messages`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -287,7 +285,7 @@ async function handleDM(config: any, msg: any, accessToken: string) {
     if (!sent) {
         try {
             console.log(`[IG DM] Fallback via ig_account_id ${config.ig_account_id}/messages...`)
-            const res = await fetch(`https://graph.facebook.com/v22.0/${config.ig_account_id}/messages`, {
+            const res = await fetch(`${META_GRAPH_URL}/${config.ig_account_id}/messages`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -367,7 +365,7 @@ async function handleComment(config: any, value: any, accessToken: string) {
 
     if (respostaComentario) {
         try {
-            await fetch(`https://graph.facebook.com/v22.0/${commentId}/replies`, {
+            await fetch(`${META_GRAPH_URL}/${commentId}/replies`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: respostaComentario, access_token: accessToken }),
@@ -377,7 +375,7 @@ async function handleComment(config: any, value: any, accessToken: string) {
 
     if (dmTexto && senderId) {
         try {
-            await fetch(`https://graph.facebook.com/v22.0/${config.ig_account_id}/messages`, {
+            await fetch(`${META_GRAPH_URL}/${config.ig_account_id}/messages`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

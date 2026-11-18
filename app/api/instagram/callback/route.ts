@@ -5,9 +5,11 @@
 // Trocamos por token longo, buscamos a conta IG, e salvamos.
 
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
+import { authOptions, getClinicaId } from '@/lib/auth'
+import { META_APP_ID, META_GRAPH_URL, lerState } from '@/lib/meta'
 
-const META_APP_ID = process.env.META_APP_ID || ''
 const META_APP_SECRET = process.env.META_APP_SECRET || ''
 
 export async function GET(request: NextRequest) {
@@ -18,22 +20,30 @@ export async function GET(request: NextRequest) {
 
     const baseUrl = process.env.NEXTAUTH_URL || 'https://app.iara.click'
 
-    // Se a cliente cancelou
+    // Se a cliente cancelou (a tela /instagram não existe: o retorno é na tela WhatsApp/Conexões)
     if (error) {
-        return NextResponse.redirect(`${baseUrl}/instagram?error=cancelled`)
+        return NextResponse.redirect(`${baseUrl}/instancias?ig_error=cancelled`)
     }
 
     if (!code || !state) {
-        return NextResponse.redirect(`${baseUrl}/instagram?error=missing_params`)
+        return NextResponse.redirect(`${baseUrl}/instancias?ig_error=missing_params`)
     }
 
-    let clinicaId: number
-    try {
-        const decoded = JSON.parse(Buffer.from(state, 'base64').toString())
-        clinicaId = decoded.clinicaId
-    } catch {
-        return NextResponse.redirect(`${baseUrl}/instagram?error=invalid_state`)
+    // O state precisa ter saído de /api/instagram/auth (assinado) E ser da
+    // clínica que está logada neste navegador. Antes era só o número da
+    // clínica em base64: dava para mandar a uma doutora um link com o número
+    // de outra clínica, e o Instagram dela ficava conectado na conta alheia.
+    const dadosState = lerState(state)
+    if (!dadosState) {
+        console.warn('[IG Callback] ❌ state inválido ou vencido')
+        return NextResponse.redirect(`${baseUrl}/instancias?ig_error=invalid_state`)
     }
+    const clinicaLogada = await getClinicaId(await getServerSession(authOptions))
+    if (!clinicaLogada || Number(clinicaLogada) !== dadosState.clinicaId) {
+        console.warn(`[IG Callback] ❌ state da clínica ${dadosState.clinicaId}, mas quem está logada é ${clinicaLogada ?? 'ninguém'}`)
+        return NextResponse.redirect(`${baseUrl}/instancias?ig_error=invalid_state`)
+    }
+    const clinicaId = dadosState.clinicaId
 
     try {
         const redirectUri = `${baseUrl}/api/instagram/callback`
@@ -43,7 +53,7 @@ export async function GET(request: NextRequest) {
         // ============================================
         console.log(`[IG Callback] 🔄 Iniciando para clínica ${clinicaId}`)
         const tokenRes = await fetch(
-            `https://graph.facebook.com/v22.0/oauth/access_token?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${META_APP_SECRET}&code=${code}`
+            `${META_GRAPH_URL}/oauth/access_token?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${META_APP_SECRET}&code=${code}`
         )
         const tokenData = await tokenRes.json()
 
@@ -57,18 +67,30 @@ export async function GET(request: NextRequest) {
         // 2. Trocar short-lived → long-lived token (60 dias)
         // ============================================
         const longRes = await fetch(
-            `https://graph.facebook.com/v22.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&fb_exchange_token=${tokenData.access_token}`
+            `${META_GRAPH_URL}/oauth/access_token?grant_type=fb_exchange_token&client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&fb_exchange_token=${tokenData.access_token}`
         )
         const longData = await longRes.json()
         const longToken = longData.access_token || tokenData.access_token
         const expiresIn = longData.expires_in || 5183944 // ~60 dias
         console.log(`[IG Callback] ✅ Got long-lived token, expires in ${expiresIn}s`)
 
+        // Id do usuário do Facebook neste app: é o que a Meta manda quando ele
+        // remove o app ou pede para apagar os dados (/api/webhook/meta/...).
+        let metaUserId: string | null = null
+        try {
+            const meRes = await fetch(`${META_GRAPH_URL}/me?fields=id&access_token=${longToken}`)
+            const me = await meRes.json()
+            metaUserId = me?.id ? String(me.id) : null
+            if (!metaUserId) console.warn('[IG Callback] ⚠️ Não veio o id do usuário do Facebook:', JSON.stringify(me?.error || me).slice(0, 200))
+        } catch (e) {
+            console.warn('[IG Callback] ⚠️ Falha ao buscar o id do usuário do Facebook:', e)
+        }
+
         // ============================================
         // 3. Buscar Pages do usuário
         // ============================================
         const pagesRes = await fetch(
-            `https://graph.facebook.com/v22.0/me/accounts?access_token=${longToken}&limit=100`
+            `${META_GRAPH_URL}/me/accounts?access_token=${longToken}&limit=100`
         )
         const pagesData = await pagesRes.json()
         const pages = pagesData.data || []
@@ -89,7 +111,7 @@ export async function GET(request: NextRequest) {
         // ============================================
         for (const page of pages) {
             const igRes = await fetch(
-                `https://graph.facebook.com/v22.0/${page.id}?fields=instagram_business_account&access_token=${page.access_token || longToken}`
+                `${META_GRAPH_URL}/${page.id}?fields=instagram_business_account&access_token=${page.access_token || longToken}`
             )
             const igData = await igRes.json()
 
@@ -101,7 +123,7 @@ export async function GET(request: NextRequest) {
 
                 // Buscar username do IG
                 const usernameRes = await fetch(
-                    `https://graph.facebook.com/v22.0/${igAccountId}?fields=username&access_token=${page.access_token || longToken}`
+                    `${META_GRAPH_URL}/${igAccountId}?fields=username&access_token=${page.access_token || longToken}`
                 )
                 const usernameData = await usernameRes.json()
                 igUsername = usernameData.username || ''
@@ -140,23 +162,25 @@ export async function GET(request: NextRequest) {
             await prisma.$executeRawUnsafe(`ALTER TABLE config_instagram ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT true`)
             await prisma.$executeRawUnsafe(`ALTER TABLE config_instagram ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`)
             await prisma.$executeRawUnsafe(`ALTER TABLE config_instagram ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`)
+            await prisma.$executeRawUnsafe(`ALTER TABLE config_instagram ADD COLUMN IF NOT EXISTS meta_user_id VARCHAR(100)`)
             console.log(`[IG Callback] ✅ config_instagram table + columns ensured`)
         } catch (e: any) {
             console.log(`[IG Callback] ⚠️ Table setup note:`, e.message)
         }
 
         await prisma.$executeRawUnsafe(`
-            INSERT INTO config_instagram (user_id, ig_account_id, ig_username, page_id, meta_access_token, meta_token_expires, ativo)
-            VALUES ($1, $2, $3, $4, $5, $6, true)
+            INSERT INTO config_instagram (user_id, ig_account_id, ig_username, page_id, meta_access_token, meta_token_expires, meta_user_id, ativo)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, true)
             ON CONFLICT (user_id) DO UPDATE SET
                 ig_account_id = $2,
                 ig_username = $3,
                 page_id = $4,
                 meta_access_token = $5,
                 meta_token_expires = $6,
+                meta_user_id = $7,
                 ativo = true,
                 updated_at = NOW()
-        `, clinicaId, igAccountId, igUsername, selectedPage.id, pageToken, expiresAt)
+        `, clinicaId, igAccountId, igUsername, selectedPage.id, pageToken, expiresAt, metaUserId)
 
         console.log(`[IG Callback] ✅ Saved to config_instagram for clínica ${clinicaId}`)
 
@@ -178,9 +202,13 @@ export async function GET(request: NextRequest) {
         // ============================================
         // 7. Subscribir webhook pra essa page
         // ============================================
+        // Sem esta inscrição as DMs não chegam: a conexão parecia pronta e a
+        // IARA nunca respondia. Falhou → a clínica fica sabendo na tela.
+        let webhookOk = false
+        let webhookErro = ''
         try {
-            await fetch(
-                `https://graph.facebook.com/v22.0/${selectedPage.id}/subscribed_apps`,
+            const subRes = await fetch(
+                `${META_GRAPH_URL}/${selectedPage.id}/subscribed_apps`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -190,17 +218,32 @@ export async function GET(request: NextRequest) {
                     }),
                 }
             )
-            console.log(`[IG Callback] ✅ Webhook subscribed for page ${selectedPage.id}`)
-        } catch (err) {
-            console.error('[IG Callback] Erro subscribing webhook:', err)
+            const subData = await subRes.json().catch(() => ({}))
+            webhookOk = subRes.ok && subData?.success === true
+            if (!webhookOk) webhookErro = subData?.error?.message || `HTTP ${subRes.status}`
+        } catch (err: any) {
+            webhookErro = err?.message || String(err)
         }
+        if (!webhookOk) {
+            console.error(`[IG Callback] ❌ Não consegui inscrever a página ${selectedPage.id} nos webhooks: ${webhookErro}`)
+            // Sem a inscrição nenhuma DM chega: a conexão não pode ficar como ativa
+            try {
+                await prisma.$executeRawUnsafe(`UPDATE config_instagram SET ativo = false, updated_at = NOW() WHERE user_id = $1`, clinicaId)
+                await prisma.$executeRawUnsafe(`UPDATE instancias_clinica SET status_conexao = 'desconectado' WHERE user_id = $1 AND canal = 'instagram'`, clinicaId)
+            } catch (e) {
+                console.error('[IG Callback] ❌ Também não consegui marcar a conexão como inativa:', e)
+            }
+            return NextResponse.redirect(`${baseUrl}/instancias?ig_error=webhook_failed&detail=${encodeURIComponent(webhookErro)}`)
+        }
+        console.log(`[IG Callback] ✅ Webhook subscribed for page ${selectedPage.id}`)
 
         console.log(`[IG Callback] 🎉 Conectado: @${igUsername} (${igAccountId}) → clínica ${clinicaId}`)
 
-        return NextResponse.redirect(`${baseUrl}/instancias?ig_connected=true&ig_username=${igUsername}`)
+        return NextResponse.redirect(`${baseUrl}/instancias?ig_connected=true&ig_username=${encodeURIComponent(igUsername)}`)
 
     } catch (err: any) {
         console.error('[IG Callback] ❌ Erro:', err.message || err)
-        return NextResponse.redirect(`${baseUrl}/instancias?ig_error=server_error&detail=${encodeURIComponent(err.message || 'unknown')}`)
+        // Erro interno (banco, rede) fica no log; a tela mostra só a mensagem genérica
+        return NextResponse.redirect(`${baseUrl}/instancias?ig_error=server_error`)
     }
 }

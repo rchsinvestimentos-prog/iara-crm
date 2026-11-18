@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import UpgradeOverlay from '@/components/UpgradeOverlay';
-import { INSTAGRAM_HABILITADO } from '@/lib/planos';
 import { useT } from '@/components/IdiomaProvider';
+import WhatsAppOficialConexao from '@/components/WhatsAppOficialConexao';
 
 interface Instancia {
     id: number;
@@ -32,6 +32,11 @@ export default function ConexoesPage() {
     const [instancias, setInstancias] = useState<Instancia[]>([]);
     const [limites, setLimites] = useState<Limites>({ max_instancias_whatsapp: 1, max_instancias_instagram: 0 });
     const [plano, setPlano] = useState(1);
+    // Vem da API: aberto para todos depois da aprovação da Meta, ou só para as
+    // clínicas de teste antes disso.
+    const [instagramLiberado, setInstagramLiberado] = useState(false);
+    // Resultado da conexão do Instagram (o callback volta com ?ig_connected/?ig_error)
+    const [igAviso, setIgAviso] = useState<{ ok: boolean; texto: string } | null>(null);
     const [loading, setLoading] = useState(true);
     const [calendarConnected, setCalendarConnected] = useState(false);
     const [calendarId, setCalendarId] = useState('');
@@ -118,6 +123,7 @@ export default function ConexoesPage() {
             setInstancias(data.instancias || []);
             setLimites(data.limites || { max_instancias_whatsapp: 1, max_instancias_instagram: 0 });
             setPlano(data.plano || 1);
+            setInstagramLiberado(!!data.instagramLiberado);
             setCalendarConnected(!!data.calendarConnected);
             setCalendarId(data.calendarId || '');
             setAppleCalendarConnected(!!data.appleCalendarConnected);
@@ -127,6 +133,34 @@ export default function ConexoesPage() {
     }, []);
 
     useEffect(() => { fetchInstancias(); }, [fetchInstancias]);
+
+    // Volta do login do Facebook: antes o resultado (inclusive o erro) não
+    // aparecia em lugar nenhum e a clínica ficava sem saber o que houve.
+    useEffect(() => {
+        const p = new URLSearchParams(window.location.search);
+        const ok = p.get('ig_connected');
+        const erro = p.get('ig_error');
+        if (!ok && !erro) return;
+        if (ok) {
+            const usuario = p.get('ig_username');
+            setIgAviso({ ok: true, texto: usuario ? t('Instagram @{usuario} conectado! A IARA já responde as DMs.', { usuario }) : t('Instagram conectado! A IARA já responde as DMs.') });
+        } else {
+            const motivos: Record<string, string> = {
+                cancelled: 'A conexão foi cancelada no Facebook.',
+                missing_params: 'O Facebook não devolveu a autorização. Tente de novo.',
+                invalid_state: 'O link de conexão venceu ou é de outra conta. Clique em Conectar de novo.',
+                token_failed: 'O Facebook não confirmou a autorização. Tente de novo.',
+                no_pages: 'Nenhuma página do Facebook foi encontrada. O Instagram precisa estar ligado a uma página.',
+                no_ig_account: 'Nenhuma página tem um Instagram profissional ligado. Ligue o Instagram à página e tente de novo.',
+                webhook_failed: 'O Instagram foi autorizado, mas a Meta não liberou o recebimento das mensagens. Tente de novo.',
+                server_error: 'Erro ao concluir a conexão. Tente de novo.',
+            };
+            const detalhe = p.get('detail');
+            setIgAviso({ ok: false, texto: t(motivos[erro!] || 'Erro ao concluir a conexão. Tente de novo.') + (detalhe ? ` (${detalhe})` : '') });
+        }
+        // O endereço fica com ?ig_...: limpar com history.replaceState fazia o
+        // Next remontar a tela e o aviso sumia antes de aparecer.
+    }, [t]);
 
     // ==================== Verificar status real ao carregar ====================
 
@@ -566,62 +600,63 @@ export default function ConexoesPage() {
                 )}
             </div>
 
-            {/* ============ WhatsApp Oficial — anúncio, ainda não conectável ============ */}
-            {/* Card informativo: a integração com a API oficial da Meta está sendo
-                construída. Fica visível para a clínica saber que vem, sem prometer
-                data. Quando a integração entrar, este bloco vira o card de conexão. */}
-            <div style={{
-                background: '#fff', borderRadius: 20, padding: '24px 28px',
-                border: '1px dashed #cbd5e1', marginBottom: 16,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{
-                        width: 44, height: 44, borderRadius: 12,
-                        background: 'linear-gradient(135deg, #128C7E, #075E54)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 22, flexShrink: 0, opacity: 0.75
-                    }}>✅</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
-                            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>
-                                {t('WhatsApp Oficial')}
-                            </h2>
-                            <span style={{
-                                background: '#eef2f7', color: '#64748b',
-                                fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
-                                padding: '3px 9px', borderRadius: 999, textTransform: 'uppercase' as const,
-                                whiteSpace: 'nowrap' as const
-                            }}>{t('Em breve')}</span>
-                        </div>
-                        <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
-                            {t('Conexão direta com a Meta, com selo de empresa verificada')}
-                        </p>
-                    </div>
-                </div>
-
+            {/* ============ WhatsApp Oficial ============ */}
+            {/* Liberado (app da Meta aprovado ou clínica de teste): card de conexão.
+                Senão, o anúncio "Em breve" abaixo, sem prometer data. */}
+            <WhatsAppOficialConexao emBreve={
                 <div style={{
-                    marginTop: 18, paddingTop: 16, borderTop: '1px solid #f1f5f9',
-                    display: 'grid', gap: 10
+                    background: '#fff', borderRadius: 20, padding: '24px 28px',
+                    border: '1px dashed #cbd5e1', marginBottom: 16,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
                 }}>
-                    {[
-                        ['🛡️', 'Sem risco de bloqueio do número'],
-                        ['✅', 'Selo verde de empresa verificada no seu perfil'],
-                        ['📣', 'Envio de campanhas liberado pela própria Meta'],
-                    ].map(([icone, texto]) => (
-                        <div key={texto} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <span style={{ fontSize: 15, flexShrink: 0 }}>{icone}</span>
-                            <span style={{ fontSize: 13.5, color: '#475569' }}>{t(texto)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{
+                            width: 44, height: 44, borderRadius: 12,
+                            background: 'linear-gradient(135deg, #128C7E, #075E54)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 22, flexShrink: 0, opacity: 0.75
+                        }}>✅</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
+                                <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>
+                                    {t('WhatsApp Oficial')}
+                                </h2>
+                                <span style={{
+                                    background: '#eef2f7', color: '#64748b',
+                                    fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+                                    padding: '3px 9px', borderRadius: 999, textTransform: 'uppercase' as const,
+                                    whiteSpace: 'nowrap' as const
+                                }}>{t('Em breve')}</span>
+                            </div>
+                            <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
+                                {t('Conexão direta com a Meta, com selo de empresa verificada')}
+                            </p>
                         </div>
-                    ))}
-                </div>
+                    </div>
 
-                <p style={{
-                    margin: '16px 0 0', fontSize: 12.5, color: '#94a3b8', lineHeight: 1.5
-                }}>
-                    {t('Estamos em processo de aprovação junto à Meta. Você não precisa fazer nada agora — sua conexão atual continua funcionando normalmente, e avisaremos assim que puder migrar.')}
-                </p>
-            </div>
+                    <div style={{
+                        marginTop: 18, paddingTop: 16, borderTop: '1px solid #f1f5f9',
+                        display: 'grid', gap: 10
+                    }}>
+                        {[
+                            ['🛡️', 'Sem risco de bloqueio do número'],
+                            ['✅', 'Selo verde de empresa verificada no seu perfil'],
+                            ['📣', 'Envio de campanhas liberado pela própria Meta'],
+                        ].map(([icone, texto]) => (
+                            <div key={texto} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <span style={{ fontSize: 15, flexShrink: 0 }}>{icone}</span>
+                                <span style={{ fontSize: 13.5, color: '#475569' }}>{t(texto)}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    <p style={{
+                        margin: '16px 0 0', fontSize: 12.5, color: '#94a3b8', lineHeight: 1.5
+                    }}>
+                        {t('Estamos em processo de aprovação junto à Meta. Você não precisa fazer nada agora — sua conexão atual continua funcionando normalmente, e avisaremos assim que puder migrar.')}
+                    </p>
+                </div>
+            } />
 
             {/* ==================== Instagram ==================== */}
             <UpgradeOverlay
@@ -652,7 +687,7 @@ export default function ConexoesPage() {
                     <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#1e293b' }}>Instagram</h2>
-                            {!INSTAGRAM_HABILITADO && (
+                            {!instagramLiberado && (
                                 <span style={{
                                     background: '#eef2f7', color: '#64748b',
                                     fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
@@ -662,7 +697,7 @@ export default function ConexoesPage() {
                             )}
                         </div>
                         <p style={{ margin: '2px 0 0', fontSize: 13, color: '#94a3b8' }}>
-                            {!INSTAGRAM_HABILITADO
+                            {!instagramLiberado
                                 ? t('A IARA vai responder as DMs automaticamente')
                                 : temInstagram
                                     ? t(instagrams.length > 1 ? '{n} contas conectadas' : '{n} conta conectada', { n: instagrams.length })
@@ -670,7 +705,7 @@ export default function ConexoesPage() {
                             }
                         </p>
                     </div>
-                    {INSTAGRAM_HABILITADO && !temInstagram && podeAddInstagram && (
+                    {instagramLiberado && !temInstagram && podeAddInstagram && (
                         <button
                             onClick={conectarInstagram}
                             disabled={conectando}
@@ -685,6 +720,15 @@ export default function ConexoesPage() {
                         </button>
                     )}
                 </div>
+
+                {igAviso && (
+                    <div style={{
+                        margin: '0 0 12px', padding: '10px 14px', borderRadius: 12, fontSize: 13,
+                        background: igAviso.ok ? '#f0fdf4' : '#fef2f2',
+                        border: `1px solid ${igAviso.ok ? '#bbf7d0' : '#fecaca'}`,
+                        color: igAviso.ok ? '#166534' : '#b91c1c'
+                    }}>{igAviso.texto}</div>
+                )}
 
                 {/* Cards Instagram conectados */}
                 {instagrams.map(inst => {
@@ -706,7 +750,7 @@ export default function ConexoesPage() {
                                     {t(status.label)}
                                 </div>
                             </div>
-                            {INSTAGRAM_HABILITADO && inst.status_conexao !== 'conectado' && (
+                            {instagramLiberado && inst.status_conexao !== 'conectado' && (
                                 <button
                                     onClick={async () => {
                                         try {

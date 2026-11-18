@@ -19,6 +19,7 @@
 // Foto, vídeo e documento seguem direto: têm tratamento próprio no pipeline.
 
 import { prisma } from '@/lib/prisma'
+import { findClinicaByInstance } from './catraca'
 import { parseFuncionalidades } from './types'
 import type { MensagemRecebida } from './types'
 import * as audio from './audio'
@@ -74,10 +75,9 @@ async function garantirTabela(): Promise<void> {
 /** Segundos de espera configurados pela clínica, com limites de sanidade. */
 async function esperaDaClinica(instancia: string): Promise<number> {
     try {
-        const c = await prisma.clinica.findFirst({
-            where: { evolutionInstance: instancia },
-            select: { configuracoes: true },
-        })
+        // Mesma busca da catraca: acha também as instâncias da tela Conexões
+        // e os números do WhatsApp oficial, não só users.evolution_instance.
+        const c = await findClinicaByInstance(instancia)
         const cfg = (c?.configuracoes as Record<string, unknown>) || {}
         const bruto = Number(cfg.agrupar_segundos)
         if (!Number.isFinite(bruto)) return ESPERA_PADRAO_S
@@ -98,10 +98,7 @@ async function transcreverParaOLote(
     msg: MensagemRecebida
 ): Promise<{ texto: string; audioUrl: string | null } | null> {
     try {
-        const clinica = await prisma.clinica.findFirst({
-            where: { evolutionInstance: msg.instancia },
-            select: { id: true, funcionalidades: true, evolutionApikey: true, idioma: true },
-        })
+        const clinica = await findClinicaByInstance(msg.instancia)
         if (!clinica) return null
 
         const funcs = parseFuncionalidades(clinica.funcionalidades as string | null)
