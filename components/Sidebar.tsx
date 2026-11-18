@@ -62,6 +62,10 @@ export default function Sidebar() {
   const [nomeClinica, setNomeClinica] = useState('')
   const [nomePlano, setNomePlano] = useState<string>(nomeDoNivel(null))
   const [clinicas, setClinicas] = useState<ClinicaItem[]>([])
+  // Com uma clínica só, o botão da conta e o seletor de clínica mostravam o
+  // mesmo nome. Viram um botão só: nome da clínica + plano, abrindo o menu da
+  // conta. Quem tem várias clínicas continua com o seletor para trocar.
+  const contaEClinicaJuntas = !isProfissional && clinicas.length <= 1
   const [clinicaAtiva, setClinicaAtiva] = useState<number | null>(null)
   const [showClinicaDropdown, setShowClinicaDropdown] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -437,6 +441,8 @@ export default function Sidebar() {
                 {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : contaEClinicaJuntas && nomeClinica ? (
+                  <span>{nomeClinica.slice(0, 2).toUpperCase()}</span>
                 ) : (
                   <User size={15} />
                 )}
@@ -444,9 +450,11 @@ export default function Sidebar() {
 
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-[11px] font-semibold truncate" style={{ color: isDark ? '#E5E7EB' : '#0F4C61' }}>
-                  {(session?.user as any)?.name || session?.user?.email || t('Minha conta')}
+                  {(contaEClinicaJuntas && nomeClinica) || (session?.user as any)?.name || session?.user?.email || t('Minha conta')}
                 </p>
-                <p className="text-[9px]" style={{ color: isDark ? '#4B5563' : '#94A3B8' }}>{t('Configurações da conta')}</p>
+                <p className="text-[9px]" style={{ color: isDark ? '#4B5563' : '#94A3B8' }}>
+                  {contaEClinicaJuntas ? t('Plano {nome}', { nome: nomePlano }) : t('Configurações da conta')}
+                </p>
               </div>
 
               <ChevronUp
@@ -467,8 +475,8 @@ export default function Sidebar() {
             )}
           </div>
 
-          {/* Clinic Selector — não mostrar para profissional */}
-          {!isProfissional && <div className="relative">
+          {/* Seletor de clínica — só para quem tem mais de uma (nunca para profissional) */}
+          {!isProfissional && !contaEClinicaJuntas && <div className="relative">
             <button
               onClick={() => clinicas.length > 1 && setShowClinicaDropdown(!showClinicaDropdown)}
               className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-2 transition-all ${clinicas.length > 1 ? 'cursor-pointer hover:opacity-80' : ''}`}
